@@ -1,0 +1,1 @@
+python3 -m pip freeze | egrep "^(SQLAlchemy|nornir|Flask-RESTful)" > requirements.txt

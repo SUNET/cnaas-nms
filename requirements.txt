@@ -1,0 +1,4 @@
+Flask-RESTful==0.3.7
+nornir==2.0.0
+SQLAlchemy==1.3.0b2
+SQLAlchemy-Utils==0.33.11

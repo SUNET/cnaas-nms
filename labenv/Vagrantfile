@@ -1,0 +1,31 @@
+VEOS_BOX = "vEOS-lab-4.21-virtualbox"
+
+Vagrant.configure(2) do |config|
+
+  config.vm.define "eos" do |eos|
+    eos.vm.box = VEOS_BOX
+    eos.vm.network :forwarded_port, guest: 22, host: 12201, id: 'ssh'
+    eos.vm.network :forwarded_port, guest: 443, host: 12443, id: 'https'
+    eos.vm.network "public_network", bridge: "docker0", auto_config: false
+  end
+
+
+
+  config.ssh.insert_key = false
+  config.vm.define "vqfx" do |vqfx|
+    vqfx.vm.hostname = "vqfx"
+    vqfx.vm.box = 'juniper/vqfx10k-re'
+
+    # DO NOT REMOVE / NO VMtools installed
+    vqfx.vm.synced_folder '.', '/vagrant', disabled: true
+
+    # Management port (em1 / em2)
+    vqfx.vm.network 'private_network', auto_config: false, nic_type: '82540EM', virtualbox__intnet: "reserved-bridge"
+    vqfx.vm.network 'private_network', auto_config: false, nic_type: '82540EM', intnet: "reserved-bridge"
+
+    # (em3  em4)
+    vqfx.vm.network "public_network", bridge: "docker0", auto_config: false, nic_type: '82540EM'
+  end
+
+
+end

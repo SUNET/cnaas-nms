@@ -1,6 +1,7 @@
 # CNaaS
 src/nornir.log
 .vagrant/
+*.swp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -2,7 +2,7 @@
 
 import yaml
 
-with open('database.yml', 'r') as db_file:
+with open('/etc/cnaas-nms/db_config.yml', 'r') as db_file:
     db_data = yaml.load(db_file)
 
 print(db_data)
@@ -17,9 +17,9 @@ engine = create_engine(conn_str)
 
 connection = engine.connect()
 
-from cmdb.base import Base
-from cmdb.device import Device, DeviceType, DeviceState
-from cmdb.site import Site
+from cnaas_nms.cmdb.base import Base
+from cnaas_nms.cmdb.device import Device, DeviceType, DeviceState
+from cnaas_nms.cmdb.site import Site
 
 print(Device.__table__)
 print(Site.__table__)

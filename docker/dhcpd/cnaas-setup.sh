@@ -27,3 +27,10 @@ rm -rf /var/lib/apt/lists/*
 python3 -m venv /opt/cnaas/venv
 
 /opt/cnaas/venv/bin/pip install -U pip
+
+cd /opt/cnaas/venv/
+source bin/activate
+git clone https://github.com/SUNET/cnaas-nms.git
+cd cnaas-nms/
+python3 -m pip install -r requirements.txt
+

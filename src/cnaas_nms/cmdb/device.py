@@ -3,6 +3,7 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 
 from sqlalchemy_utils import IPAddressType
+import ipaddress
 
 import enum
 
@@ -40,3 +41,19 @@ class Device(cnaas_nms.cmdb.base.Base):
     platform = Column(String(64))
     state = Column(Enum(DeviceState))
     device_type = Column(Enum(DeviceType))
+
+    def as_dict(self):
+        """Return JSON serializable dict."""
+        d = {}
+        for col in self.__table__.columns:
+            value = getattr(self, col.name)
+            if issubclass(value.__class__, enum.Enum):
+                value = value.value
+            elif issubclass(value.__class__, cnaas_nms.cmdb.base.Base):
+                continue
+            elif issubclass(value.__class__, ipaddress.IPv4Address):
+                value = str(value)
+            d[col.name] = value
+        return d
+
+

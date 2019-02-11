@@ -1,3 +1,6 @@
+import netaddr
+
 def canonical_mac(mac):
-    #TODO: use something better.. netaddr?
-    return mac.replace(':', '').replace('-', '').replace('.','').upper()
+    na_mac = netaddr.EUI(mac)
+    na_mac.dialect = netaddr.mac_bare
+    return str(na_mac)

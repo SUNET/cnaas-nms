@@ -36,6 +36,7 @@ class Device(cnaas_nms.cmdb.base.Base):
     site = relationship("Site")
     description = Column(Unicode(255))
     management_ip = Column(IPAddressType)
+    dhcp_ip = Column(IPAddressType)
     serial = Column(String(64))
     ztp_mac = Column(String(12))
     platform = Column(String(64))

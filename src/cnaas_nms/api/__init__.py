@@ -13,7 +13,6 @@ api = Api(app)
 
 def build_filter(f_class, query):
     args = request.args
-    print(args)
     if not 'filter' in args:
         return query
     split = args['filter'].split(',')
@@ -27,16 +26,40 @@ def build_filter(f_class, query):
     kwargs = {attribute: value}
     return query.filter_by(**kwargs)
 
+def empty_result(status='success', data=None):
+    if status == 'success':
+        return {
+            'status': status,
+            'data': None
+        }
+    elif status == 'error':
+        return {
+            'status': status,
+            'message': data if data else "Unknown error"
+        }
+
 class DeviceByIdApi(Resource):
     def get(self, device_id):
-        result = []
+        result = empty_result()
+        result['data'] = {'devices': []}
         with session_scope() as session:
             instance = session.query(Device).filter(Device.id == device_id).first()
             if instance:
-                result.append(instance.as_dict())
+                result['data']['devices'].append(instance.as_dict())
             else:
-                return [], 404
+                return empty_result('error', "Device not found"), 404
         return result
+
+    def delete(self, device_id):
+        with session_scope() as session:
+            instance = session.query(Device).filter(Device.id == device_id).first()
+            if instance:
+                session.delete(instance)
+                session.commit()
+                return empty_result(), 204
+            else:
+                return empty_result('error', "Device not found"), 404
+
 
 class DevicesApi(Resource):
     def get(self):

@@ -57,6 +57,8 @@ class Device(cnaas_nms.cmdb.base.Base):
                 continue
             elif issubclass(value.__class__, ipaddress.IPv4Address):
                 value = str(value)
+            elif issubclass(value.__class__, datetime.datetime):
+                value = str(value)
             d[col.name] = value
         return d
 

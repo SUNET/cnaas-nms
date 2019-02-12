@@ -24,6 +24,6 @@ if sys.argv[1] == "commit":
             new_device.dhcp_ip = dhcp_ip
             new_device.hostname = ztp_mac
             new_device.platform = platform
-            new_device.state = DeviceState.DISCOVERED
+            new_device.state = DeviceState.DHCP_BOOT
             session.add(new_device)
         #TODO: if entry exists, log error?

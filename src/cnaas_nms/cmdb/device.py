@@ -42,8 +42,8 @@ class Device(cnaas_nms.cmdb.base.Base):
     serial = Column(String(64))
     ztp_mac = Column(String(12))
     platform = Column(String(64))
-    state = Column(Enum(DeviceState))
-    device_type = Column(Enum(DeviceType))
+    state = Column(Enum(DeviceState), nullable=False, default=DeviceState.UNKNOWN.value)
+    device_type = Column(Enum(DeviceType), nullable=False, default=DeviceType.UNKNOWN.value)
     last_seen = Column(DateTime, default=datetime.datetime.now)
 
     def as_dict(self):

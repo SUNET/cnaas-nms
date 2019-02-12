@@ -1,6 +1,6 @@
 from nornir.core.deserializer.inventory import Inventory
 
-from cnaas_nms.cmdb.device import Device
+from cnaas_nms.cmdb.device import Device, DeviceType, DeviceState
 import cnaas_nms.cmdb.session
 
 class CnaasInventory(Inventory):
@@ -12,7 +12,10 @@ class CnaasInventory(Inventory):
                     'data': {
                         'platform': instance.platform
                     },
-                    'groups': []
+                    'groups': [
+                        'T_'+instance.device_type.name,
+                        'S_'+instance.state.name
+                    ]
                 }
         groups = {
             'global': {
@@ -21,6 +24,10 @@ class CnaasInventory(Inventory):
                 }
             }
         }
+        for device_type in list(DeviceType.__members__):
+            groups['T_'+device_type] = {}
+        for device_type in list(DeviceState.__members__):
+            groups['S_'+device_type] = {}
         defaults = {'data': {'k': 'v'} }
         super().__init__(hosts=hosts, groups=groups, defaults=defaults, **kwargs)
 

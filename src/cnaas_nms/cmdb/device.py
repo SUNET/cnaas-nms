@@ -1,22 +1,24 @@
-from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint, Enum
+from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint, Enum, DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 
 from sqlalchemy_utils import IPAddressType
 import ipaddress
-
+import datetime
 import enum
 
 import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site
 
 class DeviceState(enum.Enum):
-    UNKNOWN = 0
-    PRE_CONFIGURED = 1
-    DISCOVERED = 2
-    INIT = 3
-    MANAGED = 4
-    UNMANAGED = 5
+    UNKNOWN = 0        # Unhandled programming error
+    PRE_CONFIGURED = 1 # Pre-populated, not seen yet
+    DHCP_BOOT = 2      # Something booted via DHCP, unknown device
+    DISCOVERED = 3     # Something booted with base config, temp ssh access for conf push
+    INIT = 4           # Moving to management VLAN, applying base template
+    MANAGED = 5        # Correct managament and accessible via conf push
+    MANAGED_NOIF = 6   # Only base system template managed, no interfaces?
+    UNMANAGED = 99     # Device no longer maintained by conf push
 
 class DeviceType(enum.Enum):
     UNKNOWN = 0
@@ -42,6 +44,7 @@ class Device(cnaas_nms.cmdb.base.Base):
     platform = Column(String(64))
     state = Column(Enum(DeviceState))
     device_type = Column(Enum(DeviceType))
+    last_seen = Column(DateTime, default=datetime.datetime.now)
 
     def as_dict(self):
         """Return JSON serializable dict."""

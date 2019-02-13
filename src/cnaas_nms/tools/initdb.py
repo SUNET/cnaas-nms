@@ -47,7 +47,6 @@ td.description = 'Test device!'
 td.hostname = 'testdevice'
 td.management_ip = '1.2.3.4'
 td.platform = 'eos'
-td.serial = ''
 td.site = t
 td.state = DeviceState.UNKNOWN
 td.device_type = DeviceType.UNKNOWN

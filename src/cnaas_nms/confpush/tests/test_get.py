@@ -1,10 +1,17 @@
 import cnaas_nms.confpush.get
 
 import pprint
-
 import unittest
+import pkg_resources
+import yaml
+import os
 
 class GetTests(unittest.TestCase):
+    def setUp(self):
+        data_dir = pkg_resources.resource_filename(__name__, 'data')
+        with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
+            self.testdata = yaml.load(f_testdata)
+
     def test_get_inventory(self):
         result = cnaas_nms.confpush.get.get_inventory()
         pprint.pprint(result)
@@ -17,6 +24,13 @@ class GetTests(unittest.TestCase):
             1,
             len(result['hosts'].items()))
 
+    def test_get_facts(self):
+        result = cnaas_nms.confpush.get.get_facts(group='S_DHCP_BOOT')
+        pprint.pprint(result)
+
+    def test_update_inventory(self):
+        diff = cnaas_nms.confpush.get.update_inventory(self.testdata['update_hostname'])
+        pprint.pprint(diff)
 
 if __name__ == '__main__':
     unittest.main()

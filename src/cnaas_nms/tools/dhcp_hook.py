@@ -2,7 +2,7 @@
 
 import sys
 
-from cnaas_nms.cmdb.device import Device, DeviceState
+from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
 from cnaas_nms.cmdb.session import session_scope
 import cnaas_nms.cmdb.helper
 
@@ -22,8 +22,9 @@ if sys.argv[1] == "commit":
             new_device = Device()
             new_device.ztp_mac = ztp_mac
             new_device.dhcp_ip = dhcp_ip
-            new_device.hostname = ztp_mac
+            new_device.hostname = f'mac-{ztp_mac}'
             new_device.platform = platform
             new_device.state = DeviceState.DHCP_BOOT
+            new_device.device_type = DeviceType.UNKNOWN
             session.add(new_device)
         #TODO: if entry exists, log error?

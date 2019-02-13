@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint, Enum, DateTime
+from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
+from sqlalchemy import Enum, DateTime, Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 
@@ -30,7 +31,7 @@ class Device(cnaas_nms.cmdb.base.Base):
     __tablename__ = 'device'
     __table_args__ = (
         None,
-        UniqueConstraint('hostname', 'site_id'),
+        UniqueConstraint('hostname'),
     )
     id = Column(Integer, autoincrement=True, primary_key=True)
     hostname = Column(String(64), nullable=False)
@@ -42,8 +43,12 @@ class Device(cnaas_nms.cmdb.base.Base):
     serial = Column(String(64))
     ztp_mac = Column(String(12))
     platform = Column(String(64))
-    state = Column(Enum(DeviceState), nullable=False, default=DeviceState.UNKNOWN.value)
-    device_type = Column(Enum(DeviceType), nullable=False, default=DeviceType.UNKNOWN.value)
+    vendor = Column(String(64))
+    model = Column(String(64))
+    os_version = Column(String(64))
+    synchronized = Column(Boolean, default=False)
+    state = Column(Enum(DeviceState), nullable=False)
+    device_type = Column(Enum(DeviceType), nullable=False)
     last_seen = Column(DateTime, default=datetime.datetime.now)
 
     def as_dict(self):

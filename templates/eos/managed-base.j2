@@ -1,0 +1,16 @@
+hostname {{ host }}
+{% for uplink in uplinks %}
+interface {{ uplink.ifname }}
+ switchport
+ switchport mode trunk
+ channel-group 1 mode active
+ description UPLINK
+{% endfor %}
+interface port-channel 1
+ description UPLINK
+vlan {{ mgmt_vlan_id }}
+interface vlan {{ mgmt_vlan_id }}
+ no shutdown
+ ip address {{ mgmt_ip }}
+ip route 0.0.0.0 0.0.0.0 {{ mgmt_gw }}
+

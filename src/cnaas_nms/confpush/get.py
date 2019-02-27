@@ -39,6 +39,29 @@ def get_facts(hostname=None, group=None):
 
     return result
 
+def get_neighbors(hostname=None, group=None):
+    """Get neighbor information from device
+
+    Args:
+        hostname (str): Optional hostname of device to query
+        group (str): Optional group of devices to query
+
+    Returns:
+        Nornir result object
+    """
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    if hostname:
+        nr_filtered = nr.filter(name=hostname)
+    elif group:
+        nr_filtered = nr.filter(F(groups__contains=group))
+    else:
+        nr_filtered = nr
+
+    result = nr_filtered.run(task=networking.napalm_get, getters=["lldp_neighbors"])
+    print_result(result)
+
+    return result
+
 def update_inventory(hostname, site='default'):
     """Update CMDB inventory with information gathered from device.
 

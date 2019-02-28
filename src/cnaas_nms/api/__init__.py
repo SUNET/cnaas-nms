@@ -6,6 +6,7 @@ from flask_restful import Resource, Api
 import yaml
 from ast import literal_eval
 from cnaas_nms.cmdb.device import Device
+from cnaas_nms.cmdb.netlink import Netlink
 from cnaas_nms.cmdb.session import session_scope
 
 app = Flask(__name__)
@@ -72,7 +73,16 @@ class DevicesApi(Resource):
                 result.append(instance.as_dict())
         return result
 
-
 api.add_resource(DeviceByIdApi, '/api/v1.0/device/<int:device_id>')
 api.add_resource(DevicesApi, '/api/v1.0/device')
 
+class NetlinksApi(Resource):
+    def get(self):
+        result = []
+        with session_scope() as session:
+            query = session.query(Netlink)
+            for instance in query:
+                result.append(instance.as_dict())
+        return result
+
+api.add_resource(NetlinksApi, '/api/v1.0/netlink')

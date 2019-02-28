@@ -20,9 +20,11 @@ connection = engine.connect()
 from cnaas_nms.cmdb.base import Base
 from cnaas_nms.cmdb.device import Device, DeviceType, DeviceState
 from cnaas_nms.cmdb.site import Site
+from cnaas_nms.cmdb.netlink import Netlink
 
 print(Device.__table__)
 print(Site.__table__)
+print(Netlink.__table__)
 
 print(Base.metadata.create_all(engine))
 
@@ -56,3 +58,6 @@ session.add(td)
 print(session.new)
 
 session.commit()
+
+
+

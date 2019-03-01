@@ -11,8 +11,8 @@ import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site
 import cnaas_nms.cmdb.device
 
-class Netlink(cnaas_nms.cmdb.base.Base):
-    __tablename__ = 'netlink'
+class Linknet(cnaas_nms.cmdb.base.Base):
+    __tablename__ = 'linknet'
     __table_args__ = (
         None,
         UniqueConstraint('device_a_id', 'device_a_port'),

@@ -33,7 +33,7 @@ class GetTests(unittest.TestCase):
         pprint.pprint(diff)
 
     def test_update_links(self):
-        new_links = cnaas_nms.confpush.get.update_links(self.testdata['update_hostname'])
+        new_links = cnaas_nms.confpush.get.update_linknets(self.testdata['update_hostname'])
         pprint.pprint(new_links)
 
 if __name__ == '__main__':

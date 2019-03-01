@@ -10,6 +10,7 @@ import enum
 
 import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site
+from cnaas_nms.cmdb.linknet import Linknet
 
 class DeviceState(enum.Enum):
     UNKNOWN = 0        # Unhandled programming error
@@ -67,4 +68,27 @@ class Device(cnaas_nms.cmdb.base.Base):
             d[col.name] = value
         return d
 
+    def get_neighbors(self, session):
+        """Look up neighbors from Linknets and return them as a list of Device objects."""
+        linknets = self.get_linknets(session)
+        ret = []
+        for linknet in linknets:
+            if linknet.device_a_id == self.id:
+                ret.append(session.query(Device).filter(Device.id == linknet.device_b_id).one())
+            else:
+                ret.append(session.query(Device).filter(Device.id == linknet.device_a_id).one())
+        return ret
+
+    def get_linknets(self, session):
+        """Look up linknets and return a list of Linknet objects."""
+        ret = []
+        linknets = session.query(Linknet).\
+            filter(
+                (Linknet.device_a_id == self.id)
+                |
+                (Linknet.device_b_id == self.id)
+            )
+        for linknet in linknets:
+            ret.append(linknet)
+        return ret
 

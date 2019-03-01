@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 
 import sys
-
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
-from cnaas_nms.cmdb.session import session_scope
-from ipaddress import IPv4Address
-import cnaas_nms.cmdb.helper
-
 import unittest
 import pkg_resources
 import yaml
 import os
 import pprint
+
+from ipaddress import IPv4Address
+
+import cnaas_nms.cmdb.helper
+from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
+from cnaas_nms.cmdb.session import session_scope
+from cnaas_nms.cmdb.linknet import Linknet
 
 class DeviceTests(unittest.TestCase):
     def setUp(self):
@@ -49,6 +50,22 @@ class DeviceTests(unittest.TestCase):
                 session.commit()
             else:
                 print('Device not found: ')
+
+    def test_get_device_linknets(self):
+        hostname = self.testdata['query_neighbor_device']
+        with session_scope() as session:
+            d = session.query(Device).filter(Device.hostname == hostname).one()
+            for linknet in d.get_linknets(session):
+                self.assertIsInstance(linknet, Linknet)
+                pprint.pprint(linknet.as_dict())
+
+    def test_get_device_neighbors(self):
+        hostname = self.testdata['query_neighbor_device']
+        with session_scope() as session:
+            d = session.query(Device).filter(Device.hostname == hostname).one()
+            for nei in d.get_neighbors(session):
+                self.assertIsInstance(nei, Device)
+                pprint.pprint(nei.as_dict())
 
 if __name__ == '__main__':
     unittest.main()

@@ -9,6 +9,7 @@ from nornir.plugins.functions.text import print_title, print_result
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.cmdb.session import session_scope
 from cnaas_nms.cmdb.device import Device
+from cnaas_nms.scheduler.scheduler import Scheduler
 
 import datetime
 
@@ -19,6 +20,10 @@ def push_base_management(task):
         'mgmt_ip': '10.0.6.10/24',
         'mgmt_gw': '10.0.6.1'
     }
+    print("DEBUG1: "+task.host.name)
+    #TODO: find uplinks automatically
+    #TODO: check compatability, same dist pair and same ports on dists
+    #TODO: query mgmt vlan, ip, gw for dist pair
 
     r = task.run(task=text.template_file,
                  name="Base management",
@@ -26,28 +31,46 @@ def push_base_management(task):
                  path=f"../templates/{task.host.platform}",
                  **template_vars)
 
+    #TODO: Handle template not found, variables not defined
+
     task.host["config"] = r.result
 
     task.run(task=networking.napalm_configure,
              name="Push base management config",
              replace=False,
-             configuration=task.host["config"])
+             configuration=task.host["config"],
+             dry_run=True # TODO: temp for testing
+             )
 
 def init_access_device(hostname=None):
-    """Get neighbor information from device
+    """Initialize access device for management by CNaaS-NMS
 
     Args:
-        hostname (str): Optional hostname of device to query
+        hostname (str): Hostname of device to initialize
 
     Returns:
         Nornir result object
     """
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    nr_filtered = nr.filter(name=hostname)
+    #TODO: step1. update device state
 
-    result = nr_filtered.run(task=push_base_management)
+    # step2. push management config
+#    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+#    nr_filtered = nr.filter(name=hostname)
 
-    print_result(result)
+#    result = nr_filtered.run(task=push_base_management)
 
-    return result
+#    print_result(result)
+    # expect connection lost
 
+    # step3. register apscheduler job that continues steps
+
+    scheduler = Scheduler()
+    job = scheduler.add_job(init_access_device_step2, trigger=None, id='1', kwargs={'hostname':'debug2'})
+    print(f"Job ID {job.id} scheduled")
+
+    # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
+
+#    return result
+
+def init_access_device_step2(hostname=None):
+    print(f"step2: { hostname }")

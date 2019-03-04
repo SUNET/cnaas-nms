@@ -86,3 +86,7 @@ class LinknetsApi(Resource):
         return result
 
 api.add_resource(LinknetsApi, '/api/v1.0/linknet')
+
+class DeviceInit(Resource):
+    def post(self):
+        pass

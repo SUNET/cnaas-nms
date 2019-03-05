@@ -15,7 +15,7 @@ class CnaasInventory(Inventory):
 
     def __init__(self, **kwargs):
         hosts = {}
-        with cnaas_nms.cmdb.session.session_scope() as session:
+        with cnaas_nms.cmdb.session.sqla_session() as session:
             for instance in session.query(Device):
                 hosts[instance.hostname] = {
                     'platform': instance.platform,

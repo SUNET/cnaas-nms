@@ -7,6 +7,7 @@ from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
 import cnaas_nms.cmdb.session 
+from cnaas_nms.scheduler.jobtracker import Jobtracker
 
 class SingletonType(type):
     _instances = {}
@@ -55,10 +56,11 @@ class Scheduler(object, metaclass=SingletonType):
         return self._scheduler.add_job(func, **kwargs)
 
     def add_onetime_job(self, func, when, **kwargs):
-        # id = jobtracker newjob
+        job = Jobtracker()
+        id = job.create()
         # when = datetime calculated from now?
-        kwargs['id': id]
-        kwargs['func': func]
-        return self._scheduler.add_job(job_wrapper, trigger=when, **kwargs)
+        when = None
+        kwargs['job_id'] = id
+        return self._scheduler.add_job(func, kwargs=kwargs)
 
 

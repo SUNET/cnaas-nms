@@ -7,9 +7,10 @@ from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_title, print_result
 
 import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.cmdb.session import session_scope
+from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.cmdb.device import Device
 from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.scheduler.wrapper import job_wrapper
 
 import datetime
 
@@ -65,12 +66,15 @@ def init_access_device(hostname=None):
     # step3. register apscheduler job that continues steps
 
     scheduler = Scheduler()
-    job = scheduler.add_job(init_access_device_step2, trigger=None, id='1', kwargs={'hostname':'debug2'})
+#    job = scheduler.add_job(init_access_device_step2, trigger=None, id='1', kwargs={'hostname':'debug2'})
+    job = scheduler.add_onetime_job(init_access_device_step2, None, kwargs={'hostname':'debug2'})
     print(f"Job ID {job.id} scheduled")
 
     # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
 
 #    return result
 
+@job_wrapper
 def init_access_device_step2(hostname=None):
     print(f"step2: { hostname }")
+    return 'debug3'

@@ -1,1 +1,1 @@
-python3 -m pip freeze | egrep "^(SQLAlchemy|nornir|Flask-RESTful)" > requirements.txt
+python3 -m pip freeze | egrep "^(SQLAlchemy|nornir|Flask-RESTful|APScheduler|pymongo|psycopg2)" > requirements.txt

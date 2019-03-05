@@ -11,7 +11,7 @@ from ipaddress import IPv4Address
 
 import cnaas_nms.cmdb.helper
 from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
-from cnaas_nms.cmdb.session import session_scope
+from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.cmdb.linknet import Linknet
 
 class DeviceTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class DeviceTests(unittest.TestCase):
             self.testdata = yaml.load(f_testdata)
 
     def test_add_dist_device(self):
-        with session_scope() as session:
+        with sqla_session() as session:
             #TODO: get params from testdata.yml
             new_device = Device()
             new_device.ztp_mac = '08002708a8be'
@@ -43,7 +43,7 @@ class DeviceTests(unittest.TestCase):
         #    len(result['hosts'].items()))
 
     def test_delete_dist_device(self):
-        with session_scope() as session:
+        with sqla_session() as session:
             instance = session.query(Device).filter(Device.hostname == 'eosdist').first()
             if instance:
                 session.delete(instance)
@@ -53,7 +53,7 @@ class DeviceTests(unittest.TestCase):
 
     def test_get_device_linknets(self):
         hostname = self.testdata['query_neighbor_device']
-        with session_scope() as session:
+        with sqla_session() as session:
             d = session.query(Device).filter(Device.hostname == hostname).one()
             for linknet in d.get_linknets(session):
                 self.assertIsInstance(linknet, Linknet)
@@ -61,7 +61,7 @@ class DeviceTests(unittest.TestCase):
 
     def test_get_device_neighbors(self):
         hostname = self.testdata['query_neighbor_device']
-        with session_scope() as session:
+        with sqla_session() as session:
             d = session.query(Device).filter(Device.hostname == hostname).one()
             for nei in d.get_neighbors(session):
                 self.assertIsInstance(nei, Device)

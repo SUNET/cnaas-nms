@@ -3,7 +3,7 @@
 import sys
 
 from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
-from cnaas_nms.cmdb.session import session_scope
+from cnaas_nms.cmdb.session import sqla_session
 import cnaas_nms.cmdb.helper
 
 if len(sys.argv) < 3:
@@ -16,7 +16,7 @@ if sys.argv[1] == "commit":
     except Exception as e:
         print(str(e))
         sys.exit(2)
-    with session_scope() as session:
+    with sqla_session() as session:
         db_entry = session.query(Device).filter(Device.ztp_mac==ztp_mac).first()
         if not db_entry:
             new_device = Device()

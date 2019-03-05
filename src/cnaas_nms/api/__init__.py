@@ -7,7 +7,7 @@ import yaml
 from ast import literal_eval
 from cnaas_nms.cmdb.device import Device
 from cnaas_nms.cmdb.linknet import Linknet
-from cnaas_nms.cmdb.session import session_scope
+from cnaas_nms.cmdb.session import sqla_session
 
 app = Flask(__name__)
 api = Api(app)
@@ -43,7 +43,7 @@ class DeviceByIdApi(Resource):
     def get(self, device_id):
         result = empty_result()
         result['data'] = {'devices': []}
-        with session_scope() as session:
+        with sqla_session() as session:
             instance = session.query(Device).filter(Device.id == device_id).first()
             if instance:
                 result['data']['devices'].append(instance.as_dict())
@@ -52,7 +52,7 @@ class DeviceByIdApi(Resource):
         return result
 
     def delete(self, device_id):
-        with session_scope() as session:
+        with sqla_session() as session:
             instance = session.query(Device).filter(Device.id == device_id).first()
             if instance:
                 session.delete(instance)
@@ -66,7 +66,7 @@ class DevicesApi(Resource):
     def get(self):
         result = []
         filter_exp = None
-        with session_scope() as session:
+        with sqla_session() as session:
             query = session.query(Device)
             query = build_filter(Device, query)
             for instance in query:
@@ -79,7 +79,7 @@ api.add_resource(DevicesApi, '/api/v1.0/device')
 class LinknetsApi(Resource):
     def get(self):
         result = []
-        with session_scope() as session:
+        with sqla_session() as session:
             query = session.query(Linknet)
             for instance in query:
                 result.append(instance.as_dict())

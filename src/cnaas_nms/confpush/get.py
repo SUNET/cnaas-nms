@@ -7,7 +7,7 @@ from nornir.plugins.tasks import networking
 from nornir.plugins.functions.text import print_result
 
 import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.cmdb.session import session_scope
+from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.cmdb.device import Device
 from cnaas_nms.cmdb.linknet import Linknet
 
@@ -80,7 +80,7 @@ def update_inventory(hostname, site='default'):
     if result.failed == True:
         raise Exception
     facts = result.result['facts']
-    with session_scope() as session:
+    with sqla_session() as session:
         d = session.query(Device).\
             filter(Device.hostname == hostname).\
             one()
@@ -114,7 +114,7 @@ def update_linknets(hostname):
 
     ret = []
 
-    with session_scope() as session:
+    with sqla_session() as session:
         local_device_inst = session.query(Device).filter(Device.hostname == hostname).one()
         print(local_device_inst.id)
 

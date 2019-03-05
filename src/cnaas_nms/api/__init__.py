@@ -5,7 +5,7 @@ from flask_restful import Resource, Api
 
 import yaml
 from ast import literal_eval
-from cnaas_nms.cmdb.device import Device
+from cnaas_nms.cmdb.device import Device, DeviceState
 from cnaas_nms.cmdb.linknet import Linknet
 from cnaas_nms.cmdb.session import sqla_session
 
@@ -44,7 +44,7 @@ class DeviceByIdApi(Resource):
         result = empty_result()
         result['data'] = {'devices': []}
         with sqla_session() as session:
-            instance = session.query(Device).filter(Device.id == device_id).first()
+            instance = session.query(Device).filter(Device.id == device_id).one()
             if instance:
                 result['data']['devices'].append(instance.as_dict())
             else:
@@ -53,13 +53,32 @@ class DeviceByIdApi(Resource):
 
     def delete(self, device_id):
         with sqla_session() as session:
-            instance = session.query(Device).filter(Device.id == device_id).first()
+            instance = session.query(Device).filter(Device.id == device_id).one()
             if instance:
                 session.delete(instance)
                 session.commit()
                 return empty_result(), 204
             else:
                 return empty_result('error', "Device not found"), 404
+
+    def put(self, device_id):
+        json_data = request.get_json()
+        data = {}
+        if 'state' in json_data:
+            try:
+                state_int = int(json_data['state'])
+            except:
+                pass
+            else:
+                if DeviceState.has_value(state_int):
+                    data['state'] = DeviceState(state_int)
+        with sqla_session() as session:
+            instance = session.query(Device).filter(Device.id == device_id).one()
+            if instance:
+                #TODO: auto loop through class members and match
+                if 'state' in data:
+                    instance.state = data['state']
+
 
 
 class DevicesApi(Resource):

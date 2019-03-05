@@ -8,7 +8,7 @@ from nornir.plugins.functions.text import print_title, print_result
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.cmdb.session import sqla_session
-from cnaas_nms.cmdb.device import Device
+from cnaas_nms.cmdb.device import Device, DeviceState, DeviceStateException
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 
@@ -51,8 +51,16 @@ def init_access_device(hostname=None):
 
     Returns:
         Nornir result object
+
+    Raises:
+        DeviceStateException
     """
-    #TODO: step1. update device state
+    with sqla_session() as session:
+        dev = session.query(Device).filter(Device.hostname == hostname).one()
+        if dev.state != DeviceState.DISCOVERED:
+            raise DeviceStateException("Device must be in state DISCOVERED to begin init")
+        #TODO: more checks?
+        dev.state = DeviceState.INIT
 
     # step2. push management config
 #    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
@@ -66,15 +74,16 @@ def init_access_device(hostname=None):
     # step3. register apscheduler job that continues steps
 
     scheduler = Scheduler()
-#    job = scheduler.add_job(init_access_device_step2, trigger=None, id='1', kwargs={'hostname':'debug2'})
-    job = scheduler.add_onetime_job(init_access_device_step2, None, kwargs={'hostname':'debug2'})
+    job = scheduler.add_onetime_job(init_access_device_step2,
+                                    when=1,
+                                    kwargs={'hostname':hostname})
     print(f"Job ID {job.id} scheduled")
-
-    # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
+    #TODO: trigger more jobs later with more delays? cancel if first succeeds
 
 #    return result
 
 @job_wrapper
 def init_access_device_step2(hostname=None):
+    # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
     print(f"step2: { hostname }")
     return 'debug3'

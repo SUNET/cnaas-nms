@@ -1,5 +1,8 @@
-from pytz import utc
 import inspect
+import datetime
+from pytz import utc
+from typing import Optional
+from types import FunctionType
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -55,12 +58,24 @@ class Scheduler(object, metaclass=SingletonType):
     def add_job(self, func, **kwargs):
         return self._scheduler.add_job(func, **kwargs)
 
-    def add_onetime_job(self, func, when, **kwargs):
+    def add_onetime_job(self, func: FunctionType, when: Optional[int]=None, **kwargs):
+        """Schedule a job to run at a later time.
+
+        Args:
+            func: The function to call
+            when: Optional number of seconds to wait before starting job
+            **kwargs: Arguments to pass through to called function
+        Returns:
+            apscheduler.job.Job
+        """
         job = Jobtracker()
         id = job.create()
-        # when = datetime calculated from now?
-        when = None
+        if when and isinstance(when, int):
+            trigger = 'date'
+            run_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=when)
+        else:
+            trigger = None
+            run_date = None
         kwargs['job_id'] = id
-        return self._scheduler.add_job(func, kwargs=kwargs)
-
+        return self._scheduler.add_job(func, trigger=trigger, kwargs=kwargs, run_date=run_date)
 

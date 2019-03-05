@@ -12,6 +12,12 @@ import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site
 from cnaas_nms.cmdb.linknet import Linknet
 
+class DeviceException(Exception):
+    pass
+
+class DeviceStateException(DeviceException):
+    pass
+
 class DeviceState(enum.Enum):
     UNKNOWN = 0        # Unhandled programming error
     PRE_CONFIGURED = 1 # Pre-populated, not seen yet
@@ -21,6 +27,10 @@ class DeviceState(enum.Enum):
     MANAGED = 5        # Correct managament and accessible via conf push
     MANAGED_NOIF = 6   # Only base system template managed, no interfaces?
     UNMANAGED = 99     # Device no longer maintained by conf push
+
+    @classmethod
+    def has_value(cls, value):
+        return any(value == item.value for item in cls)
 
 class DeviceType(enum.Enum):
     UNKNOWN = 0

@@ -4,6 +4,8 @@ import datetime
 
 from cnaas_nms.cmdb.session import mongo_db
 
+from typing import Optional
+
 class Jobtracker(object):
     def __init__(self):
         self.id = ''
@@ -31,7 +33,7 @@ class Jobtracker(object):
             #self.finish_time = data['finish_time']
             self.status = data['status']
 
-    def start(self):
+    def start(self, fname: str):
         self.start_time = datetime.datetime.utcnow()
         self.status = 'running'
         with mongo_db() as db:
@@ -42,16 +44,21 @@ class Jobtracker(object):
                     "$set":
                     {
                         'start_time': self.start_time,
+                        'function_name': fname,
                         'status': self.status
                     }
                 }
             )
 
-    def finish_success(self, res: dict):
+    def finish_success(self, res: dict, next_job_id: Optional[str]):
         self.finish_time = datetime.datetime.utcnow()
-        self.result = bson.json_util.dumps(res)
+        try:
+            self.result = bson.json_util.dumps(res)
+        except:
+            self.result = 'unserializable'
         self.status = 'finished'
         with mongo_db() as db:
+            print(f"DEBUG11 {self.id}")
             jobs = db['jobs']
             jobs.update_one(
                 {'_id': self.id},
@@ -60,7 +67,8 @@ class Jobtracker(object):
                     {
                         'finish_time': self.finish_time,
                         'status': self.status,
-                        'result': self.result
+                        'result': self.result,
+                        'next_job_id': next_job_id
                     }
                 }
             )

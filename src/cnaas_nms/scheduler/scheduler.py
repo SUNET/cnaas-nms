@@ -77,5 +77,6 @@ class Scheduler(object, metaclass=SingletonType):
             trigger = None
             run_date = None
         kwargs['job_id'] = id
-        return self._scheduler.add_job(func, trigger=trigger, kwargs=kwargs, run_date=run_date)
+        return self._scheduler.add_job(
+            func, trigger=trigger, kwargs=kwargs, id=id, run_date=run_date)
 

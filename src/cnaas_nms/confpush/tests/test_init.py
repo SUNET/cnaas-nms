@@ -19,12 +19,18 @@ class InitTests(unittest.TestCase):
 
     def tearDown(self):
         scheduler = Scheduler()
-        time.sleep(2)
+        time.sleep(5)
         scheduler.get_scheduler().print_jobs()
         scheduler.shutdown()
 
     def test_init_access_device(self):
-        result = cnaas_nms.confpush.init_device.init_access_device('mac-080027F60C55')
+        scheduler = Scheduler()
+        job = scheduler.add_onetime_job(
+            cnaas_nms.confpush.init_device.init_access_device_step1,
+            when=1,
+            kwargs={'hostname':'mac-080027F60C55'})
+        print(f"Step1 scheduled as ID { job.id }")
+
 
 if __name__ == '__main__':
     unittest.main()

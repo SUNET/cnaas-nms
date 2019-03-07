@@ -12,15 +12,9 @@ from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.cmdb.device import Device, DeviceState, DeviceStateException
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.scheduler.jobresult import JobResult
+from cnaas_nms.confpush.nornir_helper import NornirJobResult
 
 import datetime
-from dataclasses import dataclass
-from typing import Optional
-
-@dataclass
-class NornirJobResult(JobResult):
-    nrresult: Optional[MultiResult] = None
 
 def push_base_management(task):
     template_vars = {
@@ -100,7 +94,25 @@ def init_access_device_step1(hostname: str) -> NornirJobResult:
 def init_access_device_step2(hostname: str, iteration:int=-1):
     # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
     print(f"step2: { hostname }")
-    # getfacts
-    # update state or schedule new job?
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname)
 
-    return 'debug3'
+    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
+
+    if nrresult.failed:
+        # schedule new job unless iter is over max
+        return NornirJobResult(
+            nrresult = nrresult,
+        #    next_job_id = next_job.id
+        )
+    
+    try:
+        facts = nrresult[hostname][0].result['facts']
+        found_hostname = facts['hostname']
+    except:
+        raise #TODO: define exception types
+    print(f"Check match {hostname} = {found_hostname}")
+
+    return NornirJobResult(
+        nrresult = nrresult
+    )

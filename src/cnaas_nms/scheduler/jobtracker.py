@@ -3,6 +3,9 @@ import bson.json_util
 import datetime
 
 from cnaas_nms.cmdb.session import mongo_db
+from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResult
+from cnaas_nms.scheduler.jobresult import StrJobResult
+from nornir.core.task import AggregatedResult
 
 from typing import Optional
 
@@ -30,6 +33,7 @@ class Jobtracker(object):
             self.id = data['_id']
             if 'start_time' in data:
                 self.start_time = data['start_time']
+            #TODO: load other stuff
             #self.finish_time = data['finish_time']
             self.status = data['status']
 
@@ -53,12 +57,17 @@ class Jobtracker(object):
     def finish_success(self, res: dict, next_job_id: Optional[str]):
         self.finish_time = datetime.datetime.utcnow()
         try:
-            self.result = bson.json_util.dumps(res)
-        except:
+            if isinstance(res, NornirJobResult) and isinstance(res.nrresult, AggregatedResult):
+                self.result = nr_result_serialize(res.nrresult)
+            elif isinstance(res, StrJobResult):
+                self.result = res.result
+            else:
+                self.result = res
+            self.result = bson.json_util.dumps(self.result)
+        except Exception as e:
             self.result = 'unserializable'
         self.status = 'finished'
         with mongo_db() as db:
-            print(f"DEBUG11 {self.id}")
             jobs = db['jobs']
             jobs.update_one(
                 {'_id': self.id},

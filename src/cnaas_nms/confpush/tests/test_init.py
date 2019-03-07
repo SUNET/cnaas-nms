@@ -19,7 +19,7 @@ class InitTests(unittest.TestCase):
 
     def tearDown(self):
         scheduler = Scheduler()
-        time.sleep(5)
+        time.sleep(70)
         scheduler.get_scheduler().print_jobs()
         scheduler.shutdown()
 
@@ -28,7 +28,7 @@ class InitTests(unittest.TestCase):
         job = scheduler.add_onetime_job(
             cnaas_nms.confpush.init_device.init_access_device_step1,
             when=1,
-            kwargs={'hostname':'mac-080027F60C55'})
+            kwargs={'device_id': 6, 'new_hostname': 'eosaccess'})
         print(f"Step1 scheduled as ID { job.id }")
 
 

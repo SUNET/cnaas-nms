@@ -7,6 +7,7 @@ from sqlalchemy_utils import IPAddressType
 import ipaddress
 import datetime
 import enum
+import re
 
 import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site
@@ -60,7 +61,7 @@ class Device(cnaas_nms.cmdb.base.Base):
     synchronized = Column(Boolean, default=False)
     state = Column(Enum(DeviceState), nullable=False)
     device_type = Column(Enum(DeviceType), nullable=False)
-    last_seen = Column(DateTime, default=datetime.datetime.now)
+    last_seen = Column(DateTime, default=datetime.datetime.now) # onupdate=now
 
     def as_dict(self):
         """Return JSON serializable dict."""
@@ -101,4 +102,14 @@ class Device(cnaas_nms.cmdb.base.Base):
         for linknet in linknets:
             ret.append(linknet)
         return ret
+
+    @classmethod
+    def valid_hostname(cls, hostname: str) -> bool:
+        if hostname.endswith('.'):
+            hostname = hostname[:-1]
+        if len(hostname) < 1 or len(hostname) > 253:
+            return False
+        hostname_part_re = re.compile('^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$',
+                                      re.IGNORECASE)
+        return all(hostname_part_re.match(x) for x in hostname.split('.'))
 

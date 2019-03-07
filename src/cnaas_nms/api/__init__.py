@@ -85,6 +85,11 @@ class DeviceByIdApi(Resource):
                     errors.append('Invalid management_ip received. Must be correct IPv4 address.')
                 else:
                     data['management_ip'] = addr
+        if 'hostname' in json_data:
+            if Device.valid_hostname(json_data['hostname']):
+                data['hostname'] = json_data['hostname']
+            else:
+                errors.append("Invalid hostname received")
         with sqla_session() as session:
             instance = session.query(Device).filter(Device.id == device_id).one()
             if instance:
@@ -93,6 +98,8 @@ class DeviceByIdApi(Resource):
                     instance.state = data['state']
                 if 'management_ip' in data:
                     instance.management_ip = data['management_ip']
+                if 'hostname' in data:
+                    instance.hostname = data['hostname']
 
 
 class DevicesApi(Resource):

@@ -4,20 +4,48 @@ import datetime
 
 from cnaas_nms.cmdb.session import mongo_db
 from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResult
-from cnaas_nms.scheduler.jobresult import StrJobResult
+from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
 from nornir.core.task import AggregatedResult
 
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, Union
 
+@dataclass
 class Jobtracker(object):
-    def __init__(self):
-        self.id = ''
-        self.start_time = None
-        self.finish_time = None
-        self.status = 'unknown'
-        self.result = None
-        self.exception = None
-        self.traceback = None
+    id: Optional[ObjectId] = None
+    start_time: Optional[datetime.datetime] = None
+    finish_time: Optional[datetime.datetime] = None
+    status: Optional[str] = None
+    result: Optional[Union[str, dict]] = None
+    exception: Optional[str] = None
+    traceback: Optional[str] = None
+
+    def from_dict(self, in_dict):
+        for key in self.__dataclass_fields__.keys():
+            if key == 'id':
+                self.__setattr__('id', in_dict['_id'])
+            else:
+                if key in in_dict:
+                    self.__setattr__(key, in_dict[key])
+
+    def to_dict(self, json_serializable=False):
+        ret = {}
+        for key in self.__dataclass_fields__.keys():
+            field = self.__getattribute__(key)
+            if json_serializable:
+                ret[key] = self.serialize(field)
+            else:
+                ret[key] = field
+        return ret
+
+    @classmethod
+    def serialize(cls, property):
+        if isinstance(property, (type(None), str, int)):
+            return property
+        elif isinstance(property, (ObjectId, datetime.datetime)):
+            return str(property)
+        elif isinstance(property, dict):
+            return property #TODO: recurse?
 
     def create(self):
         with mongo_db() as db:
@@ -30,12 +58,7 @@ class Jobtracker(object):
         with mongo_db() as db:
             jobs = db['jobs']
             data = jobs.find_one({'_id': ObjectId(id)})
-            self.id = data['_id']
-            if 'start_time' in data:
-                self.start_time = data['start_time']
-            #TODO: load other stuff
-            #self.finish_time = data['finish_time']
-            self.status = data['status']
+            self.from_dict(data)
 
     def start(self, fname: str):
         self.start_time = datetime.datetime.utcnow()
@@ -59,11 +82,10 @@ class Jobtracker(object):
         try:
             if isinstance(res, NornirJobResult) and isinstance(res.nrresult, AggregatedResult):
                 self.result = nr_result_serialize(res.nrresult)
-            elif isinstance(res, StrJobResult):
+            elif isinstance(res, (StrJobResult, DictJobResult)):
                 self.result = res.result
             else:
-                self.result = res
-            self.result = bson.json_util.dumps(self.result)
+                self.result = bson.json_util.dumps(res)
         except Exception as e:
             self.result = 'unserializable'
         self.status = 'finished'

@@ -10,3 +10,7 @@ class JobResult(object):
 @dataclass
 class StrJobResult(JobResult):
     result: Optional[str] = None
+
+@dataclass
+class DictJobResult(JobResult):
+    result: Optional[dict] = None

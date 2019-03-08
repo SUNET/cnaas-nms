@@ -19,6 +19,7 @@ class Jobtracker(object):
     result: Optional[Union[str, dict]] = None
     exception: Optional[str] = None
     traceback: Optional[str] = None
+    next_job_id: Optional[str] = None
 
     def from_dict(self, in_dict):
         for key in self.__dataclass_fields__.keys():

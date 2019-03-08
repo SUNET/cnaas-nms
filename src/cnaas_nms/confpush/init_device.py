@@ -10,7 +10,7 @@ from apscheduler.job import Job
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.cmdb.session import sqla_session
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceStateException
+from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType, DeviceStateException
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
@@ -98,7 +98,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
 
     scheduler = Scheduler()
     next_job = scheduler.add_onetime_job(
-        init_access_device_step2,
+        'cnaas_nms.confpush.init_device:init_access_device_step2',
         when=1,
         kwargs={'device_id':device_id, 'iteration': 1})
 
@@ -115,7 +115,7 @@ def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optiona
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
         next_job = scheduler.add_onetime_job(
-            init_access_device_step2,
+            'cnaas_nms.confpush.init_device:init_access_device_step2',
             when=(30*iteration),
             kwargs={'device_id':device_id, 'iteration': iteration+1})
         return next_job
@@ -157,6 +157,7 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
+        dev.device_type = DeviceType.ACCESS
 
     return NornirJobResult(
         nrresult = nrresult

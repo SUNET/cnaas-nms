@@ -6,6 +6,7 @@ import os
 os.environ['PYTHONPATH'] = os.getcwd()
 
 def main():
+    #TODO: create lockfile? also clear all jobs that have state running before starting scheduler
     scheduler = Scheduler()
     scheduler.start()
     app.run(debug=True)

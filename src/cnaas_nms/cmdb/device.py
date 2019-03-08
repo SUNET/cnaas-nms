@@ -39,6 +39,10 @@ class DeviceType(enum.Enum):
     DIST = 2
     CORE = 3
 
+    @classmethod
+    def has_value(cls, value):
+        return any(value == item.value for item in cls)
+
 class Device(cnaas_nms.cmdb.base.Base):
     __tablename__ = 'device'
     __table_args__ = (

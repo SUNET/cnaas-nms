@@ -13,7 +13,6 @@ def limit_results() -> int:
         except:
             pass
 
-    print("DEBUGL {}".format(limit))
     return limit
 
 def build_filter(f_class, query):
@@ -35,7 +34,7 @@ def empty_result(status='success', data=None):
     if status == 'success':
         return {
             'status': status,
-            'data': None
+            'data': data
         }
     elif status == 'error':
         return {

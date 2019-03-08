@@ -3,10 +3,12 @@ from flask import request
 from flask_restful import Resource
 from ipaddress import IPv4Address
 
+import cnaas_nms.confpush.init_device
 from cnaas_nms.api.generic import build_filter, empty_result
-from cnaas_nms.cmdb.device import Device, DeviceState
+from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
 from cnaas_nms.cmdb.linknet import Linknet
 from cnaas_nms.cmdb.session import sqla_session
+from cnaas_nms.scheduler.scheduler import Scheduler
 
 class DeviceByIdApi(Resource):
     def get(self, device_id):
@@ -42,6 +44,14 @@ class DeviceByIdApi(Resource):
             else:
                 if DeviceState.has_value(state_int):
                     data['state'] = DeviceState(state_int)
+        if 'device_type' in json_data:
+            try:
+                device_type_int = int(json_data['device_type'])
+            except:
+                errors.append('Invalid device type received.')
+            else:
+                if DeviceType.has_value(device_type_int):
+                    data['device_type'] = DeviceType(device_type_int)
         if 'management_ip' in json_data:
             if json_data['management_ip'] == None:
                 data['management_ip'] = None
@@ -63,6 +73,8 @@ class DeviceByIdApi(Resource):
                 #TODO: auto loop through class members and match
                 if 'state' in data:
                     instance.state = data['state']
+                if 'device_type' in data:
+                    instance.device_type = data['device_type']
                 if 'management_ip' in data:
                     instance.management_ip = data['management_ip']
                 if 'hostname' in data:
@@ -91,6 +103,41 @@ class LinknetsApi(Resource):
         return result
 
 
-class DeviceInit(Resource):
-    def post(self):
-        pass
+class DeviceInitApi(Resource):
+    def post(self, device_id: int):
+        if not isinstance(device_id, int):
+            return empty_result(status='error', data="'device_id' must be an integer"), 400
+
+        json_data = request.get_json()
+        if not 'hostname' in json_data:
+            return empty_result(status='error', data="POST data must include new 'hostname'"), 400
+        else:
+            if not Device.valid_hostname(json_data['hostname']):
+                return empty_result(
+                    status='error',
+                    data='Provided hostname is not valid'), 400
+            else:
+                new_hostname = json_data['hostname']
+
+        if not 'device_type' in json_data:
+            return empty_result(status='error', data="POST data must include 'device_type'"), 400
+        else:
+            try:
+                device_type_int = int(json_data['device_type'])
+            except:
+                return empty_result(status='error', data="'device_type' must be integer"), 400
+
+            if not DeviceType.has_value(device_type_int):
+                return empty_result(status='error', data="Invalid 'device_type' provided"), 400
+
+        if device_type_int == DeviceType.ACCESS.value:
+            scheduler = Scheduler()
+            job = scheduler.add_onetime_job(
+                'cnaas_nms.confpush.init_device:init_access_device_step1',
+                when=1,
+                kwargs={'device_id': device_id, 'new_hostname': new_hostname})
+
+        res = empty_result(data=f"Scheduled job to initialize device_id { device_id }")
+        res['job_id'] = job.id
+
+        return res

@@ -11,13 +11,13 @@ from cnaas_nms.scheduler.jobtracker import Jobtracker
 
 class JobsApi(Resource):
     def get(self):
-        result = []
+        ret_jobs = []
         with mongo_db() as db:
             jobs = db['jobs']
             data = jobs.find().sort('_id', -1).limit(limit_results())
             for job in data:
                 jt = Jobtracker()
                 jt.from_dict(job)
-                result.append(jt.to_dict(json_serializable=True))
+                ret_jobs.append(jt.to_dict(json_serializable=True))
+        result = empty_result(data={'jobs': ret_jobs})
         return result
-#        return json.loads(bson.json_util.dumps(result))

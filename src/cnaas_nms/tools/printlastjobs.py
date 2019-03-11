@@ -7,7 +7,7 @@ import sys
 
 def print_jobs(num=1):
     with mongo_db() as db:
-        jobs = db['jobs']
+        jobs = db['Jobtracker']
         data = jobs.find().sort('_id', -1).limit(num)
         for job in data:
             pprint.pprint(job)

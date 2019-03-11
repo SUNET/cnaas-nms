@@ -13,7 +13,7 @@ class JobsApi(Resource):
     def get(self):
         ret_jobs = []
         with mongo_db() as db:
-            jobs = db['jobs']
+            jobs = db['Jobtracker']
             data = jobs.find().sort('_id', -1).limit(limit_results())
             for job in data:
                 jt = Jobtracker()

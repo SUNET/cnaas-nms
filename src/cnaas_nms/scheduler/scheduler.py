@@ -69,7 +69,7 @@ class Scheduler(object, metaclass=SingletonType):
             apscheduler.job.Job
         """
         job = Jobtracker()
-        id = job.create()
+        id = job.create({'status': 'scheduled'})
         if when and isinstance(when, int):
             trigger = 'date'
             run_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=when)

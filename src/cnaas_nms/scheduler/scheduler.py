@@ -10,7 +10,7 @@ from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
 import cnaas_nms.cmdb.session 
-from cnaas_nms.scheduler.jobtracker import Jobtracker
+from cnaas_nms.scheduler.jobtracker import Jobtracker, JobStatus
 
 class SingletonType(type):
     _instances = {}
@@ -69,7 +69,7 @@ class Scheduler(object, metaclass=SingletonType):
             apscheduler.job.Job
         """
         job = Jobtracker()
-        id = job.create({'status': 'scheduled'})
+        id = job.create({'status': JobStatus.SCHEDULED})
         if when and isinstance(when, int):
             trigger = 'date'
             run_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=when)

@@ -1,5 +1,6 @@
 import bson.json_util
 import datetime
+import enum
 
 from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResult
 from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
@@ -9,11 +10,18 @@ from nornir.core.task import AggregatedResult
 from dataclasses import dataclass
 from typing import Optional, Union
 
+class JobStatus(enum.Enum):
+    UNKNOWN = 0
+    SCHEDULED = 1
+    RUNNING = 2
+    FINISHED = 3
+    EXCEPTION = 4
+
 @dataclass
 class Jobtracker(DataclassPersistence):
     start_time: Optional[datetime.datetime] = None
     finish_time: Optional[datetime.datetime] = None
-    status: Optional[str] = None
+    status: JobStatus = JobStatus.UNKNOWN
     function_name: Optional[str] = None
     result: Optional[Union[str, dict]] = None
     exception: Optional[str] = None
@@ -24,7 +32,7 @@ class Jobtracker(DataclassPersistence):
         self.update({
             'start_time': datetime.datetime.utcnow(),
             'function_name': fname,
-            'status': 'running'
+            'status': JobStatus.RUNNING
         })
 
     def finish_success(self, res: dict, next_job_id: Optional[str]):
@@ -39,7 +47,7 @@ class Jobtracker(DataclassPersistence):
             self.result = 'unserializable'
         self.update({
             'finish_time': datetime.datetime.utcnow(),
-            'status': 'finished',
+            'status': JobStatus.FINISHED,
             'result': self.result,
             'next_job_id': next_job_id
         })
@@ -47,7 +55,7 @@ class Jobtracker(DataclassPersistence):
     def finish_exception(self, e: Exception, traceback: str):
         self.update({
             'finish_time': datetime.datetime.utcnow(),
-            'status': 'exception',
+            'status': JobStatus.EXCEPTION,
             'exception': bson.json_util.dumps({'type': type(e).__name__, 'args': e.args}),
             'traceback': bson.json_util.dumps(traceback)
         })

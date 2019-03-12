@@ -3,6 +3,8 @@ from dataclasses import dataclass, InitVar, fields
 from typing import Optional
 
 import datetime
+import enum
+import inspect
 
 from bson.objectid import ObjectId
 import bson.json_util
@@ -37,7 +39,10 @@ class DataclassPersistence:
         for field in fields(self): 
             field_data = self.__getattribute__(field.name)
             if json_serializable:
-                ret[field.name] = self.serialize(field_data)
+                if inspect.isclass(field.type) and issubclass(field.type, enum.Enum):
+                    ret[field.name] = field.type(field_data).name
+                else:
+                    ret[field.name] = self.serialize(field_data)
             else:
                 ret[field.name] = field_data
         return ret
@@ -58,6 +63,8 @@ class DataclassPersistence:
         """Create an empty record and return the ID."""
         update_set = {}
         for k, v in in_dict.items():
+            if isinstance(v, enum.Enum):
+                v = v.value
             if k in [f.name for f in fields(self)]:
                 self.__setattr__(k, v)
                 update_set[k] = v
@@ -71,15 +78,27 @@ class DataclassPersistence:
 
     def load(self, id: str):
         """Load data from persistent datastore into the object."""
+        in_dict = {}
         with mongo_db() as db:
             collection = db[self._collection]
             data = collection.find_one({'_id': ObjectId(id)})
-            self.from_dict(data)
+            # map Enum values back to Enum instances
+            for k, v in data.items():
+                field_match = [x for x in fields(self) if x.name == k]
+                if len(field_match) == 1:
+                    field_type = field_match[0].type
+                    # TODO: handle Optional[Enum] ?
+                    if inspect.isclass(field_type) and issubclass(field_type, enum.Enum):
+                        v = field_type(v)
+                in_dict[k] = v
+            self.from_dict(in_dict)
 
     def update(self, in_dict: dict):
         """Update object and persistent datastore with fields from in_dict."""
         update_set = {}
         for k, v in in_dict.items():
+            if isinstance(v, enum.Enum):
+                v = v.value
             if k in [f.name for f in fields(self)]:
                 self.__setattr__(k, v)
                 update_set[k] = v

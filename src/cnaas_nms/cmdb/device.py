@@ -33,6 +33,10 @@ class DeviceState(enum.Enum):
     def has_value(cls, value):
         return any(value == item.value for item in cls)
 
+    @classmethod
+    def has_name(cls, value):
+        return any(value == item.name for item in cls)
+
 class DeviceType(enum.Enum):
     UNKNOWN = 0
     ACCESS = 1
@@ -42,6 +46,10 @@ class DeviceType(enum.Enum):
     @classmethod
     def has_value(cls, value):
         return any(value == item.value for item in cls)
+
+    @classmethod
+    def has_name(cls, value):
+        return any(value == item.name for item in cls)
 
 class Device(cnaas_nms.cmdb.base.Base):
     __tablename__ = 'device'
@@ -63,7 +71,7 @@ class Device(cnaas_nms.cmdb.base.Base):
     model = Column(String(64))
     os_version = Column(String(64))
     synchronized = Column(Boolean, default=False)
-    state = Column(Enum(DeviceState), nullable=False)
+    state = Column(Enum(DeviceState), nullable=False) # type: ignore
     device_type = Column(Enum(DeviceType), nullable=False)
     last_seen = Column(DateTime, default=datetime.datetime.now) # onupdate=now
 
@@ -73,7 +81,7 @@ class Device(cnaas_nms.cmdb.base.Base):
         for col in self.__table__.columns:
             value = getattr(self, col.name)
             if issubclass(value.__class__, enum.Enum):
-                value = value.value
+                value = value.name
             elif issubclass(value.__class__, cnaas_nms.cmdb.base.Base):
                 continue
             elif issubclass(value.__class__, ipaddress.IPv4Address):

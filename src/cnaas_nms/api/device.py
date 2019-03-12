@@ -38,20 +38,24 @@ class DeviceByIdApi(Resource):
         errors = []
         if 'state' in json_data:
             try:
-                state_int = int(json_data['state'])
+                state = str(json_data['state']).upper()
             except:
                 errors.append('Invalid device state received.')
             else:
-                if DeviceState.has_value(state_int):
-                    data['state'] = DeviceState(state_int)
+                if DeviceState.has_name(state):
+                    data['state'] = DeviceState[state]
+                else:
+                    errors.append('Invalid device state received.')
         if 'device_type' in json_data:
             try:
-                device_type_int = int(json_data['device_type'])
+                device_type = str(json_data['device_type']).upper()
             except:
                 errors.append('Invalid device type received.')
             else:
-                if DeviceType.has_value(device_type_int):
-                    data['device_type'] = DeviceType(device_type_int)
+                if DeviceType.has_name(device_type):
+                    data['device_type'] = DeviceType[device_type]
+                else:
+                    errors.append('Invalid device type received.')
         if 'management_ip' in json_data:
             if json_data['management_ip'] == None:
                 data['management_ip'] = None
@@ -123,14 +127,14 @@ class DeviceInitApi(Resource):
             return empty_result(status='error', data="POST data must include 'device_type'"), 400
         else:
             try:
-                device_type_int = int(json_data['device_type'])
+                device_type = str(json_data['device_type']).upper()
             except:
-                return empty_result(status='error', data="'device_type' must be integer"), 400
+                return empty_result(status='error', data="'device_type' must be a string"), 400
 
-            if not DeviceType.has_value(device_type_int):
+            if not DeviceType.has_name(device_type):
                 return empty_result(status='error', data="Invalid 'device_type' provided"), 400
 
-        if device_type_int == DeviceType.ACCESS.value:
+        if device_type == DeviceType.ACCESS.name:
             scheduler = Scheduler()
             job = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_access_device_step1',

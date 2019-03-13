@@ -7,7 +7,7 @@ from contextlib import contextmanager
 
 def get_dbdata(config='/etc/cnaas-nms/db_config.yml'):
     with open(config, 'r') as db_file:
-        return yaml.load(db_file)
+        return yaml.safe_load(db_file)
 
 def get_sqlalchemy_conn_str(**kwargs) -> str:
     db_data = get_dbdata(**kwargs)

@@ -28,13 +28,10 @@ def nr_result_serialize(result: AggregatedResult):
 
     hosts = {}    
     for host, multires in result.items():
-        print("host: {} {}".format(host, multires))
         hosts[host] = []
         for res in multires:
-            print("result: {}".format(res.result))
-            print("result: {}".format(res.diff))
-            print("result: {}".format(res.failed))
             hosts[host].append({
+                'name': res.name,
                 'result': res.result,
                 'diff': res.diff,
                 'failed': res.failed

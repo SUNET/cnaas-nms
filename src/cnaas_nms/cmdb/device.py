@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Optional
+
 from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
 from sqlalchemy import Enum, DateTime, Boolean
 from sqlalchemy import ForeignKey
@@ -114,6 +117,24 @@ class Device(cnaas_nms.cmdb.base.Base):
         for linknet in linknets:
             ret.append(linknet)
         return ret
+
+    def get_link_to(self, session, peer_device: Device) -> Optional[Linknet]:
+        return session.query(Linknet).\
+            filter(
+                ((Linknet.device_a_id == self.id) & (Linknet.device_b_id == peer_device.id))
+                |
+                ((Linknet.device_b_id == self.id) & (Linknet.device_a_id == peer_device.id))
+            ).one_or_none()
+
+    def get_link_to_local_ifname(self, session, peer_device: Device) -> Optional[str]:
+        """Get the local interface name on this device that links to peer_device."""
+        linknet = self.get_link_to(session, peer_device)
+        if not linknet:
+            return None
+        if linknet.device_a_id == self.id:
+            return linknet.device_a_port
+        elif linknet.device_b_id == self.id:
+            return linknet.device_b_port
 
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:

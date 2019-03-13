@@ -10,7 +10,7 @@ class GetTests(unittest.TestCase):
     def setUp(self):
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
-            self.testdata = yaml.load(f_testdata)
+            self.testdata = yaml.safe_load(f_testdata)
 
     def test_get_inventory(self):
         result = cnaas_nms.confpush.get.get_inventory()

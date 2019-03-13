@@ -1,3 +1,7 @@
+from typing import Optional
+import datetime
+
+from ipaddress import IPv4Interface
 from nornir import InitNornir
 
 from nornir.core.deserializer.inventory import Inventory
@@ -9,27 +13,24 @@ from nornir.plugins.functions.text import print_title, print_result
 from apscheduler.job import Job
 
 import cnaas_nms.confpush.nornir_helper
+import cnaas_nms.confpush.get
 from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType, DeviceStateException
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 
-from typing import Optional
-from ipaddress import IPv4Interface
-import datetime
 
-def push_base_management(task):
+class ConnectionCheckError(Exception):
+    pass
+
+def push_base_management(task, device_variables):
     template_vars = {
-        'uplinks': [{'ifname': 'Ethernet2'}],
-        'mgmt_vlan_id': 600,
-        'mgmt_ip': '10.0.6.10/24',
-        'mgmt_gw': '10.0.6.1'
+        'uplinks': device_variables['uplinks'],
+        'mgmt_vlan_id': device_variables['mgmt_vlan_id'],
+        'mgmt_ip': str(device_variables['mgmt_ipif']),
+        'mgmt_gw': device_variables['mgmt_gw']
     }
-    print("DEBUG1: "+task.host.name)
-    #TODO: find uplinks automatically
-    #TODO: check compatability, same dist pair and same ports on dists
-    #TODO: query mgmt vlan, ip, gw for dist pair
 
     r = task.run(task=text.template_file,
                  name="Base management",
@@ -61,26 +62,54 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     Raises:
         DeviceStateException
     """
-    mgmt_if = IPv4Interface('10.0.6.10/24')
-    #TODO: do connectivity check before
+    # Check that we can find device and that it's in the correct state to start init
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
         if dev.state != DeviceState.DISCOVERED:
             raise DeviceStateException("Device must be in state DISCOVERED to begin init")
-        #TODO: more checks?
+        old_hostname = dev.hostname
+    # Perform connectivity check
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_old_filtered = nr.filter(name=old_hostname)
+    try:
+        nrresult_old = nr_old_filtered.run(task=networking.napalm_get, getters=["facts"])
+    except Exception as e:
+        raise ConnectionCheckError(f"Failed to connect to device_id {device_id}: {str(e)}")
+    if nrresult_old.failed:
+        raise ConnectionCheckError(f"Failed to connect to device_id {device_id}")
+
+    cnaas_nms.confpush.get.update_linknets(old_hostname)
+    uplinks = []
+    with sqla_session() as session:
+        d = session.query(Device).filter(Device.hostname == old_hostname).one()
+        for neighbor_d in d.get_neighbors(session):
+            if neighbor_d.device_type == DeviceType.DIST:
+                local_if = d.get_link_to_local_ifname(session, neighbor_d)
+                uplinks.append({'ifname': local_if})
+    #TODO: check compatability, same dist pair and same ports on dists
+    #TODO: query mgmt vlan, ip, gw for dist pair
+    # mgmtdomain = cnaas_nms.cmdb.helper.find_mgmtdomain(session, ['eosdist', 'eosdist2']) 
+    device_variables = {
+        'mgmt_ipif': IPv4Interface('10.0.6.10/24'),
+        'uplinks': uplinks,
+        'mgmt_vlan_id': 600,
+        'mgmt_gw': '10.0.6.1'
+
+    }
+    with sqla_session() as session:
+        dev = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.INIT
         dev.hostname = new_hostname
         session.commit()
         hostname = dev.hostname
 
-    # step2. push management config
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
-    # send mgmtip
+    # step2. push management config
     try:
-        nrresult = nr_filtered.run(task=push_base_management)
-    except:
+        nrresult = nr_filtered.run(task=push_base_management, device_variables=device_variables)
+    except Exception as e:
         pass # ignore exception, we expect to loose connectivity.
              # sometimes we get no exception here, but it's saved in result
              # other times we get socket.timeout, pyeapi.eapilib.ConnectionError or
@@ -92,7 +121,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
-        dev.management_ip = mgmt_if.ip
+        dev.management_ip = device_variables['mgmt_ipif'].ip
 
     # step3. register apscheduler job that continues steps
 

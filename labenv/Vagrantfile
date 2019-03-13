@@ -15,6 +15,7 @@ Vagrant.configure(2) do |config|
     eosaccess.vm.network :forwarded_port, guest: 443, host: 12443, id: 'https'
     eosaccess.vm.network "public_network", bridge: "docker0", auto_config: false
     eosaccess.vm.network "private_network", auto_config: false, virtualbox__intnet: "link_1"
+    eosaccess.vm.network "private_network", auto_config: false, virtualbox__intnet: "link_2"
   end
 
   config.vm.define "eosdist" do |eosdist|
@@ -23,6 +24,14 @@ Vagrant.configure(2) do |config|
     eosdist.vm.network :forwarded_port, guest: 443, host: 22443, id: 'https'
     eosdist.vm.network "public_network", bridge: "docker0", auto_config: false
     eosdist.vm.network "private_network", auto_config: false, virtualbox__intnet: "link_1"
+  end
+
+  config.vm.define "eosdist2" do |eosdist2|
+    eosdist2.vm.box = VEOS_BOX
+    eosdist2.vm.network :forwarded_port, guest: 22, host: 23201, id: 'ssh'
+    eosdist2.vm.network :forwarded_port, guest: 443, host: 23443, id: 'https'
+    eosdist2.vm.network "public_network", bridge: "docker0", auto_config: false
+    eosdist2.vm.network "private_network", auto_config: false, virtualbox__intnet: "link_2"
   end
 
 

@@ -14,6 +14,7 @@ from apscheduler.job import Job
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
+import cnaas_nms.cmdb.helper
 from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType, DeviceStateException
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -80,21 +81,27 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
 
     cnaas_nms.confpush.get.update_linknets(old_hostname)
     uplinks = []
+    neighbor_hostnames = []
     with sqla_session() as session:
         d = session.query(Device).filter(Device.hostname == old_hostname).one()
         for neighbor_d in d.get_neighbors(session):
             if neighbor_d.device_type == DeviceType.DIST:
                 local_if = d.get_link_to_local_ifname(session, neighbor_d)
-                uplinks.append({'ifname': local_if})
+                if local_if:
+                    uplinks.append({'ifname': local_if})
+                    neighbor_hostnames.append(neighbor_d.hostname)
+    print("DEBUG100: uplinks: {} neighbor_hostnames: {}".format(uplinks, neighbor_hostnames))
     #TODO: check compatability, same dist pair and same ports on dists
-    #TODO: query mgmt vlan, ip, gw for dist pair
-    # mgmtdomain = cnaas_nms.cmdb.helper.find_mgmtdomain(session, ['eosdist', 'eosdist2']) 
+    mgmtdomain = cnaas_nms.cmdb.helper.find_mgmtdomain(session, neighbor_hostnames) 
+    if not mgmtdomain:
+        raise Exception(
+            "Could not find appropriate management domain for uplink peer devices: {}".format(
+            neighbor_hostnames))
     device_variables = {
-        'mgmt_ipif': IPv4Interface('10.0.6.10/24'),
+        'mgmt_ipif': IPv4Interface('10.0.6.10/24'), #TODO: find next available IP
         'uplinks': uplinks,
-        'mgmt_vlan_id': 600,
-        'mgmt_gw': '10.0.6.1'
-
+        'mgmt_vlan_id': mgmtdomain.vlan,
+        'mgmt_gw': IPv4Interface(mgmtdomain.ipv4_gw).ip
     }
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()

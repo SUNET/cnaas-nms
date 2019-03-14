@@ -4,7 +4,7 @@ import unittest
 
 import cnaas_nms.api
 
-class GetTests(unittest.TestCase):
+class ApiTests(unittest.TestCase):
     def setUp(self):
         self.client = cnaas_nms.api.app.test_client()
 
@@ -34,6 +34,18 @@ class GetTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
         # Exactly one result
         self.assertEqual(len(result.json['data']['jobs']), 1)
+
+    def test_get_managementdomain(self):
+        result = self.client.get('/api/v1.0/mgmtdomain')
+        # 200 OK
+        self.assertEqual(result.status_code, 200)
+        # Succes in json
+        self.assertEqual(result.json['status'], 'success')
+        # Exactly one result
+        self.assertEqual(len(result.json['data']['mgmtdomains']), 1)
+        # The one result should have the same ID we asked for
+        self.assertIsInstance(result.json['data']['mgmtdomains'][0]['id'], int)
+
 
 if __name__ == '__main__':
     unittest.main()

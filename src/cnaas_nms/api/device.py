@@ -15,7 +15,7 @@ class DeviceByIdApi(Resource):
         result = empty_result()
         result['data'] = {'devices': []}
         with sqla_session() as session:
-            instance = session.query(Device).filter(Device.id == device_id).one()
+            instance = session.query(Device).filter(Device.id == device_id).one_or_none()
             if instance:
                 result['data']['devices'].append(instance.as_dict())
             else:
@@ -24,7 +24,7 @@ class DeviceByIdApi(Resource):
 
     def delete(self, device_id):
         with sqla_session() as session:
-            instance = session.query(Device).filter(Device.id == device_id).one()
+            instance = session.query(Device).filter(Device.id == device_id).one_or_none()
             if instance:
                 session.delete(instance)
                 session.commit()
@@ -72,7 +72,7 @@ class DeviceByIdApi(Resource):
             else:
                 errors.append("Invalid hostname received")
         with sqla_session() as session:
-            instance = session.query(Device).filter(Device.id == device_id).one()
+            instance = session.query(Device).filter(Device.id == device_id).one_or_none()
             if instance:
                 #TODO: auto loop through class members and match
                 if 'state' in data:
@@ -83,6 +83,9 @@ class DeviceByIdApi(Resource):
                     instance.management_ip = data['management_ip']
                 if 'hostname' in data:
                     instance.hostname = data['hostname']
+            else:
+                errors.append('Device not found')
+
 
 
 class DevicesApi(Resource):

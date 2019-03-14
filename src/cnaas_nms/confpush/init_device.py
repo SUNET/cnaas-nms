@@ -90,20 +90,24 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
                 if local_if:
                     uplinks.append({'ifname': local_if})
                     neighbor_hostnames.append(neighbor_d.hostname)
-    print("DEBUG100: uplinks: {} neighbor_hostnames: {}".format(uplinks, neighbor_hostnames))
-    #TODO: check compatability, same dist pair and same ports on dists
-    mgmtdomain = cnaas_nms.cmdb.helper.find_mgmtdomain(session, neighbor_hostnames) 
-    if not mgmtdomain:
-        raise Exception(
-            "Could not find appropriate management domain for uplink peer devices: {}".format(
-            neighbor_hostnames))
-    device_variables = {
-        'mgmt_ipif': IPv4Interface('10.0.6.10/24'), #TODO: find next available IP
-        'uplinks': uplinks,
-        'mgmt_vlan_id': mgmtdomain.vlan,
-        'mgmt_gw': IPv4Interface(mgmtdomain.ipv4_gw).ip
-    }
-    with sqla_session() as session:
+        print("DEBUG100: uplinks: {} neighbor_hostnames: {}".format(uplinks, neighbor_hostnames))
+        #TODO: check compatability, same dist pair and same ports on dists
+        mgmtdomain = cnaas_nms.cmdb.helper.find_mgmtdomain(session, neighbor_hostnames) 
+        if not mgmtdomain:
+            raise Exception(
+                "Could not find appropriate management domain for uplink peer devices: {}".format(
+                neighbor_hostnames))
+        mgmt_ip = mgmtdomain.find_free_mgmt_ip(session)
+        if not mgmt_ip:
+            raise Exception("Could not find free management IP for management domain {}".format(
+            mgmtdomain.id))
+        mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
+        device_variables = {
+            'mgmt_ipif': IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen)),
+            'uplinks': uplinks,
+            'mgmt_vlan_id': mgmtdomain.vlan,
+            'mgmt_gw': mgmt_gw_ipif.ip
+        }
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.INIT
         dev.hostname = new_hostname

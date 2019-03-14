@@ -1,15 +1,18 @@
 from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, load_only
 
 from sqlalchemy_utils import IPAddressType
 import ipaddress
 import datetime
 import enum
+from ipaddress import IPv4Interface, IPv4Address
+from typing import Optional
 
 import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site
 import cnaas_nms.cmdb.device
+from cnaas_nms.cmdb.device import Device 
 
 class Mgmtdomain(cnaas_nms.cmdb.base.Base):
     __tablename__ = 'mgmtdomain'
@@ -46,4 +49,19 @@ class Mgmtdomain(cnaas_nms.cmdb.base.Base):
             d[col.name] = value
         return d
 
+    def find_free_mgmt_ip(self, session) -> Optional[IPv4Address]:
+        """Return first available IPv4 address from this Mgmtdomain's ipv4_gw network.""" 
+        used_ips = []
+        device_query  = session.query(Device).\
+            filter(Device.management_ip != None).options(load_only("management_ip"))
+        for device in device_query:
+            used_ips.append(device.management_ip)
+
+        mgmt_net = IPv4Interface(self.ipv4_gw).network
+        for num, host in enumerate(mgmt_net.hosts()):
+            if num < 5: # reserve 5 first hosts
+                continue
+            if not host in used_ips:
+                return IPv4Address(host)
+        return None
 

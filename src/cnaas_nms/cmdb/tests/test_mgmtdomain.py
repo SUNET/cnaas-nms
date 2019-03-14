@@ -58,5 +58,12 @@ class MgmtdomainTests(unittest.TestCase):
             if mgmtdomain:
                 pprint.pprint(mgmtdomain.as_dict())
 
+    def test_find_free_mgmt_ip(self):
+        mgmtdomain_id = 2
+        with sqla_session() as session:
+            mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one()
+            if mgmtdomain:
+                print(mgmtdomain.find_free_mgmt_ip(session))
+
 if __name__ == '__main__':
     unittest.main()

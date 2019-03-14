@@ -36,7 +36,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(result.json['data']['jobs']), 1)
 
     def test_get_managementdomain(self):
-        result = self.client.get('/api/v1.0/mgmtdomain')
+        result = self.client.get('/api/v1.0/mgmtdomain?limit=1')
         # 200 OK
         self.assertEqual(result.status_code, 200)
         # Succes in json

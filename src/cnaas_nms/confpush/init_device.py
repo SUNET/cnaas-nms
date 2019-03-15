@@ -198,6 +198,7 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
         dev.device_type = DeviceType.ACCESS
+        #TODO: remove dhcp_ip ?
 
     return NornirJobResult(
         nrresult = nrresult

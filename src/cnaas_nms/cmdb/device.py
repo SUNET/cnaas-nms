@@ -1,36 +1,39 @@
 from __future__ import annotations
-from typing import Optional
+
+import ipaddress
+import datetime
+import enum
+import re
+from typing import Optional, List
 
 from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
 from sqlalchemy import Enum, DateTime, Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
-
 from sqlalchemy_utils import IPAddressType
-import ipaddress
-import datetime
-import enum
-import re
 
 import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site
 from cnaas_nms.cmdb.linknet import Linknet
 
+
 class DeviceException(Exception):
     pass
+
 
 class DeviceStateException(DeviceException):
     pass
 
+
 class DeviceState(enum.Enum):
-    UNKNOWN = 0        # Unhandled programming error
-    PRE_CONFIGURED = 1 # Pre-populated, not seen yet
-    DHCP_BOOT = 2      # Something booted via DHCP, unknown device
-    DISCOVERED = 3     # Something booted with base config, temp ssh access for conf push
-    INIT = 4           # Moving to management VLAN, applying base template
-    MANAGED = 5        # Correct managament and accessible via conf push
-    MANAGED_NOIF = 6   # Only base system template managed, no interfaces?
-    UNMANAGED = 99     # Device no longer maintained by conf push
+    UNKNOWN = 0         # Unhandled programming error
+    PRE_CONFIGURED = 1  # Pre-populated, not seen yet
+    DHCP_BOOT = 2       # Something booted via DHCP, unknown device
+    DISCOVERED = 3      # Something booted with base config, temp ssh access for conf push
+    INIT = 4            # Moving to management VLAN, applying base template
+    MANAGED = 5         # Correct managament and accessible via conf push
+    MANAGED_NOIF = 6    # Only base system template managed, no interfaces?
+    UNMANAGED = 99      # Device no longer maintained by conf push
 
     @classmethod
     def has_value(cls, value):
@@ -39,6 +42,7 @@ class DeviceState(enum.Enum):
     @classmethod
     def has_name(cls, value):
         return any(value == item.name for item in cls)
+
 
 class DeviceType(enum.Enum):
     UNKNOWN = 0
@@ -53,6 +57,7 @@ class DeviceType(enum.Enum):
     @classmethod
     def has_name(cls, value):
         return any(value == item.name for item in cls)
+
 
 class Device(cnaas_nms.cmdb.base.Base):
     __tablename__ = 'device'
@@ -78,7 +83,7 @@ class Device(cnaas_nms.cmdb.base.Base):
     device_type = Column(Enum(DeviceType), nullable=False)
     last_seen = Column(DateTime, default=datetime.datetime.now) # onupdate=now
 
-    def as_dict(self):
+    def as_dict(self) -> dict:
         """Return JSON serializable dict."""
         d = {}
         for col in self.__table__.columns:
@@ -94,7 +99,7 @@ class Device(cnaas_nms.cmdb.base.Base):
             d[col.name] = value
         return d
 
-    def get_neighbors(self, session):
+    def get_neighbors(self, session) -> List[Device]:
         """Look up neighbors from Linknets and return them as a list of Device objects."""
         linknets = self.get_linknets(session)
         ret = []

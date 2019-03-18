@@ -1,7 +1,7 @@
 import inspect
 import datetime
 from pytz import utc
-from typing import Optional
+from typing import Optional, Union
 from types import FunctionType
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -12,6 +12,7 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 import cnaas_nms.cmdb.session 
 from cnaas_nms.scheduler.jobtracker import Jobtracker, JobStatus
 
+
 class SingletonType(type):
     _instances = {}
 
@@ -19,6 +20,7 @@ class SingletonType(type):
         if cls not in cls._instances:
             cls._instances[cls] = super(SingletonType, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
 
 class Scheduler(object, metaclass=SingletonType):
     def __init__(self):
@@ -58,7 +60,7 @@ class Scheduler(object, metaclass=SingletonType):
     def add_job(self, func, **kwargs):
         return self._scheduler.add_job(func, **kwargs)
 
-    def add_onetime_job(self, func: FunctionType, when: Optional[int]=None, **kwargs):
+    def add_onetime_job(self, func: Union[str, FunctionType], when: Optional[int]=None, **kwargs):
         """Schedule a job to run at a later time.
 
         Args:

@@ -1,4 +1,3 @@
-
 from flask import request
 from flask_restful import Resource
 from ipaddress import IPv4Address
@@ -116,7 +115,7 @@ class DeviceInitApi(Resource):
             return empty_result(status='error', data="'device_id' must be an integer"), 400
 
         json_data = request.get_json()
-        if not 'hostname' in json_data:
+        if 'hostname' not in json_data:
             return empty_result(status='error', data="POST data must include new 'hostname'"), 400
         else:
             if not Device.valid_hostname(json_data['hostname']):
@@ -126,7 +125,7 @@ class DeviceInitApi(Resource):
             else:
                 new_hostname = json_data['hostname']
 
-        if not 'device_type' in json_data:
+        if 'device_type' not in json_data:
             return empty_result(status='error', data="POST data must include 'device_type'"), 400
         else:
             try:

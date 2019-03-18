@@ -1,17 +1,17 @@
-from nornir import InitNornir
+import datetime
+from typing import Optional
 
 from nornir.core.deserializer.inventory import Inventory
 from nornir.core.filter import F
 
 from nornir.plugins.tasks import networking
 from nornir.plugins.functions.text import print_result
+from nornir.core.task import AggregatedResult
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.cmdb.device import Device
 from cnaas_nms.cmdb.linknet import Linknet
-
-import datetime
 
 
 def get_inventory():
@@ -19,12 +19,14 @@ def get_inventory():
     return Inventory.serialize(nr.inventory).dict()
 
 
-def get_facts(hostname=None, group=None):
-    """Get facts about devices using NAPALM getfacts. Defaults to querying all devices in inventory.
+def get_facts(hostname: Optional[str] = None, group: Optional[str] = None)\
+        -> AggregatedResult:
+    """Get facts about devices using NAPALM getfacts. Defaults to querying all
+    devices in the inventory.
 
     Args:
-        hostname (str): Optional hostname of device to query
-        group (str): Optional group of devices to query
+        hostname: Optional hostname of device to query
+        group: Optional group of devices to query
 
     Returns:
         Nornir result object
@@ -43,12 +45,13 @@ def get_facts(hostname=None, group=None):
     return result
 
 
-def get_neighbors(hostname=None, group=None):
+def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
+        -> AggregatedResult:
     """Get neighbor information from device
 
     Args:
-        hostname (str): Optional hostname of device to query
-        group (str): Optional group of devices to query
+        hostname: Optional hostname of device to query
+        group: Optional group of devices to query
 
     Returns:
         Nornir result object
@@ -67,7 +70,7 @@ def get_neighbors(hostname=None, group=None):
     return result
 
 
-def update_inventory(hostname, site='default'):
+def update_inventory(hostname: str, site='default') -> dict:
     """Update CMDB inventory with information gathered from device.
 
     Args:
@@ -81,7 +84,7 @@ def update_inventory(hostname, site='default'):
     """
     # TODO: Handle napalm.base.exceptions.ConnectionException ?
     result = get_facts(hostname=hostname)[hostname][0]
-    if result.failed == True:
+    if result.failed:
         raise Exception
     facts = result.result['facts']
     with sqla_session() as session:

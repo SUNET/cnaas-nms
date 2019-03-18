@@ -65,7 +65,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     """
     # Check that we can find device and that it's in the correct state to start init
     with sqla_session() as session:
-        dev = session.query(Device).filter(Device.id == device_id).one()
+        dev: Device = session.query(Device).filter(Device.id == device_id).one()
         if dev.state != DeviceState.DISCOVERED:
             raise DeviceStateException("Device must be in state DISCOVERED to begin init")
         old_hostname = dev.hostname
@@ -83,10 +83,10 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     uplinks = []
     neighbor_hostnames = []
     with sqla_session() as session:
-        d = session.query(Device).filter(Device.hostname == old_hostname).one()
-        for neighbor_d in d.get_neighbors(session):
+        dev = session.query(Device).filter(Device.hostname == old_hostname).one()
+        for neighbor_d in dev.get_neighbors(session):
             if neighbor_d.device_type == DeviceType.DIST:
-                local_if = d.get_link_to_local_ifname(session, neighbor_d)
+                local_if = dev.get_link_to_local_ifname(session, neighbor_d)
                 if local_if:
                     uplinks.append({'ifname': local_if})
                     neighbor_hostnames.append(neighbor_d.hostname)

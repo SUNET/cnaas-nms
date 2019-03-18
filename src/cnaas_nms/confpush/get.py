@@ -13,9 +13,11 @@ from cnaas_nms.cmdb.linknet import Linknet
 
 import datetime
 
+
 def get_inventory():
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     return Inventory.serialize(nr.inventory).dict()
+
 
 def get_facts(hostname=None, group=None):
     """Get facts about devices using NAPALM getfacts. Defaults to querying all devices in inventory.
@@ -40,6 +42,7 @@ def get_facts(hostname=None, group=None):
 
     return result
 
+
 def get_neighbors(hostname=None, group=None):
     """Get neighbor information from device
 
@@ -62,6 +65,7 @@ def get_neighbors(hostname=None, group=None):
     print_result(result)
 
     return result
+
 
 def update_inventory(hostname, site='default'):
     """Update CMDB inventory with information gathered from device.
@@ -103,6 +107,7 @@ def update_inventory(hostname, site='default'):
         d.last_seen = datetime.datetime.now()
         session.commit()
         return diff
+
 
 def update_linknets(hostname):
     """Update linknet data for specified device using LLDP neighbor data.

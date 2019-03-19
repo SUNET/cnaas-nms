@@ -3,14 +3,17 @@
 import bson.json_util
 import datetime
 import enum
+from dataclasses import dataclass
+from typing import Optional, Union, List
+
+from nornir.core.task import AggregatedResult
 
 from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResult
 from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
 from cnaas_nms.cmdb.dataclass_persistence import DataclassPersistence
-from nornir.core.task import AggregatedResult
+from cnaas_nms.tools.log import get_logger
 
-from dataclasses import dataclass
-from typing import Optional, Union, List
+logger = get_logger()
 
 class JobStatus(enum.Enum):
     UNKNOWN = 0
@@ -46,6 +49,8 @@ class Jobtracker(DataclassPersistence):
             else:
                 self.result = bson.json_util.dumps(res)
         except Exception as e:
+            logger.warning("Job {} got unserializable result after finishing: {}".\
+                           format(self.id, self.result))
             self.result = 'unserializable'
         self.update({
             'finish_time': datetime.datetime.utcnow(),
@@ -55,6 +60,7 @@ class Jobtracker(DataclassPersistence):
         })
 
     def finish_exception(self, e: Exception, traceback: str):
+        logger.warning("Job {} finished with exception {}".format(self.id, str(e)))
         self.update({
             'finish_time': datetime.datetime.utcnow(),
             'status': JobStatus.EXCEPTION,
@@ -72,7 +78,6 @@ class Jobtracker(DataclassPersistence):
             job: Jobtracker = Jobtracker()
             job.from_dict(job_data)
             if job.status == JobStatus.RUNNING and job.start_time > start_time:
-                print(f"Active running job: {job.id}, start_time: {job.start_time}")
                 ret.append(job)
         return ret
 

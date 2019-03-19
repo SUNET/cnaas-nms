@@ -30,7 +30,10 @@ class DataclassPersistence:
                 self.__setattr__('id', in_dict['_id'])
             else:
                 if field.name in in_dict:
-                    self.__setattr__(field.name, in_dict[field.name])
+                    if inspect.isclass(field.type) and issubclass(field.type, enum.Enum):
+                        self.__setattr__(field.name, field.type(in_dict[field.name]))
+                    else:
+                        self.__setattr__(field.name, in_dict[field.name])
 
     def to_dict(self, json_serializable=False):
         """Return dataclass fields as a python dict, optionally only containing

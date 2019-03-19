@@ -1,3 +1,5 @@
+#from __future__ import annotations
+# this future import seems to break enum translation on DataclassPersistance class
 import bson.json_util
 import datetime
 import enum
@@ -8,7 +10,7 @@ from cnaas_nms.cmdb.dataclass_persistence import DataclassPersistence
 from nornir.core.task import AggregatedResult
 
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 class JobStatus(enum.Enum):
     UNKNOWN = 0
@@ -59,3 +61,18 @@ class Jobtracker(DataclassPersistence):
             'exception': bson.json_util.dumps({'type': type(e).__name__, 'args': e.args}),
             'traceback': bson.json_util.dumps(traceback)
         })
+
+    @classmethod
+    def get_running_jobs(cls, start_time: Optional[datetime.datetime] = None) -> List:
+        if not start_time:
+            start_time = datetime.datetime.utcnow() - datetime.timedelta(minutes = 15)
+        ret = []
+        last_jobs = cls.get_last_entries()
+        for job_data in last_jobs:
+            job: Jobtracker = Jobtracker()
+            job.from_dict(job_data)
+            if job.status == JobStatus.RUNNING and job.start_time > start_time:
+                print(f"Active running job: {job.id}, start_time: {job.start_time}")
+                ret.append(job)
+        return ret
+

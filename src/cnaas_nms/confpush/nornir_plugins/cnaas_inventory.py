@@ -44,6 +44,8 @@ class CnaasInventory(Inventory):
         groups['S_DISCOVERED']['password'] = 'admin'
         groups['S_INIT']['username'] = 'admin'
         groups['S_INIT']['password'] = 'admin'
+        groups['S_MANAGED']['username'] = 'admin'
+        groups['S_MANAGED']['password'] = 'admin'
         defaults = {'data': {'k': 'v'} }
         super().__init__(hosts=hosts, groups=groups, defaults=defaults, **kwargs)
 

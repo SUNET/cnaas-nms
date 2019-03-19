@@ -1,12 +1,19 @@
-import cnaas_nms.confpush.init_device
-from cnaas_nms.scheduler.scheduler import Scheduler
-
 import pprint
 import unittest
 import pkg_resources
 import yaml
 import os
 import time
+
+from nornir.plugins.tasks import networking
+from nornir.plugins.functions.text import print_result
+
+import cnaas_nms.confpush.init_device
+from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
+from cnaas_nms.cmdb.session import sqla_session
+from cnaas_nms.scheduler.jobtracker import Jobtracker
+
 
 class InitTests(unittest.TestCase):
     def setUp(self):
@@ -19,17 +26,58 @@ class InitTests(unittest.TestCase):
 
     def tearDown(self):
         scheduler = Scheduler()
-        time.sleep(70)
-        scheduler.get_scheduler().print_jobs()
+        ap_scheduler = scheduler.get_scheduler()
+        time.sleep(1)
+        for i in range(1, 11):
+            num_scheduled_jobs = len(ap_scheduler.get_jobs())
+            num_running_jobs = len(Jobtracker.get_running_jobs())
+            print("Number of jobs scheduled: {}, number of jobs running: {}".\
+                  format(num_scheduled_jobs, num_running_jobs))
+            if num_scheduled_jobs > 0 or num_running_jobs > 0:
+                print("Scheduled jobs still in queue: ")
+                ap_scheduler.print_jobs()
+                print("Sleeping 10 seconds")
+                time.sleep(10)
+            else:
+                print("Shutting down scheduler")
+                scheduler.shutdown()
+                return
         scheduler.shutdown()
 
     def test_init_access_device(self):
         scheduler = Scheduler()
         job = scheduler.add_onetime_job(
             cnaas_nms.confpush.init_device.init_access_device_step1,
-            when=1,
-            kwargs={'device_id': 6, 'new_hostname': 'eosaccess'})
+            when=0,
+            kwargs={'device_id': self.testdata['init_access_device_id'],
+                    'new_hostname': self.testdata['init_access_new_hostname']})
         print(f"Step1 scheduled as ID { job.id }")
+
+    def reset_access_device(self):
+        nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+        nr_filtered = nr.filter(name=self.testdata['init_access_new_hostname'])
+
+        data_dir = pkg_resources.resource_filename(__name__, 'data')
+        with open(os.path.join(data_dir, 'access_reset.j2'), 'r') as f_reset_config:
+            print(self.testdata['init_access_new_hostname'])
+            config = f_reset_config.read()
+            print(config)
+            nrresult = nr_filtered.run(
+                         task=networking.napalm_configure,
+                         name="Reset config",
+                         replace=False,
+                         configuration=config,
+                         dry_run=False # TODO: temp for testing
+                         )
+            print_result(nrresult)
+
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(Device.hostname == self.testdata['init_access_new_hostname']).one()
+            dev.management_ip = None
+            dev.hostname = self.testdata['init_access_old_hostname']
+            dev.state = DeviceState.DISCOVERED
+            dev.device_type = DeviceType.UNKNOWN
+
 
 
 if __name__ == '__main__':

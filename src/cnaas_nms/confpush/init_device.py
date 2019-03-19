@@ -139,7 +139,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     scheduler = Scheduler()
     next_job = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_access_device_step2',
-        when=1,
+        when=0,
         kwargs={'device_id':device_id, 'iteration': 1})
 
     print(f"Step 2 scheduled as ID {next_job.id}")

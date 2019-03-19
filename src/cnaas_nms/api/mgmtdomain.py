@@ -1,14 +1,12 @@
-
 from flask import request
 from flask_restful import Resource
 from ipaddress import IPv4Interface
 
-import cnaas_nms.confpush.init_device
 from cnaas_nms.api.generic import build_filter, empty_result, limit_results
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
+from cnaas_nms.cmdb.device import Device
 from cnaas_nms.cmdb.mgmtdomain import Mgmtdomain
 from cnaas_nms.cmdb.session import sqla_session
-from cnaas_nms.scheduler.scheduler import Scheduler
+
 
 class MgmtdomainByIdApi(Resource):
     def get(self, mgmtdomain_id):
@@ -65,8 +63,6 @@ class MgmtdomainByIdApi(Resource):
                     instance.vlan = data['vlan']
                 if 'ipv4_gw' in data:
                     instance.ipv4_gw = data['ipv4_gw']
-
-
 
 
 class MgmtdomainsApi(Resource):

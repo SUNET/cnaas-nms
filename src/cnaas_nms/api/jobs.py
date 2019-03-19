@@ -1,7 +1,3 @@
-
-import bson.json_util
-import json
-from flask import request
 from flask_restful import Resource
 
 from cnaas_nms.api.generic import limit_results, empty_result

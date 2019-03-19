@@ -1,15 +1,16 @@
-from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import relationship
-
-from sqlalchemy_utils import IPAddressType
 import ipaddress
 import enum
 import datetime
 
+from sqlalchemy import Column, Integer, Unicode, UniqueConstraint
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
+from sqlalchemy_utils import IPAddressType
+
 import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site
 import cnaas_nms.cmdb.device
+
 
 class Linknet(cnaas_nms.cmdb.base.Base):
     __tablename__ = 'linknet'

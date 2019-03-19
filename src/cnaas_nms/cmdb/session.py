@@ -1,13 +1,15 @@
 import yaml
+from contextlib import contextmanager
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pymongo import MongoClient
 
-from contextlib import contextmanager
 
 def get_dbdata(config='/etc/cnaas-nms/db_config.yml'):
     with open(config, 'r') as db_file:
         return yaml.safe_load(db_file)
+
 
 def get_sqlalchemy_conn_str(**kwargs) -> str:
     db_data = get_dbdata(**kwargs)
@@ -18,6 +20,7 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
     )
 
     return conn_str
+
 
 @contextmanager
 def sqla_session(**kwargs):
@@ -35,6 +38,7 @@ def sqla_session(**kwargs):
         raise
     finally:
         session.close()
+
 
 @contextmanager
 def mongo_db(**kwargs):

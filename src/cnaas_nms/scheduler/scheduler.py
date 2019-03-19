@@ -11,6 +11,9 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 
 import cnaas_nms.cmdb.session 
 from cnaas_nms.scheduler.jobtracker import Jobtracker, JobStatus
+from cnaas_nms.tools.log import get_logger
+
+logger = get_logger()
 
 
 class SingletonType(type):
@@ -44,7 +47,7 @@ class Scheduler(object, metaclass=SingletonType):
         frameinfo = inspect.getframeinfo(caller.f_back.f_back)
         filename = '/'.join(frameinfo.filename.split('/')[-2:])
         function = frameinfo.function
-        print("Scheduler started from filename {} function {}".format(
+        logger.info("Scheduler started from filename {} function {}".format(
             filename, function))
         if filename == 'cnaas_nms/run.py' and function == 'main':
             return True

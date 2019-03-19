@@ -3,7 +3,6 @@ from typing import Optional
 
 from nornir.core.deserializer.inventory import Inventory
 from nornir.core.filter import F
-
 from nornir.plugins.tasks import networking
 from nornir.plugins.functions.text import print_result
 from nornir.core.task import AggregatedResult
@@ -12,6 +11,9 @@ import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.cmdb.device import Device
 from cnaas_nms.cmdb.linknet import Linknet
+from cnaas_nms.tools.log import get_logger
+
+logger = get_logger()
 
 
 def get_inventory():
@@ -124,16 +126,16 @@ def update_linknets(hostname):
 
     with sqla_session() as session:
         local_device_inst = session.query(Device).filter(Device.hostname == hostname).one()
-        print(local_device_inst.id)
+        logger.debug("Updating linknets for device {} ...".format(local_device_inst.id))
 
         for local_if, data in neighbors.items():
-            print(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
+            logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
             remote_device_inst = session.query(Device).\
                 filter(Device.hostname == data[0]['hostname']).one()
             if not remote_device_inst:
-                print(f"Unknown connected device: {data[0]['hostname']}")
+                logger.debug(f"Unknown connected device: {data[0]['hostname']}")
                 continue
-            print(f"Remote device found, device id: {remote_device_inst.id}")
+            logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
             # Check if linknet object already exists in database
             local_devid = local_device_inst.id
@@ -144,7 +146,7 @@ def update_linknets(hostname):
                     ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
                 ).one_or_none()
             if check_linknet:
-                print(f"Found entry: {check_linknet.id}")
+                logger.debug(f"Found entry: {check_linknet.id}")
                 #TODO: check info and update if necessary
             else:
                 new_link = Linknet()

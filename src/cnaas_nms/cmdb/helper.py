@@ -5,14 +5,26 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from cnaas_nms.cmdb.device import Device
 from cnaas_nms.cmdb.mgmtdomain import Mgmtdomain
-from cnaas_nms.cmdb.session import sqla_session
+
 
 def canonical_mac(mac):
+    """Return a standardized format of MAC-addresses for CNaaS to
+    store in databases etc."""
     na_mac = netaddr.EUI(mac)
     na_mac.dialect = netaddr.mac_bare
     return str(na_mac)
 
+
 def find_mgmtdomain(session, hostnames: List[str]) -> Optional[Mgmtdomain]:
+    """Find the corresponding management domain for a pair of
+    distribution switches.
+
+    Args:
+        hostnames: A list of two hostnames for the distribution switches
+
+    Raises:
+        ValueError: On invalid hostnames etc
+    """
     if not isinstance(hostnames, list) or not len(hostnames) == 2:
         raise ValueError("hostnames argument must be a list with two device hostnames")
     for hostname in hostnames:

@@ -1,15 +1,8 @@
 from typing import Optional
-import datetime
-
 from ipaddress import IPv4Interface
-from nornir import InitNornir
-
-from nornir.core.deserializer.inventory import Inventory
-from nornir.core.filter import F
-from nornir.core.task import MultiResult
 
 from nornir.plugins.tasks import networking, text
-from nornir.plugins.functions.text import print_title, print_result
+from nornir.plugins.functions.text import print_result
 from apscheduler.job import Job
 
 import cnaas_nms.confpush.nornir_helper
@@ -20,10 +13,14 @@ from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType, DeviceStateEx
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.tools.log import get_logger
+
+logger = get_logger()
 
 
 class ConnectionCheckError(Exception):
     pass
+
 
 def push_base_management(task, device_variables):
     template_vars = {
@@ -32,6 +29,7 @@ def push_base_management(task, device_variables):
         'mgmt_ip': str(device_variables['mgmt_ipif']),
         'mgmt_gw': device_variables['mgmt_gw']
     }
+    logger.debug("Push basetemplate for host: {}".format(task.host.name))
 
     r = task.run(task=text.template_file,
                  name="Base management",
@@ -49,6 +47,7 @@ def push_base_management(task, device_variables):
              configuration=task.host["config"],
              dry_run=False # TODO: temp for testing
              )
+
 
 @job_wrapper
 def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResult:
@@ -90,7 +89,8 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
                 if local_if:
                     uplinks.append({'ifname': local_if})
                     neighbor_hostnames.append(neighbor_d.hostname)
-        print("DEBUG100: uplinks: {} neighbor_hostnames: {}".format(uplinks, neighbor_hostnames))
+        logger.debug("Uplinks for device {} detected: {} neighbor_hostnames: {}".\
+                     format(device_id, uplinks, neighbor_hostnames))
         #TODO: check compatability, same dist pair and same ports on dists
         mgmtdomain = cnaas_nms.cmdb.helper.find_mgmtdomain(session, neighbor_hostnames) 
         if not mgmtdomain:
@@ -142,8 +142,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
         when=0,
         kwargs={'device_id':device_id, 'iteration': 1})
 
-    print(f"Step 2 scheduled as ID {next_job.id}")
-    #TODO: trigger more jobs later with more delays? cancel if first succeeds
+    logger.debug(f"Step 2 scheduled as ID {next_job.id}")
 
     return NornirJobResult(
         nrresult = nrresult,
@@ -190,7 +189,6 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         found_hostname = facts['hostname']
     except:
         raise #TODO: define exception types
-    print(f"Check match {hostname} = {found_hostname}")
     if hostname != found_hostname:
         raise #TODO: define exception types
 

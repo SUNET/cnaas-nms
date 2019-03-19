@@ -1,13 +1,13 @@
-from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import relationship, load_only
-
-from sqlalchemy_utils import IPAddressType
 import ipaddress
 import datetime
 import enum
 from ipaddress import IPv4Interface, IPv4Address
 from typing import Optional
+
+from sqlalchemy import Column, Integer, Unicode, UniqueConstraint
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship, load_only
+from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.cmdb.base
 import cnaas_nms.cmdb.site

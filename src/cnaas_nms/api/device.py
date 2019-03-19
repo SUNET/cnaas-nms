@@ -9,6 +9,7 @@ from cnaas_nms.cmdb.linknet import Linknet
 from cnaas_nms.cmdb.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 
+
 class DeviceByIdApi(Resource):
     def get(self, device_id):
         result = empty_result()
@@ -84,7 +85,6 @@ class DeviceByIdApi(Resource):
                     instance.hostname = data['hostname']
             else:
                 errors.append('Device not found')
-
 
 
 class DevicesApi(Resource):

@@ -10,6 +10,9 @@ from bson.objectid import ObjectId
 import bson.json_util
 
 from cnaas_nms.cmdb.session import mongo_db
+from cnaas_nms.tools.log import get_logger
+
+logger = get_logger()
 
 @dataclass
 class DataclassPersistence:
@@ -72,7 +75,7 @@ class DataclassPersistence:
                 self.__setattr__(k, v)
                 update_set[k] = v
             else:
-                print(f"Unknown field set '{k}' in collection '{self._collection}'")
+                logger.debug(f"Unknown field set '{k}' in collection '{self._collection}'")
                 update_set[k] = v
         with mongo_db() as db:
             collection = db[self._collection]
@@ -106,7 +109,7 @@ class DataclassPersistence:
                 self.__setattr__(k, v)
                 update_set[k] = v
             else:
-                print(f"Unknown field set '{k}' in collection '{self._collection}'")
+                logger.debug(f"Unknown field set '{k}' in collection '{self._collection}'")
                 update_set[k] = v
         with mongo_db() as db:
             collection = db[self._collection]

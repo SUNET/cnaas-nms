@@ -7,32 +7,10 @@ from nornir.plugins.tasks import networking, text
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.cmdb.device import DeviceType
+from cnaas_nms.tools.log import get_logger
 
-def push_basetemplate(task):
-    template_vars = {
-        'uplinks': [{'ifname': 'Ethernet2'}],
-        'mgmt_vlan_id': 600,
-        'mgmt_ip': '10.0.6.10/24',
-        'mgmt_gw': '10.0.6.1'
-    }
-    print("DEBUG1: "+task.host.name)
+logger = get_logger()
 
-    r = task.run(task=text.template_file,
-                 name="Base management",
-                 template="managed-base.j2",
-                 path=f"../templates/{task.host.platform}",
-                 **template_vars)
-
-    #TODO: Handle template not found, variables not defined
-
-    task.host["config"] = r.result
-
-    task.run(task=networking.napalm_configure,
-             name="Push base management config",
-             replace=False,
-             configuration=task.host["config"],
-             dry_run=False # TODO: temp for testing
-             )
 
 @job_wrapper
 def sync_basetemplate(hostname: Optional[str]=None,

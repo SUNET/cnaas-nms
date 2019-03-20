@@ -4,9 +4,9 @@ from ipaddress import IPv4Address
 
 import cnaas_nms.confpush.init_device
 from cnaas_nms.api.generic import build_filter, empty_result
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
-from cnaas_nms.cmdb.linknet import Linknet
-from cnaas_nms.cmdb.session import sqla_session
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.linknet import Linknet
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 
 

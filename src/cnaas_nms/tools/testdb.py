@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 import yaml
-from cnaas_nms.cmdb.session import sqla_session
+from cnaas_nms.db.session import sqla_session
 
-from cnaas_nms.cmdb.site import Site
-from cnaas_nms.cmdb.device import Device
+from cnaas_nms.db.site import Site
+from cnaas_nms.db.device import Device
 
 with sqla_session() as session:
     for site_instance in session.query(Site).order_by(Site.id):

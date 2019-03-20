@@ -7,9 +7,9 @@ from apscheduler.job import Job
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
-import cnaas_nms.cmdb.helper
-from cnaas_nms.cmdb.session import sqla_session
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType, DeviceStateException
+import cnaas_nms.db.helper
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
@@ -19,6 +19,9 @@ logger = get_logger()
 
 
 class ConnectionCheckError(Exception):
+    pass
+
+class InitError(Exception):
     pass
 
 
@@ -92,7 +95,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
         logger.debug("Uplinks for device {} detected: {} neighbor_hostnames: {}".\
                      format(device_id, uplinks, neighbor_hostnames))
         #TODO: check compatability, same dist pair and same ports on dists
-        mgmtdomain = cnaas_nms.cmdb.helper.find_mgmtdomain(session, neighbor_hostnames) 
+        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
         if not mgmtdomain:
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(
@@ -164,10 +167,11 @@ def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optiona
 @job_wrapper
 def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResult:
     # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
-    print(f"step2: { device_id }")
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
         if dev.state != DeviceState.INIT:
+            logger.error("Device with ID {} got to init step2 but is in incorrect state: {}".\
+                         format(device_id, dev.state.name))
             raise DeviceStateException("Device must be in state INIT to continue init step 2")
         hostname = dev.hostname
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
@@ -188,9 +192,9 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         facts = nrresult[hostname][0].result['facts']
         found_hostname = facts['hostname']
     except:
-        raise #TODO: define exception types
+        raise InitError("Could not log in to device during init step 2")
     if hostname != found_hostname:
-        raise #TODO: define exception types
+        raise InitError("Newly initialized device presents wrong hostname")
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()

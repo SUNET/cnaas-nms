@@ -9,10 +9,10 @@ import pprint
 
 from ipaddress import IPv4Address
 
-import cnaas_nms.cmdb.helper
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
-from cnaas_nms.cmdb.session import sqla_session
-from cnaas_nms.cmdb.mgmtdomain import Mgmtdomain
+import cnaas_nms.db.helper
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.mgmtdomain import Mgmtdomain
 
 class MgmtdomainTests(unittest.TestCase):
     def setUp(self):
@@ -54,7 +54,7 @@ class MgmtdomainTests(unittest.TestCase):
 
     def test_find_mgmt_domain(self):
         with sqla_session() as session:
-            mgmtdomain = cnaas_nms.cmdb.helper.find_mgmtdomain(session, ['eosdist', 'eosdist2'])
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ['eosdist', 'eosdist2'])
             if mgmtdomain:
                 pprint.pprint(mgmtdomain.as_dict())
 

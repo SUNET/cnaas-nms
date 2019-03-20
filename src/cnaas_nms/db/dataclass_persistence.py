@@ -9,7 +9,7 @@ import inspect
 from bson.objectid import ObjectId
 import bson.json_util
 
-from cnaas_nms.cmdb.session import mongo_db
+from cnaas_nms.db.session import mongo_db
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()

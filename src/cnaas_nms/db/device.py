@@ -12,9 +12,9 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import IPAddressType
 
-import cnaas_nms.cmdb.base
-import cnaas_nms.cmdb.site
-from cnaas_nms.cmdb.linknet import Linknet
+import cnaas_nms.db.base
+import cnaas_nms.db.site
+from cnaas_nms.db.linknet import Linknet
 
 
 class DeviceException(Exception):
@@ -59,7 +59,7 @@ class DeviceType(enum.Enum):
         return any(value == item.name for item in cls)
 
 
-class Device(cnaas_nms.cmdb.base.Base):
+class Device(cnaas_nms.db.base.Base):
     __tablename__ = 'device'
     __table_args__ = (
         None,
@@ -90,7 +90,7 @@ class Device(cnaas_nms.cmdb.base.Base):
             value = getattr(self, col.name)
             if issubclass(value.__class__, enum.Enum):
                 value = value.name
-            elif issubclass(value.__class__, cnaas_nms.cmdb.base.Base):
+            elif issubclass(value.__class__, cnaas_nms.db.base.Base):
                 continue
             elif issubclass(value.__class__, ipaddress.IPv4Address):
                 value = str(value)

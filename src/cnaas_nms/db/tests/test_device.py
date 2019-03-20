@@ -9,10 +9,10 @@ import pprint
 
 from ipaddress import IPv4Address
 
-import cnaas_nms.cmdb.helper
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
-from cnaas_nms.cmdb.session import sqla_session
-from cnaas_nms.cmdb.linknet import Linknet
+import cnaas_nms.db.helper
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.linknet import Linknet
 
 class DeviceTests(unittest.TestCase):
     def setUp(self):

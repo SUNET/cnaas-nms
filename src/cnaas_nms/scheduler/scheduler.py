@@ -9,7 +9,7 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-import cnaas_nms.cmdb.session 
+import cnaas_nms.db.session
 from cnaas_nms.scheduler.jobtracker import Jobtracker, JobStatus
 from cnaas_nms.tools.log import get_logger
 
@@ -28,7 +28,7 @@ class SingletonType(type):
 class Scheduler(object, metaclass=SingletonType):
     def __init__(self):
         if self.is_api_caller(caller = inspect.currentframe()):
-            sqlalchemy_url = cnaas_nms.cmdb.session.get_sqlalchemy_conn_str()
+            sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
             jobstores = {'default': SQLAlchemyJobStore(url=sqlalchemy_url)}
         else:
             jobstores = {'default': MemoryJobStore()} 

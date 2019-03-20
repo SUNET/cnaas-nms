@@ -3,8 +3,8 @@ from typing import List, Optional
 
 from sqlalchemy.orm.exc import NoResultFound
 
-from cnaas_nms.cmdb.device import Device
-from cnaas_nms.cmdb.mgmtdomain import Mgmtdomain
+from cnaas_nms.db.device import Device
+from cnaas_nms.db.mgmtdomain import Mgmtdomain
 
 
 def canonical_mac(mac):

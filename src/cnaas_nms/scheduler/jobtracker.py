@@ -10,7 +10,7 @@ from nornir.core.task import AggregatedResult
 
 from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResult
 from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
-from cnaas_nms.cmdb.dataclass_persistence import DataclassPersistence
+from cnaas_nms.db.dataclass_persistence import DataclassPersistence
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -77,6 +77,8 @@ class Jobtracker(DataclassPersistence):
         for job_data in last_jobs:
             job: Jobtracker = Jobtracker()
             job.from_dict(job_data)
+            if not job.start_time:
+                continue
             if job.status == JobStatus.RUNNING and job.start_time > start_time:
                 ret.append(job)
         return ret

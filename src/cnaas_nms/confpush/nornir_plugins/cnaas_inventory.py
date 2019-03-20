@@ -1,8 +1,8 @@
 from nornir.core.deserializer.inventory import Inventory
 import ipaddress
 
-from cnaas_nms.cmdb.device import Device, DeviceType, DeviceState
-import cnaas_nms.cmdb.session
+from cnaas_nms.db.device import Device, DeviceType, DeviceState
+import cnaas_nms.db.session
 
 class CnaasInventory(Inventory):
     def _get_management_ip(self, management_ip, dhcp_ip):
@@ -15,7 +15,7 @@ class CnaasInventory(Inventory):
 
     def __init__(self, **kwargs):
         hosts = {}
-        with cnaas_nms.cmdb.session.sqla_session() as session:
+        with cnaas_nms.db.session.sqla_session() as session:
             for instance in session.query(Device):
                 hosts[instance.hostname] = {
                     'platform': instance.platform,

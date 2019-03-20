@@ -7,12 +7,12 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import IPAddressType
 
-import cnaas_nms.cmdb.base
-import cnaas_nms.cmdb.site
-import cnaas_nms.cmdb.device
+import cnaas_nms.db.base
+import cnaas_nms.db.site
+import cnaas_nms.db.device
 
 
-class Linknet(cnaas_nms.cmdb.base.Base):
+class Linknet(cnaas_nms.db.base.Base):
     __tablename__ = 'linknet'
     __table_args__ = (
         None,
@@ -40,7 +40,7 @@ class Linknet(cnaas_nms.cmdb.base.Base):
             value = getattr(self, col.name)
             if issubclass(value.__class__, enum.Enum):
                 value = value.value
-            elif issubclass(value.__class__, cnaas_nms.cmdb.base.Base):
+            elif issubclass(value.__class__, cnaas_nms.db.base.Base):
                 continue
             elif issubclass(value.__class__, ipaddress.IPv4Address):
                 value = str(value)

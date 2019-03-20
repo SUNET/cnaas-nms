@@ -8,9 +8,9 @@ from nornir.plugins.functions.text import print_result
 from nornir.core.task import AggregatedResult
 
 import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.cmdb.session import sqla_session
-from cnaas_nms.cmdb.device import Device
-from cnaas_nms.cmdb.linknet import Linknet
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.device import Device
+from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()

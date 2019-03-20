@@ -6,7 +6,7 @@ from nornir.plugins.tasks import networking, text
 
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
-from cnaas_nms.cmdb.device import DeviceType
+from cnaas_nms.db.device import DeviceType
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()

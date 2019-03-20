@@ -3,9 +3,9 @@ from flask_restful import Resource
 from ipaddress import IPv4Interface
 
 from cnaas_nms.api.generic import build_filter, empty_result, limit_results
-from cnaas_nms.cmdb.device import Device
-from cnaas_nms.cmdb.mgmtdomain import Mgmtdomain
-from cnaas_nms.cmdb.session import sqla_session
+from cnaas_nms.db.device import Device
+from cnaas_nms.db.mgmtdomain import Mgmtdomain
+from cnaas_nms.db.session import sqla_session
 
 
 class MgmtdomainByIdApi(Resource):

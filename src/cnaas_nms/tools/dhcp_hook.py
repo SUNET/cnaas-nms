@@ -2,15 +2,15 @@
 
 import sys
 
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
-from cnaas_nms.cmdb.session import sqla_session
-import cnaas_nms.cmdb.helper
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.session import sqla_session
+import cnaas_nms.db.helper
 
 if len(sys.argv) < 3:
     sys.exit(1)
 if sys.argv[1] == "commit":
     try:
-        ztp_mac = cnaas_nms.cmdb.helper.canonical_mac(sys.argv[2])
+        ztp_mac = cnaas_nms.db.helper.canonical_mac(sys.argv[2])
         dhcp_ip = sys.argv[3]
         platform = sys.argv[4]
     except Exception as e:

@@ -10,8 +10,8 @@ from nornir.plugins.functions.text import print_result
 
 import cnaas_nms.confpush.init_device
 from cnaas_nms.scheduler.scheduler import Scheduler
-from cnaas_nms.cmdb.device import Device, DeviceState, DeviceType
-from cnaas_nms.cmdb.session import sqla_session
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.jobtracker import Jobtracker
 
 

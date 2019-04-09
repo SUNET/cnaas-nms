@@ -1,5 +1,8 @@
 management api http-commands
  no shutdown
 username admin privilege 15 secret admin
+interface vlan1
+ ip address dhcp
+ dhcp client accept default-route
 ! dhcp on all ifs or vlan1
 ! lldp enable

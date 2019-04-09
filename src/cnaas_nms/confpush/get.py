@@ -144,15 +144,39 @@ def update_linknets(hostname):
                     ((Linknet.device_a_id == local_devid) & (Linknet.device_a_port == local_if))
                     |
                     ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
+                    |
+                    ((Linknet.device_a_id == remote_device_inst.id) &
+                     (Linknet.device_a_port == data[0]['port']))
+                    |
+                    ((Linknet.device_b_id == remote_device_inst.id) &
+                     (Linknet.device_b_port == data[0]['port']))
                 ).one_or_none()
             if check_linknet:
                 logger.debug(f"Found entry: {check_linknet.id}")
-                #TODO: check info and update if necessary
-            else:
-                new_link = Linknet()
-                new_link.device_a = local_device_inst
-                new_link.device_a_port = local_if
-                new_link.device_b = remote_device_inst
-                new_link.device_b_port = data[0]['port']
-                session.add(new_link)
-                ret.append(new_link.as_dict())
+                if (
+                        (       check_linknet.device_a_id == local_devid
+                            and check_linknet.device_a_port == local_if
+                            and check_linknet.device_b_id == remote_device_inst.id
+                            and check_linknet.device_b_port == data[0]['port']
+                        )
+                        or
+                        (       check_linknet.device_a_id == local_devid
+                            and check_linknet.device_a_port == local_if
+                            and check_linknet.device_b_id == remote_device_inst.id
+                            and check_linknet.device_b_port == data[0]['port']
+                        )
+                ):
+                    # All info is the same, no update required
+                    continue
+                else:
+                    # TODO: update instead of delete+new insert?
+                    session.delete(check_linknet)
+                    session.commit()
+
+            new_link = Linknet()
+            new_link.device_a = local_device_inst
+            new_link.device_a_port = local_if
+            new_link.device_b = remote_device_inst
+            new_link.device_b_port = data[0]['port']
+            session.add(new_link)
+            ret.append(new_link.as_dict())

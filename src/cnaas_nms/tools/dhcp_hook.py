@@ -34,6 +34,7 @@ if sys.argv[1] == "commit":
                     ztp_mac
                 ))
         else:
+            # TODO: look for entries with same dhcp_ip in DB and set them to null (they are stale)
             new_device = Device()
             new_device.ztp_mac = ztp_mac
             new_device.dhcp_ip = dhcp_ip

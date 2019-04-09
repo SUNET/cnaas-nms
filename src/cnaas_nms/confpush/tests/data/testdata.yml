@@ -1,3 +1,4 @@
-init_access_device_id: 6
-init_access_old_hostname: mac-080027F60C55
+init_access_device_id: 13
+init_access_old_hostname: mac-0800275C091F
 init_access_new_hostname: eosaccess
+update_hostname: mac-0800275C091F

@@ -1,4 +1,7 @@
 hostname {{ host }}
+management api http-commands                                                                                                                
+ no shutdown
+username admin privilege 15 secret admin
 {% for uplink in uplinks %}
 interface {{ uplink.ifname }}
  switchport
@@ -13,4 +16,3 @@ interface vlan {{ mgmt_vlan_id }}
  no shutdown
  ip address {{ mgmt_ip }}
 ip route 0.0.0.0 0.0.0.0 {{ mgmt_gw }}
-

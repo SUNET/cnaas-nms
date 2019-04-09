@@ -46,7 +46,7 @@ def push_base_management(task, device_variables):
 
     task.run(task=networking.napalm_configure,
              name="Push base management config",
-             replace=False,
+             replace=True,
              configuration=task.host["config"],
              dry_run=False # TODO: temp for testing
              )

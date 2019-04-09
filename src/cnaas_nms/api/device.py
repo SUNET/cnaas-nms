@@ -66,6 +66,16 @@ class DeviceByIdApi(Resource):
                     errors.append('Invalid management_ip received. Must be correct IPv4 address.')
                 else:
                     data['management_ip'] = addr
+        if 'dhcp_ip' in json_data:
+            if json_data['dhcp_ip'] == None:
+                data['dhcp_ip'] = None
+            else:
+                try:
+                    addr = IPv4Address(json_data['dhcp_ip'])
+                except:
+                    errors.append('Invalid dhcp_ip received. Must be correct IPv4 address.')
+                else:
+                    data['dhcp_ip'] = addr
         if 'hostname' in json_data:
             if Device.valid_hostname(json_data['hostname']):
                 data['hostname'] = json_data['hostname']
@@ -81,6 +91,8 @@ class DeviceByIdApi(Resource):
                     instance.device_type = data['device_type']
                 if 'management_ip' in data:
                     instance.management_ip = data['management_ip']
+                if 'dhcp_ip' in data:
+                    instance.dhcp_ip = data['dhcp_ip']
                 if 'hostname' in data:
                     instance.hostname = data['hostname']
             else:

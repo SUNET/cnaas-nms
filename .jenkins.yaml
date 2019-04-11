@@ -1,0 +1,19 @@
+#
+# Jenkins pipeline for CNaaS
+#
+
+disabled: false
+
+git:
+  branch: master
+  extensions:
+    shallow_clone: true
+
+script:
+  - "python3.7 -m venv venv"
+  - ". venv/bin/activate"
+  - "pip install --upgrade setuptools pip mypy"
+  - "mypy --ignore-missing-imports src/cnaas_nms"
+
+slack:
+  room: "cnaas"

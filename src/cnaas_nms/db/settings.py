@@ -81,8 +81,8 @@ def get_setting_filename(repo_root: str, path: List[str]) -> str:
 def get_settings(hostname: Optional[str] = None):
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
+    with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
+        repo_config = yaml.safe_load(repo_file)
 
     local_repo_path = repo_config['settings_local']
     try:
@@ -106,6 +106,7 @@ def get_settings(hostname: Optional[str] = None):
 
         print(f_root(**merged_settings).dict())
         print(merged_settings_metadata)
+        return f_root(**merged_settings).dict()
 
     # 3. Get settings repo device type settings
 

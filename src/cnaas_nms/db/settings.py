@@ -3,6 +3,7 @@ import pkg_resources
 from typing import List, Optional
 
 import yaml
+from pydantic.error_wrappers import ValidationError
 
 from cnaas_nms.db.settings_fields import f_root
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
@@ -12,6 +13,10 @@ logger = get_logger()
 
 
 class VerifyPathException(Exception):
+    pass
+
+
+class SettingsSyntaxError(Exception):
     pass
 
 
@@ -78,6 +83,41 @@ def get_setting_filename(repo_root: str, path: List[str]) -> str:
     return os.path.join(repo_root, *path)
 
 
+def get_pydantic_error_value(data: dict, loc: tuple):
+    """Get the actual value that caused the error in pydantic"""
+    try:
+        obj = data
+        for item in loc:
+            obj = obj[item]
+    except KeyError:
+        return None
+    else:
+        return obj
+
+
+def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
+    """Verify settings syntax and return a somewhat helpful error message.
+
+    Raises:
+        SettingsSyntaxError
+    """
+    try:
+        f_root(**settings_dict)
+    except ValidationError as e:
+        msg = ''
+        for error in e.errors():
+            loc = error['loc']
+            error_msg = "Validation error for setting {}, bad value: {} (value origin: {})\n".format(
+                '->'.join(str(x) for x in loc),
+                get_pydantic_error_value(settings_dict, loc),
+                settings_metadata_dict[loc[0]]
+            )
+            error_msg += "Message: {}\n".format(error['msg'])
+            msg += error_msg
+        logger.error(msg)
+        raise SettingsSyntaxError(msg)
+
+
 def get_settings(hostname: Optional[str] = None):
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
@@ -104,11 +144,14 @@ def get_settings(hostname: Optional[str] = None):
         (merged_settings, merged_settings_metadata) = \
             merge_dict_origin(default_settings, global_settings, 'default', 'global')
 
-        print(f_root(**merged_settings).dict())
-        print(merged_settings_metadata)
-        return f_root(**merged_settings).dict()
-
     # 3. Get settings repo device type settings
 
     # 4. Get settings repo device specific settings
+
+    # 5. Verify syntax
+    check_settings_syntax(merged_settings, merged_settings_metadata)
+    print(f_root(**merged_settings).dict())
+    print(merged_settings_metadata)
+    return f_root(**merged_settings).dict()
+
 

@@ -15,5 +15,22 @@ script:
   - "pip install --upgrade setuptools pip mypy"
   - "mypy --ignore-missing-imports src/cnaas_nms"
 
-slack:
-  room: "cnaas"
+# slack:
+#   room: "cnaas"
+
+extra_jobs:
+  - name: cnaas-httpd
+    builders:
+      - docker
+    docker_name: cnaas/httpd
+    docker_context_dir: docker/httpd
+    triggers:
+      github_push: true
+
+  - name: cnaas-dhcpd
+    builders:
+      - docker
+    docker_name: cnaas/dhcpd
+    docker_context_dir: docker/dhcpd
+    triggers:
+      github_push: true

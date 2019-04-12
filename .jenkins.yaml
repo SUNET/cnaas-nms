@@ -34,3 +34,11 @@ extra_jobs:
     docker_context_dir: docker/dhcpd
     triggers:
       github_push: true
+
+  - name: cnaas-api
+    builders:
+      - docker
+    docker_name: cnaas/api
+    docker_context_dir: docker/api
+    triggers:
+      github_push: true

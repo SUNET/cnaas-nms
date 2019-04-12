@@ -1,4 +1,6 @@
 import pprint
+import shutil
+import yaml
 
 import unittest
 
@@ -45,6 +47,43 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(result.json['data']['mgmtdomains']), 1)
         # The one result should have the same ID we asked for
         self.assertIsInstance(result.json['data']['mgmtdomains'][0]['id'], int)
+
+    def test_repository_refresh(self):
+        data = {"action": "refresh"}
+        result = self.client.put('/api/v1.0/repository/settings', json=data)
+        # 200 OK
+        self.assertEqual(result.status_code, 200)
+        # Succes in json
+        self.assertEqual(result.json['status'], 'success')
+        # Exactly one result
+        self.assertRegex(result.json['data'], r'[Cc]ommit')
+
+    def test_repository_get(self):
+        # Delete settings repo
+        with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
+            repo_config = yaml.safe_load(db_file)
+        shutil.rmtree(repo_config['settings_local'])
+
+        # Check that no repo is found
+        result = self.client.get('/api/v1.0/repository/settings')
+        # 200 OK
+        self.assertEqual(result.status_code, 200)
+        # Succes in json
+        self.assertEqual(result.json['status'], 'success')
+        # Exactly one result
+        self.assertEqual(result.json['data'], "Repository is not yet cloned from remote")
+
+        # Refresh repo
+        self.test_repository_refresh()
+
+        # Check that repo has a commit after the refresh
+        result = self.client.get('/api/v1.0/repository/settings')
+        # 200 OK
+        self.assertEqual(result.status_code, 200)
+        # Succes in json
+        self.assertEqual(result.json['status'], 'success')
+        # Exactly one result
+        self.assertRegex(result.json['data'], r'[Cc]ommit')
 
 
 if __name__ == '__main__':

@@ -154,4 +154,3 @@ def get_settings(hostname: Optional[str] = None):
     print(merged_settings_metadata)
     return f_root(**merged_settings).dict()
 
-

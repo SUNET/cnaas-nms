@@ -5,6 +5,7 @@ from flask_restful import Api
 from cnaas_nms.api.device import DeviceByIdApi, DevicesApi, LinknetsApi, DeviceInitApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi
+from cnaas_nms.api.repository import RepositoryApi
 
 app = Flask(__name__)
 api = Api(app)
@@ -20,3 +21,5 @@ api.add_resource(MgmtdomainsApi, '/api/v1.0/mgmtdomain')
 api.add_resource(MgmtdomainByIdApi, '/api/v1.0/mgmtdomain/<int:mgmtdomain_id>')
 
 api.add_resource(JobsApi, '/api/v1.0/job')
+
+api.add_resource(RepositoryApi, '/api/v1.0/repository/<string:repo>')

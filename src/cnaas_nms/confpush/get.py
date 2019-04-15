@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional
+from typing import Optional, Tuple, List
 
 from nornir.core.deserializer.inventory import Inventory
 from nornir.core.filter import F
@@ -9,7 +9,7 @@ from nornir.core.task import AggregatedResult
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device
+from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
 
@@ -70,6 +70,24 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
     print_result(result)
 
     return result
+
+
+def get_uplinks(session, hostname: str) -> Tuple[List, List]:
+    # TODO: check if uplinks are already saved in database?
+    uplinks = []
+    neighbor_hostnames = []
+
+    dev = session.query(Device).filter(Device.hostname == hostname).one()
+    for neighbor_d in dev.get_neighbors(session):
+        if neighbor_d.device_type == DeviceType.DIST:
+            local_if = dev.get_link_to_local_ifname(session, neighbor_d)
+            if local_if:
+                uplinks.append({'ifname': local_if})
+                neighbor_hostnames.append(neighbor_d.hostname)
+    logger.debug("Uplinks for device {} detected: {} neighbor_hostnames: {}". \
+                 format(hostname, uplinks, neighbor_hostnames))
+
+    return (uplinks, neighbor_hostnames)
 
 
 def update_inventory(hostname: str, site='default') -> dict:

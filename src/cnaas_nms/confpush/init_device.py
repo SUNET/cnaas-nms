@@ -26,12 +26,8 @@ class InitError(Exception):
 
 
 def push_base_management(task, device_variables):
-    template_vars = {
-        'uplinks': device_variables['uplinks'],
-        'mgmt_vlan_id': device_variables['mgmt_vlan_id'],
-        'mgmt_ip': str(device_variables['mgmt_ipif']),
-        'mgmt_gw': device_variables['mgmt_gw']
-    }
+    template_vars = device_variables
+    template_vars['mgmt_ip'] = str(template_vars['mgmt_ipif'])
     logger.debug("Push basetemplate for host: {}".format(task.host.name))
 
     r = task.run(task=text.template_file,

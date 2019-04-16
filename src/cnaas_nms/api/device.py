@@ -81,8 +81,13 @@ class DeviceByIdApi(Resource):
                 data['hostname'] = json_data['hostname']
             else:
                 errors.append("Invalid hostname received")
+        if 'synchronized' in json_data:  # TODO: disable this for production release?
+            if isinstance(json_data['synchronized'], bool):
+                data['synchronized'] = json_data['synchronized']
+            else:
+                errors.append("Invalid synchronization state received")
         with sqla_session() as session:
-            instance = session.query(Device).filter(Device.id == device_id).one_or_none()
+            instance: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
             if instance:
                 #TODO: auto loop through class members and match
                 if 'state' in data:
@@ -95,6 +100,8 @@ class DeviceByIdApi(Resource):
                     instance.dhcp_ip = data['dhcp_ip']
                 if 'hostname' in data:
                     instance.hostname = data['hostname']
+                if 'synchronized' in data:
+                    instance.synchronized = data['synchronized']
             else:
                 errors.append('Device not found')
 

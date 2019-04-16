@@ -12,6 +12,8 @@ from cnaas_nms.confpush.get import get_uplinks
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.scheduler.wrapper import job_wrapper
 
 logger = get_logger()
 
@@ -47,7 +49,7 @@ def push_sync_device(task, dry_run: bool = True):
     logger.debug("Synchronize device config for host: {}".format(task.host.name))
 
     r = task.run(task=text.template_file,
-                 name="Sync device",
+                 name="Generate device config",
                  template="managed-full.j2",
                  path=f"../templates/{task.host.platform}",
                  **template_vars)
@@ -64,8 +66,9 @@ def push_sync_device(task, dry_run: bool = True):
              )
 
 
-def sync_device(hostname: str = None, device_type: Optional[DeviceType] = None,
-                dry_run: bool = True) -> bool:
+@job_wrapper
+def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None,
+                dry_run: bool = True) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -75,7 +78,7 @@ def sync_device(hostname: str = None, device_type: Optional[DeviceType] = None,
         device_type: Specify a device type to synchronize
 
     Returns:
-        True on success
+        NornirJobResult
     """
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     if hostname:
@@ -95,7 +98,7 @@ def sync_device(hostname: str = None, device_type: Optional[DeviceType] = None,
         print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
-        return False
+        return NornirJobResult(nrresult=nrresult)
 
     failed_hosts = list(nrresult.failed_hosts.keys())
     if not dry_run:
@@ -109,7 +112,6 @@ def sync_device(hostname: str = None, device_type: Optional[DeviceType] = None,
 
     if nrresult.failed:
         logger.error("Not all devices were successfully synchronized")
-        return False
-    else:
-        return True
+
+    return NornirJobResult(nrresult=nrresult)
 

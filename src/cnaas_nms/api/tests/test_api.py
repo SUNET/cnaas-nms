@@ -85,6 +85,27 @@ class ApiTests(unittest.TestCase):
         # Exactly one result
         self.assertRegex(result.json['data'], r'[Cc]ommit')
 
+    def test_sync_devices_invalid_input(self):
+        # Test invalid hostname
+        data = {"hostname": "...", "dry_run": True}
+        result = self.client.post('/api/v1.0/device_sync', json=data)
+        self.assertEqual(result.status_code, 400)
+
+        # Test invalid device_type
+        data = {"device_type": "nonexistent", "dry_run": True}
+        result = self.client.post('/api/v1.0/device_sync', json=data)
+        self.assertEqual(result.status_code, 400)
+
+    def test_sync_devices(self):
+        # Test dry run sync of all devices
+        data = {"all": True, "dry_run": True}
+        result = self.client.post('/api/v1.0/device_sync', json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(type(result.json['job_id']), str)
+
+
+
 
 if __name__ == '__main__':
     unittest.main()

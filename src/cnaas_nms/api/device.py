@@ -3,6 +3,7 @@ from flask_restful import Resource
 from ipaddress import IPv4Address
 
 import cnaas_nms.confpush.init_device
+import cnaas_nms.confpush.sync_devices
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.linknet import Linknet
@@ -166,3 +167,58 @@ class DeviceInitApi(Resource):
         res['job_id'] = job.id
 
         return res
+
+
+class DeviceSyncApi(Resource):
+    def post(self):
+        json_data = request.get_json()
+        kwargs: dict = {}
+        if 'hostname' in json_data:
+            hostname = str(json_data['hostname'])
+            if not Device.valid_hostname(hostname):
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' is not a valid hostname"
+                ), 400
+            with sqla_session() as session:
+                dev: Device = session.query(Device).\
+                    filter(Device.hostname == hostname).one_or_none()
+                if not dev or dev.state != DeviceState.MANAGED:
+                    return empty_result(
+                        status='error',
+                        data=f"Hostname '{hostname}' not found or is not a managed device"
+                    ), 400
+            kwargs['hostname'] = hostname
+            what = hostname
+        elif 'device_type' in json_data:
+            if DeviceType.has_name(str(json_data['device_type']).upper()):
+                kwargs['device_type'] = DeviceType[str(json_data['device_type']).upper()]
+            else:
+                return empty_result(
+                    status='error',
+                    data=f"Invalid device type '{json_data['device_type']}' specified"
+                ), 400
+            what = f"{json_data['device_type']} devices"
+        elif 'all' in json_data and isinstance(json_data['all'], bool) and json_data['all']:
+            what = "all devices"
+        else:
+            return empty_result(
+                status='error',
+                data=f"No devices to synchronize was specified"
+            ), 400
+
+        if 'dry_run' in json_data and isinstance(json_data['dry_run'], bool) \
+                and not json_data['dry_run']:
+            kwargs['dry_run'] = False
+
+        scheduler = Scheduler()
+        job = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.sync_devices:sync_devices',
+            when=1,
+            kwargs=kwargs)
+
+        res = empty_result(data=f"Scheduled job to synchronize {what}")
+        res['job_id'] = job.id
+
+        return res
+

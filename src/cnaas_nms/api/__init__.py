@@ -2,7 +2,8 @@
 
 from flask import Flask
 from flask_restful import Api
-from cnaas_nms.api.device import DeviceByIdApi, DevicesApi, LinknetsApi, DeviceInitApi
+from cnaas_nms.api.device import DeviceByIdApi, DevicesApi, LinknetsApi, \
+    DeviceInitApi, DeviceSyncApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi
 from cnaas_nms.api.repository import RepositoryApi
@@ -16,6 +17,7 @@ api.add_resource(DevicesApi, '/api/v1.0/device')
 api.add_resource(LinknetsApi, '/api/v1.0/linknet')
 
 api.add_resource(DeviceInitApi, '/api/v1.0/device_init/<int:device_id>')
+api.add_resource(DeviceSyncApi, '/api/v1.0/device_sync')
 
 api.add_resource(MgmtdomainsApi, '/api/v1.0/mgmtdomain')
 api.add_resource(MgmtdomainByIdApi, '/api/v1.0/mgmtdomain/<int:mgmtdomain_id>')

@@ -12,8 +12,10 @@ git:
 script:
   - "python3.7 -m venv venv"
   - ". venv/bin/activate"
-  - "pip install --upgrade setuptools pip mypy"
-  - "mypy --ignore-missing-imports src/cnaas_nms"
+  - "pip install --upgrade setuptools pip wheel mypy"
+  - "pip install --index-url https://pypi.sunet.se -r requirements.txt"
+  - "nosetests"
+  - "mypy --ignore-missing-imports src/cnaas_nms/"
 
 # slack:
 #   room: "cnaas"

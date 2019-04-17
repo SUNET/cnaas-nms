@@ -14,8 +14,7 @@ script:
   - ". venv/bin/activate"
   - "pip install --upgrade setuptools pip wheel mypy"
   - "pip install --index-url https://pypi.sunet.se -r requirements.txt"
-  - "nosetests"
-  - "mypy --ignore-missing-imports src/cnaas_nms/"
+  - "nosetests --with-xunit
 
 # slack:
 #   room: "cnaas"

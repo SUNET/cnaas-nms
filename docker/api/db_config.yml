@@ -1,0 +1,6 @@
+type: postgresql
+hostname: localhost
+port: 5432
+username: cnaas
+password: cnaas
+database: cnaas

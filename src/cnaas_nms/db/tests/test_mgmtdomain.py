@@ -14,11 +14,20 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 
+from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
+from cnaas_nms.tools.testsetup import MongoTemporaryInstance
+
 class MgmtdomainTests(unittest.TestCase):
     def setUp(self):
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
+        self.tmp_postgres = PostgresTemporaryInstance()
+        self.tmp_mongo = MongoTemporaryInstance()
+
+    def tearDown(self):
+        self.tmp_postgres.shutdown()
+        self.tmp_mongo.shutdown()
 
     def test_add_mgmt_domain(self):
         with sqla_session() as session:

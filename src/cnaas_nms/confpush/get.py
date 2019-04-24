@@ -9,9 +9,10 @@ from nornir.core.task import AggregatedResult
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 
 logger = get_logger()
 
@@ -88,6 +89,88 @@ def get_uplinks(session, hostname: str) -> Tuple[List, List]:
                  format(hostname, uplinks, neighbor_hostnames))
 
     return (uplinks, neighbor_hostnames)
+
+
+def get_interfaces(hostname: str) -> AggregatedResult:
+    """Get a NAPALM/Nornir aggregated result of the current interfaces
+    on the specified device.
+    """
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname)
+    if len(nr_filtered.inventory) != 1:
+        raise ValueError(f"Hostname {hostname} not found in inventory")
+    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["interfaces"])
+    return nrresult
+
+
+def get_interfaces_names(hostname: str) -> List[str]:
+    """Get a list of interface names for active interfaces on
+    the specified device.
+    """
+    nrresult = get_interfaces(hostname)
+    return list(nrresult[hostname][0].result['interfaces'].keys())
+
+
+def filter_interfaces(iflist, model=None, include=None):
+    # TODO: do mapping based on switch model
+    ret = []
+    for intf in iflist:
+        if include == 'physical':
+            if intf.startswith("Ethernet"):
+                ret.append(intf)
+    return ret
+
+
+def get_interfacedb_ifs(session, hostname: str) -> List[str]:
+    ret = []
+    dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+    if not dev:
+        raise ValueError(f"Hostname {hostname} not found in database")
+    ifs: List[Interface] = session.query(Interface).filter(Interface.device == dev).all()
+    for intf in ifs:
+        ret.append(intf.name)
+    return ret
+
+
+def update_interfacedb(hostname: str) -> Optional[List[str]]:
+    """Update interface DB with any new physical interfaces for specified device.
+
+    Returns:
+        List of interfaces that was added to DB
+    """
+    ret = []
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not dev:
+            raise ValueError(f"Hostname {hostname} not found in database")
+        if dev.state != DeviceState.MANAGED:
+            raise ValueError(f"Hostname {hostname} is not a managed device")
+        if dev.device_type != DeviceType.ACCESS:
+            raise ValueError("This function currently only supports access devices")
+        # TODO: add support for dist/core devices?
+
+        iflist = get_interfaces_names(hostname)
+        uplinks, neighbor_hostnames = get_uplinks(session, hostname)
+        uplinks_ifnames = [x['ifname'] for x in uplinks]
+        phy_interfaces = filter_interfaces(iflist, include='physical')
+        existing_ifs = get_interfacedb_ifs(session, hostname)
+
+        for intf in phy_interfaces:
+            if intf in existing_ifs:
+                continue
+            logger.debug("New physical interface found on device {}: {}".format(
+                dev.hostname, intf
+            ))
+            new_intf: Interface = Interface()
+            if intf in uplinks_ifnames:
+                new_intf.configtype = InterfaceConfigType.ACCESS_UPLINK
+            else:
+                new_intf.configtype = InterfaceConfigType.ACCESS_AUTO
+            new_intf.name = intf
+            new_intf.device = dev
+            session.add(new_intf)
+            ret.append(new_intf.as_dict())
+    return ret
 
 
 def update_inventory(hostname: str, site='default') -> dict:

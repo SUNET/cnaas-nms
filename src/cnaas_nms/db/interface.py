@@ -1,7 +1,7 @@
 import enum
 
 from sqlalchemy import Column, Integer, Unicode
-from sqlalchemy import ForeignKey, UniqueConstraint
+from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy import Enum
@@ -18,6 +18,7 @@ class InterfaceConfigType(enum.Enum):
     ACCESS_AUTO = 10
     ACCESS_UNTAGGED = 11
     ACCESS_TAGGED = 12
+    ACCESS_UPLINK = 13
 
     @classmethod
     def has_value(cls, value):
@@ -38,3 +39,15 @@ class Interface(cnaas_nms.db.base.Base):
     name = Column(Unicode(255), primary_key=True)
     configtype = Column(Enum(InterfaceConfigType), nullable=False)
     data = Column(JSONB)
+
+    def as_dict(self) -> dict:
+        """Return JSON serializable dict."""
+        d = {}
+        for col in self.__table__.columns:
+            value = getattr(self, col.name)
+            if issubclass(value.__class__, enum.Enum):
+                value = value.name
+            elif issubclass(value.__class__, cnaas_nms.db.base.Base):
+                continue
+            d[col.name] = value
+        return d

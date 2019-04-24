@@ -26,12 +26,8 @@ class InitError(Exception):
 
 
 def push_base_management(task, device_variables):
-    template_vars = {
-        'uplinks': device_variables['uplinks'],
-        'mgmt_vlan_id': device_variables['mgmt_vlan_id'],
-        'mgmt_ip': str(device_variables['mgmt_ipif']),
-        'mgmt_gw': device_variables['mgmt_gw']
-    }
+    template_vars = device_variables
+    template_vars['mgmt_ip'] = str(template_vars['mgmt_ipif'])
     logger.debug("Push basetemplate for host: {}".format(task.host.name))
 
     r = task.run(task=text.template_file,
@@ -124,12 +120,13 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     try:
         nrresult = nr_filtered.run(task=push_base_management, device_variables=device_variables)
     except Exception as e:
-        pass # ignore exception, we expect to loose connectivity.
-             # sometimes we get no exception here, but it's saved in result
-             # other times we get socket.timeout, pyeapi.eapilib.ConnectionError or
-             # napalm.base.exceptions.ConnectionException to handle here?
+        # Ignore exception, we expect to loose connectivity.
+        # Sometimes we get no exception here, but it's saved in result
+        # other times we get socket.timeout, pyeapi.eapilib.ConnectionError or
+        # napalm.base.exceptions.ConnectionException to handle here?
+        pass
     if not nrresult.failed:
-        raise #we don't expect success here
+        raise Exception  # we don't expect success here
 
     print_result(nrresult)
 

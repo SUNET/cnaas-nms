@@ -1,5 +1,6 @@
-from nornir.core.deserializer.inventory import Inventory
 import ipaddress
+
+from nornir.core.deserializer.inventory import Inventory
 
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 import cnaas_nms.db.session
@@ -16,13 +17,18 @@ class CnaasInventory(Inventory):
     def __init__(self, **kwargs):
         hosts = {}
         with cnaas_nms.db.session.sqla_session() as session:
+            instance: Device
             for instance in session.query(Device):
                 hosts[instance.hostname] = {
                     'platform': instance.platform,
                     'groups': [
                         'T_'+instance.device_type.name,
                         'S_'+instance.state.name
-                    ]
+                    ],
+                    'data': {
+                        'synchronized': instance.synchronized,
+                        'managed': (True if instance.state == DeviceState.MANAGED else False)
+                    }
                 }
                 hostname = self._get_management_ip(instance.management_ip, instance.dhcp_ip)
                 if hostname:

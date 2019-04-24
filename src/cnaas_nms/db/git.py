@@ -1,3 +1,5 @@
+import enum
+
 from git import Repo
 from git import InvalidGitRepositoryError, NoSuchPathError
 from git.exc import NoSuchPathError
@@ -5,27 +7,68 @@ import yaml
 
 from cnaas_nms.db.exceptions import ConfigException
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.settings import get_settings, SettingsSyntaxError
 
 logger = get_logger()
 
 
-def refresh_repo(repo_type: str = 'templates') -> str:
+class RepoType(enum.Enum):
+    TEMPLATES = 0
+    SETTINGS = 1
+
+    @classmethod
+    def has_value(cls, value):
+        return any(value == item.value for item in cls)
+
+    @classmethod
+    def has_name(cls, value):
+        return any(value == item.name for item in cls)
+
+
+def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> str:
+    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
+        repo_config = yaml.safe_load(db_file)
+
+    if repo_type == RepoType.TEMPLATES:
+        local_repo_path = repo_config['templates_local']
+        remote_repo_path = repo_config['templates_remote']
+    elif repo_type == RepoType.SETTINGS:
+        local_repo_path = repo_config['settings_local']
+        remote_repo_path = repo_config['settings_remote']
+    else:
+        raise ValueError("Invalid repository")
+
+    try:
+        local_repo = Repo(local_repo_path)
+        return 'Commit {} by {} at {}\n'.format(
+            local_repo.head.commit.name_rev,
+            local_repo.head.commit.committer,
+            local_repo.head.commit.committed_datetime
+        )
+    except (InvalidGitRepositoryError, NoSuchPathError) as e:
+        return 'Repository is not yet cloned from remote'
+
+
+def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
     """Refresh the repository for repo_type
 
     Args:
-        repo_type: can be either 'templates' or 'settings'
+        repo_type: Which repository to refresh
 
     Returns:
         String describing what was updated.
+
+    Raises:
+        cnaas_nms.db.settings.SettingsSyntaxError
     """
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)
 
-    if repo_type == 'templates':
+    if repo_type == RepoType.TEMPLATES:
         local_repo_path = repo_config['templates_local']
         remote_repo_path = repo_config['templates_remote']
-    elif repo_type == 'settings':
+    elif repo_type == RepoType.SETTINGS:
         local_repo_path = repo_config['settings_local']
         remote_repo_path = repo_config['settings_remote']
     else:
@@ -60,7 +103,14 @@ def refresh_repo(repo_type: str = 'templates') -> str:
             local_repo.head.commit.committed_datetime
         )
 
+    if repo_type == RepoType.SETTINGS:
+        try:
+            get_settings()
+        except SettingsSyntaxError as e:
+            raise e
+
+
+    # TODO: Also return what devices were affected so we can change the to unsync?
+
     return ret
-
-
 

@@ -108,7 +108,7 @@ class MongoTemporaryInstance(object):
         #self._port = random.randint(40000, 50000)
         self._port = 27017
         self._user = user
-    self._passwd = passwd
+        self._passwd = passwd
         self._database = database
 
         logging.debug('Starting temporary mongodb instance on port {}'.format(self._port))

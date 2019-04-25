@@ -64,6 +64,7 @@ def push_sync_device(task, dry_run: bool = True):
                  **template_vars)
 
     # TODO: Handle template not found, variables not defined
+    # jinja2.exceptions.UndefinedError
 
     task.host["config"] = r.result
 

@@ -24,9 +24,12 @@ class DeviceValidate(object):
                 errors.append("Invalid hostname received")
 
         if 'site_id' in json_data:
-            data['site_id'] = json_data['site_id']
-        else:
-            data['site_id'] = None
+            try:
+                site_id = int(json_data['site_id'])
+            except:
+                errors.append('Invalid site_id recevied, must be an integer.')
+            else:
+                data['site_id'] = site_id
 
         if 'description' in json_data:
             data['description'] = json_data['description']

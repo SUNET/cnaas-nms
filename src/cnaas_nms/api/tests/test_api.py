@@ -14,18 +14,15 @@ from cnaas_nms.tools.testsetup import MongoTemporaryInstance
 class ApiTests(unittest.TestCase):
     def setUp(self):
         self.client = cnaas_nms.api.app.test_client()
-<<<<<<< HEAD
         self.tmp_postgres = DockerTemporaryInstance()
         self.tmp_mongo = MongoTemporaryInstance()
+        data_dir = pkg_resources.resource_filename(__name__, 'data')
+        with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
+            self.testdata = yaml.safe_load(f_testdata)
 
     def tearDown(self):
         self.tmp_postgres.shutdown()
         self.tmp_mongo.shutdown()
-=======
-        data_dir = pkg_resources.resource_filename(__name__, 'data')
-        with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
-            self.testdata = yaml.safe_load(f_testdata)
->>>>>>> d9185be0bb69d93f73e836bb8b80f80f18f9707c
 
     def test_get_single_device(self):
         device_id = 1

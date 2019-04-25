@@ -1,5 +1,5 @@
 type: postgresql
-hostname: 172.17.0.3
+hostname: localhost
 port: 5432
 username: cnaas
 password: cnaas

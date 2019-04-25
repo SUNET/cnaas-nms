@@ -1,2 +1,2 @@
-python3 -m pip freeze | egrep "^(SQLAlchemy|nornir|Flask-RESTful|APScheduler|pymongo|psycopg2|mypy|sqlalchemy-stubs)" > requirements.txt
+python3 -m pip freeze | egrep "^(SQLAlchemy|nornir|Flask-RESTful|APScheduler|pymongo|psycopg2|mypy|sqlalchemy-stubs|nose|GitPython)" > requirements.txt
 # sqlalchemy-stubs is required for mypy to handle typing definitions from sqlalchemy?

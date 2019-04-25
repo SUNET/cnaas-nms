@@ -12,6 +12,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.interface import Interface
 
 logger = get_logger()
 
@@ -90,6 +91,47 @@ def get_uplinks(session, hostname: str) -> Tuple[List, List]:
     return (uplinks, neighbor_hostnames)
 
 
+def get_interfaces(hostname: str) -> AggregatedResult:
+    """Get a NAPALM/Nornir aggregated result of the current interfaces
+    on the specified device.
+    """
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname)
+    if len(nr_filtered.inventory) != 1:
+        raise ValueError(f"Hostname {hostname} not found in inventory")
+    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["interfaces"])
+    return nrresult
+
+
+def get_interfaces_names(hostname: str) -> List[str]:
+    """Get a list of interface names for active interfaces on
+    the specified device.
+    """
+    nrresult = get_interfaces(hostname)
+    return list(nrresult[hostname][0].result['interfaces'].keys())
+
+
+def filter_interfaces(iflist, model=None, include=None):
+    # TODO: do mapping based on switch model
+    ret = []
+    for intf in iflist:
+        if include == 'physical':
+            if intf.startswith("Ethernet"):
+                ret.append(intf)
+    return ret
+
+
+def get_interfacedb_ifs(session, hostname: str) -> List[str]:
+    ret = []
+    dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+    if not dev:
+        raise ValueError(f"Hostname {hostname} not found in database")
+    ifs: List[Interface] = session.query(Interface).filter(Interface.device == dev).all()
+    for intf in ifs:
+        ret.append(intf.name)
+    return ret
+
+
 def update_inventory(hostname: str, site='default') -> dict:
     """Update CMDB inventory with information gathered from device.
 
@@ -136,7 +178,7 @@ def update_linknets(hostname):
     """Update linknet data for specified device using LLDP neighbor data.
     """
     result = get_neighbors(hostname=hostname)[hostname][0]
-    if result.failed == True:
+    if result.failed:
         raise Exception
     neighbors = result.result['lldp_neighbors']
 

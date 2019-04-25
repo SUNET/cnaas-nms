@@ -11,6 +11,7 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 
+
 class DeviceValidate(object):
     def json_validate(json_data):
         data = {}
@@ -21,8 +22,6 @@ class DeviceValidate(object):
                 data['hostname'] = json_data['hostname']
             else:
                 errors.append("Invalid hostname received")
-        else:
-            data['hostname'] = None
 
         if 'site_id' in json_data:
             data['site_id'] = json_data['site_id']
@@ -31,8 +30,6 @@ class DeviceValidate(object):
 
         if 'description' in json_data:
             data['description'] = json_data['description']
-        else:
-            data['description'] = None
 
         if 'management_ip' in json_data:
             if json_data['management_ip'] == None:
@@ -44,8 +41,6 @@ class DeviceValidate(object):
                     errors.append('Invalid management_ip received. Must be correct IPv4 address.')
                 else:
                     data['management_ip'] = addr
-        else:
-            data['management_ip'] = None
 
         if 'dhcp_ip' in json_data:
             if json_data['dhcp_ip'] == None:
@@ -57,8 +52,6 @@ class DeviceValidate(object):
                     errors.append('Invalid dhcp_ip received. Must be correct IPv4 address.')
                 else:
                     data['dhcp_ip'] = addr
-        else:
-            data['dhcp_ip'] = None
 
         if 'serial' in json_data:
             try:
@@ -67,8 +60,6 @@ class DeviceValidate(object):
                 errors.append('Invalid device serial received.')
             else:
                 data['serial'] = serial
-        else:
-            data['serial'] = None
 
         if 'ztp_mac' in json_data:
             try:
@@ -77,36 +68,24 @@ class DeviceValidate(object):
                 errors.append('Invalid device ztp_mac received.')
             else:
                 data['ztp_mac'] = ztp_mac
-        else:
-            data['ztp_mac'] = ''
 
         if 'platform' in json_data:
             data['platform'] = json_data['platform']
-        else:
-            data['platform'] = None
 
         if 'vendor' in json_data:
             data['vendor'] = json_data['vendor']
-        else:
-            data['vendor'] = None
 
         if 'model' in json_data:
             data['model'] = json_data['model']
-        else:
-            data['model'] = None
 
         if 'os_version' in json_data:
             data['os_version'] = json_data['os_version']
-        else:
-            data['os_version'] = None
 
         if 'synchronized' in json_data:  # TODO: disable this for production release?
             if isinstance(json_data['synchronized'], bool):
                 data['synchronized'] = json_data['synchronized']
             else:
                 errors.append("Invalid synchronization state received")
-        else:
-            data['synchronized'] = None
 
         if 'state' in json_data:
             try:
@@ -118,8 +97,6 @@ class DeviceValidate(object):
                     data['state'] = DeviceState[state]
                 else:
                     errors.append('Invalid device state received.')
-        else:
-            data['state'] = 'MANAGED'
 
         if 'device_type' in json_data:
             try:
@@ -128,8 +105,6 @@ class DeviceValidate(object):
                 errors.append('Invalid device type received.')
             else:
                 data['device_type'] = device_type
-        else:
-            data['device_type'] = 'UNKNOWN'
 
         return data, errors
 
@@ -152,7 +127,7 @@ class DeviceByIdApi(Resource):
             if instance:
                 session.delete(instance)
                 session.commit()
-                return empty_result(), 204
+                return empty_result(), 200
             else:
                 return empty_result('error', "Device not found"), 404
 
@@ -162,7 +137,7 @@ class DeviceByIdApi(Resource):
         errors = []
         data, errors = DeviceValidate.json_validate(json_data)
         if errors != []:
-            return empty_result('error', errors), 404
+            return empty_result(status='error', data=errors), 404
         with sqla_session() as session:
             instance: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
             if instance:
@@ -179,9 +154,29 @@ class DeviceByIdApi(Resource):
                     instance.hostname = data['hostname']
                 if 'synchronized' in data:
                     instance.synchronized = data['synchronized']
+                if 'site_id' in data:
+                    instance.site_id = data['site_id']
+                if 'description' in data:
+                    instance.description = data['description']
+                if 'state' in data:
+                    instance.state = data['state']
+                if 'serial' in data:
+                    instance.serial = data['serial']
+                if 'ztp_mac' in data:
+                    instance.ztp_mac = data['ztp_mac']
+                if 'platform' in data:
+                    instance.platform = data['platform']
+                if 'vendor' in data:
+                    instance.vendor = data['vendor']
+                if 'model' in data:
+                    instance.model = data['model']
+                if 'os_version' in data:
+                    instance.os_version = data['os_version']
             else:
                 errors.append('Device not found')
-
+        if errors != []:
+            return empty_result(status='error', data=errors), 404
+        return empty_result(status='success'), 200
 
 class DevicesApi(Resource):
     def get(self):
@@ -200,30 +195,47 @@ class DevicesApi(Resource):
         errors = []
         data, errors = DeviceValidate.json_validate(json_data)
         if errors != []:
-            return errors
+            return empty_result(status='error', data=errors), 404
         with sqla_session() as session:
             instance: Device = session.query(Device).filter(Device.hostname == data['hostname']).one_or_none()
             if instance != None:
                 errors.append('Device already exists')
                 return errors
             new_device = Device()
-            new_device.hostname = data['hostname']
-            new_device.site_id = data['site_id']
-            new_device.description = data['description']
-            new_device.management_ip = data['management_ip']
-            new_device.dhcp_ip = data['dhcp_ip']
-            new_device.state = data['state']
-            new_device.serial = data['serial']
-            new_device.ztp_mac = data['ztp_mac']
-            new_device.platform = data['platform']
-            new_device.vendor = data['vendor']
-            new_device.model = data['model']
-            new_device.os_version = data['os_version']
-            new_device.synchronized = data['synchronized']
-            new_device.state = data['state']
-            new_device.device_type = data['device_type']
+
+            if 'hostname' in data:
+                new_device.hostname = data['hostname']
+            if 'site_id' in data:
+                new_device.site_id = data['site_id']
+            if 'description' in data:
+                new_device.description = data['description']
+            if 'management_ip' in data:
+                new_device.management_ip = data['management_ip']
+            if 'dhcp_ip' in data:
+                new_device.dhcp_ip = data['dhcp_ip']
+            if 'state' in data:
+                new_device.state = data['state']
+            if 'serial' in data:
+                new_device.serial = data['serial']
+            if 'ztp_mac' in data:
+                new_device.ztp_mac = data['ztp_mac']
+            if 'platform' in data:
+                new_device.platform = data['platform']
+            if 'vendor' in data:
+                new_device.vendor = data['vendor']
+            if 'model' in data:
+                new_device.model = data['model']
+            if 'os_version' in data:
+                new_device.os_version = data['os_version']
+            if 'synchronized' in data:
+                new_device.synchronized = data['synchronized']
+            if 'state' in data:
+                new_device.state = data['state']
+            if 'device_type' in data:
+                new_device.device_type = data['device_type']
+
             session.add(new_device)
-        return {'status': 'success'}
+        return empty_result(status='success'), 200
 
 
 class LinknetsApi(Resource):

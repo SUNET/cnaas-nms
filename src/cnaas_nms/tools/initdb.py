@@ -22,11 +22,13 @@ from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.site import Site
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
+from cnaas_nms.db.interface import Interface
 
 print(Device.__table__)
 print(Site.__table__)
 print(Linknet.__table__)
 print(Mgmtdomain.__table__)
+print(Interface.__table__)
 
 print(Base.metadata.create_all(engine))
 

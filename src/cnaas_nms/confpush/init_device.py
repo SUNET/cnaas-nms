@@ -13,6 +13,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateExce
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.confpush.update import update_interfacedb
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -198,6 +199,13 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         dev.state = DeviceState.MANAGED
         dev.device_type = DeviceType.ACCESS
         #TODO: remove dhcp_ip ?
+
+    try:
+        update_interfacedb(hostname)
+    except Exception as e:
+        logger.exception(
+            "Exception while updating interface database for device {}: {}".\
+            format(hostname, str(e)))
 
     return NornirJobResult(
         nrresult = nrresult

@@ -13,6 +13,7 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.jobtracker import Jobtracker
+from cnaas_nms.confpush.update import reset_interfacedb
 
 
 class InitTests(unittest.TestCase):
@@ -71,13 +72,14 @@ class InitTests(unittest.TestCase):
                          )
             print_result(nrresult)
 
+        reset_interfacedb(self.testdata['init_access_new_hostname'])
+
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.hostname == self.testdata['init_access_new_hostname']).one()
             dev.management_ip = None
             dev.hostname = self.testdata['init_access_old_hostname']
             dev.state = DeviceState.DISCOVERED
             dev.device_type = DeviceType.UNKNOWN
-
 
 
 if __name__ == '__main__':

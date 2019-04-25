@@ -104,8 +104,25 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
         self.assertEqual(type(result.json['job_id']), str)
 
-
-
+    def test_add_new_device(self):
+        data = {
+            "hostname": "unittestdevice",
+            "site_id": 1,
+            "description": '',
+            "management_ip": "10.1.2.3",
+            "dhcp_ip": "11.1.2.3",
+            "serial": '',
+            "ztp_mac": "0800275C091F",
+            "platform": "eos",
+            "vendor": '',
+            "model": '',
+            "os_version": '',
+            "state": "MANAGED",
+            "device_type": "ACCESS",
+        }
+        result = self.client.post('/api/v1.0/device', json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
 
 if __name__ == '__main__':
     unittest.main()

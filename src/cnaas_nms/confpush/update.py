@@ -55,3 +55,11 @@ def update_interfacedb(hostname: str) -> Optional[List[dict]]:
     return ret
 
 
+def reset_interfacedb(hostname: str):
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not dev:
+            raise ValueError(f"Hostname {hostname} not found in database")
+
+        ret = session.query(Interface).filter(Interface.device == dev).delete()
+        return ret

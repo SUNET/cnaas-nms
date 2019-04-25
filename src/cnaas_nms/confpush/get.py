@@ -155,9 +155,11 @@ def update_interfacedb(hostname: str) -> Optional[List[str]]:
         phy_interfaces = filter_interfaces(iflist, include='physical')
         existing_ifs = get_interfacedb_ifs(session, hostname)
 
+        updated = False
         for intf in phy_interfaces:
             if intf in existing_ifs:
                 continue
+            updated = True
             logger.debug("New physical interface found on device {}: {}".format(
                 dev.hostname, intf
             ))
@@ -170,6 +172,8 @@ def update_interfacedb(hostname: str) -> Optional[List[str]]:
             new_intf.device = dev
             session.add(new_intf)
             ret.append(new_intf.as_dict())
+        if updated:
+            dev.synchronized = False
     return ret
 
 

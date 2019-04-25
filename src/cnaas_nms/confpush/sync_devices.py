@@ -12,6 +12,7 @@ from cnaas_nms.confpush.get import get_uplinks
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
 
@@ -35,9 +36,17 @@ def push_sync_device(task, dry_run: bool = True):
             raise Exception("Could not find free management IP for management domain {}".format(
                 mgmtdomain.id))
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
+
+        intfs = session.query(Interface).filter(Interface.device == dev).all()
+        access_auto = []
+        intf: Interface
+        for intf in intfs:
+            if intf.configtype == InterfaceConfigType.ACCESS_AUTO:
+                access_auto.append({'ifname': intf.name})
         device_variables = {
             'mgmt_ip': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
             'uplinks': uplinks,
+            'access_auto': access_auto,
             'mgmt_vlan_id': mgmtdomain.vlan,
             'mgmt_gw': mgmt_gw_ipif.ip
         }

@@ -15,6 +15,7 @@ class InterfaceConfigType(enum.Enum):
     UNMANAGED = 1
     CONFIGFILE = 2
     CUSTOM = 3
+    TEMPLATE = 4
     ACCESS_AUTO = 10
     ACCESS_UNTAGGED = 11
     ACCESS_TAGGED = 12

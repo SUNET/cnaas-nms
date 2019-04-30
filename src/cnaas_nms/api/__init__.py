@@ -40,9 +40,6 @@ api.add_resource(JobsApi, f'/api/{ API_VERSION }/job')
 # File repository
 api.add_resource(RepositoryApi, f'/api/{ API_VERSION }/repository/<string:repo>')
 
-# Query
-api.add_resource(QueryApi, f'/api/{ API_VERSION }/query')
-
 # Groups
 api.add_resource(GroupsApi, f'/api/{ API_VERSION }/groups')
 api.add_resource(GroupsApiByName, f'/api/{ API_VERSION }/groups/<int:group_id>')

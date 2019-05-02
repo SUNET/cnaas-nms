@@ -1,6 +1,8 @@
 import pprint
 import shutil
 import yaml
+import pkg_resources
+import os
 
 import unittest
 
@@ -14,6 +16,9 @@ class ApiTests(unittest.TestCase):
         self.client = cnaas_nms.api.app.test_client()
         self.tmp_postgres = DockerTemporaryInstance()
         self.tmp_mongo = MongoTemporaryInstance()
+        data_dir = pkg_resources.resource_filename(__name__, 'data')
+        with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
+            self.testdata = yaml.safe_load(f_testdata)
 
     def tearDown(self):
         self.tmp_postgres.shutdown()
@@ -113,7 +118,58 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
         self.assertEqual(type(result.json['job_id']), str)
 
+    def test_get_interfaces(self):
+        result = self.client.get("/api/v1.0/device/{}/interfaces".format(
+            self.testdata['interface_device']
+        ))
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
 
+    def test_update_interface(self):
+        ifname = self.testdata['interface_update']
+        data = {
+            "interfaces": {
+                ifname: {
+                    "configtype": "ACCESS_UNTAGGED"
+                }
+            }
+        }
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(ifname in result.json['data']['updated'], True)
+        # Change back
+        data['interfaces'][ifname]['configtype'] = "ACCESS_AUTO"
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(ifname in result.json['data']['updated'], True)
+        
+    def test_add_new_device(self):
+        data = {
+            "hostname": "unittestdevice",
+            "site_id": 1,
+            "description": '',
+            "management_ip": "10.1.2.3",
+            "dhcp_ip": "11.1.2.3",
+            "serial": '',
+            "ztp_mac": "0800275C091F",
+            "platform": "eos",
+            "vendor": '',
+            "model": '',
+            "os_version": '',
+            "state": "MANAGED",
+            "device_type": "ACCESS",
+        }
+        result = self.client.post('/api/v1.0/device', json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
 
 
 if __name__ == '__main__':

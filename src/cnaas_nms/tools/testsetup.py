@@ -1,3 +1,4 @@
+import os
 import time
 import random
 import logging
@@ -29,6 +30,10 @@ class PostgresTemporaryInstance(object):
         self._database = database
         self._postgres = None
         self._port = 5432
+        self._process = None
+
+        if 'CNAAS_UNITTEST_DOCKER' not in os.environ:
+            return
 
         conn_str = self.uri
 
@@ -110,6 +115,10 @@ class MongoTemporaryInstance(object):
         self._user = user
         self._passwd = passwd
         self._database = database
+        self._process = None
+
+        if 'CNAAS_UNITTEST_DOCKER' not in os.environ:
+            return
 
         logging.debug('Starting temporary mongodb instance on port {}'.format(self._port))
 
@@ -166,4 +175,6 @@ class MongoTemporaryInstance(object):
 
 if __name__ == '__main__':
     db = PostgresTemporaryInstance()
-    # m.shutdown()
+    db.shutdown()
+    mdb = MongoTemporaryInstance()
+    mdb.shutdown()

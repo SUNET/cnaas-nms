@@ -104,10 +104,6 @@ CREATE TABLE public.device (
 
 ALTER TABLE public.device OWNER TO cnaas;
 
---
--- Name: device_id_seq; Type: SEQUENCE; Schema: public; Owner: cnaas
---
-
 CREATE SEQUENCE public.device_id_seq
     AS integer
     START WITH 1
@@ -119,12 +115,67 @@ CREATE SEQUENCE public.device_id_seq
 
 ALTER TABLE public.device_id_seq OWNER TO cnaas;
 
---
--- Name: device_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: cnaas
---
-
 ALTER SEQUENCE public.device_id_seq OWNED BY public.device.id;
 
+--
+-- Name: groups; Type: TABLE; Schema: public; Owner: cnaas
+--
+
+CREATE TABLE public.groups (
+    id integer NOT NULL,
+    name character varying(255),
+    description character varying(255)
+);
+
+
+ALTER TABLE public.groups OWNER TO cnaas;
+
+CREATE SEQUENCE public.groups_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.groups_id_seq OWNER TO cnaas;
+
+ALTER SEQUENCE public.groups_id_seq OWNED BY public.groups.id;
+
+--
+-- Name: groups; Type: TABLE; Schema: public; Owner: cnaas
+--
+
+CREATE TABLE public.device_groups (
+    id integer NOT NULL,
+    groups_id integer NOT NULL,
+    device_id integer NOT NULL
+);
+
+
+ALTER TABLE public.device_groups OWNER TO cnaas;
+
+--
+-- Name: device_groups_id_seq; Type: SEQUENCE; Schema: public; Owner: cnaas
+--
+
+CREATE SEQUENCE public.device_groups_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.device_groups_id_seq OWNER TO cnaas;
+
+--
+-- Name: device_groups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: cnaas
+--
+
+ALTER SEQUENCE public.device_groups_id_seq OWNED BY public.device_groups.id;
 
 --
 -- Name: link; Type: TABLE; Schema: public; Owner: cnaas
@@ -335,6 +386,20 @@ ALTER TABLE ONLY public.device ALTER COLUMN id SET DEFAULT nextval('public.devic
 
 
 --
+-- Name: groups id; Type: DEFAULT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.groups ALTER COLUMN id SET DEFAULT nextval('public.groups_id_seq'::regclass);
+
+
+--
+-- Name: groups id; Type: DEFAULT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.device_groups ALTER COLUMN id SET DEFAULT nextval('public.device_groups_id_seq'::regclass);
+
+
+--
 -- Name: link id; Type: DEFAULT; Schema: public; Owner: cnaas
 --
 
@@ -445,6 +510,20 @@ SELECT pg_catalog.setval('public.device_id_seq', 13, true);
 
 
 --
+-- Name: groups_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
+--
+
+SELECT pg_catalog.setval('public.groups_id_seq', 1, true);
+
+
+--
+-- Name: groups_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
+--
+
+SELECT pg_catalog.setval('public.device_groups_id_seq', 1, true);
+
+
+--
 -- Name: link_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
 --
 
@@ -501,6 +580,14 @@ ALTER TABLE ONLY public.device
 
 ALTER TABLE ONLY public.device
     ADD CONSTRAINT device_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: groups groups_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.groups
+    ADD CONSTRAINT groups_pkey PRIMARY KEY (id);
 
 
 --
@@ -613,6 +700,14 @@ CREATE INDEX ix_apscheduler_jobs_next_run_time ON public.apscheduler_jobs USING 
 ALTER TABLE ONLY public.device
     ADD CONSTRAINT device_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.site(id);
 
+--
+-- Name: device device_site_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.device_groups
+    ADD CONSTRAINT device_id_fkey FOREIGN KEY (device_id) REFERENCES public.device(id);
+ALTER TABLE ONLY public.device_groups
+    ADD CONSTRAINT groupd_id_fkey FOREIGN KEY (groups_id) REFERENCES public.groups(id);
 
 --
 -- Name: link link_device_a_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas

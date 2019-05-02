@@ -8,9 +8,7 @@ from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi
 from cnaas_nms.api.repository import RepositoryApi
-from cnaas_nms.api.groups import GroupsApi
-from cnaas_nms.api.groups import GroupsApiByName
-from cnaas_nms.api.query import QueryApi
+from cnaas_nms.api.groups import GroupsApi, GroupsApiById, DeviceGroupsApi
 
 
 API_VERSION = 'v1.0'
@@ -42,4 +40,7 @@ api.add_resource(RepositoryApi, f'/api/{ API_VERSION }/repository/<string:repo>'
 
 # Groups
 api.add_resource(GroupsApi, f'/api/{ API_VERSION }/groups')
-api.add_resource(GroupsApiByName, f'/api/{ API_VERSION }/groups/<int:group_id>')
+api.add_resource(GroupsApiById, f'/api/{ API_VERSION }/groups/<string:group_name>')
+
+# Device groups
+api.add_resource(DeviceGroupsApi, f'/api/{ API_VERSION }/groups/<string:group_name>/devices')

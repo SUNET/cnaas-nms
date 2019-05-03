@@ -22,6 +22,7 @@ class GroupsApi(Resource):
         return empty_result(status='success', data=result)
 
     def post(self):
+        errors = []
         json_data = request.get_json()
         if json_data is None:
             return empty_result(status='error', data='JSON data must not be empty'), 200
@@ -45,7 +46,7 @@ class GroupsApiById(Resource):
         result['data'] = {'groups': []}
         with sqla_session() as session:
             instance: Groups = session.query(Groups).filter(Groups.name ==
-                                                    group_name).one_or_none()
+                                                            group_name).one_or_none()
             if instance:
                 result['data']['groups'].append(instance.as_dict())
             else:
@@ -98,6 +99,8 @@ class DeviceGroupsApi(Resource):
 
     def post(self, group_name):
         json_data = request.get_json()
+        if 'id' not in json_data:
+            return empty_result(status='error', data='Could not find device ID')
         with sqla_session() as session:
             instance: Groups = session.query(Groups).filter(Groups.name ==
                                                             group_name).one_or_none()
@@ -108,7 +111,7 @@ class DeviceGroupsApi(Resource):
                                                             json_data['id']).one_or_none()
             if not instance:
                 return empty_result(status='error', data='Could not find device'), 404
-            device = (instance.as_dict())
+            device = instance.as_dict()
             device_groups = DeviceGroups()
             device_groups.device_id = device['id']
             device_groups.groups_id = group['id']

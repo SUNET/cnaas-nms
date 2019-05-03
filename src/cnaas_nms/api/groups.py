@@ -24,16 +24,17 @@ class GroupsApi(Resource):
     def post(self):
         errors = []
         json_data = request.get_json()
+
         if json_data is None:
-            return empty_result(status='error', data='JSON data must not be empty'), 200
+            return empty_result(status='error',
+                                data='JSON data must not be empty'), 200
         with sqla_session() as session:
-            instance: Groups = session.query(Groups).filter(Groups.name == json_data['name']).one_or_none()
+            instance: Groups = session.query(Groups).filter(Groups.name ==
+                                                            json_data['name']).one_or_none()
             if instance is not None:
                 errors.append('Group already exists')
                 return errors
             new_group = Groups()
-            # We shoule probbay have some validation of the name here,
-            # but let's do that later.
             new_group.name = json_data['name']
             new_group.description = json_data['description']
             session.add(new_group)
@@ -118,8 +119,9 @@ class DeviceGroupsApi(Resource):
             session.add(device_groups)
         return empty_result(status='success'), 200
 
-    def delete(self, group_name):
-        json_data = request.get_json()
+
+class DeviceGroupsApiById(Resource):
+    def delete(self, group_name, device_id):
         with sqla_session() as session:
             instance: Groups = session.query(Groups).filter(Groups.name ==
                                                             group_name).one_or_none()
@@ -127,7 +129,7 @@ class DeviceGroupsApi(Resource):
                 return empty_result(status='error', data='Could not find group'), 404
             group = (instance.as_dict())
             instance: Device = session.query(Device).filter(Device.id ==
-                                                            json_data['id']).one_or_none()
+                                                            device_id).one_or_none()
             if not instance:
                 return empty_result(status='error', data='Could not find device'), 404
             device = (instance.as_dict())

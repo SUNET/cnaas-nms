@@ -78,8 +78,7 @@ class ApiTests(unittest.TestCase):
         result = self.client.get('/api/v1.0/device')
         json_data = json.loads(result.data.decode())
         device_id = json_data[0]['id']
-        data = {"id": device_id}
-        result = self.client.delete(f'/api/v1.0/groups/group0/devices', json=data)
+        result = self.client.delete(f'/api/v1.0/groups/group0/devices/{ device_id }')
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
 

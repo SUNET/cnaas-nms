@@ -1,7 +1,7 @@
 from flask import request
 from flask_restful import Resource
 
-from cnaas_nms.db.session import sqla_session, sqla_execute
+from cnaas_nms.db.session import sqla_session, sqla_execute, sqla_instance
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.api.device import DeviceValidate
 from cnaas_nms.api.generic import build_filter, empty_result
@@ -142,3 +142,7 @@ class DeviceGroupsApiById(Resource):
             session.delete(instance)
             session.commit()
         return empty_result(status='success'), 200
+
+    def get(self, group_name, device_id):
+        with sqla_instance(Groups, Groups.name, group_name)() as instance:
+            print(instance)

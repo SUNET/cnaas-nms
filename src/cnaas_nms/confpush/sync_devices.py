@@ -1,5 +1,7 @@
 from typing import Optional
 from ipaddress import IPv4Interface
+import os
+import yaml
 
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
@@ -13,6 +15,7 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
 
@@ -31,6 +34,11 @@ def push_sync_device(task, dry_run: bool = True):
                     neighbor_hostnames))
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
         mgmt_ip = dev.management_ip
+        devtype: DeviceType = dev.device_type
+        if isinstance(dev.platform, str):
+            platform: str = dev.platform
+        else:
+            raise ValueError("Unknown platform: {}".format(dev.platform))
 
         if not mgmt_ip:
             raise Exception("Could not find free management IP for management domain {}".format(
@@ -57,10 +65,21 @@ def push_sync_device(task, dry_run: bool = True):
 
     logger.debug("Synchronize device config for host: {}".format(task.host.name))
 
+    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
+        repo_config = yaml.safe_load(db_file)
+        local_repo_path = repo_config['templates_local']
+
+    mapfile = os.path.join(local_repo_path, platform, 'mapping.yml')
+    if not os.path.isfile(mapfile):
+        raise RepoStructureException("File {} not found in template repo".format(mapfile))
+    with open(mapfile, 'r') as f:
+        mapping = yaml.safe_load(f)
+        template = mapping[devtype.name]['entrypoint']
+
     r = task.run(task=text.template_file,
                  name="Generate device config",
-                 template="managed-full.j2",
-                 path=f"../templates/{task.host.platform}",
+                 template=template,
+                 path=f"{local_repo_path}/{task.host.platform}",
                  **template_vars)
 
     # TODO: Handle template not found, variables not defined

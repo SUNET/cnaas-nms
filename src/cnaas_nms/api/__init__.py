@@ -14,6 +14,7 @@ from cnaas_nms.api.groups import GroupsApi
 from cnaas_nms.api.groups import GroupsApiByName
 from cnaas_nms.api.query import QueryApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById, DeviceGroupsApi
+from cnaas_nms.api.groups import GroupsApi, GroupsApiById, DeviceGroupsApi, DeviceGroupsApiById
 
 
 API_VERSION = 'v1.0'
@@ -56,3 +57,4 @@ api.add_resource(GroupsApiById, f'/api/{ API_VERSION }/groups/<string:group_name
 
 # Device groups
 api.add_resource(DeviceGroupsApi, f'/api/{ API_VERSION }/groups/<string:group_name>/devices')
+api.add_resource(DeviceGroupsApiById, f'/api/{ API_VERSION }/groups/<string:group_name>/devices/<int:device_id>')

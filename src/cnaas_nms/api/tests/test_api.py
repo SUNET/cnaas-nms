@@ -5,8 +5,13 @@ import pkg_resources
 import os
 
 import unittest
-
 import cnaas_nms.api
+
+from flask import request
+from flask_restful import Resource
+
+from cnaas_nms.db.session import sqla_session, sqla_execute
+from cnaas_nms.db.groups import Groups, DeviceGroups
 
 class ApiTests(unittest.TestCase):
     def setUp(self):

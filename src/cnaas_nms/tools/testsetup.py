@@ -134,7 +134,7 @@ class MongoTemporaryInstance(object):
             time.sleep(0.2)
             try:
                 self._conn = pymongo.MongoClient('localhost', self._port)
-                logging.info('Connected to temporary mongodb instance: {} on port {}'
+                logging.debug('Connected to temporary mongodb instance: {} on port {}'
                              .format(self._conn, self._port))
             except pymongo.errors.ConnectionFailure:
                 logging.debug('Connect failed ({})'.format(i))
@@ -160,14 +160,14 @@ class MongoTemporaryInstance(object):
 
     def close(self):
         if self._conn:
-            logging.info('Closing connection {}'.format(self._conn))
+            logging.debug('Closing connection {}'.format(self._conn))
             self._conn.close()
             self._conn = None
 
     def shutdown(self):
         if self._process:
             self.close()
-            logging.info('Shutting down {}'.format(self))
+            logging.debug('Shutting down {}'.format(self))
             self._process.terminate()
             self._process.kill()
             self._process = None

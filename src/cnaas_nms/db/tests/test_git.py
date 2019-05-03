@@ -6,10 +6,11 @@ from cnaas_nms.db.device import DeviceType
 
 class GitTests(unittest.TestCase):
     def test_check_unsync(self):
-        devtypes = template_syncstatus({'managed-full.j2'})
+        devtypes = template_syncstatus({'eos/managed-full.j2'})
         for devtype in devtypes:
-            self.assertEqual(type(devtype), DeviceType)
-        self.assertTrue(DeviceType.ACCESS in devtypes)
+            self.assertEqual(type(devtype[0]), DeviceType)
+            self.assertEqual(type(devtype[1]), str)
+        self.assertTrue((DeviceType.ACCESS, 'eos') in devtypes)
 
 
 if __name__ == '__main__':

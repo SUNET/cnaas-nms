@@ -8,12 +8,21 @@ import unittest
 
 import cnaas_nms.api
 
+from cnaas_nms.tools.testsetup import DockerTemporaryInstance
+from cnaas_nms.tools.testsetup import MongoTemporaryInstance
+
 class ApiTests(unittest.TestCase):
     def setUp(self):
         self.client = cnaas_nms.api.app.test_client()
+        self.tmp_postgres = DockerTemporaryInstance()
+        self.tmp_mongo = MongoTemporaryInstance()
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
+
+    def tearDown(self):
+        self.tmp_postgres.shutdown()
+        self.tmp_mongo.shutdown()
 
     def test_get_single_device(self):
         device_id = 1
@@ -21,7 +30,7 @@ class ApiTests(unittest.TestCase):
 
         pprint.pprint(result.json)
 
-        # 200 OK
+         # 200 OK
         self.assertEqual(result.status_code, 200)
         # Succes in json
         self.assertEqual(result.json['status'], 'success')

@@ -79,7 +79,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         raise ValueError("Invalid repository")
 
     ret = ''
-    changed_files = set()
+    changed_files: Set[str] = set()
     try:
         local_repo = Repo(local_repo_path)
         prev_commit = local_repo.commit().hexsha

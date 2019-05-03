@@ -35,7 +35,10 @@ def push_sync_device(task, dry_run: bool = True):
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
         mgmt_ip = dev.management_ip
         devtype: DeviceType = dev.device_type
-        platform: str = dev.platform
+        if isinstance(dev.platform, str):
+            platform: str = dev.platform
+        else:
+            raise ValueError("Unknown platform: {}".format(dev.platform))
 
         if not mgmt_ip:
             raise Exception("Could not find free management IP for management domain {}".format(

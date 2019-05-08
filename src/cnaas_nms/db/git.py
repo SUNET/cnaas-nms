@@ -9,7 +9,7 @@ import yaml
 
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.settings import get_settings, SettingsSyntaxError
+from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
 
@@ -120,10 +120,20 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         except SettingsSyntaxError as e:
             logger.exception("Error in settings repo configuration: {}".format(str(e)))
             raise e
+        logger.debug("Files changed in settings repository: {}".format(changed_files))
+        updated_devtypes = settings_syncstatus(updated_settings=changed_files)
+        logger.debug("Devicestypes to be marked unsynced after repo refresh: {}".
+                     format(', '.join([dt.name for dt in updated_devtypes])))
+        with sqla_session() as session:
+            devtype: DeviceType
+            for devtype in updated_devtypes:
+                Device.set_devtype_syncstatus(session, devtype, syncstatus=False)
 
     if repo_type == RepoType.TEMPLATES:
         logger.debug("Files changed in template repository: {}".format(changed_files))
         updated_devtypes = template_syncstatus(updated_templates=changed_files)
+        logger.debug("Devicestypes to be marked unsynced after repo refresh: {}".
+                     format(', '.join([dt.name for dt in updated_devtypes])))
         with sqla_session() as session:
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
@@ -135,7 +145,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
 def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
     """Determine what device types have become unsynchronized because
     of updated template files."""
-    unsynced_devtype = set()
+    unsynced_devtypes = set()
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)
         local_repo_path = repo_config['templates_local']
@@ -182,6 +192,31 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
                 if update_required:
                     logger.info("Template for device type {} has been updated".
                                 format(devtype.name))
-                    unsynced_devtype.add((devtype, platform))
+                    unsynced_devtypes.add((devtype, platform))
 
-    return unsynced_devtype
+    return unsynced_devtypes
+
+
+def settings_syncstatus(updated_settings: set) -> Set[DeviceType]:
+    """Determine what devices has become unsynchronized after updating
+    the settings repository."""
+    unsynced_devtypes = set()
+    filename: str
+    for filename in updated_settings:
+        basedir = filename.split(os.path.sep)[0]
+        if basedir not in DIR_STRUCTURE:
+            continue
+        if basedir.startswith('global'):
+            return {DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE}
+        elif basedir.startswith('fabric'):
+            unsynced_devtypes.update({DeviceType.DIST, DeviceType.CORE})
+        elif basedir.startswith('access'):
+            unsynced_devtypes.add(DeviceType.ACCESS)
+        elif basedir.startswith('dist'):
+            unsynced_devtypes.add(DeviceType.DIST)
+        elif basedir.startswith('core'):
+            unsynced_devtypes.add(DeviceType.CORE)
+        else:
+            logger.warn("Unhandled settings file found {}, syncstatus not updated".
+                        format(filename))
+    return unsynced_devtypes

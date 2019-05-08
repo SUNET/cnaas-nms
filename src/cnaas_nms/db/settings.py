@@ -25,10 +25,22 @@ DIR_STRUCTURE = {
         {
             'base_system.yml': 'file'
         },
-    'core': {},
-    'dist': {},
-    'access': {},
-    'fabric': {}
+    'fabric':
+        {
+            'base_system.yml': 'file'
+        },
+    'core':
+        {
+            'base_system.yml': 'file'
+        },
+    'dist':
+        {
+            'base_system.yml': 'file'
+        },
+    'access':
+        {
+            'base_system.yml': 'file'
+        },
 }
 
 

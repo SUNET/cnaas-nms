@@ -13,7 +13,7 @@ class SettingsTests(unittest.TestCase):
             self.testdata = yaml.safe_load(f_testdata)
 
     def test_get_settings(self):
-        settings = get_settings()
+        settings, settings_origin = get_settings()
         required_setting_keys = ['ntp_servers', 'radius_servers']
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in required_setting_keys))

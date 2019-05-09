@@ -7,6 +7,7 @@ from pydantic.error_wrappers import ValidationError
 
 from cnaas_nms.db.settings_fields import f_root
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
+from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -19,6 +20,10 @@ class VerifyPathException(Exception):
 class SettingsSyntaxError(Exception):
     pass
 
+
+DIR_STRUCTURE_HOST = {
+    'base_system.yml': 'file'
+}
 
 DIR_STRUCTURE = {
     'global':
@@ -41,6 +46,10 @@ DIR_STRUCTURE = {
         {
             'base_system.yml': 'file'
         },
+    'devices':
+        {
+            Device: DIR_STRUCTURE_HOST
+        }
 }
 
 
@@ -57,6 +66,14 @@ def verify_dir_structure(path: str, dir_structure: dict):
                     raise VerifyPathException(f"{filename} is not a regular file")
                 else:
                     raise VerifyPathException(f"File {filename} not found")
+        elif item is Device:
+            for hostname in os.listdir(path):
+                hostname_path = os.path.join(path, hostname)
+                if not os.path.isdir(hostname_path) or hostname.startswith('.'):
+                    continue
+                if not Device.valid_hostname(hostname):
+                    continue
+                verify_dir_structure(hostname_path, subitem)
         else:
             dirname = os.path.join(path, item)
             if not os.path.isdir(dirname):
@@ -90,7 +107,14 @@ def get_setting_filename(repo_root: str, path: List[str]) -> str:
     Raises:
         ValueError
     """
-    if not keys_exists(DIR_STRUCTURE, path):
+    if not path or not isinstance(path, list):
+        raise ValueError("Empty path list received")
+    if path[0] == 'devices':
+        if not len(path) >= 3:
+            raise ValueError("Invalid directory structure for devices settings")
+        if not keys_exists(DIR_STRUCTURE_HOST, path[2:]):
+            raise ValueError("File not defined in DIR_STRUCTURE")
+    elif not keys_exists(DIR_STRUCTURE, path):
         raise ValueError("File not defined in DIR_STRUCTURE")
     return os.path.join(repo_root, *path)
 
@@ -130,7 +154,17 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
         raise SettingsSyntaxError(msg)
 
 
-def get_settings(hostname: Optional[str] = None):
+def read_settings(local_repo_path: str, path: List[str], origin: str,
+                  merged_settings, merged_settings_origin):
+    with open(get_setting_filename(local_repo_path, path), 'r') as f:
+        settings: dict = yaml.safe_load(f)
+        if settings and isinstance(settings, dict):
+            return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
+        else:
+            return merged_settings, merged_settings_origin
+
+
+def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None):
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
     with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
@@ -146,23 +180,33 @@ def get_settings(hostname: Optional[str] = None):
     # 1. Get CNaaS-NMS default settings
     data_dir = pkg_resources.resource_filename(__name__, 'data')
     with open(os.path.join(data_dir, 'default_settings.yml'), 'r') as f_default_settings:
-        default_settings: dict = yaml.safe_load(f_default_settings)
+        settings: dict = yaml.safe_load(f_default_settings)
+
+    settings_origin = {}
+    for k in settings.keys():
+        settings_origin[k] = 'default'
 
     # 2. Get settings repo global settings
-    with open(get_setting_filename(local_repo_path, ['global', 'base_system.yml']), 'r')\
-            as f_g_base_sys:
-        global_settings: dict = yaml.safe_load(f_g_base_sys)
+    settings, settings_origin = read_settings(
+        local_repo_path, ['global', 'base_system.yml'], 'global', settings, settings_origin)
+    # 3. Get settings from special fabric classification (dist + core)
+    if device_type and (device_type == DeviceType.DIST or device_type == DeviceType.CORE):
+        settings, settings_origin = read_settings(
+            local_repo_path, ['fabric', 'base_system.yml'], 'fabric',
+            settings, settings_origin)
+    # 4. Get settings repo device type settings
+    if device_type:
+        settings, settings_origin = read_settings(
+            local_repo_path, [device_type.name.lower(), 'base_system.yml'], 'devicetype',
+            settings, settings_origin)
+    # 5. Get settings repo device specific settings
+    if hostname:
+        if os.path.isdir(os.path.join(local_repo_path, 'devices', hostname)):
+            settings, settings_origin = read_settings(
+                local_repo_path, ['devices', hostname, 'base_system.yml'], 'device',
+                settings, settings_origin)
 
-        (merged_settings, merged_settings_metadata) = \
-            merge_dict_origin(default_settings, global_settings, 'default', 'global')
-
-    # 3. Get settings repo device type settings
-
-    # 4. Get settings repo device specific settings
-
-    # 5. Verify syntax
-    check_settings_syntax(merged_settings, merged_settings_metadata)
-    print(f_root(**merged_settings).dict())
-    print(merged_settings_metadata)
-    return f_root(**merged_settings).dict()
+    # Verify syntax
+    check_settings_syntax(settings, settings_origin)
+    return f_root(**settings).dict(), settings_origin
 

@@ -59,7 +59,7 @@ def push_sync_device(task, dry_run: bool = True):
             'mgmt_gw': mgmt_gw_ipif.ip
         }
 
-    settings = get_settings(hostname)
+    settings, settings_origin = get_settings(hostname, devtype)
     # Merge dicts
     template_vars = {**device_variables, **settings}
 

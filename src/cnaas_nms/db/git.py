@@ -116,7 +116,6 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
 
     if repo_type == RepoType.SETTINGS:
         try:
-            # TODO: has to loop through all hostnames and device types:
             get_settings()
             test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
             for devtype in test_devtypes:
@@ -128,7 +127,6 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
                 if not Device.valid_hostname(hostname):
                     continue
                 get_settings(hostname)
-
         except SettingsSyntaxError as e:
             logger.exception("Error in settings repo configuration: {}".format(str(e)))
             raise e
@@ -150,12 +148,12 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
                 else:
                     logger.warn("Settings updated for unknown device: {}".format(hostname))
 
-
     if repo_type == RepoType.TEMPLATES:
         logger.debug("Files changed in template repository: {}".format(changed_files))
         updated_devtypes = template_syncstatus(updated_templates=changed_files)
+        updated_list = ['{}:{}'.format(platform, dt.name) for dt, platform in updated_devtypes]
         logger.debug("Devicestypes to be marked unsynced after repo refresh: {}".
-                     format(', '.join([dt.name for dt in updated_devtypes])))
+                     format(', '.join(updated_list)))
         with sqla_session() as session:
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
@@ -230,7 +228,7 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
         if basedir not in DIR_STRUCTURE:
             continue
         if basedir.startswith('global'):
-            return {DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE}
+            return {DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE}, set()
         elif basedir.startswith('fabric'):
             unsynced_devtypes.update({DeviceType.DIST, DeviceType.CORE})
         elif basedir.startswith('access'):

@@ -41,8 +41,7 @@ def push_sync_device(task, dry_run: bool = True):
             raise ValueError("Unknown platform: {}".format(dev.platform))
 
         if not mgmt_ip:
-            raise Exception("Could not find free management IP for management domain {}".format(
-                mgmtdomain.id))
+            raise Exception("Could not find management IP for device {}".format(hostname))
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
 
         intfs = session.query(Interface).filter(Interface.device == dev).all()

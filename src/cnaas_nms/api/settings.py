@@ -36,4 +36,3 @@ class SettingsApi(Resource):
             return empty_result('error', "Error getting settings: {}".format(str(e))), 400
 
         return empty_result(data={'settings': settings, 'settings_origin': settings_origin})
-

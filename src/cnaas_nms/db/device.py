@@ -152,10 +152,15 @@ class Device(cnaas_nms.db.base.Base):
         return all(hostname_part_re.match(x) for x in hostname.split('.'))
 
     @classmethod
-    def set_devtype_syncstatus(cls, session, devtype: DeviceType, platform: str, syncstatus=False):
+    def set_devtype_syncstatus(cls, session, devtype: DeviceType,
+                               platform: Optional[str] = None, syncstatus=False):
         """Update sync status of devices of type devtype"""
         dev: Device
-        for dev in session.query(Device).filter(Device.device_type == devtype).\
-                filter(Device.platform == platform).all():
+        if platform:
+            dev_query = session.query(Device).filter(Device.device_type == devtype).\
+                filter(Device.platform == platform).all()
+        else:
+            dev_query = session.query(Device).filter(Device.device_type == devtype).all()
+        for dev in dev_query:
             dev.synchronized = syncstatus
 

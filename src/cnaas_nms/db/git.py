@@ -9,7 +9,7 @@ import yaml
 
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.settings import get_settings, SettingsSyntaxError
+from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
 
@@ -117,13 +117,43 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
     if repo_type == RepoType.SETTINGS:
         try:
             get_settings()
+            test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
+            for devtype in test_devtypes:
+                get_settings(device_type=devtype)
+            for hostname in os.listdir(os.path.join(local_repo_path, 'devices')):
+                hostname_path = os.path.join(local_repo_path, 'devices', hostname)
+                if not os.path.isdir(hostname_path) or hostname.startswith('.'):
+                    continue
+                if not Device.valid_hostname(hostname):
+                    continue
+                get_settings(hostname)
         except SettingsSyntaxError as e:
             logger.exception("Error in settings repo configuration: {}".format(str(e)))
             raise e
+        logger.debug("Files changed in settings repository: {}".format(changed_files))
+        updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)
+        logger.debug("Devicestypes to be marked unsynced after repo refresh: {}".
+                     format(', '.join([dt.name for dt in updated_devtypes])))
+        logger.debug("Devices to be marked unsynced after repo refresh: {}".
+                     format(', '.join(updated_hostnames)))
+        with sqla_session() as session:
+            devtype: DeviceType
+            for devtype in updated_devtypes:
+                Device.set_devtype_syncstatus(session, devtype, syncstatus=False)
+            for hostname in updated_hostnames:
+                dev: Device = session.query(Device).\
+                    filter(Device.hostname == hostname).one_or_none()
+                if dev:
+                    dev.synchronized = False
+                else:
+                    logger.warn("Settings updated for unknown device: {}".format(hostname))
 
     if repo_type == RepoType.TEMPLATES:
         logger.debug("Files changed in template repository: {}".format(changed_files))
         updated_devtypes = template_syncstatus(updated_templates=changed_files)
+        updated_list = ['{}:{}'.format(platform, dt.name) for dt, platform in updated_devtypes]
+        logger.debug("Devicestypes to be marked unsynced after repo refresh: {}".
+                     format(', '.join(updated_list)))
         with sqla_session() as session:
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
@@ -135,7 +165,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
 def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
     """Determine what device types have become unsynchronized because
     of updated template files."""
-    unsynced_devtype = set()
+    unsynced_devtypes = set()
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)
         local_repo_path = repo_config['templates_local']
@@ -182,6 +212,39 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
                 if update_required:
                     logger.info("Template for device type {} has been updated".
                                 format(devtype.name))
-                    unsynced_devtype.add((devtype, platform))
+                    unsynced_devtypes.add((devtype, platform))
 
-    return unsynced_devtype
+    return unsynced_devtypes
+
+
+def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str]]:
+    """Determine what devices has become unsynchronized after updating
+    the settings repository."""
+    unsynced_devtypes = set()
+    unsynced_hostnames = set()
+    filename: str
+    for filename in updated_settings:
+        basedir = filename.split(os.path.sep)[0]
+        if basedir not in DIR_STRUCTURE:
+            continue
+        if basedir.startswith('global'):
+            return {DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE}, set()
+        elif basedir.startswith('fabric'):
+            unsynced_devtypes.update({DeviceType.DIST, DeviceType.CORE})
+        elif basedir.startswith('access'):
+            unsynced_devtypes.add(DeviceType.ACCESS)
+        elif basedir.startswith('dist'):
+            unsynced_devtypes.add(DeviceType.DIST)
+        elif basedir.startswith('core'):
+            unsynced_devtypes.add(DeviceType.CORE)
+        elif basedir.startswith('devices'):
+            try:
+                hostname = filename.split(os.path.sep)[1]
+                if Device.valid_hostname(hostname):
+                    unsynced_hostnames.add(hostname)
+            except Exception as e:
+                logger.exception("Error in settings devices directory: {}".format(str(e)))
+        else:
+            logger.warn("Unhandled settings file found {}, syncstatus not updated".
+                        format(filename))
+    return (unsynced_devtypes, unsynced_hostnames)

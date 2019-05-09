@@ -8,6 +8,7 @@ from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi
 from cnaas_nms.api.repository import RepositoryApi
+from cnaas_nms.api.settings import SettingsApi
 
 app = Flask(__name__)
 api = Api(app)
@@ -27,3 +28,5 @@ api.add_resource(MgmtdomainByIdApi, '/api/v1.0/mgmtdomain/<int:mgmtdomain_id>')
 api.add_resource(JobsApi, '/api/v1.0/job')
 
 api.add_resource(RepositoryApi, '/api/v1.0/repository/<string:repo>')
+
+api.add_resource(SettingsApi, '/api/v1.0/settings')

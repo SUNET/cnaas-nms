@@ -43,16 +43,16 @@ eap {
 	ttls {
 		tls = tls-common
 		default_eap_type = md5
-		copy_request_to_tunnel = no
-		use_tunneled_reply = no
+		copy_request_to_tunnel = yes
+		use_tunneled_reply = yes
 		virtual_server = "inner-tunnel"
 	}
 
 	peap {
 		tls = tls-common
 		default_eap_type = mschapv2
-		copy_request_to_tunnel = no
-		use_tunneled_reply = no
+		copy_request_to_tunnel = yes
+		use_tunneled_reply = yes
 		virtual_server = "inner-tunnel"
 	}
 

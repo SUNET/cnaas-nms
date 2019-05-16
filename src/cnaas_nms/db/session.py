@@ -1,3 +1,4 @@
+import os
 import yaml
 from contextlib import contextmanager
 
@@ -13,6 +14,16 @@ def get_dbdata(config='/etc/cnaas-nms/db_config.yml'):
 
 def get_sqlalchemy_conn_str(**kwargs) -> str:
     db_data = get_dbdata(**kwargs)
+    if 'CNAAS_DB_HOSTNAME' in os.environ:
+        db_data['hostname'] = os.environ['CNAAS_DB_HOSTNAME']
+    if 'CNAAS_DB_PORT' in os.environ:
+        db_data['port'] = os.environ['CNAAS_DB_PORT']
+    if 'CNAAS_DB_USERNAME' in os.environ:
+        db_data['username'] = os.environ['CNAAS_DB_USERNAME']
+    if 'CNAAS_DB_PASSWORD' in os.environ:
+        db_data['password'] = os.environ['CNAAS_DB_PASSWORD']
+    if 'CNAAS_DB_DATABASE' in os.environ:
+        db_data['database'] = os.environ['CNAAS_DB_DATABSE']        
 
     conn_str = (
         f"{db_data['type']}://{db_data['username']}:{db_data['password']}@"

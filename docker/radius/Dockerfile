@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 # Install freeradius
 RUN apt update
-RUN apt install -y freeradius
+RUN apt install -y freeradius python3 python3-requests
 
 WORKDIR /etc/freeradius/3.0/
 

@@ -4,11 +4,9 @@ import sys
 import requests
 
 def accept():
-    print('Accept')
     sys.exit(0)
     
 def reject():
-    print('Reject')
     sys.exit(-1)    
     
 def get_user(argv):

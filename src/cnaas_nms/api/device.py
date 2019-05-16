@@ -183,14 +183,14 @@ class DeviceByIdApi(Resource):
 
 class DevicesApi(Resource):
     def get(self):
-        result = []
+        result = {'devices': []}
         filter_exp = None
         with sqla_session() as session:
             query = session.query(Device)
             query = build_filter(Device, query)
             for instance in query:
-                result.append(instance.as_dict())
-        return result
+                result['devices'].append(instance.as_dict())
+        return empty_result(status='success', data=result)
 
     def post(self):
         json_data = request.get_json()
@@ -243,12 +243,12 @@ class DevicesApi(Resource):
 
 class LinknetsApi(Resource):
     def get(self):
-        result = []
+        result = {'linknet': []}
         with sqla_session() as session:
             query = session.query(Linknet)
             for instance in query:
-                result.append(instance.as_dict())
-        return result
+                result['linknet'].append(instance.as_dict())
+        return empty_result(status='success', data=result)
 
 
 class DeviceInitApi(Resource):

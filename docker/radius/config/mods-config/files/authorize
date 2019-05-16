@@ -1,19 +1,22 @@
-DEFAULT	Framed-Protocol == PPP
-	Framed-Protocol = PPP,
-	Framed-Compression = Van-Jacobson-TCP-IP
+DEFAULT Auth-Type := Accept
+    Exec-Program-Wait = "/usr/bin/python3 /usr/local/bin/radius_auth.py 172.17.0.4 '%{User-Name}' '%{User-Password}'"
 
-DEFAULT	Hint == "CSLIP"
-	Framed-Protocol = SLIP,
-	Framed-Compression = Van-Jacobson-TCP-IP
+# DEFAULT	Framed-Protocol == PPP
+# 	Framed-Protocol = PPP,
+# 	Framed-Compression = Van-Jacobson-TCP-IP
 
-DEFAULT	Hint == "SLIP"
-	Framed-Protocol = SLIP
+# DEFAULT	Hint == "CSLIP"
+# 	Framed-Protocol = SLIP,
+# 	Framed-Compression = Van-Jacobson-TCP-IP
 
-"testing" Cleartext-Password := "testing"
-	  Tunnel-Type = "VLAN",
-	  Tunnel-Medium-Type = "IEEE-802",
-	  Tunnel-Private-Group-Id = "123",
-	  Reply-Message = "Login accepted"
+# DEFAULT	Hint == "SLIP"
+# 	Framed-Protocol = SLIP
 
-# MAC address authentication example
-0000000000a Auth-Type := Local, User-Password == "0000000000a"
+# "testing" Cleartext-Password := "testing"
+# 	  Tunnel-Type = "VLAN",
+# 	  Tunnel-Medium-Type = "IEEE-802",
+# 	  Tunnel-Private-Group-Id = "123",
+# 	  Reply-Message = "Login accepted"
+
+# # MAC address authentication example
+# 0000000000a Auth-Type := Local, User-Password == "0000000000a"

@@ -8,8 +8,9 @@ RUN apt install -y freeradius
 
 WORKDIR /etc/freeradius/3.0/
 
-# Copy config directory
+# Copy to container
 COPY config/ /root/config/
+COPY radius_auth.py /usr/local/bin/
 
 # Copy individual files
 RUN cp /root/config/clients.conf .

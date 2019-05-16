@@ -21,6 +21,8 @@ class AuthApi(Resource):
     def _validate_credential(self, credential, args):
         if not credential:
             return empty_result(status='error', data='User not found'), 404
+        if credential.active == False:
+            return empty_result(status='error', data='Account disabled'), 404
         if credential.password != args['password']:
             return empty_result(status='error', data='Invalid password'), 404
         return empty_result(status='success')

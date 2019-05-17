@@ -17,7 +17,7 @@ class AuthApi(Resource):
         if args['password'] is '':
             return -1
         return 0
-    
+
     def _validate_credential(self, credential, args):
         if not credential:
             return empty_result(status='error', data='User not found'), 404
@@ -25,8 +25,9 @@ class AuthApi(Resource):
             return empty_result(status='error', data='Account disabled'), 404
         if credential.password != args['password']:
             return empty_result(status='error', data='Invalid password'), 404
-        return empty_result(status='success')
-        
+        response = {'attributes': credential.attributes}
+        return empty_result(status='success', data=response)
+
     def get(self):
         results = []
         args = request.args
@@ -50,8 +51,11 @@ class AuthApi(Resource):
             new_user = User()
             new_user.username = json_data['username']
             new_user.password = json_data['password']
+            new_user.attributes = json_data['attributes']
             if 'description' in json_data:
                 new_user.description = json_data['description']
+            if 'attributes' in json_data:
+                new_user.attributes = json_data['attributes']
             new_user.active = False
             session.add(new_user)
         return empty_result(status='success')

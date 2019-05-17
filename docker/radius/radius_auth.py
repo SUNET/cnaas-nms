@@ -5,10 +5,10 @@ import requests
 
 def accept():
     sys.exit(0)
-    
+
 def reject():
-    sys.exit(-1)    
-    
+    sys.exit(-1)
+
 def get_user(argv):
     url = argv[1]
     url += '/api/v1.0/auth'
@@ -19,6 +19,9 @@ def get_user(argv):
     except Exception:
         reject()
     if response.status_code == 200:
+        if 'attributes' in json['data']:
+            for _ in json['data']['attributes'].split(','):
+                print(_)
         accept()
     if 'status' not in json:
         reject()
@@ -29,7 +32,7 @@ def get_user(argv):
     else:
         reject()
     reject()
-    
+
 def post_user(argv):
     url = argv[1]
     url += '/api/v1.0/auth'
@@ -51,6 +54,6 @@ def main(argv):
         if get_user(argv) != 0:
             reject()
     reject()
-            
+
 if __name__ == '__main__':
     main(sys.argv)

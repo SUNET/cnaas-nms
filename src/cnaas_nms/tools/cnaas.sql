@@ -16,14 +16,14 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
+-- Name: plpgsql; Type: EXTENSION; Schema: -; Owner:
 --
 
 CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
 
 
 --
--- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
+-- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner:
 --
 
 COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
@@ -379,6 +379,44 @@ ALTER SEQUENCE public.site_id_seq OWNED BY public.site.id;
 
 
 --
+-- Name: users; Type: TABLE; Schema: public; Owner: cnaas
+--
+
+CREATE TABLE public.users (
+    id integer NOT NULL,
+    username character varying(128),
+    password character varying(128),
+    description character varying(255),
+    active boolean,
+    attributes character varying(1024)
+);
+
+
+ALTER TABLE public.users OWNER TO cnaas;
+
+--
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: cnaas
+--
+
+CREATE SEQUENCE public.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.users_id_seq OWNER TO cnaas;
+
+--
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: cnaas
+--
+
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
 -- Name: device id; Type: DEFAULT; Schema: public; Owner: cnaas
 --
 
@@ -432,6 +470,13 @@ ALTER TABLE ONLY public.netlink ALTER COLUMN id SET DEFAULT nextval('public.netl
 --
 
 ALTER TABLE ONLY public.site ALTER COLUMN id SET DEFAULT nextval('public.site_id_seq'::regclass);
+
+
+--
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
@@ -556,6 +601,13 @@ SELECT pg_catalog.setval('public.netlink_id_seq', 2, true);
 --
 
 SELECT pg_catalog.setval('public.site_id_seq', 3, true);
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
+--
+
+SELECT pg_catalog.setval('public.users_id_seq', 1, true);
 
 
 --
@@ -687,6 +739,14 @@ ALTER TABLE ONLY public.site
 
 
 --
+-- Name: site users_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: ix_apscheduler_jobs_next_run_time; Type: INDEX; Schema: public; Owner: cnaas
 --
 
@@ -808,4 +868,3 @@ ALTER TABLE ONLY public.netlink
 --
 -- PostgreSQL database dump complete
 --
-

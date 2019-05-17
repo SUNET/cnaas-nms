@@ -24,6 +24,8 @@ class User(cnaas_nms.db.base.Base):
     password = Column(Unicode(128))
     description = Column(Unicode(255))
     active = Column(Boolean, default=False)
+    attributes = Column(Unicode(1024))
+
     def as_dict(self):
         """Return JSON serializable dict."""
         d = {}

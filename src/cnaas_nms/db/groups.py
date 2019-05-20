@@ -85,18 +85,16 @@ class Groups(cnaas_nms.db.base.Base):
 
     @classmethod
     def group_update(cls, name='', description=''):
-        retval = []
         with sqla_session() as session:
             instance: Groups = session.query(Groups).filter(Groups.name
                                                             == name).one_or_none()
             if instance is None:
-                retval = 'Group not found'
-                return retval
+                return 'Group not found'
             if name != '':
                 instance.name = name
             if description != '':
                 instance.description = description
-        return retval
+        return None
 
 
 class DeviceGroups(cnaas_nms.db.base.Base):

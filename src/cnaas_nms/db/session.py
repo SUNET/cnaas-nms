@@ -48,12 +48,6 @@ def sqla_execute(**kwargs):
         yield connection
 
 @contextmanager
-def sqla_instance(dbclass, column, match):
-    with sqla_session() as session:
-        yield session.query(dbclass).filter(column == match).one_or_none()
-
-
-@contextmanager
 def mongo_db(**kwargs):
     db_data = get_dbdata(**kwargs)
     client = MongoClient()

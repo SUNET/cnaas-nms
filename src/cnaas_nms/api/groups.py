@@ -1,9 +1,8 @@
 from flask import request
 from flask_restful import Resource
 
-from cnaas_nms.db.session import sqla_session, sqla_execute, sqla_instance
+from cnaas_nms.db.session import sqla_session, sqla_execute
 from cnaas_nms.api.generic import empty_result
-from cnaas_nms.api.device import DeviceValidate
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.groups import Groups, DeviceGroups
@@ -11,64 +10,38 @@ from cnaas_nms.db.groups import Groups, DeviceGroups
 
 class GroupsApi(Resource):
     def get(self):
-        data = {}
-        result = []
-        json_data = request.get_json()
-        with sqla_session() as session:
-            query = session.query(Groups)
-            query = build_filter(Groups, query)
-            for instance in query:
-                result.append(instance.as_dict())
-        return empty_result(status='success', data=result)
+        return empty_result(status='success', data=Groups.group_get())
 
     def post(self):
-        errors = []
         json_data = request.get_json()
-
         if json_data is None:
             return empty_result(status='error',
-                                data='JSON data must not be empty'), 200
-        with sqla_session() as session:
-            instance: Groups = session.query(Groups).filter(Groups.name ==
-                                                            json_data['name']).one_or_none()
-            if instance is not None:
-                errors.append('Group already exists')
-                return errors
-            new_group = Groups()
-            new_group.name = json_data['name']
-            new_group.description = json_data['description']
-            session.add(new_group)
+                                data='JSON data must not be empty'), 404
+        if 'name' not in json_data:
+            return empty_result(status='error', data='Missing group name'), 404
+        if 'description' not in json_data:
+            json_data['description'] = ''
+        result = Groups.group_add(json_data['name'], json_data['description'])
+        if result != []:
+            return empty_result(status='error', data=result), 404
         return empty_result(status='success'), 200
 
 
 class GroupsApiById(Resource):
     def get(self, group_name):
-        result = empty_result()
-        result['data'] = {'groups': []}
-        with sqla_session() as session:
-            instance: Groups = session.query(Groups).filter(Groups.name ==
-                                                            group_name).one_or_none()
-            if instance:
-                result['data']['groups'].append(instance.as_dict())
-            else:
-                return empty_result('error', 'Group not found'), 404
-        return result
+        result = Groups.group_get(index=0, name=group_name)
+        if result == []:
+            return empty_result(status='error', data='Can not find group'), 404
+        return empty_result(status='success', data=result)
 
     def put(self, group_name):
         errors = []
         json_data = request.get_json()
         if json_data is None:
-            return empty_result(status='error', data='JSON data must not be empty'), 200
-        with sqla_session() as session:
-            instance: Groups = session.query(Groups).filter(Groups.name
-                                                            == group_name).one_or_none()
-            if instance:
-                if 'name' in json_data:
-                    instance.name = json_data['name']
-                if 'description' in json_data:
-                    instance.description = json_data['description']
-            else:
-                errors.append('Group not found')
+            return empty_result(status='error',
+                                data='JSON data must not be empty'), 200
+        errors = Groups.group_update(group_name,
+                                     json_data['description'])
         if errors != []:
             return empty_result(status='error', data=errors), 404
         return empty_result(status='success'), 200
@@ -81,8 +54,7 @@ class GroupsApiById(Resource):
                 session.delete(instance)
                 session.commit()
                 return empty_result(), 200
-            else:
-                return empty_result('error', 'Group not found'), 404
+        return empty_result('error', 'Group not found'), 404
 
 
 class DeviceGroupsApi(Resource):
@@ -101,22 +73,10 @@ class DeviceGroupsApi(Resource):
     def post(self, group_name):
         json_data = request.get_json()
         if 'id' not in json_data:
-            return empty_result(status='error', data='Could not find device ID')
-        with sqla_session() as session:
-            instance: Groups = session.query(Groups).filter(Groups.name ==
-                                                            group_name).one_or_none()
-            if not instance:
-                return empty_result(status='error', data='Could not find group'), 404
-            group = (instance.as_dict())
-            instance: Device = session.query(Device).filter(Device.id ==
-                                                            json_data['id']).one_or_none()
-            if not instance:
-                return empty_result(status='error', data='Could not find device'), 404
-            device = instance.as_dict()
-            device_groups = DeviceGroups()
-            device_groups.device_id = device['id']
-            device_groups.groups_id = group['id']
-            session.add(device_groups)
+            return empty_result(status='error', data='Device ID not found')
+        result = Device.device_group_add(group_name, json_data['id'])
+        if result is not None:
+            return empty_result(status='error', data=result), 404
         return empty_result(status='success'), 200
 
 
@@ -144,5 +104,9 @@ class DeviceGroupsApiById(Resource):
         return empty_result(status='success'), 200
 
     def get(self, group_name, device_id):
-        with sqla_instance(Groups, Groups.name, group_name)() as instance:
-            print(instance)
+        with sqla_session() as session:
+            instance: Device = session.query(Device).filter(Device.id ==
+                                                            device_id).one_or_none()
+            if not instance:
+                return empty_result(status='error', data='Can not find device'), 404
+        return empty_result(status='success', data=instance.as_dict())

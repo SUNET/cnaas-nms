@@ -2,13 +2,14 @@
 
 from flask import Flask
 from flask_restful import Api
-from cnaas_nms.api.device import DeviceByIdApi, DevicesApi, LinknetsApi, \
-    DeviceInitApi, DeviceSyncApi
+from cnaas_nms.api.groups import GroupsApi, GroupsApiById, DeviceGroupsApi, DeviceGroupsApiById
 from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi
 from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi
+from cnaas_nms.api.device import DeviceByIdApi, DevicesApi, LinknetsApi, \
+    DeviceInitApi, DeviceSyncApi
 
 app = Flask(__name__)
 api = Api(app)

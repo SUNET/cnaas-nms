@@ -2,7 +2,6 @@
 
 from flask import Flask
 from flask_restful import Api
-from cnaas_nms.api.groups import GroupsApi, GroupsApiById, DeviceGroupsApi, DeviceGroupsApiById
 from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi

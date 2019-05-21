@@ -48,5 +48,3 @@ class Linknet(cnaas_nms.db.base.Base):
                 value = str(value)
             d[col.name] = value
         return d
-
-

@@ -29,12 +29,16 @@ from cnaas_nms.db.site import Site
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.interface import Interface
+from cnaas_nms.db.groups import Groups, DeviceGroups
+
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
 
 def include_object(object, name, type_, reflected, compare_to):
     ignore_names = ['apscheduler_jobs']

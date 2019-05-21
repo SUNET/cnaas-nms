@@ -25,5 +25,5 @@ apt-get update && \
 
 cd /opt/cnaas/www
 
-# this will be replaced by user defined repo at runtime if env variable GITREPO_TEMPLATES is set
+# this will be replaced by user defined repo at runtime if env variable GITREPO is set
 git clone https://github.com/SUNET/cnaas-nms-templates templates

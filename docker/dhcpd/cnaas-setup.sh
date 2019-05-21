@@ -22,7 +22,7 @@ apt-get update && \
       curl \
     && apt-get clean
 
-#rm -rf /var/lib/apt/lists/*
+rm -rf /var/lib/apt/lists/*
 
 python3 -m venv /opt/cnaas/venv
 

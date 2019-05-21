@@ -1,10 +1,10 @@
 #!/bin/bash
 
-if [ -z "$GITREPO_TEMPLATES" ]
+if [ -z "$GITREPO" ]
 then
 	cd /opt/cnaas/www
 	rm -rf /opt/cnaas/www/templates
-	git clone "$GITREPO_TEMPLATES" templates
+	git clone "$GITREPO" templates
 else
 	cd /opt/cnaas/www/templates
 	git pull

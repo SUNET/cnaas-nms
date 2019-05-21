@@ -331,27 +331,23 @@ class Device(cnaas_nms.db.base.Base):
                 data['synchronized'] = kwargs['synchronized']
             else:
                 errors.append("Invalid synchronization state received")
-
         if 'state' in kwargs:
             try:
-                state = str(kwargs['state']).upper()
+                DeviceState.has_value(kwargs['state'])
             except Exception:
-                errors.append('Invalid device state received.')
+                errors.append('Invalid device state')
             else:
-                if DeviceState.has_name(state):
-                    data['state'] = DeviceState[state]
-                else:
-                    errors.append('Invalid device state received.')
+                data['state'] = kwargs['state']
         else:
             errors.append('Required field state not found')
 
         if 'device_type' in kwargs:
             try:
-                device_type = str(kwargs['device_type']).upper()
+                DeviceType.has_name(kwargs['device_type'])
             except Exception:
-                errors.append('Invalid device type received.')
+                errors.append('Invalid device type')
             else:
-                data['device_type'] = device_type
+                data['device_type'] = kwargs['device_type']
         else:
             errors.append('Required field device_type not found')
         return data, errors

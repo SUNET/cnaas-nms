@@ -40,12 +40,18 @@ class GroupsApiById(Resource):
         if json_data is None:
             return empty_result(status='error',
                                 data='JSON data must not be empty'), 200
+<<<<<<< HEAD
         if 'description' not in json_data:
             json_data['description'] = ''
         errors = Groups.group_update(group_name,
                                      json_data['description'])
         print(errors)
         if errors != None:
+=======
+        errors = Groups.group_update(group_name,
+                                     json_data['description'])
+        if errors != []:
+>>>>>>> 91bd4ef679fa7f8bd8258ab81082c842a78af49b
             return empty_result(status='error', data=errors), 404
         return empty_result(status='success'), 200
 
@@ -105,7 +111,11 @@ class DeviceGroupsApiById(Resource):
             session.delete(instance)
             session.commit()
         return empty_result(status='success'), 200
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> 91bd4ef679fa7f8bd8258ab81082c842a78af49b
     def get(self, group_name, device_id):
         with sqla_session() as session:
             instance: Device = session.query(Device).filter(Device.id ==

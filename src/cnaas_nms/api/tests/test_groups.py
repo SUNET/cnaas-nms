@@ -6,19 +6,11 @@ import os
 
 import json
 import unittest
-<<<<<<< HEAD
-=======
-import cnaas_nms.api
->>>>>>> 91bd4ef679fa7f8bd8258ab81082c842a78af49b
 
 from flask import request
 from flask_restful import Resource
 
-<<<<<<< HEAD
 from cnaas_nms.api import app
-
-=======
->>>>>>> 91bd4ef679fa7f8bd8258ab81082c842a78af49b
 from cnaas_nms.db.session import sqla_session, sqla_execute
 from cnaas_nms.db.groups import Groups, DeviceGroups
 from cnaas_nms.db.device import Device
@@ -26,11 +18,7 @@ from cnaas_nms.db.device import Device
 
 class ApiTests(unittest.TestCase):
     def setUp(self):
-<<<<<<< HEAD
         self.client = app.app.test_client()
-=======
-        self.client = cnaas_nms.api.app.test_client()
->>>>>>> 91bd4ef679fa7f8bd8258ab81082c842a78af49b
 
     def test_1_add_new_group(self):
         data = {

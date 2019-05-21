@@ -1,0 +1,22 @@
+DEFAULT Auth-Type := Accept
+	Exec-Program-Wait = "/usr/bin/python3 /usr/local/bin/radius_auth.py http://172.17.0.4:5000 %{User-Name} %{User-Password}"
+
+# DEFAULT	Framed-Protocol == PPP
+# 	Framed-Protocol = PPP,
+# 	Framed-Compression = Van-Jacobson-TCP-IP
+
+# DEFAULT	Hint == "CSLIP"
+# 	Framed-Protocol = SLIP,
+# 	Framed-Compression = Van-Jacobson-TCP-IP
+
+# DEFAULT	Hint == "SLIP"
+# 	Framed-Protocol = SLIP
+
+# "testing" Cleartext-Password := "testing"
+# 	  Tunnel-Type = "VLAN",
+# 	  Tunnel-Medium-Type = "IEEE-802",
+# 	  Tunnel-Private-Group-Id = "123",
+# 	  Reply-Message = "Login accepted"
+
+# # MAC address authentication example
+# 0000000000a Auth-Type := Local, User-Password == "0000000000a"

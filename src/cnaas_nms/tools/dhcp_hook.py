@@ -6,7 +6,6 @@ import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.device import device_add
 
 
 logger = get_logger()
@@ -36,10 +35,10 @@ if sys.argv[1] == "commit":
                     ztp_mac
                 ))
         else:
-            device_add(ztp_mac=ztp_mac, dhcp_ip=dhcp_ip,
-                       hostname=f'mac-{ztp_mac}',
-                       platform=platform,
-                       state=DeviceState.DHCP_BOOT,
-                       device_type=DeviceType.UNKNOWN)
+            Device.device_add(ztp_mac=ztp_mac, dhcp_ip=dhcp_ip,
+                              hostname=f'mac-{ztp_mac}',
+                              platform=platform,
+                              state=DeviceState.DHCP_BOOT,
+                              device_type=DeviceType.UNKNOWN)
             logger.info("New device booted via DHCP to state DHCP_BOOT: {}".
                         format(ztp_mac))

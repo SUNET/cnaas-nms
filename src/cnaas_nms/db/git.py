@@ -4,7 +4,7 @@ from typing import Set, Tuple
 
 from git import Repo
 from git import InvalidGitRepositoryError, NoSuchPathError
-from git.exc import NoSuchPathError, GitCommandError
+from git.exc import NoSuchPathError
 import yaml
 
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
@@ -99,18 +99,15 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         logger.info("Local repository {} not found, cloning from remote".\
                     format(local_repo_path))
         try:
-            local_repo = Repo.clone_from(remote_repo_path, local_repo_path)
+            remote_repo = Repo(remote_repo_path)
         except NoSuchPathError as e:
             raise ConfigException("Invalid remote repository {}: {}".format(
                 remote_repo_path,
                 str(e)
             ))
-        except GitCommandError as e:
-            raise ConfigException("Error cloning remote repository {}: {}".format(
-                remote_repo_path,
-                str(e)
-            ))
 
+        remote_repo.clone(local_repo_path)
+        local_repo = Repo(local_repo_path)
         ret = 'Cloned new from remote. Last commit {} by {} at {}'.format(
             local_repo.head.commit.name_rev,
             local_repo.head.commit.committer,

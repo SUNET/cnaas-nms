@@ -7,7 +7,7 @@ sed -e "s/^\(password: \).\+$/\1 $DB_PASSWORD/" \
   < /etc/cnaas-nms/db_config.yml > db_config.yml.new \
   && mv -f db_config.yml.new /etc/cnaas-nms/db_config.yml
 
-if [ -z "$GITREPO_ETC" ]
+if [ ! -z "$GITREPO_ETC" ]
 then
 	cd /opt/cnaas
 	rm -rf /opt/cnaas/etc

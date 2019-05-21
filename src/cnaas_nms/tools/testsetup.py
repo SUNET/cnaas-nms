@@ -75,13 +75,6 @@ class PostgresTemporaryInstance(object):
 
         # Use the dump we copied in the previous step to restore
         # the database.
-        subprocess.call(['docker', 'exec',
-                          'postgres_{!s}'.format(self._port), 'psql',
-                          '-U', 'cnaas',
-                          '-d', 'cnaas',
-                          '-f', POSTGRES_FILE],
-                         stdout=open('/tmp/docker_psql.log', 'wb'),
-                         stderr=subprocess.STDOUT)
 
     def shutdown(self):
         if self._postgres:
@@ -175,6 +168,6 @@ class MongoTemporaryInstance(object):
 
 if __name__ == '__main__':
     db = PostgresTemporaryInstance()
-    db.shutdown()
+    # db.shutdown()
     mdb = MongoTemporaryInstance()
-    mdb.shutdown()
+    # mdb.shutdown()

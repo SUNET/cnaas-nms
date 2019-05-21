@@ -30,6 +30,7 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.groups import Groups, DeviceGroups
+from cnaas_nms.db.user import User
 
 
 target_metadata = Base.metadata

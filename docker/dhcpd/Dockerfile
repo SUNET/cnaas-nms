@@ -13,3 +13,5 @@ COPY dhcpd.sh /opt/cnaas/dhcpd.sh
 COPY dhcpd.conf /opt/cnaas/dhcpd.conf
 
 ENTRYPOINT ["/opt/cnaas/dhcpd.sh"]
+
+EXPOSE 67/udp

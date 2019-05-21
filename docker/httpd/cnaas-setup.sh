@@ -24,6 +24,6 @@ apt-get update && \
 #rm -rf /var/lib/apt/lists/*
 
 cd /opt/cnaas/www
-git clone --depth 1 --no-checkout --filter=blob:none https://github.com/SUNET/cnaas-nms.git cnaas-nms
-cd cnaas-nms/
-git checkout master -- templates/
+
+# this will be replaced by user defined repo at runtime if env variable GITREPO is set
+git clone https://github.com/SUNET/cnaas-nms-templates templates

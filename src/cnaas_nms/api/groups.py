@@ -40,9 +40,12 @@ class GroupsApiById(Resource):
         if json_data is None:
             return empty_result(status='error',
                                 data='JSON data must not be empty'), 200
+        if 'description' not in json_data:
+            json_data['description'] = ''
         errors = Groups.group_update(group_name,
                                      json_data['description'])
-        if errors != []:
+        print(errors)
+        if errors != None:
             return empty_result(status='error', data=errors), 404
         return empty_result(status='success'), 200
 

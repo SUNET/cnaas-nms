@@ -61,9 +61,38 @@ CREATE TYPE public.devicetype AS ENUM (
 
 ALTER TYPE public.devicetype OWNER TO cnaas;
 
+--
+-- Name: interfaceconfigtype; Type: TYPE; Schema: public; Owner: cnaas
+--
+
+CREATE TYPE public.interfaceconfigtype AS ENUM (
+    'UNKNOWN',
+    'UNMANAGED',
+    'CONFIGFILE',
+    'CUSTOM',
+    'ACCESS_AUTO',
+    'ACCESS_UNTAGGED',
+    'ACCESS_TAGGED',
+    'ACCESS_UPLINK'
+);
+
+
+ALTER TYPE public.interfaceconfigtype OWNER TO cnaas;
+
 SET default_tablespace = '';
 
 SET default_with_oids = false;
+
+--
+-- Name: alembic_version; Type: TABLE; Schema: public; Owner: cnaas
+--
+
+CREATE TABLE public.alembic_version (
+    version_num character varying(32) NOT NULL
+);
+
+
+ALTER TABLE public.alembic_version OWNER TO cnaas;
 
 --
 -- Name: apscheduler_jobs; Type: TABLE; Schema: public; Owner: cnaas
@@ -104,6 +133,10 @@ CREATE TABLE public.device (
 
 ALTER TABLE public.device OWNER TO cnaas;
 
+--
+-- Name: device_id_seq; Type: SEQUENCE; Schema: public; Owner: cnaas
+--
+
 CREATE SEQUENCE public.device_id_seq
     AS integer
     START WITH 1
@@ -115,109 +148,26 @@ CREATE SEQUENCE public.device_id_seq
 
 ALTER TABLE public.device_id_seq OWNER TO cnaas;
 
+--
+-- Name: device_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: cnaas
+--
+
 ALTER SEQUENCE public.device_id_seq OWNED BY public.device.id;
 
+
 --
--- Name: groups; Type: TABLE; Schema: public; Owner: cnaas
+-- Name: interface; Type: TABLE; Schema: public; Owner: cnaas
 --
 
-CREATE TABLE public.groups (
-    id integer NOT NULL,
-    name character varying(255),
-    description character varying(255)
+CREATE TABLE public.interface (
+    device_id integer NOT NULL,
+    name character varying(255) NOT NULL,
+    configtype public.interfaceconfigtype NOT NULL,
+    data jsonb
 );
 
 
-ALTER TABLE public.groups OWNER TO cnaas;
-
-CREATE SEQUENCE public.groups_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE public.groups_id_seq OWNER TO cnaas;
-
-ALTER SEQUENCE public.groups_id_seq OWNED BY public.groups.id;
-
---
--- Name: groups; Type: TABLE; Schema: public; Owner: cnaas
---
-
-CREATE TABLE public.device_groups (
-    id integer NOT NULL,
-    groups_id integer NOT NULL,
-    device_id integer NOT NULL
-);
-
-
-ALTER TABLE public.device_groups OWNER TO cnaas;
-
---
--- Name: device_groups_id_seq; Type: SEQUENCE; Schema: public; Owner: cnaas
---
-
-CREATE SEQUENCE public.device_groups_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE public.device_groups_id_seq OWNER TO cnaas;
-
---
--- Name: device_groups_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: cnaas
---
-
-ALTER SEQUENCE public.device_groups_id_seq OWNED BY public.device_groups.id;
-
---
--- Name: link; Type: TABLE; Schema: public; Owner: cnaas
---
-
-CREATE TABLE public.link (
-    id integer NOT NULL,
-    ipv4_network character varying(18),
-    device_a_id integer,
-    device_a_ip character varying(50),
-    device_a_port character varying(64),
-    device_b_id integer,
-    device_b_ip character varying(50),
-    device_b_port character varying(64),
-    site_id integer,
-    description character varying(255)
-);
-
-
-ALTER TABLE public.link OWNER TO cnaas;
-
---
--- Name: link_id_seq; Type: SEQUENCE; Schema: public; Owner: cnaas
---
-
-CREATE SEQUENCE public.link_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE public.link_id_seq OWNER TO cnaas;
-
---
--- Name: link_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: cnaas
---
-
-ALTER SEQUENCE public.link_id_seq OWNED BY public.link.id;
-
+ALTER TABLE public.interface OWNER TO cnaas;
 
 --
 -- Name: linknet; Type: TABLE; Schema: public; Owner: cnaas
@@ -303,48 +253,6 @@ ALTER SEQUENCE public.mgmtdomain_id_seq OWNED BY public.mgmtdomain.id;
 
 
 --
--- Name: netlink; Type: TABLE; Schema: public; Owner: cnaas
---
-
-CREATE TABLE public.netlink (
-    id integer NOT NULL,
-    ipv4_network character varying(18),
-    device_a_id integer,
-    device_a_ip character varying(50),
-    device_a_port character varying(64),
-    device_b_id integer,
-    device_b_ip character varying(50),
-    device_b_port character varying(64),
-    site_id integer,
-    description character varying(255)
-);
-
-
-ALTER TABLE public.netlink OWNER TO cnaas;
-
---
--- Name: netlink_id_seq; Type: SEQUENCE; Schema: public; Owner: cnaas
---
-
-CREATE SEQUENCE public.netlink_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE public.netlink_id_seq OWNER TO cnaas;
-
---
--- Name: netlink_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: cnaas
---
-
-ALTER SEQUENCE public.netlink_id_seq OWNED BY public.netlink.id;
-
-
---
 -- Name: site; Type: TABLE; Schema: public; Owner: cnaas
 --
 
@@ -386,27 +294,6 @@ ALTER TABLE ONLY public.device ALTER COLUMN id SET DEFAULT nextval('public.devic
 
 
 --
--- Name: groups id; Type: DEFAULT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.groups ALTER COLUMN id SET DEFAULT nextval('public.groups_id_seq'::regclass);
-
-
---
--- Name: groups id; Type: DEFAULT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.device_groups ALTER COLUMN id SET DEFAULT nextval('public.device_groups_id_seq'::regclass);
-
-
---
--- Name: link id; Type: DEFAULT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.link ALTER COLUMN id SET DEFAULT nextval('public.link_id_seq'::regclass);
-
-
---
 -- Name: linknet id; Type: DEFAULT; Schema: public; Owner: cnaas
 --
 
@@ -421,17 +308,18 @@ ALTER TABLE ONLY public.mgmtdomain ALTER COLUMN id SET DEFAULT nextval('public.m
 
 
 --
--- Name: netlink id; Type: DEFAULT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.netlink ALTER COLUMN id SET DEFAULT nextval('public.netlink_id_seq'::regclass);
-
-
---
 -- Name: site id; Type: DEFAULT; Schema: public; Owner: cnaas
 --
 
 ALTER TABLE ONLY public.site ALTER COLUMN id SET DEFAULT nextval('public.site_id_seq'::regclass);
+
+
+--
+-- Data for Name: alembic_version; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.alembic_version (version_num) FROM stdin;
+\.
 
 
 --
@@ -449,17 +337,20 @@ COPY public.apscheduler_jobs (id, next_run_time, job_state) FROM stdin;
 COPY public.device (id, hostname, site_id, description, management_ip, dhcp_ip, serial, ztp_mac, platform, vendor, model, os_version, synchronized, state, device_type, last_seen) FROM stdin;
 1	testdevice	1	Test device!	1.2.3.4	\N	\N	\N	eos	\N	\N	\N	f	UNKNOWN	UNKNOWN	2019-02-13 11:17:32.038118
 6	mac-080027F60C55	\N	\N	\N	\N	\N	080027F60C55	eos	\N	\N	\N	f	DHCP_BOOT	UNKNOWN	2019-02-27 07:41:18.026646
+13	eosaccess	\N	\N	10.0.6.6	10.0.0.20	\N	0800275C091F	eos	\N	\N	\N	f	MANAGED	ACCESS	2019-04-09 08:43:50.268572
 9	eosdist	\N	\N	10.0.1.22	\N	\N	08002708a8be	eos	\N	\N	\N	t	MANAGED	DIST	2019-02-27 10:30:23.338681
 12	eosdist2	\N	\N	10.0.1.23	\N	\N	08002708a8b0	eos	\N	\N	\N	t	MANAGED	DIST	2019-03-13 09:43:13.439735
-13	eosaccess	\N	\N	10.0.6.6	10.0.0.20	\N	0800275C091F	eos	\N	\N	\N	f	MANAGED	ACCESS	2019-04-09 08:43:50.268572
 \.
 
 
 --
--- Data for Name: link; Type: TABLE DATA; Schema: public; Owner: cnaas
+-- Data for Name: interface; Type: TABLE DATA; Schema: public; Owner: cnaas
 --
 
-COPY public.link (id, ipv4_network, device_a_id, device_a_ip, device_a_port, device_b_id, device_b_ip, device_b_port, site_id, description) FROM stdin;
+COPY public.interface (device_id, name, configtype, data) FROM stdin;
+13	Ethernet3	ACCESS_UPLINK	\N
+13	Ethernet2	ACCESS_UPLINK	\N
+13	Ethernet1	ACCESS_AUTO	\N
 \.
 
 
@@ -483,15 +374,6 @@ COPY public.mgmtdomain (id, ipv4_gw, device_a_id, device_a_ip, device_b_id, devi
 
 
 --
--- Data for Name: netlink; Type: TABLE DATA; Schema: public; Owner: cnaas
---
-
-COPY public.netlink (id, ipv4_network, device_a_id, device_a_ip, device_a_port, device_b_id, device_b_ip, device_b_port, site_id, description) FROM stdin;
-1	\N	6	\N	Ethernet2	9	\N	Ethernet2	\N	\N
-\.
-
-
---
 -- Data for Name: site; Type: TABLE DATA; Schema: public; Owner: cnaas
 --
 
@@ -499,6 +381,12 @@ COPY public.site (id, description) FROM stdin;
 1	default
 2	default
 3	default
+4	default
+5	default
+6	default
+7	default
+8	default
+9	default
 \.
 
 
@@ -506,28 +394,7 @@ COPY public.site (id, description) FROM stdin;
 -- Name: device_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
 --
 
-SELECT pg_catalog.setval('public.device_id_seq', 13, true);
-
-
---
--- Name: groups_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.groups_id_seq', 1, true);
-
-
---
--- Name: groups_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.device_groups_id_seq', 1, true);
-
-
---
--- Name: link_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.link_id_seq', 1, false);
+SELECT pg_catalog.setval('public.device_id_seq', 19, true);
 
 
 --
@@ -545,17 +412,18 @@ SELECT pg_catalog.setval('public.mgmtdomain_id_seq', 4, true);
 
 
 --
--- Name: netlink_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.netlink_id_seq', 2, true);
-
-
---
 -- Name: site_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
 --
 
-SELECT pg_catalog.setval('public.site_id_seq', 3, true);
+SELECT pg_catalog.setval('public.site_id_seq', 9, true);
+
+
+--
+-- Name: alembic_version alembic_version_pkc; Type: CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.alembic_version
+    ADD CONSTRAINT alembic_version_pkc PRIMARY KEY (version_num);
 
 
 --
@@ -583,35 +451,11 @@ ALTER TABLE ONLY public.device
 
 
 --
--- Name: groups groups_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
+-- Name: interface interface_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
 --
 
-ALTER TABLE ONLY public.groups
-    ADD CONSTRAINT groups_pkey PRIMARY KEY (id);
-
-
---
--- Name: link link_device_a_id_device_a_port_key; Type: CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.link
-    ADD CONSTRAINT link_device_a_id_device_a_port_key UNIQUE (device_a_id, device_a_port);
-
-
---
--- Name: link link_device_b_id_device_b_port_key; Type: CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.link
-    ADD CONSTRAINT link_device_b_id_device_b_port_key UNIQUE (device_b_id, device_b_port);
-
-
---
--- Name: link link_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.link
-    ADD CONSTRAINT link_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.interface
+    ADD CONSTRAINT interface_pkey PRIMARY KEY (device_id, name);
 
 
 --
@@ -655,30 +499,6 @@ ALTER TABLE ONLY public.mgmtdomain
 
 
 --
--- Name: netlink netlink_device_a_id_device_a_port_key; Type: CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.netlink
-    ADD CONSTRAINT netlink_device_a_id_device_a_port_key UNIQUE (device_a_id, device_a_port);
-
-
---
--- Name: netlink netlink_device_b_id_device_b_port_key; Type: CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.netlink
-    ADD CONSTRAINT netlink_device_b_id_device_b_port_key UNIQUE (device_b_id, device_b_port);
-
-
---
--- Name: netlink netlink_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.netlink
-    ADD CONSTRAINT netlink_pkey PRIMARY KEY (id);
-
-
---
 -- Name: site site_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
 --
 
@@ -694,43 +514,26 @@ CREATE INDEX ix_apscheduler_jobs_next_run_time ON public.apscheduler_jobs USING 
 
 
 --
+-- Name: ix_interface_device_id; Type: INDEX; Schema: public; Owner: cnaas
+--
+
+CREATE INDEX ix_interface_device_id ON public.interface USING btree (device_id);
+
+
+--
 -- Name: device device_site_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
 --
 
 ALTER TABLE ONLY public.device
     ADD CONSTRAINT device_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.site(id);
 
---
--- Name: device device_site_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.device_groups
-    ADD CONSTRAINT device_id_fkey FOREIGN KEY (device_id) REFERENCES public.device(id);
-ALTER TABLE ONLY public.device_groups
-    ADD CONSTRAINT groupd_id_fkey FOREIGN KEY (groups_id) REFERENCES public.groups(id);
 
 --
--- Name: link link_device_a_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
+-- Name: interface interface_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
 --
 
-ALTER TABLE ONLY public.link
-    ADD CONSTRAINT link_device_a_id_fkey FOREIGN KEY (device_a_id) REFERENCES public.device(id);
-
-
---
--- Name: link link_device_b_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.link
-    ADD CONSTRAINT link_device_b_id_fkey FOREIGN KEY (device_b_id) REFERENCES public.device(id);
-
-
---
--- Name: link link_site_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.link
-    ADD CONSTRAINT link_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.site(id);
+ALTER TABLE ONLY public.interface
+    ADD CONSTRAINT interface_device_id_fkey FOREIGN KEY (device_id) REFERENCES public.device(id);
 
 
 --
@@ -779,30 +582,6 @@ ALTER TABLE ONLY public.mgmtdomain
 
 ALTER TABLE ONLY public.mgmtdomain
     ADD CONSTRAINT mgmtdomain_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.site(id);
-
-
---
--- Name: netlink netlink_device_a_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.netlink
-    ADD CONSTRAINT netlink_device_a_id_fkey FOREIGN KEY (device_a_id) REFERENCES public.device(id);
-
-
---
--- Name: netlink netlink_device_b_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.netlink
-    ADD CONSTRAINT netlink_device_b_id_fkey FOREIGN KEY (device_b_id) REFERENCES public.device(id);
-
-
---
--- Name: netlink netlink_site_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
---
-
-ALTER TABLE ONLY public.netlink
-    ADD CONSTRAINT netlink_site_id_fkey FOREIGN KEY (site_id) REFERENCES public.site(id);
 
 
 --

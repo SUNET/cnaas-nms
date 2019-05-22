@@ -296,6 +296,7 @@ class Device(cnaas_nms.db.base.Base):
                 errors.append('Invalid dhcp_ip received. Must be correct IPv4 address.')
             else:
                 data['dhcp_ip'] = addr
+        else:
             data['dhcp_ip'] = None
 
         if 'serial' in kwargs:
@@ -331,7 +332,6 @@ class Device(cnaas_nms.db.base.Base):
                 data['synchronized'] = kwargs['synchronized']
             else:
                 errors.append("Invalid synchronization state received")
-
         if 'state' in kwargs:
             try:
                 state = str(kwargs['state']).upper()
@@ -343,15 +343,18 @@ class Device(cnaas_nms.db.base.Base):
                 else:
                     errors.append('Invalid device state received.')
         else:
-            errors.append('Required field state not found')
-
+            errors.append('Required field device_state not found')
         if 'device_type' in kwargs:
             try:
-                device_type = str(kwargs['device_type']).upper()
+                devicetype = str(kwargs['device_type']).upper()
             except Exception:
-                errors.append('Invalid device type received.')
+                errors.append('Invalid device type')
             else:
-                data['device_type'] = device_type
+                if DeviceType.has_name(devicetype):
+                    data['device_type'] = kwargs['device_type']
+                else:
+                    errors.append('Invalid device type')
         else:
             errors.append('Required field device_type not found')
+
         return data, errors

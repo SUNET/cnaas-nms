@@ -1,3 +1,8 @@
+# Emacs
+.\#*
+*~
+\#*\#
+
 # CNaaS
 src/nornir.log
 .vagrant/
@@ -102,7 +107,7 @@ ENV/
 env.bak/
 venv.bak/
 
-# Spyder project settings
+x# Spyder project settings
 .spyderproject
 .spyproject
 

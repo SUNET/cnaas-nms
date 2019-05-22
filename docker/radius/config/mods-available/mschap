@@ -1,0 +1,20 @@
+mschap {
+	use_mppe = yes
+	require_encryption = no
+	require_strong = no
+	pool {
+		start = ${thread[pool].start_servers}
+		min = ${thread[pool].min_spare_servers}
+		max = ${thread[pool].max_servers}
+		spare = ${thread[pool].max_spare_servers}
+		uses = 0
+		retry_delay = 30
+		lifetime = 86400
+		cleanup_interval = 300
+		idle_timeout = 600
+	}
+
+	passchange {
+	}
+
+}

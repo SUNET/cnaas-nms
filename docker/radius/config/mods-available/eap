@@ -1,0 +1,61 @@
+eap {
+	default_eap_type = md5
+	timer_expire     = 60
+	ignore_unknown_eap_types = no
+	cisco_accounting_username_bug = no
+	max_sessions = ${max_requests}
+	use_tunneled_reply = yes
+	md5 {
+	}
+	leap {
+	}
+	gtc {
+		auth_type = PAP
+	}
+	tls-config tls-common {
+		private_key_password = testing
+		private_key_file = /etc/ssl/private/ssl-cert-snakeoil.key
+		certificate_file = /etc/ssl/certs/ssl-cert-snakeoil.pem
+		ca_file = /etc/ssl/certs/ca-certificates.crt
+		dh_file = ${certdir}/dh
+		cipher_list = "DEFAULT"
+		cipher_server_preference = no
+		ecdh_curve = "prime256v1"
+		cache {
+			enable = no
+			lifetime = 24 # hours
+		}
+
+		verify {
+		}
+
+		ocsp {
+			enable = no
+			override_cert_url = yes
+			url = "http://127.0.0.1/ocsp/"
+		}
+	}
+
+	tls {
+		tls = tls-common
+	}
+
+	ttls {
+		tls = tls-common
+		default_eap_type = md5
+		copy_request_to_tunnel = yes
+		use_tunneled_reply = yes
+		virtual_server = "inner-tunnel"
+	}
+
+	peap {
+		tls = tls-common
+		default_eap_type = mschapv2
+		copy_request_to_tunnel = yes
+		use_tunneled_reply = yes
+		virtual_server = "inner-tunnel"
+	}
+
+	mschapv2 {
+	}
+}

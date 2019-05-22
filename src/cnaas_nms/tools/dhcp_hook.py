@@ -6,6 +6,7 @@ import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.device import Device
 
 
 logger = get_logger()

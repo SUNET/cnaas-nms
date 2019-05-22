@@ -20,7 +20,7 @@ api = Api(app)
 api.add_resource(DeviceByIdApi, f'/api/{ API_VERSION }/device/<int:device_id>')
 api.add_resource(DevicesApi, f'/api/{ API_VERSION }/device')
 api.add_resource(DeviceInitApi, f'/api/{ API_VERSION }/device_init/<int:device_id>')
-api.add_resource(DeviceSyncApi, f'/api/{ API_VERSION }/device_sync')
+api.add_resource(DeviceSyncApi, f'/api/{ API_VERSION }/device_syncto')
 
 # Links
 api.add_resource(LinknetsApi, f'/api/{ API_VERSION }/linknet')

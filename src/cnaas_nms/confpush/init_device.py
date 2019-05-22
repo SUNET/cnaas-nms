@@ -4,6 +4,8 @@ from ipaddress import IPv4Interface
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
 from apscheduler.job import Job
+import yaml
+import os
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
@@ -14,6 +16,8 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.confpush.update import update_interfacedb
+from cnaas_nms.db.git import RepoStructureException
+from cnaas_nms.db.settings import get_settings
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -22,19 +26,34 @@ logger = get_logger()
 class ConnectionCheckError(Exception):
     pass
 
+
 class InitError(Exception):
     pass
 
 
-def push_base_management(task, device_variables):
-    template_vars = device_variables
-    template_vars['mgmt_ip'] = str(template_vars['mgmt_ipif'])
+def push_base_management_access(task, device_variables):
     logger.debug("Push basetemplate for host: {}".format(task.host.name))
 
+    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
+        repo_config = yaml.safe_load(db_file)
+        local_repo_path = repo_config['templates_local']
+
+    mapfile = os.path.join(local_repo_path, task.host.platform, 'mapping.yml')
+    if not os.path.isfile(mapfile):
+        raise RepoStructureException("File {} not found in template repo".format(mapfile))
+    with open(mapfile, 'r') as f:
+        mapping = yaml.safe_load(f)
+        template = mapping['ACCESS']['entrypoint']
+
+    settings, settings_origin = get_settings(task.host.name, DeviceType.ACCESS)
+    # Merge dicts
+    template_vars = {**device_variables, **settings}
+    template_vars['mgmt_ip'] = str(template_vars['mgmt_ipif'])
+
     r = task.run(task=text.template_file,
-                 name="Base management",
-                 template="managed-base.j2",
-                 path=f"../templates/{task.host.platform}",
+                 name="Generate initial device config",
+                 template=template,
+                 path=f"{local_repo_path}/{task.host.platform}",
                  **template_vars)
 
     #TODO: Handle template not found, variables not defined
@@ -105,6 +124,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
         device_variables = {
             'mgmt_ipif': IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen)),
             'uplinks': uplinks,
+            'access_auto': [],
             'mgmt_vlan_id': mgmtdomain.vlan,
             'mgmt_gw': mgmt_gw_ipif.ip
         }
@@ -119,7 +139,8 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
 
     # step2. push management config
     try:
-        nrresult = nr_filtered.run(task=push_base_management, device_variables=device_variables)
+        nrresult = nr_filtered.run(task=push_base_management_access,
+                                   device_variables=device_variables)
     except Exception as e:
         # Ignore exception, we expect to loose connectivity.
         # Sometimes we get no exception here, but it's saved in result
@@ -195,9 +216,10 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         raise InitError("Newly initialized device presents wrong hostname")
 
     with sqla_session() as session:
-        dev = session.query(Device).filter(Device.id == device_id).one()
+        dev: Device = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
         dev.device_type = DeviceType.ACCESS
+        dev.synchronized = False
         #TODO: remove dhcp_ip ?
 
     try:

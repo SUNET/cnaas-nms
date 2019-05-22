@@ -19,6 +19,11 @@ class f_radius_server(BaseModel):
     host: str = host_schema
 
 
+class f_syslog_server(BaseModel):
+    host: str = host_schema
+
+
 class f_root(BaseModel):
     ntp_servers: Optional[List[f_ntp_server]]
     radius_servers: Optional[List[f_radius_server]]
+    syslog_servers: Optional[List[f_syslog_server]]

@@ -43,7 +43,7 @@ def sqla_session(**kwargs):
 @contextmanager
 def mongo_db(**kwargs):
     db_data = get_dbdata(**kwargs)
-    client = MongoClient()
+    client = MongoClient(db_data['mongo_hostname'])
     db = client[db_data['database']]
     try:
         yield db

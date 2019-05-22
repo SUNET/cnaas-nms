@@ -4,6 +4,7 @@ set -e
 
 sed -e "s/^\(password: \).\+$/\1 $DB_PASSWORD/" \
     -e "s/^\(hostname: \).\+$/\1 $DB_HOSTNAME/" \
+    -e "s/^\(mongo_hostname: \).\+$/\1 $MONGODB_HOSTNAME/" \
   < /etc/cnaas-nms/db_config.yml > db_config.yml.new \
   && mv -f db_config.yml.new /etc/cnaas-nms/db_config.yml
 

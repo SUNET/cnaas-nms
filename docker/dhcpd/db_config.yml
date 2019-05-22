@@ -4,3 +4,4 @@ port: 5432
 username: cnaas
 password: cnaas
 database: cnaas
+mongo_hostname: 10.0.1.6

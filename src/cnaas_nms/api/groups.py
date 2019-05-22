@@ -32,9 +32,10 @@ class GroupsApi(Resource):
 class GroupsApiById(Resource):
     def get(self, group_name):
         result = empty_result()
-        result['data'] = {'groups': Groups.group_get(index=0, name=group_name)}
-        if result == []:
+        groups = Groups.group_get(index=0, name=group_name)
+        if groups == []:
             return empty_result(status='error', data='Can not find group'), 404
+        result['data'] = {'groups': groups}
         return empty_result(status='success', data=result)
 
     def put(self, group_name):

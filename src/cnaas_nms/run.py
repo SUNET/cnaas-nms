@@ -9,7 +9,7 @@ def main():
     #TODO: create lockfile? also clear all jobs that have state running before starting scheduler
     scheduler = Scheduler()
     scheduler.start()
-    app.run(debug=True)
+    app.app.run(debug=True)
 
 if __name__ == '__main__':
     main()

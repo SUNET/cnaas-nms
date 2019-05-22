@@ -39,6 +39,13 @@ def sqla_session(**kwargs):
     finally:
         session.close()
 
+@contextmanager
+def sqla_execute(**kwargs):
+    conn_str = get_sqlalchemy_conn_str(**kwargs)
+    engine = create_engine(conn_str)
+
+    with engine.connect() as connection:
+        yield connection
 
 @contextmanager
 def mongo_db(**kwargs):
@@ -49,4 +56,3 @@ def mongo_db(**kwargs):
         yield db
     finally:
         client.close()
-

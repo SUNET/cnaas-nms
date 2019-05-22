@@ -99,8 +99,21 @@ class DeviceTests(unittest.TestCase):
                 continue
             device_id = _['id']
         self.assertIsNot(device_id, 0)
-        result = self.client.put(f'/api/v1.0/device/{device_id}', json=device_data)
+        result = self.client.put(f'/api/v1.0/device/{device_id}',
+                                 json=device_data)
         self.assertEqual(result.status_code, 200)
+        result = self.client.get(f'/api/v1.0/device/{device_id}')
+        self.assertEqual(result.status_code, 200)
+        json_data = json.loads(result.data.decode())
+        json_data = json_data['data']['devices'][0]
+        self.assertIsNot(json_data['hostname'], '')
+        self.assertIsNot(json_data['site_id'], '')
+        self.assertIsNot(json_data['management_ip'], '')
+        self.assertIsNot(json_data['dhcp_ip'], None)
+        self.assertIsNot(json_data['ztp_mac'], '')
+        self.assertIsNot(json_data['platform'], '')
+        self.assertIsNot(json_data['state'], '')
+        self.assertIsNot(json_data['device_type'], '')
 
     def test_4_delete_device(self):
         device_id = 0

@@ -296,6 +296,7 @@ class Device(cnaas_nms.db.base.Base):
                 errors.append('Invalid dhcp_ip received. Must be correct IPv4 address.')
             else:
                 data['dhcp_ip'] = addr
+        else:
             data['dhcp_ip'] = None
 
         if 'serial' in kwargs:

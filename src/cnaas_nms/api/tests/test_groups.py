@@ -66,18 +66,29 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
 
     def test_5_add_device_to_group(self):
+        device_id = 0
         result = self.client.get('/api/v1.0/device')
         json_data = json.loads(result.data.decode())
-        device_id = json_data[0]['id']
+        for _ in json_data['data']['devices']:
+            if _['hostname'] != 'groupdevice':
+                continue
+            device_id = _['id']
+        self.assertIsNot(device_id, 0)
         data = {'id': device_id}
         result = self.client.post('/api/v1.0/groups/group0/devices', json=data)
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
 
     def test_6_delete_device_from_group(self):
+        device_id = 0
         result = self.client.get('/api/v1.0/device')
         json_data = json.loads(result.data.decode())
-        device_id = json_data[0]['id']
+        json_data = json.loads(result.data.decode())
+        for _ in json_data['data']['devices']:
+            if _['hostname'] != 'groupdevice':
+                continue
+            device_id = _['id']
+        self.assertIsNot(device_id, 0)
         result = self.client.delete(f'/api/v1.0/groups/group0/devices/{ device_id }')
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
@@ -88,9 +99,14 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
 
     def test_9_delete_device(self):
+        device_id = 0
         result = self.client.get('/api/v1.0/device')
         json_data = json.loads(result.data.decode())
-        device_id = json_data[0]['id']
+        for _ in json_data['data']['devices']:
+            if _['hostname'] != 'groupdevice':
+                continue
+            device_id = _['id']
+        self.assertIsNot(device_id, 0)
         result = self.client.delete(f'/api/v1.0/device/{ device_id }')
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')

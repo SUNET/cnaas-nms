@@ -44,7 +44,9 @@ class DeviceByIdApi(Resource):
 
 class DevicesApi(Resource):
     def get(self):
-        return Device.device_get()
+        result = empty_result()
+        data = {'devices': Device.device_get()}
+        return empty_result(status='success', data=data), 200
 
     def post(self):
         json_data = request.get_json()

@@ -51,7 +51,9 @@ def push_sync_device(task, dry_run: bool = True):
             if intf.configtype == InterfaceConfigType.ACCESS_AUTO:
                 access_auto.append({'ifname': intf.name})
         device_variables = {
-            'mgmt_ip': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
+            'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
+            'mgmt_ip': str(mgmt_ip),
+            'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
             'uplinks': uplinks,
             'access_auto': access_auto,
             'mgmt_vlan_id': mgmtdomain.vlan,

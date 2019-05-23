@@ -66,7 +66,7 @@ class DeviceTests(unittest.TestCase):
         result = self.client.get('/api/v1.0/device')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
-        for _ in json_data:
+        for _ in json_data['data']['devices']:
             if _['hostname'] != 'unittestdevice':
                 continue
             device_id = _['id']
@@ -94,7 +94,7 @@ class DeviceTests(unittest.TestCase):
         result = self.client.get('/api/v1.0/device')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
-        for _ in json_data:
+        for _ in json_data['data']['devices']:
             if _['hostname'] != 'unittestdevice':
                 continue
             device_id = _['id']
@@ -120,7 +120,7 @@ class DeviceTests(unittest.TestCase):
         result = self.client.get('/api/v1.0/device')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
-        for _ in json_data:
+        for _ in json_data['data']['devices']:
             if _['hostname'] != 'unittestdevicechanged':
                 continue
             device_id = _['id']

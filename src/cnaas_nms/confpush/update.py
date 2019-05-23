@@ -30,7 +30,7 @@ def update_interfacedb(hostname: str) -> Optional[List[dict]]:
         iflist = get_interfaces_names(hostname)
         uplinks, neighbor_hostnames = get_uplinks(session, hostname)
         uplinks_ifnames = [x['ifname'] for x in uplinks]
-        phy_interfaces = filter_interfaces(iflist, include='physical')
+        phy_interfaces = filter_interfaces(iflist, platform=dev.platform, include='physical')
         existing_ifs = get_interfacedb_ifs(session, hostname)
 
         updated = False

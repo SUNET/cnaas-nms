@@ -83,9 +83,10 @@ class Device(cnaas_nms.db.base.Base):
     model = Column(String(64))
     os_version = Column(String(64))
     synchronized = Column(Boolean, default=False)
-    state = Column(Enum(DeviceState), nullable=False) # type: ignore
+    state = Column(Enum(DeviceState), nullable=False)  # type: ignore
     device_type = Column(Enum(DeviceType), nullable=False)
-    last_seen = Column(DateTime, default=datetime.datetime.now) # onupdate=now
+    config_hash = Column(String(64))  # SHA256 = 64 characters
+    last_seen = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""

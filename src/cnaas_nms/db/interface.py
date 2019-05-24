@@ -7,7 +7,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy import Enum
 
 import cnaas_nms.db.base
-from cnaas_nms.db.device import Device
+import cnaas_nms.db.device
 
 
 class InterfaceConfigType(enum.Enum):
@@ -35,7 +35,7 @@ class Interface(cnaas_nms.db.base.Base):
     __table_args__ = (
         None,
     )
-    device_id = Column(Integer, ForeignKey(Device.id), primary_key=True, index=True)
+    device_id = Column(Integer, ForeignKey('device.id'), primary_key=True, index=True)
     device = relationship("Device", foreign_keys=[device_id])
     name = Column(Unicode(255), primary_key=True)
     configtype = Column(Enum(InterfaceConfigType), nullable=False)

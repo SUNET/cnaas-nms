@@ -3,7 +3,7 @@ import enum
 from sqlalchemy import Column, Integer, Unicode
 from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy import Enum
 
 import cnaas_nms.db.base
@@ -36,7 +36,8 @@ class Interface(cnaas_nms.db.base.Base):
         None,
     )
     device_id = Column(Integer, ForeignKey('device.id'), primary_key=True, index=True)
-    device = relationship("Device", foreign_keys=[device_id])
+    device = relationship("Device", foreign_keys=[device_id],
+                          backref=backref("Interfaces", cascade="all, delete-orphan"))
     name = Column(Unicode(255), primary_key=True)
     configtype = Column(Enum(InterfaceConfigType), nullable=False)
     data = Column(JSONB)

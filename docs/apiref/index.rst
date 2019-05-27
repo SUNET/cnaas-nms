@@ -1,0 +1,7 @@
+API Reference
+=============
+
+Devices
+-------
+
+GET

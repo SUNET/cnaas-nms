@@ -1,0 +1,20 @@
+version: '3'
+services:
+  cnaas_api:
+    build: ./api/
+    ports:
+      - 5000:5000
+  cnaas_postgres:
+    image: postgres:latest
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=cnaas
+      - POSTGRES_PASSWD=cnaas
+      - POSTGRES_DB=cnaas
+  cnaas_httpd:
+    build: ./httpd/
+    ports:
+      80:80
+     
+

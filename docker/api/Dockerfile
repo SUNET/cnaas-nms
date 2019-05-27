@@ -2,7 +2,7 @@ FROM debian:buster
 
 # Install package dependencies
 RUN apt update
-RUN apt install -y python3 python3-pip git python3-venv
+RUN apt install -y python3 python3-pip git python3-venv netcat
 
 # Create directories
 RUN mkdir /cnaas
@@ -25,7 +25,12 @@ RUN python3 -m pip install -r requirements.txt
 COPY db_config.yml /etc/cnaas-nms/db_config.yml
 COPY api.yml /etc/cnaas-nms/api.yml
 COPY repository.yml /etc/cnaas-nms/repository.yml
+COPY entrypoint.sh /usr/local/bin/
 
 WORKDIR /opt/cnaas/venv/cnaas-nms/src/
 
-ENTRYPOINT PYTHONPATH=`pwd` python3 cnaas_nms/run.py
+EXPOSE 5001
+
+CMD sh /usr/local/bin/entrypoint.sh
+
+#ENTRYPOINT PYTHONPATH=`pwd` python3 cnaas_nms/run.py

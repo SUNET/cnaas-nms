@@ -8,6 +8,11 @@ Contents
 
    Home <self>
    devices
+   groups
+   links
+   mgmtdomains
+   repository
+   settings
 
 Indices and tables
 ==================

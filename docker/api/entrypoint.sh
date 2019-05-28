@@ -14,7 +14,7 @@ done
 # Make sure database is up to date
 (cd ..; alembic upgrade head)
 if [ $? -ne 0 ]; then
-    echo "Error: Faield to run Alembic"
+    echo "Error: Failed to run Alembic"
     exit 1
 fi
 

@@ -16,3 +16,7 @@ services:
     build: ./httpd/
     ports:
       - 80:80
+  cnaas_dhcpd:
+    build: ./dhcpd/
+    network_mode: "host"
+

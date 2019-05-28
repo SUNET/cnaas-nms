@@ -1,3 +1,5 @@
+# Wait for postgres to start
+
 echo ">> Waiting for postgres to start"
 WAIT=0
 while ! nc -z cnaas_postgres 5432; do
@@ -9,4 +11,8 @@ while ! nc -z cnaas_postgres 5432; do
     fi
 done
 
+# Make sure database is up to date
+(cd ..; alembic upgrade head)
+
+# Run CNaaS
 PYTHONPATH=`pwd` python3 cnaas_nms/run.py

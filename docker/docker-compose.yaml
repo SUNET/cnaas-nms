@@ -5,7 +5,7 @@ services:
     ports:
       - 5000:5000
   cnaas_postgres:
-    image: postgres:latest
+    build: ./postgres/
     ports:
       - 5432:5432
     environment:
@@ -15,6 +15,4 @@ services:
   cnaas_httpd:
     build: ./httpd/
     ports:
-      80:80
-     
-
+      - 80:80

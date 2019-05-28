@@ -29,7 +29,7 @@ COPY entrypoint.sh /usr/local/bin/
 
 WORKDIR /opt/cnaas/venv/cnaas-nms/src/
 
-EXPOSE 5001
+EXPOSE 5000
 
 CMD sh /usr/local/bin/entrypoint.sh
 

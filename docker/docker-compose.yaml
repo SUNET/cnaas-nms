@@ -18,5 +18,5 @@ services:
       - 80:80
   cnaas_dhcpd:
     build: ./dhcpd/
-    network_mode: "host"
-
+    ports:
+      - 67:67/udp

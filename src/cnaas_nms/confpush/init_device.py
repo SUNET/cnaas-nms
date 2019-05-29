@@ -3,6 +3,7 @@ from ipaddress import IPv4Interface
 
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
+from nornir.core.inventory import ConnectionOptions
 from apscheduler.job import Job
 import yaml
 import os
@@ -58,6 +59,8 @@ def push_base_management_access(task, device_variables):
     #TODO: Handle template not found, variables not defined
 
     task.host["config"] = r.result
+    # Use extra low timeout for this since we expect to loose connectivity after changing IP
+    task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 5})
 
     task.run(task=networking.napalm_configure,
              name="Push base management config",
@@ -155,7 +158,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
-        dev.management_ip = device_variables['mgmt_ipif']
+        dev.management_ip = device_variables['mgmt_ip']
 
     # step3. register apscheduler job that continues steps
 

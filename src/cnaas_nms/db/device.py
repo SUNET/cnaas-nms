@@ -279,7 +279,7 @@ class Device(cnaas_nms.db.base.Base):
         if 'description' in kwargs:
             data['description'] = kwargs['description']
 
-        if 'management_ip' in kwargs:
+        if 'management_ip' in kwargs and kwargs['management_ip']:
             try:
                 addr = ipaddress.IPv4Address(kwargs['management_ip'])
             except Exception:

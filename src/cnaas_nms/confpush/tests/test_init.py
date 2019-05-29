@@ -7,6 +7,7 @@ import time
 
 from nornir.plugins.tasks import networking
 from nornir.plugins.functions.text import print_result
+from nornir.core.inventory import ConnectionOptions
 
 import cnaas_nms.confpush.init_device
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -57,6 +58,8 @@ class InitTests(unittest.TestCase):
     def reset_access_device(self):
         nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
         nr_filtered = nr.filter(name=self.testdata['init_access_new_hostname'])
+        nr_filtered.inventory.hosts[self.testdata['init_access_new_hostname']].\
+            connection_options["napalm"] = ConnectionOptions(extras={"timeout": 5})
 
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'access_reset.j2'), 'r') as f_reset_config:

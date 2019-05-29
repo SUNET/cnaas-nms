@@ -1,5 +1,13 @@
 # Wait for postgres to start
 
+set -e
+
+sed -e "s/^\(templates_remote: \).\+$/\1 $GITREPO_TEMPLATES/" \
+    -e "s/^\(settings_remote: \).\+$/\1 $GITREPO_SETTINGS/" \
+  < /etc/cnaas-nms/repository.yml > repository.yml.new \
+  && mv -f repository.yml.new /etc/cnaas-nms/repository.yml
+
+
 echo ">> Waiting for postgres to start"
 WAIT=0
 while ! nc -z cnaas_postgres 5432; do

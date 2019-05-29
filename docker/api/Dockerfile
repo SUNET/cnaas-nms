@@ -1,8 +1,7 @@
 FROM debian:buster
 
-# Install package dependencies
-RUN apt update
-RUN apt install -y python3 python3-pip git python3-venv netcat python3-yaml
+COPY cnaas-setup.sh /opt/cnaas/cnaas-setup.sh
+RUN /opt/cnaas/cnaas-setup.sh
 
 # Create directories
 RUN mkdir /cnaas

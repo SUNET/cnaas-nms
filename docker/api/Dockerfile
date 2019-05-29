@@ -35,7 +35,10 @@ COPY cert/* /etc/nginx/conf.d/
 RUN unlink /etc/nginx/sites-enabled/default
 RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
 
+COPY run.py /opt/cnaas/venv/cnaas-nms/src/cnaas_nms/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
 # Expose HTTPS
 EXPOSE 443
 
-CMD ["supervisord"]
+ENTRYPOINT "supervisord"

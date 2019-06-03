@@ -1,7 +1,7 @@
 type: postgresql
-hostname: 172.17.0.3
+hostname: docker_cnaas_postgres_1
 port: 5432
 username: cnaas
 password: cnaas
 database: cnaas
-mongo_hostname: 10.0.1.6
+mongo_hostname: docker_cnaas_mongodb_1

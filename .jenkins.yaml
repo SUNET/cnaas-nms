@@ -29,23 +29,23 @@ extra_jobs:
   - name: cnaas-httpd
     builders:
       - docker
-    docker_name: cnaas_httpd
+    docker_name: cnaas/httpd
     docker_context_dir: docker/httpd
 
   - name: cnaas-dhcpd
     builders:
       - docker
-    docker_name: cnaas_dhcpd
+    docker_name: cnaas/dhcpd
     docker_context_dir: docker/dhcpd
 
   - name: cnaas-api
     builders:
       - docker
-    docker_name: cnaas_api
+    docker_name: cnaas/api
     docker_context_dir: docker/api
 
   - name: cnaas-postgres
     builders:
       - docker
-    docker_name: cnaas_postgres
+    docker_name: cnaas/postgres
     docker_context_dir: docker/postgres

@@ -10,6 +10,8 @@ def groups_populate(group_name=''):
     devices = Device.device_get()
     for _ in devices:
         groups = get_groups(_['hostname'])
+        if groups is None:
+            return tmpgroups
         if groups == []:
             continue
         for group in groups:

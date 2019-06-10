@@ -215,8 +215,12 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
 def get_groups(hostname: str):
     groups = []
     settings, origin = get_settings(hostname=hostname)
+    if settings is None:
+        return groups
     if 'groups' not in settings:
-        return None
+        return groups
+    if settings['groups'] is None:
+        return groups
     for group in settings['groups']:
         if 'name' not in group['group']:
             continue

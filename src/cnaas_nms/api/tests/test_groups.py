@@ -21,30 +21,11 @@ class ApiTests(unittest.TestCase):
         self.client = app.app.test_client()
 
     def test_1_add_new_group(self):
-        data = {
-            'name': 'group0',
-            'description': 'random description',
-        }
-        result = self.client.post('/api/v1.0/groups', json=data)
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.json['status'], 'success')
+        Groups.add('group0', 'Unittest group')
 
     def test_2_get_group(self):
-        with sqla_session() as session:
-            instance: Groups = session.query(Groups).filter(Groups.name ==
-                                                            'group0').one_or_none()
-            self.assertNotEqual(instance, None)
-
-    def test_3_modify_group(self):
-        data = {'description': 'new description'}
-        with sqla_session() as session:
-            instance: Groups = session.query(Groups).filter(Groups.name ==
-                                                            'group0').one_or_none()
-            self.assertNotEqual(instance, None)
-            group_id = instance.as_dict()['id']
-        result = self.client.put('/api/v1.0/groups/group0', json=data)
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.json['status'], 'success')
+        result = Groups.get(name='group0')
+        self.assertNotEquals(result, [])
 
     def test_4_add_device(self):
         device_data = {
@@ -74,10 +55,14 @@ class ApiTests(unittest.TestCase):
                 continue
             device_id = _['id']
         self.assertIsNot(device_id, 0)
-        data = {'id': device_id}
-        result = self.client.post('/api/v1.0/groups/group0/devices', json=data)
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.json['status'], 'success')
+        groups = Groups.get(name='group0')
+        group_id = groups[0]['id']
+        DeviceGroups.add(group_id, device_id)
+        xid = 0
+        for _ in DeviceGroups.get(group_id):
+            if _['id'] == device_id:
+                xid = device_id
+        self.assertEqual(device_id, xid)
 
     def test_6_delete_device_from_group(self):
         device_id = 0
@@ -89,14 +74,14 @@ class ApiTests(unittest.TestCase):
                 continue
             device_id = _['id']
         self.assertIsNot(device_id, 0)
-        result = self.client.delete(f'/api/v1.0/groups/group0/devices/{ device_id }')
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.json['status'], 'success')
+        groups = Groups.get(name='group0')
+        group_id = groups[0]['id']
+        DeviceGroups.delete(group_id, device_id)
 
     def test_8_delete_group(self):
-        result = self.client.delete('/api/v1.0/groups/group0')
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.json['status'], 'success')
+        groups = Groups.get(name='group0')
+        group_id = groups[0]['id']
+        Groups.delete(group_id)
 
     def test_9_delete_device(self):
         device_id = 0

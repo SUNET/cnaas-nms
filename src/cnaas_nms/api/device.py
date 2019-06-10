@@ -62,7 +62,6 @@ class DevicesApi(Resource):
                 errors.append('Device already exists')
                 return errors
         Device.device_add(**json_data)
-        Device.device_groups_add(**json_data)
         return empty_result(status='success'), 200
 
 

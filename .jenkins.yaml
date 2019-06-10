@@ -4,11 +4,11 @@
 
 disabled: false
 
-downstream:
-  - cnaas-httpd
-  - cnaas-dhcpd
-  - cnaas-api
-  - cnaas-postgres
+# downstream:
+#   - cnaas-httpd
+#   - cnaas-dhcpd
+#   - cnaas-api
+#   - cnaas-postgres
   
 git:
   branch: master

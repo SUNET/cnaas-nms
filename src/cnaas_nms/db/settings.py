@@ -1,4 +1,5 @@
 import os
+import re
 import pkg_resources
 from typing import List, Optional
 
@@ -27,29 +28,29 @@ DIR_STRUCTURE_HOST = {
 
 DIR_STRUCTURE = {
     'global':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'fabric':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'core':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'dist':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'access':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'devices':
-        {
-            Device: DIR_STRUCTURE_HOST
-        }
+    {
+        Device: DIR_STRUCTURE_HOST
+    }
 }
 
 
@@ -210,3 +211,18 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
     check_settings_syntax(settings, settings_origin)
     return f_root(**settings).dict(), settings_origin
 
+
+def get_groups(hostname: str):
+    groups = []
+    settings, origin = get_settings(hostname=hostname)
+    if 'groups' not in settings:
+        return None
+    for group in settings['groups']:
+        if 'name' not in group['group']:
+            continue
+        if 'regex' not in group['group']:
+            continue
+        if not re.match(group['group']['regex'], hostname):
+            continue
+        groups.append(group['group']['name'])
+    return groups

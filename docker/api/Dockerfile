@@ -10,26 +10,31 @@ RUN mkdir /etc/cnaas-nms
 
 # Start venv
 RUN python3 -m venv /opt/cnaas/venv
-
 WORKDIR /opt/cnaas/venv/
-
 RUN sh ./bin/activate
 
-# Fetch the code
+# Fetch the code and install dependencies
 RUN git clone https://github.com/SUNET/cnaas-nms.git
-
 WORKDIR /opt/cnaas/venv/cnaas-nms/
-
 RUN pip3 install -r requirements.txt
-COPY db_config.yml /etc/cnaas-nms/db_config.yml
-COPY api.yml /etc/cnaas-nms/api.yml
-COPY repository.yml /etc/cnaas-nms/repository.yml
+
+# Copy configuration files
+COPY config/db_config.yml /etc/cnaas-nms/db_config.yml
+COPY config/api.yml /etc/cnaas-nms/api.yml
+COPY config/repository.yml /etc/cnaas-nms/repository.yml
 COPY entrypoint.sh /usr/local/bin/
+COPY config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
+COPY config/supervisord_app.conf /etc/supervisor/conf.d
+COPY config/nginx_app.conf /etc/nginx/sites-available/
+COPY cert/* /etc/nginx/conf.d/
 
-WORKDIR /opt/cnaas/venv/cnaas-nms/src/
+# Give nginx some special treatment
+RUN unlink /etc/nginx/sites-enabled/default
+RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
 
-EXPOSE 5000
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-CMD sh /usr/local/bin/entrypoint.sh
+# Expose HTTPS
+EXPOSE 443
 
-#ENTRYPOINT PYTHONPATH=`pwd` python3 cnaas_nms/run.py
+ENTRYPOINT "supervisord"

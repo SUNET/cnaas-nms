@@ -3,11 +3,13 @@
 #
 
 disabled: false
-downstream:
-  - cnaas-httpd
-  - cnaas-dhcpd
-  - cnaas-api
 
+# downstream:
+#   - cnaas-httpd
+#   - cnaas-dhcpd
+#   - cnaas-api
+#   - cnaas-postgres
+  
 git:
   branch: master
   extensions:
@@ -41,3 +43,9 @@ extra_jobs:
       - docker
     docker_name: cnaas/api
     docker_context_dir: docker/api
+
+  - name: cnaas-postgres
+    builders:
+      - docker
+    docker_name: cnaas/postgres
+    docker_context_dir: docker/postgres

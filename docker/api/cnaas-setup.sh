@@ -21,8 +21,11 @@ apt-get update && \
       net-tools \
       curl \
       netcat \
+      nginx \
+      supervisor \
     && apt-get clean
 
+pip3 install uwsgi
 #rm -rf /var/lib/apt/lists/*
 
 #python3 -m venv /opt/cnaas/venv

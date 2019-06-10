@@ -25,13 +25,6 @@ logger = get_logger()
 def push_sync_device(task, dry_run: bool = True):
     hostname = task.host.name
     with sqla_session() as session:
-        uplinks, neighbor_hostnames = get_uplinks(session, hostname)
-
-        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
-        if not mgmtdomain:
-            raise Exception(
-                "Could not find appropriate management domain for uplink peer devices: {}".format(
-                    neighbor_hostnames))
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
         mgmt_ip = dev.management_ip
         devtype: DeviceType = dev.device_type
@@ -40,16 +33,26 @@ def push_sync_device(task, dry_run: bool = True):
         else:
             raise ValueError("Unknown platform: {}".format(dev.platform))
 
+        neighbor_hostnames = dev.get_uplink_peers(session)
+        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
+        if not mgmtdomain:
+            raise Exception(
+                "Could not find appropriate management domain for uplink peer devices: {}".format(
+                    neighbor_hostnames))
+
         if not mgmt_ip:
             raise Exception("Could not find management IP for device {}".format(hostname))
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
 
         intfs = session.query(Interface).filter(Interface.device == dev).all()
+        uplinks = []
         access_auto = []
         intf: Interface
         for intf in intfs:
             if intf.configtype == InterfaceConfigType.ACCESS_AUTO:
                 access_auto.append({'ifname': intf.name})
+            elif intf.configtype == InterfaceConfigType.ACCESS_UPLINK:
+                uplinks.append({'ifname': intf.name})
         device_variables = {
             'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
             'mgmt_ip': str(mgmt_ip),

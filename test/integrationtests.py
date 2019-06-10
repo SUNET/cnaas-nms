@@ -4,11 +4,21 @@ import requests
 import time
 
 
+URL="https://localhost"
+TLS_VERIFY=False
+
+
+if not TLS_VERIFY:
+    import urllib3
+    urllib3.disable_warnings()
+
+
 def wait_connect():
     for i in range(100):
         try:
             r = requests.get(
-                'http://localhost:5000/api/v1.0/device',
+                f'{URL}/api/v1.0/device',
+                verify=TLS_VERIFY
             )
         except Exception as e:
             print("Exception {}, retrying in 1 second".format(str(e)))
@@ -25,8 +35,9 @@ def wait_connect():
 def wait_for_discovered_device():
     for i in range(100):
         r = requests.get(
-            'http://localhost:5000/api/v1.0/device',
-            params={'filter': 'state,DISCOVERED'}
+            f'{URL}/api/v1.0/device',
+            params={'filter': 'state,DISCOVERED'},
+            verify=TLS_VERIFY
         )
         if len(r.json()['data']['devices']) == 1:
             return r.json()['data']['devices'][0]['hostname']
@@ -43,13 +54,15 @@ def main():
         return
 
     r = requests.put(
-        'http://localhost:5000/api/v1.0/repository/templates',
-        json={"action": "refresh"}
+        f'{URL}/api/v1.0/repository/templates',
+        json={"action": "refresh"},
+        verify=TLS_VERIFY
     )
     print("Template refresh status: {}".format(r.status_code))
     r = requests.put(
-        'http://localhost:5000/api/v1.0/repository/settings',
-        json={"action": "refresh"}
+        f'{URL}/api/v1.0/repository/settings',
+        json={"action": "refresh"},
+        verify=TLS_VERIFY
     )
     print("Settings refresh status: {}".format(r.status_code))
     discovered_hostname = wait_for_discovered_device()

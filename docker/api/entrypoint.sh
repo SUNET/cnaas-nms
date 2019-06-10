@@ -2,8 +2,8 @@
 
 set -e
 
-sed -e "s/^\(templates_remote: \).\+$/\1 $GITREPO_TEMPLATES/" \
-    -e "s/^\(settings_remote: \).\+$/\1 $GITREPO_SETTINGS/" \
+sed -e "s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|" \
+    -e "s|^\(settings_remote: \).\+$|\1 $GITREPO_SETTINGS|" \
   < /etc/cnaas-nms/repository.yml > repository.yml.new \
   && mv -f repository.yml.new /etc/cnaas-nms/repository.yml
 
@@ -27,4 +27,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # Run CNaaS
+git remote update
+git fetch
+git checkout --track origin/feature.integrationtests
 PYTHONPATH=`pwd` python3 cnaas_nms/run.py

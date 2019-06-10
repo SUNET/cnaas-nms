@@ -11,10 +11,21 @@ services:
       - GITREPO_SETTINGS
     depends_on:
       - "cnaas_postgres"
+      - "cnaas_mongo"
   cnaas_postgres:
     build: ./postgres/
     ports:
       - 5432:5432
+    environment:
+      - POSTGRES_USER=cnaas
+      - POSTGRES_PASSWD=cnaas
+      - POSTGRES_DB=cnaas
+    networks:
+      - cnaas
+  cnaas_mongo:
+    build: ./mongo/
+    ports:
+      - 27017:27017
     environment:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWD=cnaas

@@ -1,39 +1,37 @@
-from flask import request
 from flask_restful import Resource
 
-from cnaas_nms.db.session import sqla_session, sqla_execute
+from cnaas_nms.db.device import Device
 from cnaas_nms.api.generic import empty_result
-from cnaas_nms.api.generic import build_filter, empty_result
-from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.groups import Groups, DeviceGroups
+from cnaas_nms.db.settings import get_groups
+
+
+def groups_populate(group_name=''):
+    tmpgroups = dict()
+    devices = Device.device_get()
+    for _ in devices:
+        groups = get_groups(_['hostname'])
+        if groups == []:
+            continue
+        for group in groups:
+            if group_name != '' and group != group_name:
+                continue
+            if group not in tmpgroups:
+                tmpgroups[group] = []
+            tmpgroups[group].append(_['hostname'])
+    return tmpgroups
 
 
 class GroupsApi(Resource):
     def get(self):
         result = empty_result()
-        result['groups'] = {'groups': Groups.group_get()}
+        tmpgroups = groups_populate()
+        result['data'] = {'groups': tmpgroups}
         return empty_result(status='success', data=result)
 
 
 class GroupsApiById(Resource):
     def get(self, group_name):
         result = empty_result()
-        groups = Groups.group_get(index=0, name=group_name)
-        if groups == []:
-            return empty_result(status='error', data='Can not find group'), 404
-        result['data'] = {'groups': groups}
-        return empty_result(status='success', data=result)
-
-
-class DeviceGroupsApi(Resource):
-    def get(self, group_name):
-        result = empty_result()
-        result['data'] = {'groups': []}
-        with sqla_session() as session:
-            for row in session.query(Device, Groups).filter(DeviceGroups.device_id ==
-                                                            Device.id, DeviceGroups.groups_id ==
-                                                            Groups.id).filter(Groups.name ==
-                                                                              group_name):
-                result['data']['groups'].append(row.Device.id)
-                result['data']['groups'].append(row.Device.hostname)
+        tmpgroups = groups_populate(group_name)
+        result['data'] = {'groups': tmpgroups}
         return empty_result(status='success', data=result)

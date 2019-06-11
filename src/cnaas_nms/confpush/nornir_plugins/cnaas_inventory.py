@@ -36,7 +36,6 @@ class CnaasInventory(Inventory):
                 hostname = self._get_management_ip(instance.management_ip, instance.dhcp_ip)
                 if hostname:
                     hosts[instance.hostname]['hostname'] = hostname
-        print(hosts)
         groups = {
             'global': {
                 'data': {
@@ -50,7 +49,6 @@ class CnaasInventory(Inventory):
             groups['S_'+device_type] = {}
         for group in get_groups():
             groups[group] = {}
-        print(groups)
         groups['S_DHCP_BOOT']['username'] = 'admin'
         groups['S_DHCP_BOOT']['password'] = 'admin'
         groups['S_DISCOVERED']['username'] = 'admin'

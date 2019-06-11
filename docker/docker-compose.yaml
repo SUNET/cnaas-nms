@@ -30,6 +30,8 @@ services:
       - cnaas
   cnaas_mongo:
     image: mongo:latest
+    volumes:
+      - /opt/cnaas/mongodb/data:/data
     ports:
       - 27017:27017
     networks:

@@ -1,4 +1,5 @@
 import datetime
+import re
 from typing import Optional, Tuple, List
 
 from nornir.core.deserializer.inventory import Inventory
@@ -111,13 +112,18 @@ def get_interfaces_names(hostname: str) -> List[str]:
     return list(nrresult[hostname][0].result['interfaces'].keys())
 
 
-def filter_interfaces(iflist, model=None, include=None):
-    # TODO: do mapping based on switch model
+def filter_interfaces(iflist, platform=None, include=None):
+    # TODO: include pattern matching from external configurable file
     ret = []
+    junos_phy_r = r'^[gx]e-([0-9]+\/)+[0-9]+$'
     for intf in iflist:
         if include == 'physical':
-            if intf.startswith("Ethernet"):
-                ret.append(intf)
+            if platform == 'junos':
+                if re.match(junos_phy_r, intf):
+                    ret.append(intf)
+            else:
+                if intf.startswith("Ethernet"):
+                    ret.append(intf)
     return ret
 
 

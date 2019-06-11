@@ -1,6 +1,7 @@
 type: postgresql
-hostname: localhost
+hostname: cnaas_postgres
 port: 5432
 username: cnaas
 password: cnaas
 database: cnaas
+mongo_hostname: cnaas_mongo

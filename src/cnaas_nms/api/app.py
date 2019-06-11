@@ -7,8 +7,8 @@ from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi
 from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi
-from cnaas_nms.api.groups import GroupsApi
-from cnaas_nms.api.groups import GroupsApi, GroupsApiById, DeviceGroupsApi, DeviceGroupsApiById
+from cnaas_nms.api.groups import GroupsApi, GroupsApiById, DeviceGroupsApi, \
+    DeviceGroupsApiById
 
 
 API_VERSION = 'v1.0'

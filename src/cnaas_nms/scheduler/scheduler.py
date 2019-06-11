@@ -29,9 +29,9 @@ class SingletonType(type):
 class Scheduler(object, metaclass=SingletonType):
     def __init__(self):
         # If scheduler is already started, run with no executor threads
-        lock_f = open('/tmp/scheduler.lock', 'w')
+        self.lock_f = open('/tmp/scheduler.lock', 'w')
         try:
-            fcntl.lockf(lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.lockf(self.lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             threads = 0
         else:

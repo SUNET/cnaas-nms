@@ -45,9 +45,13 @@ In the global settings, modify 'base_system.yml' and add the following
 section:
 
 ::
+   
    groups:
    - group:
       name: 'MY_NEW_GROUP'
+      regex: '.*'
+   - group:
+      name: 'ANOTHER_NEW_GROUP'
       regex: '.*'
 
 As you can see, a name and a regex is expected. The regex will match

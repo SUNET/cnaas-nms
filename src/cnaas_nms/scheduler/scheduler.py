@@ -29,14 +29,13 @@ class SingletonType(type):
 class Scheduler(object, metaclass=SingletonType):
     def __init__(self):
         # If scheduler is already started, run with no executor threads
-        with open('/tmp/scheduler.lock', 'w') as lock_f:
-            fd = lock_f.fileno()
-            try:
-                fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                threads = 0
-            else:
-                threads = 10
+        lock_f = open('/tmp/scheduler.lock', 'w')
+        try:
+            fcntl.lockf(lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            threads = 0
+        else:
+            threads = 10
         caller = self.get_caller(caller=inspect.currentframe())
         if caller == 'api':
             sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
@@ -56,8 +55,17 @@ class Scheduler(object, metaclass=SingletonType):
                 timezone=utc
             )
             logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
+        elif threads == 0:
+            sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
+            self._scheduler = BackgroundScheduler(
+                executors={'default': ThreadPoolExecutor(threads)},
+                jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},
+                job_defaults={},
+                timezone=utc
+            )
+            logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
         else:
-            self._scheduler = BlockingScheduler(
+            self._scheduler = BackgroundScheduler(
                 executors={'default': ThreadPoolExecutor(threads)},
                 jobstores={'default': MemoryJobStore()},
                 job_defaults={},

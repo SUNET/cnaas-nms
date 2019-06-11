@@ -49,7 +49,7 @@ class Scheduler(object, metaclass=SingletonType):
         function = frameinfo.function
         logger.info("Scheduler started from filename {} function {}".format(
             filename, function))
-        if filename == 'cnaas_nms/run.py' and function == 'main':
+        if filename == 'cnaas_nms/run.py' and function == 'get_app':
             return True
         else:
             return False

@@ -8,13 +8,21 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 
 os.environ['PYTHONPATH'] = os.getcwd()
 
+
 def get_apidata(config='/etc/cnaas-nms/api.yml'):
     with open(config, 'r') as api_file:
         return yaml.safe_load(api_file)
 
+
 def get_app():
-    scheduler = Scheduler()
-    scheduler.start()
+    # If running inside uwsgi, a separate "mule" will run the scheduler
+    try:
+        import uwsgi
+        print("Running inside uwsgi")
+    except (ModuleNotFoundError, ImportError):
+        scheduler = Scheduler()
+        scheduler.start()
+
     return app.app
 
 

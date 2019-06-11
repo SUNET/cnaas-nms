@@ -1,5 +1,6 @@
 import inspect
 import datetime
+import fcntl
 from pytz import utc
 from typing import Optional, Union
 from types import FunctionType
@@ -27,13 +28,23 @@ class SingletonType(type):
 
 class Scheduler(object, metaclass=SingletonType):
     def __init__(self):
+        threads = 10
         if self.is_api_caller(caller = inspect.currentframe()):
             sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
             jobstores = {'default': SQLAlchemyJobStore(url=sqlalchemy_url)}
+            # If scheduler is already started, run with no executor threads
+            with open('/tmp/scheduler.lock', 'w') as lock_f:
+                fd = lock_f.fileno()
+                try:
+                    fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    threads = 0
+            logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
         else:
-            jobstores = {'default': MemoryJobStore()} 
+            jobstores = {'default': MemoryJobStore()}
+            logger.info("Scheduler started with in-memory jobstore, {} threads".format(threads))
         self._scheduler = BackgroundScheduler(
-            executors = {'default': ThreadPoolExecutor(10)},
+            executors = {'default': ThreadPoolExecutor(threads)},
             jobstores = jobstores,
             job_defaults = {},
             timezone = utc
@@ -47,11 +58,14 @@ class Scheduler(object, metaclass=SingletonType):
         frameinfo = inspect.getframeinfo(caller.f_back.f_back)
         filename = '/'.join(frameinfo.filename.split('/')[-2:])
         function = frameinfo.function
-        logger.info("Scheduler started from filename {} function {}".format(
-            filename, function))
-        if filename == 'cnaas_nms/run.py' and function == 'get_app':
+        if (filename == 'cnaas_nms/run.py' and function == 'get_app') or \
+                (filename == 'cnaas_nms/scheduler_mule.py'):
+            logger.info("Scheduler started from filename {} function {} (API mode)".format(
+                filename, function))
             return True
         else:
+            logger.info("Scheduler started from filename {} function {} (Not API mode)".format(
+                filename, function))
             return False
 
     def start(self):

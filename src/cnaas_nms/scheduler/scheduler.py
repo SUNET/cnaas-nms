@@ -37,7 +37,7 @@ class Scheduler(object, metaclass=SingletonType):
                 threads = 0
             else:
                 threads = 10
-        caller = self.is_api_caller(caller = inspect.currentframe())
+        caller = self.get_caller(caller=inspect.currentframe())
         if caller == 'api':
             sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
             self._scheduler = BackgroundScheduler(
@@ -68,7 +68,7 @@ class Scheduler(object, metaclass=SingletonType):
     def get_scheduler(self):
         return self._scheduler
 
-    def check_caller(self, caller):
+    def get_caller(self, caller):
         """Check if API main run was the caller."""
         frameinfo = inspect.getframeinfo(caller.f_back.f_back)
         filename = '/'.join(frameinfo.filename.split('/')[-2:])

@@ -28,5 +28,11 @@ services:
       - 67:67/udp
     networks:
       - cnaas
+  cnaas_mongo:
+    image: mongo:latest
+    ports:
+      - 27017:27017
+    networks:
+      - cnaas
 networks:
   cnaas:

@@ -13,3 +13,14 @@ class JobsApi(Resource):
             ret_jobs.append(jt.to_dict(json_serializable=True))
         result = empty_result(data={'jobs': ret_jobs})
         return result
+
+
+class JobByIdApi(Resource):
+    def get(self, id):
+        job = Jobtracker()
+        try:
+            job.load(id)
+        except Exception as e:
+            return empty_result(status='error', data=str(e)), 400
+        result = empty_result(data={'jobs': [job.to_dict(json_serializable=True)]})
+        return result

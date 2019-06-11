@@ -10,7 +10,7 @@ FQDN_REGEX = r'^([a-z0-9-]{1,63}\.)([a-z0-9-]{1,63}\.?)+$'
 HOST_REGEX = f"({IPV4_REGEX}|{FQDN_REGEX})"
 host_schema = Schema(..., regex=HOST_REGEX, max_length=253)
 
-GROUP_NAME = r'^([a-z0-9_]{1,63}\.?)+$'
+GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Schema(..., regex=GROUP_NAME, max_length=253)
 
 

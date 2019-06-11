@@ -10,14 +10,14 @@ To list all devices the following REST call can be done:
 
 ::
 
-   curl http://10.0.1.5:5000/api/v1.0/device
+   curl https://hostname/api/v1.0/device
 
 However, is a single device should be filtered out, the device name
 can be send as part of the URL:
 
 ::
 
-   curl http://10.0.1.5:5000/api/v1.0/device/ex2300-top
+   curl https://hostname/api/v1.0/device/ex2300-top
 
 Add devices
 -----------
@@ -75,7 +75,7 @@ Example CURL call:
 
    curl --header "Content-Type: application/json" -X POST --data
    '"hostname":"foo","state":"UNKNOWN","device_type":"UNKNOWN"'
-   http://localhost:5001/api/v1.0/device
+   https://hostname/api/v1.0/device
 
 Modify devices
 --------------
@@ -85,7 +85,7 @@ be appended to the URL. The URL will then have the following format:
 
 ::
 
-   http://localhost:5000/api/v1.0/device/10
+   https://hostname/api/v1.0/device/10
 
 Where 10 is the device ID.
 
@@ -95,7 +95,7 @@ To modify a device, use the same JSON data as for adding new devices:
 
    curl --header "Content-Type: application/json" -X PUT --data
    "state":"UNKNOWN","device_type":"DIST"'
-   http://localhost:5001/api/v1.0/device/10
+   https://hostname/api/v1.0/device/10
 
 
 Remove devices
@@ -105,4 +105,4 @@ To remove a device, pass the device ID in a DELTE call:
 
 ::
 
-   curl -X PUT http://localhost:5001/api/v1.0/device/10
+   curl -X PUT https://hostname/api/v1.0/device/10

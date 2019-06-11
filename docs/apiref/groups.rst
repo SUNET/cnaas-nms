@@ -11,7 +11,7 @@ To show all groups the following REST call can be used:
 
 ::
 
-   curl https://<server>/api/v1.0/groups
+   curl https://hostname/api/v1.0/groups
 
 That will return a JSON structure with all the groups defined:
 

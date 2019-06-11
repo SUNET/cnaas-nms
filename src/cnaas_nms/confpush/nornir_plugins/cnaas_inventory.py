@@ -3,6 +3,7 @@ import ipaddress
 from nornir.core.deserializer.inventory import Inventory
 
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
+from cnaas_nms.db.settings import get_groups
 import cnaas_nms.db.session
 
 class CnaasInventory(Inventory):
@@ -30,9 +31,12 @@ class CnaasInventory(Inventory):
                         'managed': (True if instance.state == DeviceState.MANAGED else False)
                     }
                 }
+                for group in get_groups(instance.hostname):
+                    hosts[instance.hostname]['groups'].append(group)
                 hostname = self._get_management_ip(instance.management_ip, instance.dhcp_ip)
                 if hostname:
                     hosts[instance.hostname]['hostname'] = hostname
+        print(hosts)
         groups = {
             'global': {
                 'data': {
@@ -44,6 +48,9 @@ class CnaasInventory(Inventory):
             groups['T_'+device_type] = {}
         for device_type in list(DeviceState.__members__):
             groups['S_'+device_type] = {}
+        for group in get_groups():
+            groups[group] = {}
+        print(groups)
         groups['S_DHCP_BOOT']['username'] = 'admin'
         groups['S_DHCP_BOOT']['password'] = 'admin'
         groups['S_DISCOVERED']['username'] = 'admin'

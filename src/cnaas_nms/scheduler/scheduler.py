@@ -5,7 +5,7 @@ from pytz import utc
 from typing import Optional, Union
 from types import FunctionType
 
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BackgroundScheduler, BlockingScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -28,45 +28,63 @@ class SingletonType(type):
 
 class Scheduler(object, metaclass=SingletonType):
     def __init__(self):
-        threads = 10
-        if self.is_api_caller(caller = inspect.currentframe()):
+        # If scheduler is already started, run with no executor threads
+        with open('/tmp/scheduler.lock', 'w') as lock_f:
+            fd = lock_f.fileno()
+            try:
+                fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                threads = 0
+            else:
+                threads = 10
+        caller = self.is_api_caller(caller = inspect.currentframe())
+        if caller == 'api':
             sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
-            jobstores = {'default': SQLAlchemyJobStore(url=sqlalchemy_url)}
-            # If scheduler is already started, run with no executor threads
-            with open('/tmp/scheduler.lock', 'w') as lock_f:
-                fd = lock_f.fileno()
-                try:
-                    fcntl.lockf(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except BlockingIOError:
-                    threads = 0
+            self._scheduler = BackgroundScheduler(
+                executors={'default': ThreadPoolExecutor(threads)},
+                jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},
+                job_defaults={},
+                timezone=utc
+            )
+            logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
+        elif caller == 'mule':
+            sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
+            self._scheduler = BlockingScheduler(
+                executors={'default': ThreadPoolExecutor(threads)},
+                jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},
+                job_defaults={},
+                timezone=utc
+            )
             logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
         else:
-            jobstores = {'default': MemoryJobStore()}
+            self._scheduler = BlockingScheduler(
+                executors={'default': ThreadPoolExecutor(threads)},
+                jobstores={'default': MemoryJobStore()},
+                job_defaults={},
+                timezone=utc
+            )
             logger.info("Scheduler started with in-memory jobstore, {} threads".format(threads))
-        self._scheduler = BackgroundScheduler(
-            executors = {'default': ThreadPoolExecutor(threads)},
-            jobstores = jobstores,
-            job_defaults = {},
-            timezone = utc
-        )
 
     def get_scheduler(self):
         return self._scheduler
 
-    def is_api_caller(self, caller):
+    def check_caller(self, caller):
         """Check if API main run was the caller."""
         frameinfo = inspect.getframeinfo(caller.f_back.f_back)
         filename = '/'.join(frameinfo.filename.split('/')[-2:])
         function = frameinfo.function
-        if (filename == 'cnaas_nms/run.py' and function == 'get_app') or \
-                (filename == 'cnaas_nms/scheduler_mule.py'):
+        if filename == 'cnaas_nms/run.py' and function == 'get_app':
             logger.info("Scheduler started from filename {} function {} (API mode)".format(
                 filename, function))
-            return True
-        else:
-            logger.info("Scheduler started from filename {} function {} (Not API mode)".format(
+            return 'api'
+        elif filename == 'cnaas_nms/scheduler_mule.py':
+            logger.info("Scheduler started from filename {} function {} (uwsgi mule mode)".format(
                 filename, function))
-            return False
+            return 'mule'
+        else:
+            logger.info("Scheduler started from filename {} function {} (Standalone mode)".format(
+                filename, function))
+            return 'other'
 
     def start(self):
         return self._scheduler.start()

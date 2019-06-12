@@ -1,12 +1,26 @@
 import os
 import sys
 import yaml
+import coverage
+import atexit
 
 from cnaas_nms.api import app
 from cnaas_nms.scheduler.scheduler import Scheduler
 
 
 os.environ['PYTHONPATH'] = os.getcwd()
+
+
+cov = coverage.coverage(data_file='.coverage-{}'.format(os.getpid()))
+cov.start()
+
+
+def save_coverage():
+    cov.stop()
+    cov.save()
+
+
+atexit.register(save_coverage)
 
 
 def get_apidata(config='/etc/cnaas-nms/api.yml'):

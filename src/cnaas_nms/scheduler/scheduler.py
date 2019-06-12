@@ -137,7 +137,10 @@ class Scheduler(object, metaclass=SingletonType):
                 logger.exception("use_mule is set but not running in uwsgi")
                 raise e
             args = dict(kwargs)
-            args['func'] = str(func)
+            if isinstance(func, FunctionType):
+                args['func'] = str(func.__qualname__)
+            else:
+                args['func'] = str(func)
             args['trigger'] = trigger
             args['when'] = when
             args['id'] = id

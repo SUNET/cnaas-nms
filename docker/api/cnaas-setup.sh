@@ -26,15 +26,25 @@ apt-get update && \
     && apt-get clean
 
 pip3 install uwsgi
+
+# Start venv
+python3 -m venv /opt/cnaas/venv
+cd /opt/cnaas/venv/
+source bin/activate
+
+/opt/cnaas/venv/bin/pip install -U pip
+
+# Fetch the code and install dependencies
+git clone https://github.com/SUNET/cnaas-nms.git
+cd cnaas-nms/
+python3 -m pip install -r requirements.txt
+
+# Temporary for testing new branch
+cd /opt/cnaas/venv/cnaas-nms/
+git remote update
+git fetch
+git checkout --track origin/feature.integrationtests
+
 #rm -rf /var/lib/apt/lists/*
 
-#python3 -m venv /opt/cnaas/venv
-
-#/opt/cnaas/venv/bin/pip install -U pip
-
-#cd /opt/cnaas/venv/
-#source bin/activate
-#git clone https://github.com/SUNET/cnaas-nms.git
-#cd cnaas-nms/
-#python3 -m pip install -r requirements.txt
 

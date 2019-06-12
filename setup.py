@@ -2,10 +2,12 @@ import os
 import setuptools
 
 
+from src.cnaas_nms import version
+
 here = os.path.abspath(os.path.dirname(__file__))
 README = open(os.path.join(here, 'README.md')).read()
 
-version = '0.1.0'
+version = version.__version__
 
 requires = open(os.path.join(here, 'requirements.txt'), 'r').read().split()
 

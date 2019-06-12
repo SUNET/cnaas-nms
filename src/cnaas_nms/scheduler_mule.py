@@ -21,7 +21,12 @@ def main_loop():
         if data['when'] and isinstance(data['when'], int):
             data['run_date'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=data['when'])
             del data['when']
-        scheduler.add_job(**data)
+        kwargs = {}
+        for k, v in data:
+            if k not in ['func', 'trigger', 'id', 'run_date']:
+                kwargs[k] = v
+        scheduler.add_job(data['func'], trigger=data['trigger'], kwargs=kwargs,
+                          id=data['id'], run_date=data['run_date'])
 
 
 if __name__ == '__main__':

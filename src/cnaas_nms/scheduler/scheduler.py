@@ -139,7 +139,7 @@ class Scheduler(object, metaclass=SingletonType):
             args = dict(kwargs)
             args['func'] = str(func)
             args['trigger'] = trigger
-            args['run_date'] = run_date
+            args['when'] = when
             args['id'] = id
             uwsgi.mule_msg(json.dumps(args))
             return id

@@ -163,27 +163,27 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     # step3. register apscheduler job that continues steps
 
     scheduler = Scheduler()
-    next_job = scheduler.add_onetime_job(
+    next_job_id = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_access_device_step2',
         when=0,
         kwargs={'device_id':device_id, 'iteration': 1})
 
-    logger.debug(f"Step 2 scheduled as ID {next_job.id}")
+    logger.debug(f"Step 2 scheduled as ID {next_job_id}")
 
     return NornirJobResult(
         nrresult = nrresult,
-        next_job_id = next_job.id
+        next_job_id = next_job_id
     )
 
 def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optional[Job]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
-        next_job = scheduler.add_onetime_job(
+        next_job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.init_device:init_access_device_step2',
             when=(30*iteration),
             kwargs={'device_id':device_id, 'iteration': iteration+1})
-        return next_job
+        return next_job_id
     else:
         return None
 
@@ -203,11 +203,11 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
     nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
 
     if nrresult.failed:
-        next_job = schedule_init_access_device_step2(device_id, iteration)
-        if next_job:
+        next_job_id = schedule_init_access_device_step2(device_id, iteration)
+        if next_job_id:
             return NornirJobResult(
                 nrresult = nrresult,
-                next_job_id = next_job.id
+                next_job_id = next_job_id
             )
         else:
             return NornirJobResult(nrresult = nrresult)

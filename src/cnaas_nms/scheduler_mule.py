@@ -17,12 +17,12 @@ def main_loop():
 
     while True:
         mule_data = uwsgi.mule_get_msg()
-        data = json.loads(mule_data)
+        data: dict = json.loads(mule_data)
         if data['when'] and isinstance(data['when'], int):
             data['run_date'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=data['when'])
             del data['when']
         kwargs = {}
-        for k, v in data:
+        for k, v in data.items():
             if k not in ['func', 'trigger', 'id', 'run_date']:
                 kwargs[k] = v
         scheduler.add_job(data['func'], trigger=data['trigger'], kwargs=kwargs,

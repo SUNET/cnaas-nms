@@ -26,17 +26,20 @@ class f_syslog_server(BaseModel):
     host: str = host_schema
 
 
+class f_root(BaseModel):
+    ntp_servers: Optional[List[f_ntp_server]]
+    radius_servers: Optional[List[f_radius_server]]
+    syslog_servers: Optional[List[f_syslog_server]]
+
+
 class f_group_item(BaseModel):
     name: str = group_name
     regex: str = ''
 
 
-class f_groups(BaseModel):
+class f_group(BaseModel):
     group: Optional[f_group_item]
 
 
-class f_root(BaseModel):
-    ntp_servers: Optional[List[f_ntp_server]]
-    radius_servers: Optional[List[f_radius_server]]
-    syslog_servers: Optional[List[f_syslog_server]]
-    groups: Optional[List[f_groups]]
+class f_groups(BaseModel):
+    groups: Optional[List[f_group]]

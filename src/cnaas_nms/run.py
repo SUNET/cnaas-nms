@@ -1,5 +1,4 @@
 import os
-import sys
 import yaml
 import coverage
 import atexit
@@ -11,9 +10,8 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 os.environ['PYTHONPATH'] = os.getcwd()
 
 
-print("DEBUGENV: {}".format(os.environ['COVERAGE']))
-if os.environ['COVERAGE']:
-    cov = coverage.coverage(data_file='.coverage-{}'.format(os.getpid()))
+if 'COVERAGE' in os.environ:
+    cov = coverage.coverage(data_file='/coverage/.coverage-{}'.format(os.getpid()))
     cov.start()
 
 

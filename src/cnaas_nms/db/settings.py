@@ -29,7 +29,8 @@ DIR_STRUCTURE_HOST = {
 DIR_STRUCTURE = {
     'global':
     {
-        'base_system.yml': 'file'
+        'base_system.yml': 'file',
+        'groups.yml': 'file'
     },
     'fabric':
     {
@@ -206,7 +207,12 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             settings, settings_origin = read_settings(
                 local_repo_path, ['devices', hostname, 'base_system.yml'], 'device',
                 settings, settings_origin)
-
+    # 6. Get settings for groups
+    settings, settings_origin = read_settings(local_repo_path,
+                                              ['global', 'groups.yml'],
+                                              'global',
+                                              settings,
+                                              settings_origin)
     # Verify syntax
     check_settings_syntax(settings, settings_origin)
     return f_root(**settings).dict(), settings_origin

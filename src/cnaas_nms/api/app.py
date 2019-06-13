@@ -47,4 +47,3 @@ api.add_resource(GroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_
 # Device groups
 api.add_resource(DeviceGroupsApi, f'/api/{ __api_version__ }/groups/<string:group_name>/devices')
 api.add_resource(DeviceGroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_name>/devices/<int:device_id>')
->>>>>>> master

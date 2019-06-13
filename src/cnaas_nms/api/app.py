@@ -10,41 +10,41 @@ from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById, DeviceGroupsApi, \
     DeviceGroupsApiById
 
-from cnaas_nms.version import __version__
+from cnaas_nms.version import __api_version__
 
 
 app = Flask(__name__)
 api = Api(app)
 
 # Devices
-api.add_resource(DeviceByIdApi, f'/api/{ __version__ }/device/<int:device_id>')
-api.add_resource(DevicesApi, f'/api/{ __version__ }/device')
-api.add_resource(DeviceInitApi, f'/api/{ __version__ }/device_init/<int:device_id>')
-api.add_resource(DeviceSyncApi, f'/api/{ __version__ }/device_syncto')
+api.add_resource(DeviceByIdApi, f'/api/{ __api_version__ }/device/<int:device_id>')
+api.add_resource(DevicesApi, f'/api/{ __api_version__ }/device')
+api.add_resource(DeviceInitApi, f'/api/{ __api_version__ }/device_init/<int:device_id>')
+api.add_resource(DeviceSyncApi, f'/api/{ __api_version__ }/device_syncto')
 
 # Links
-api.add_resource(LinknetsApi, f'/api/{ __version__ }/linknet')
+api.add_resource(LinknetsApi, f'/api/{ __api_version__ }/linknet')
 
 # Interfaces
-api.add_resource(InterfaceApi, f'/api/{ __version__ }/device/<string:hostname>/interfaces')
+api.add_resource(InterfaceApi, f'/api/{ __api_version__ }/device/<string:hostname>/interfaces')
 
 # Management domains
-api.add_resource(MgmtdomainsApi, f'/api/{ __version__ }/mgmtdomain')
-api.add_resource(MgmtdomainByIdApi, f'/api/{ __version__ }/mgmtdomain/<int:mgmtdomain_id>')
+api.add_resource(MgmtdomainsApi, f'/api/{ __api_version__ }/mgmtdomain')
+api.add_resource(MgmtdomainByIdApi, f'/api/{ __api_version__ }/mgmtdomain/<int:mgmtdomain_id>')
 
 # Jobs
-api.add_resource(JobsApi, f'/api/{ __version__ }/job')
+api.add_resource(JobsApi, f'/api/{ __api_version__ }/job')
 
 # File repository
-api.add_resource(RepositoryApi, f'/api/{ __version__ }/repository/<string:repo>')
+api.add_resource(RepositoryApi, f'/api/{ __api_version__ }/repository/<string:repo>')
 
 # Settings
-api.add_resource(SettingsApi, f'/api/{ __version__ }/settings')
+api.add_resource(SettingsApi, f'/api/{ __api_version__ }/settings')
 
 # Groups
-api.add_resource(GroupsApi, f'/api/{ __version__ }/groups')
-api.add_resource(GroupsApiById, f'/api/{ __version__ }/groups/<string:group_name>')
+api.add_resource(GroupsApi, f'/api/{ __api_version__ }/groups')
+api.add_resource(GroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_name>')
 
 # Device groups
-api.add_resource(DeviceGroupsApi, f'/api/{ __version__ }/groups/<string:group_name>/devices')
-api.add_resource(DeviceGroupsApiById, f'/api/{ __version__ }/groups/<string:group_name>/devices/<int:device_id>')
+api.add_resource(DeviceGroupsApi, f'/api/{ __api_version__ }/groups/<string:group_name>/devices')
+api.add_resource(DeviceGroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_name>/devices/<int:device_id>')

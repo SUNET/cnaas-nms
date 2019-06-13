@@ -30,5 +30,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Temporary for dev
+cd /opt/cnaas/venv/
+. bin/activate
+
 cd /opt/cnaas/venv/cnaas-nms/
 git pull
+
+python3 -m pip install -r requirements.txt
+

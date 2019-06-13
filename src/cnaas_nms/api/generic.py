@@ -1,4 +1,5 @@
 from flask import request
+import sqlalchemy
 
 
 def limit_results() -> int:
@@ -18,6 +19,11 @@ def limit_results() -> int:
 
 
 def build_filter(f_class, query):
+    """Generate SQLalchemy filter based on query string and return
+    filtered query.
+    Raises:
+        ValueError
+    """
     args = request.args
     if not 'filter' in args:
         return query
@@ -27,8 +33,17 @@ def build_filter(f_class, query):
         return query
     attribute, value = split
     if not attribute in f_class.__table__._columns.keys():
-        # invalid
-        return query
+        raise ValueError("{} is not a valid attribute to filter on".format(attribute))
+    # Special handling from Enum type, check valid enum names
+    if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Enum):
+        value = value.upper()
+        allowed_names = set(item.name for item in \
+                            f_class.__table__._columns[attribute].type.enum_class)
+        if value not in allowed_names:
+            raise ValueError("{} is not a valid value for {}".format(
+                value, attribute
+            ))
+
     kwargs = {attribute: value}
     return query.filter_by(**kwargs)
 

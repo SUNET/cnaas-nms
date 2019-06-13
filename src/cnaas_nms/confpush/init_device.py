@@ -48,7 +48,6 @@ def push_base_management_access(task, device_variables):
     settings, settings_origin = get_settings(task.host.name, DeviceType.ACCESS)
     # Merge dicts
     template_vars = {**device_variables, **settings}
-    template_vars['mgmt_ip'] = str(template_vars['mgmt_ipif'])
 
     r = task.run(task=text.template_file,
                  name="Generate initial device config",
@@ -122,7 +121,9 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
             mgmtdomain.id))
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
         device_variables = {
-            'mgmt_ipif': IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen)),
+            'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
+            'mgmt_ip': str(mgmt_ip),
+            'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
             'uplinks': uplinks,
             'access_auto': [],
             'mgmt_vlan_id': mgmtdomain.vlan,
@@ -154,7 +155,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
-        dev.management_ip = device_variables['mgmt_ipif'].ip
+        dev.management_ip = device_variables['mgmt_ipif']
 
     # step3. register apscheduler job that continues steps
 

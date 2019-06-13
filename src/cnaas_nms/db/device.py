@@ -17,6 +17,7 @@ import cnaas_nms.db.site
 
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.groups import Groups, DeviceGroups
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.api.generic import build_filter
 
@@ -145,6 +146,15 @@ class Device(cnaas_nms.db.base.Base):
             return linknet.device_a_port
         elif linknet.device_b_id == self.id:
             return linknet.device_b_port
+
+    def get_uplink_peers(self, session):
+        intfs = session.query(Interface).filter(Interface.device == self).\
+            filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK).all()
+        peer_hostnames = []
+        intf: Interface = Interface()
+        for intf in intfs:
+            peer_hostnames.append(intf.data['neighbor'])
+        return peer_hostnames
 
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:

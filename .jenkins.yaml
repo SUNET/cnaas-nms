@@ -4,6 +4,12 @@
 
 disabled: false
 
+# downstream:
+#   - cnaas-httpd
+#   - cnaas-dhcpd
+#   - cnaas-api
+#   - cnaas-postgres
+  
 git:
   branch: master
   extensions:
@@ -14,7 +20,7 @@ script:
   - ". venv/bin/activate"
   - "pip install --upgrade setuptools pip wheel mypy"
   - "pip install --index-url https://pypi.sunet.se -r requirements.txt"
-  - "nosetests --with-xunit
+  - "nosetests --with-xunit"
 
 # slack:
 #   room: "cnaas"
@@ -25,21 +31,21 @@ extra_jobs:
       - docker
     docker_name: cnaas/httpd
     docker_context_dir: docker/httpd
-    triggers:
-      github_push: true
 
   - name: cnaas-dhcpd
     builders:
       - docker
     docker_name: cnaas/dhcpd
     docker_context_dir: docker/dhcpd
-    triggers:
-      github_push: true
 
   - name: cnaas-api
     builders:
       - docker
     docker_name: cnaas/api
     docker_context_dir: docker/api
-    triggers:
-      github_push: true
+
+  - name: cnaas-postgres
+    builders:
+      - docker
+    docker_name: cnaas/postgres
+    docker_context_dir: docker/postgres

@@ -1,7 +1,24 @@
 import json
 import datetime
+import os
+import coverage
+import atexit
 
 from cnaas_nms.scheduler.scheduler import Scheduler
+
+
+print("DEBUGENV: {}".format(os.environ['COVERAGE']))
+if os.environ['COVERAGE']:
+    cov = coverage.coverage(data_file='.coverage-{}'.format(os.getpid()))
+    cov.start()
+
+
+    def save_coverage():
+        cov.stop()
+        cov.save()
+
+
+    atexit.register(save_coverage)
 
 
 def main_loop():

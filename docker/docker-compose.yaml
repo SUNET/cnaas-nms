@@ -9,6 +9,7 @@ services:
     environment:
       - GITREPO_TEMPLATES
       - GITREPO_SETTINGS
+      - COVERAGE
     depends_on:
       - "cnaas_postgres"
       - "cnaas_mongo"

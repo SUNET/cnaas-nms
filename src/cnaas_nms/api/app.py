@@ -43,7 +43,3 @@ api.add_resource(SettingsApi, f'/api/{ __api_version__ }/settings')
 # Groups
 api.add_resource(GroupsApi, f'/api/{ __api_version__ }/groups')
 api.add_resource(GroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_name>')
-
-# Device groups
-api.add_resource(DeviceGroupsApi, f'/api/{ __api_version__ }/groups/<string:group_name>/devices')
-api.add_resource(DeviceGroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_name>/devices/<int:device_id>')

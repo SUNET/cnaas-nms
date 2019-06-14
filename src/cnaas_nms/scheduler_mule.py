@@ -3,6 +3,7 @@ import datetime
 import os
 import coverage
 import atexit
+import signal
 
 from cnaas_nms.scheduler.scheduler import Scheduler
 
@@ -18,6 +19,8 @@ if 'COVERAGE' in os.environ:
 
 
     atexit.register(save_coverage)
+    signal.signal(signal.SIGTERM, save_coverage)
+    signal.signal(signal.SIGINT, save_coverage)
 
 
 def main_loop():

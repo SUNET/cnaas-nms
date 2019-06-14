@@ -117,7 +117,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
         if not mgmtdomain:
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(
-                neighbor_hostnames))
+                    neighbor_hostnames))
         mgmt_ip = mgmtdomain.find_free_mgmt_ip(session)
         if not mgmt_ip:
             raise Exception("Could not find free management IP for management domain {}".format(
@@ -227,7 +227,7 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         #TODO: remove dhcp_ip ?
 
     try:
-        update_interfacedb(hostname)
+        update_interfacedb(hostname, replace=True)
     except Exception as e:
         logger.exception(
             "Exception while updating interface database for device {}: {}".\

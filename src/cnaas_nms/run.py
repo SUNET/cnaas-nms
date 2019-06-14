@@ -3,6 +3,7 @@ import threading
 import yaml
 import coverage
 import atexit
+import signal
 
 from cnaas_nms.api import app
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -23,6 +24,8 @@ if 'COVERAGE' in os.environ:
 
 
     atexit.register(save_coverage)
+    signal.signal(signal.SIGTERM, save_coverage)
+    signal.signal(signal.SIGINT, save_coverage)
 
 
 def get_apidata(config='/etc/cnaas-nms/api.yml'):

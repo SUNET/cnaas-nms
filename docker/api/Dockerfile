@@ -15,7 +15,6 @@ RUN /opt/cnaas/cnaas-setup.sh
 
 # Prepare for supervisord, uwsgi, ngninx
 COPY exec-pre-app.sh /opt/cnaas/
-COPY exec-atexit.sh /opt/cnaas/
 COPY config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 COPY config/supervisord_app.conf /etc/supervisor/conf.d
 COPY config/nginx_app.conf /etc/nginx/sites-available/

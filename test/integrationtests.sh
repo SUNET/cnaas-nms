@@ -2,6 +2,8 @@
 
 pushd .
 cd ../docker/
+# if running selinux on host this is required: chcon -Rt svirt_sandbox_file_t coverage/
+mkdir coverage/
 
 export GITREPO_TEMPLATES="git://gitops.sunet.se/cnaas-lab-templates"
 export GITREPO_SETTINGS="git://gitops.sunet.se/cnaas-lab-settings"
@@ -9,6 +11,7 @@ export GITREPO_ETC="git://gitops.sunet.se/cnaas-lab-etc"
 export COVERAGE=1
 docker-compose up -d
 
+# go back to test dir
 popd
 
 #wait for port 5000
@@ -19,7 +22,25 @@ python3 -m integrationtests
 echo "Press any key to continue"
 read
 
-cd ../docker/
-docker-compose down
-
 #coverage
+# workaround to trigger coverage save
+cd ../docker/
+docker exec docker_cnaas_api_1 pkill uwsgi
+sleep 3
+
+cd coverage/
+
+if ls -lh .coverage-* 2> /dev/null
+then
+	echo "Try to generate coverage report:"
+	cp .coverage-* ../../src/
+	cd ../../src/
+	source ../../bin/activate
+	coverage combine .coverage-*
+	coverage report --omit='*/site-packages/*'
+	cd ../docker/
+else
+	cd ../
+fi
+
+docker-compose down

@@ -29,6 +29,10 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Clean old coverage reports if they exist
+set +e
+rm /coverage/.coverage*
+
 # Temporary for dev
 cd /opt/cnaas/venv/
 . bin/activate

@@ -1,5 +1,4 @@
 import os
-import threading
 import yaml
 import coverage
 import atexit
@@ -13,8 +12,7 @@ os.environ['PYTHONPATH'] = os.getcwd()
 
 
 if 'COVERAGE' in os.environ:
-    cov = coverage.coverage(data_file='/coverage/.coverage-{}-{}'.format(
-        os.getpid(), threading.current_thread().ident))
+    cov = coverage.coverage(data_file='/coverage/.coverage-{}'.format(os.getpid()))
     cov.start()
 
 

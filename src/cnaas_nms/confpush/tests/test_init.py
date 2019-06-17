@@ -46,7 +46,7 @@ class InitTests(unittest.TestCase):
                 return
         scheduler.shutdown()
 
-    def test_init_access_device(self):
+    def init_access_device(self):
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             cnaas_nms.confpush.init_device.init_access_device_step1,

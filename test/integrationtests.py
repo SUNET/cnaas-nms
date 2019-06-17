@@ -80,7 +80,7 @@ class GetTests(unittest.TestCase):
             else:
                 raise Exception
 
-    def test_ztp(self):
+    def test_1_ztp(self):
         hostname, device_id = self.wait_for_discovered_device()
         print("Discovered hostname, id: {}, {}".format(hostname, device_id))
         self.assertTrue(hostname, "No device in state discovered found for ZTP")
@@ -95,6 +95,15 @@ class GetTests(unittest.TestCase):
         result = self.check_jobid(job_id)
         self.assertTrue(result['eosaccess'][0]['failed'],
                         "Expected failed result since mgmt_ip changed")
+
+    def test_2_syncto(self):
+        r = requests.post(
+            f'{URL}/api/v1.0/device_syncto',
+            json={"hostname": "eosaccess", "dry_run": True},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do sync_to")
+
 
 
 if __name__ == '__main__':

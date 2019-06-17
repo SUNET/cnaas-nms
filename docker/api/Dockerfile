@@ -14,6 +14,7 @@ COPY cnaas-setup.sh /opt/cnaas/cnaas-setup.sh
 RUN /opt/cnaas/cnaas-setup.sh
 
 # Prepare for supervisord, uwsgi, ngninx
+COPY nosetests.sh /opt/cnaas/
 COPY exec-pre-app.sh /opt/cnaas/
 COPY config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 COPY config/supervisord_app.conf /etc/supervisor/conf.d

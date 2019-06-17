@@ -25,9 +25,9 @@ read
 #coverage
 # workaround to trigger coverage save
 cd ../docker/
-docker exec docker_cnaas_api_1 /opt/cnaas/nosetests.sh
 docker exec docker_cnaas_api_1 pkill uwsgi
 sleep 3
+#docker exec docker_cnaas_api_1 /opt/cnaas/nosetests.sh
 
 cd coverage/
 
@@ -41,9 +41,15 @@ then
 	coverage report --omit='*/site-packages/*'
 	coverage xml -i --omit='*/site-packages/*,*/templates/*'
 	export CODECOV_TOKEN="dbe13a97-70b5-49df-865e-d9b58c4e9742"
-	if [ -z "$NOUPLOAD" ]
+	if [ -z "$ASKUPLOAD" ]
 	then
 		bash <(curl -s https://codecov.io/bash)
+	else
+		read -p "Do you want to upload coverage report to codecov.io? [y/N]" ans
+		case $ans in
+			[Yy]* ) bash <(curl -s https://codecov.io/bash);;
+			* ) echo "Not uploading coverage report";;
+		esac
 	fi
 	cd ../docker/
 else

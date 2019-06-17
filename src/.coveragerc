@@ -1,9 +1,9 @@
-#[run]
-#source = cnaas_nms/
-#omit =
-#    */site-packages/*
-#    */templates/*
-#
+[run]
+source = cnaas_nms/
+omit =
+    */site-packages/*
+    */templates/*
+
 [paths]
 source =
     cnaas_nms/

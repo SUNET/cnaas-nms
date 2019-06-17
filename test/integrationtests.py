@@ -62,7 +62,7 @@ class GetTests(unittest.TestCase):
                 return r.json()['data']['devices'][0]['hostname'],\
                        r.json()['data']['devices'][0]['id']
             else:
-                time.sleep(1)
+                time.sleep(5)
         return None, None
 
     def check_jobid(self, job_id):
@@ -75,7 +75,7 @@ class GetTests(unittest.TestCase):
                 if r.json()['data']['jobs'][0]['status'] == 'FINISHED':
                     return r.json()['data']['jobs'][0]['result']
                 else:
-                    time.sleep(1)
+                    time.sleep(5)
                     continue
             else:
                 raise Exception

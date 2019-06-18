@@ -40,10 +40,10 @@ cd cnaas-nms/
 python3 -m pip install -r requirements.txt
 
 # Temporary for testing new branch
-cd /opt/cnaas/venv/cnaas-nms/
-git remote update
-git fetch
-git checkout --track origin/feature.integrationtests
+#cd /opt/cnaas/venv/cnaas-nms/
+#git remote update
+#git fetch
+#git checkout --track origin/feature.integrationtests
 
 #rm -rf /var/lib/apt/lists/*
 

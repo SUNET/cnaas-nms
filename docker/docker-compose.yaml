@@ -29,6 +29,8 @@ services:
       - cnaas
   cnaas_mongo:
     build: ./mongo/
+    volumes:
+      - /opt/cnaas/mongodb/data:/data
     ports:
       - 27017:27017
     environment:

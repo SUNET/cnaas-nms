@@ -1,5 +1,7 @@
 import datetime
 import re
+import hashlib
+
 from typing import Optional, Tuple, List
 
 from nornir.core.deserializer.inventory import Inventory
@@ -7,6 +9,7 @@ from nornir.core.filter import F
 from nornir.plugins.tasks import networking
 from nornir.plugins.functions.text import print_result
 from nornir.core.task import AggregatedResult
+from nornir.plugins.tasks.networking import napalm_get
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
@@ -21,6 +24,22 @@ logger = get_logger()
 def get_inventory():
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     return Inventory.serialize(nr.inventory).dict()
+
+
+def get_running_config(hostname):
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    if hostname:
+        nr_filtered = nr.filter(name=hostname).filter(managed=True)
+    else:
+        nr_filtered = nr.filter(managed=True)
+    nr_result = nr_filtered.run(task=napalm_get, getters=["config"])
+    return nr_result[hostname].result
+
+
+def get_running_config_hash(hostname):
+    config = get_running_config(hostname)['config']['running']
+    hash_object = hashlib.sha256(config.encode())
+    return hash_object.hexdigest()
 
 
 def get_facts(hostname: Optional[str] = None, group: Optional[str] = None)\

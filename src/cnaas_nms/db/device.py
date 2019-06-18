@@ -86,7 +86,7 @@ class Device(cnaas_nms.db.base.Base):
     synchronized = Column(Boolean, default=False)
     state = Column(Enum(DeviceState), nullable=False)  # type: ignore
     device_type = Column(Enum(DeviceType), nullable=False)
-    config_hash = Column(String(64))  # SHA256 = 64 characters
+    confhash = Column(String(64))  # SHA256 = 64 characters
     last_seen = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
 
     def as_dict(self) -> dict:
@@ -247,6 +247,23 @@ class Device(cnaas_nms.db.base.Base):
         if not Groups.group_get(index=0, name=index):
             Groups.group_add(index)
         cls.device_group_add(index, device_id)
+
+
+    @classmethod
+    def device_hash_add(cls, device_id, hexdigest):
+        with sqla_session() as session:
+            instance: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if not instance:
+                return 'Device not found'
+            instance.confhash = hexdigest
+
+    @classmethod
+    def device_hash_get(cls, device_id):
+        with sqla_session() as session:
+            instance: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if not instance:
+                return 'Device not found'
+            return instance.confhash
 
     @classmethod
     def device_group_add(cls, name, index):

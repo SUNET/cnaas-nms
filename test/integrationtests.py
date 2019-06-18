@@ -110,6 +110,19 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to")
 
+    def test_3_interfaces(self):
+        r = requests.get(
+            f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to get interfaces")
+
+        r = requests.put(
+            f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            json={"interfaces": {"Ethernet1": {"configtype": "ACCESS_AUTO"}}},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to update interface")
 
 
 if __name__ == '__main__':

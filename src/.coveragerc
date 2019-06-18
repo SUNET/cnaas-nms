@@ -3,6 +3,7 @@ source = cnaas_nms/
 omit =
     */site-packages/*
     */templates/*
+    */tests/*
 
 [paths]
 source =

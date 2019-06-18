@@ -73,7 +73,7 @@ class GetTests(unittest.TestCase):
             )
             if r.status_code == 200:
                 if r.json()['data']['jobs'][0]['status'] == 'FINISHED':
-                    return r.json()['data']['jobs'][0]['result']
+                    return r.json()['data']['jobs'][0]
                 else:
                     time.sleep(5)
                     continue
@@ -91,10 +91,16 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to start device_init")
         self.assertEqual(r.json()['status'], 'success', "Failed to start device_init")
-        job_id = r.json()['job_id']
-        result = self.check_jobid(job_id)
+        step1_job_id = r.json()['job_id']
+        step1_job_data = self.check_jobid(step1_job_id)
+        result = step1_job_data['result']
         self.assertTrue(result['eosaccess'][0]['failed'],
                         "Expected failed result since mgmt_ip changed")
+        time.sleep(5)
+        step2_job_data = self.check_jobid(step1_job_data['next_job_id'])
+        result_step2 = step2_job_data['result']
+        self.assertFalse(result_step2['eosaccess'][0]['failed'],
+                         "Could not reach device after ZTP")
 
     def test_2_syncto(self):
         r = requests.post(

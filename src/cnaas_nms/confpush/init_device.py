@@ -4,6 +4,7 @@ from ipaddress import IPv4Interface
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
 from nornir.core.inventory import ConnectionOptions
+from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
 import yaml
 import os
@@ -145,6 +146,9 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     try:
         nrresult = nr_filtered.run(task=push_base_management_access,
                                    device_variables=device_variables)
+    except SessionLockedException as e:
+        # TODO: Handle this somehow?
+        pass
     except Exception as e:
         # Ignore exception, we expect to loose connectivity.
         # Sometimes we get no exception here, but it's saved in result

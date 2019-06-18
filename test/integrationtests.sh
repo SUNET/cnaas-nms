@@ -25,18 +25,22 @@ read
 #coverage
 # workaround to trigger coverage save
 cd ../docker/
+# Sleep very long to make sure all napalm jobs are finished?
+sleep 60
+echo "Gathering coverage reports from integration tests:"
 docker exec docker_cnaas_api_1 pkill uwsgi
 sleep 3
-#docker exec docker_cnaas_api_1 /opt/cnaas/nosetests.sh
 
-cd coverage/
-
-if ls -lh .coverage-* 2> /dev/null
+if ls -lh coverage/.coverage-* 2> /dev/null
 then
-	echo "Try to generate coverage report:"
-	cp .coverage-* ../../src/
-	cd ../../src/
+	cp coverage/.coverage-* ../src/
+	docker exec docker_cnaas_api_1 /opt/cnaas/nosetests.sh
+	echo "Gathering coverage reports from unit tests:"
+	ls -lh coverage/.coverage-* 2> /dev/null
+	cp coverage/.coverage-nosetests ../src/
+	cd ../src/
 	source ../../bin/activate
+	echo "Try to generate coverage report:"
 	coverage combine .coverage-*
 	coverage report --omit='*/site-packages/*'
 	coverage xml -i --omit='*/site-packages/*,*/templates/*'
@@ -53,6 +57,7 @@ then
 	fi
 	cd ../docker/
 else
+	echo "ERROR: No coverage data found"
 	cd ../
 fi
 

@@ -156,7 +156,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             new_config_hash = get_running_config_hash(key)
             if new_config_hash is None:
                 raise Exception('Failed to get configuration hash')
-            Device.set_config_hash(key, get_running_config_hash(key))
+            Device.set_config_hash(key, new_config_hash)
 
         with sqla_session() as session:
             for hostname in device_list:

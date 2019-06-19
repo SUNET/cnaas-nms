@@ -10,7 +10,7 @@ from nornir.core.filter import F
 import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.confpush.get import get_uplinks
+from cnaas_nms.confpush.get import get_uplinks, get_running_config_hash
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -101,7 +101,7 @@ def push_sync_device(task, dry_run: bool = True):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None,
-                dry_run: bool = True) -> NornirJobResult:
+                 dry_run: bool = True, force: bool = False) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -126,6 +126,18 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         device_list
     ))
 
+    for device in device_list:
+        alterned_devices = []
+        stored_config_hash = Device.get_config_hash(device)
+        if stored_config_hash is None:
+            continue
+        current_config_hash = get_running_config_hash(device)
+        if stored_config_hash != current_config_hash:
+            logger.info("Device {} configuration is altered outside of CNaaS!".format(device))
+            alterned_devices.append(device)
+    if alterned_devices != [] and force is False:
+        raise Exception('Configuration for {} is altered outside of CNaaS'.format(', '.join(alterned_devices)))
+
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run)
         print_result(nrresult)
@@ -134,7 +146,14 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         return NornirJobResult(nrresult=nrresult)
 
     failed_hosts = list(nrresult.failed_hosts.keys())
+
     if not dry_run:
+        for key in nrresult.keys():
+            if key in failed_hosts:
+                continue
+            new_config_hash = get_running_config_hash(key)
+            Device.set_config_hash(key, get_running_config_hash(key))
+
         with sqla_session() as session:
             for hostname in device_list:
                 if hostname in failed_hosts:
@@ -147,4 +166,3 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         logger.error("Not all devices were successfully synchronized")
 
     return NornirJobResult(nrresult=nrresult)
-

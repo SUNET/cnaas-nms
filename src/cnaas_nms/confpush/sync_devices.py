@@ -132,6 +132,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         if stored_config_hash is None:
             continue
         current_config_hash = get_running_config_hash(device)
+        if new_config_hash is None:
+            raise Exception('Failed to get configuration hash')
         if stored_config_hash != current_config_hash:
             logger.info("Device {} configuration is altered outside of CNaaS!".format(device))
             alterned_devices.append(device)
@@ -152,6 +154,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             if key in failed_hosts:
                 continue
             new_config_hash = get_running_config_hash(key)
+            if new_config_hash is None:
+                raise Exception('Failed to get configuration hash')
             Device.set_config_hash(key, get_running_config_hash(key))
 
         with sqla_session() as session:

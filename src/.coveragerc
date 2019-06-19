@@ -1,0 +1,11 @@
+[run]
+source = cnaas_nms/
+omit =
+    */site-packages/*
+    */templates/*
+    */tests/*
+
+[paths]
+source =
+    cnaas_nms/
+    /opt/cnaas/venv/cnaas-nms/src/cnaas_nms/

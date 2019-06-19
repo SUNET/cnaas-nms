@@ -255,7 +255,7 @@ class Device(cnaas_nms.db.base.Base):
         if 'description' in kwargs:
             data['description'] = kwargs['description']
 
-        if 'management_ip' in kwargs:
+        if 'management_ip' in kwargs and kwargs['management_ip']:
             try:
                 addr = ipaddress.IPv4Address(kwargs['management_ip'])
             except Exception:
@@ -309,27 +309,33 @@ class Device(cnaas_nms.db.base.Base):
             else:
                 errors.append("Invalid synchronization state received")
         if 'state' in kwargs:
-            try:
-                state = str(kwargs['state']).upper()
-            except Exception:
-                errors.append('Invalid device state received.')
+            if isinstance(kwargs['state'], DeviceState):
+                data['state'] = kwargs['state']
             else:
-                if DeviceState.has_name(state):
-                    data['state'] = DeviceState[state]
-                else:
+                try:
+                    state = str(kwargs['state']).upper()
+                except Exception:
                     errors.append('Invalid device state received.')
+                else:
+                    if DeviceState.has_name(state):
+                        data['state'] = DeviceState[state]
+                    else:
+                        errors.append('Invalid device state received.')
         else:
             errors.append('Required field device_state not found')
         if 'device_type' in kwargs:
-            try:
-                devicetype = str(kwargs['device_type']).upper()
-            except Exception:
-                errors.append('Invalid device type')
+            if isinstance(kwargs['device_type'], DeviceType):
+                data['device_type'] = kwargs['device_type']
             else:
-                if DeviceType.has_name(devicetype):
-                    data['device_type'] = kwargs['device_type']
-                else:
+                try:
+                    devicetype = str(kwargs['device_type']).upper()
+                except Exception:
                     errors.append('Invalid device type')
+                else:
+                    if DeviceType.has_name(devicetype):
+                        data['device_type'] = kwargs['device_type']
+                    else:
+                        errors.append('Invalid device type')
         else:
             errors.append('Required field device_type not found')
 

@@ -4,7 +4,7 @@ from cnaas_nms.api.device import DeviceByIdApi, DevicesApi, LinknetsApi, \
     DeviceInitApi, DeviceSyncApi
 from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
-from cnaas_nms.api.jobs import JobsApi
+from cnaas_nms.api.jobs import JobsApi, JobByIdApi
 from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById
@@ -33,6 +33,7 @@ api.add_resource(MgmtdomainByIdApi, f'/api/{ __api_version__ }/mgmtdomain/<int:m
 
 # Jobs
 api.add_resource(JobsApi, f'/api/{ __api_version__ }/job')
+api.add_resource(JobByIdApi, f'/api/{ __api_version__ }/job/<string:id>')
 
 # File repository
 api.add_resource(RepositoryApi, f'/api/{ __api_version__ }/repository/<string:repo>')

@@ -25,6 +25,7 @@ if sys.argv[1] == "commit":
         db_entry: Device = session.query(Device).filter(Device.ztp_mac==ztp_mac).first()
         if db_entry:
             if db_entry.state == DeviceState.DHCP_BOOT:
+                # TODO: check if device actually booted with correct config by trying to log in?
                 db_entry.state = DeviceState.DISCOVERED
                 db_entry.dhcp_ip = dhcp_ip
                 logger.info("New device booted via DHCP to state DISCOVERED: {}".format(
@@ -36,10 +37,14 @@ if sys.argv[1] == "commit":
                     ztp_mac
                 ))
         else:
-            Device.device_add(ztp_mac=ztp_mac, dhcp_ip=dhcp_ip,
-                              hostname=f'mac-{ztp_mac}',
-                              platform=platform,
-                              state=DeviceState.DHCP_BOOT,
-                              device_type=DeviceType.UNKNOWN)
+            errors = Device.device_add(
+                ztp_mac=ztp_mac,
+                dhcp_ip=dhcp_ip,
+                hostname=f'mac-{ztp_mac}',
+                platform=platform,
+                state=DeviceState.DHCP_BOOT,
+                device_type=DeviceType.UNKNOWN)
+            if errors:
+                logger.error("Errors while adding device from dhcp_hook: {}".format(errors))
             logger.info("New device booted via DHCP to state DHCP_BOOT: {}".
                         format(ztp_mac))

@@ -43,12 +43,12 @@ class InitTests(unittest.TestCase):
 
     def test_add_schedule(self):
         scheduler = Scheduler()
-        job1 = scheduler.add_onetime_job(testfunc_success, when=1, kwargs={'text': 'success'})
-        job2 = scheduler.add_onetime_job(testfunc_exception, when=1, kwargs={'text': 'exception'})
-        assert isinstance(job1, Job)
-        assert isinstance(job2, Job)
-        print(f"Job1 scheduled as ID { job1.id }")
-        print(f"Job2 scheduled as ID { job2.id }")
+        job1_id = scheduler.add_onetime_job(testfunc_success, when=1, kwargs={'text': 'success'})
+        job2_id = scheduler.add_onetime_job(testfunc_exception, when=1, kwargs={'text': 'exception'})
+        assert isinstance(job1_id, str)
+        assert isinstance(job2_id, str)
+        print(f"Job1 scheduled as ID { job1_id }")
+        print(f"Job2 scheduled as ID { job2_id }")
 
 
 if __name__ == '__main__':

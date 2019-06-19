@@ -3,6 +3,8 @@ from ipaddress import IPv4Interface
 
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
+from nornir.core.inventory import ConnectionOptions
+from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
 import yaml
 import os
@@ -58,6 +60,8 @@ def push_base_management_access(task, device_variables):
     #TODO: Handle template not found, variables not defined
 
     task.host["config"] = r.result
+    # Use extra low timeout for this since we expect to loose connectivity after changing IP
+    task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 5})
 
     task.run(task=networking.napalm_configure,
              name="Push base management config",
@@ -114,7 +118,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
         if not mgmtdomain:
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(
-                neighbor_hostnames))
+                    neighbor_hostnames))
         mgmt_ip = mgmtdomain.find_free_mgmt_ip(session)
         if not mgmt_ip:
             raise Exception("Could not find free management IP for management domain {}".format(
@@ -142,6 +146,9 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     try:
         nrresult = nr_filtered.run(task=push_base_management_access,
                                    device_variables=device_variables)
+    except SessionLockedException as e:
+        # TODO: Handle this somehow?
+        pass
     except Exception as e:
         # Ignore exception, we expect to loose connectivity.
         # Sometimes we get no exception here, but it's saved in result
@@ -155,32 +162,32 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
-        dev.management_ip = device_variables['mgmt_ipif']
+        dev.management_ip = device_variables['mgmt_ip']
 
     # step3. register apscheduler job that continues steps
 
     scheduler = Scheduler()
-    next_job = scheduler.add_onetime_job(
+    next_job_id = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_access_device_step2',
         when=0,
         kwargs={'device_id':device_id, 'iteration': 1})
 
-    logger.debug(f"Step 2 scheduled as ID {next_job.id}")
+    logger.debug(f"Step 2 scheduled as ID {next_job_id}")
 
     return NornirJobResult(
         nrresult = nrresult,
-        next_job_id = next_job.id
+        next_job_id = next_job_id
     )
 
 def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optional[Job]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
-        next_job = scheduler.add_onetime_job(
+        next_job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.init_device:init_access_device_step2',
             when=(30*iteration),
             kwargs={'device_id':device_id, 'iteration': iteration+1})
-        return next_job
+        return next_job_id
     else:
         return None
 
@@ -200,11 +207,11 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
     nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
 
     if nrresult.failed:
-        next_job = schedule_init_access_device_step2(device_id, iteration)
-        if next_job:
+        next_job_id = schedule_init_access_device_step2(device_id, iteration)
+        if next_job_id:
             return NornirJobResult(
                 nrresult = nrresult,
-                next_job_id = next_job.id
+                next_job_id = next_job_id
             )
         else:
             return NornirJobResult(nrresult = nrresult)
@@ -224,7 +231,7 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         #TODO: remove dhcp_ip ?
 
     try:
-        update_interfacedb(hostname)
+        update_interfacedb(hostname, replace=True)
     except Exception as e:
         logger.exception(
             "Exception while updating interface database for device {}: {}".\

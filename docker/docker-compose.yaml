@@ -1,4 +1,4 @@
-version: '3'
+version: '3.7'
 services:
   cnaas_api:
     build: ./api/
@@ -6,10 +6,33 @@ services:
       - 443:443
     networks:
       - cnaas
+    environment:
+      - GITREPO_TEMPLATES
+      - GITREPO_SETTINGS
+      - COVERAGE
+    depends_on:
+      - "cnaas_postgres"
+      - "cnaas_mongo"
+    volumes:
+      - type: bind
+        source: ./coverage
+        target: /coverage
   cnaas_postgres:
     build: ./postgres/
     ports:
       - 5432:5432
+    environment:
+      - POSTGRES_USER=cnaas
+      - POSTGRES_PASSWD=cnaas
+      - POSTGRES_DB=cnaas
+    networks:
+      - cnaas
+  cnaas_mongo:
+    build: ./mongo/
+    volumes:
+      - /opt/cnaas/mongodb/data:/data
+    ports:
+      - 27017:27017
     environment:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWD=cnaas
@@ -22,19 +45,27 @@ services:
       - 80:80
     networks:
       - cnaas
+    environment:
+      - GITREPO_TEMPLATES
   cnaas_dhcpd:
     build: ./dhcpd/
     ports:
       - 67:67/udp
     networks:
       - cnaas
-  cnaas_mongo:
-    image: mongo:latest
-    volumes:
-      - /opt/cnaas/mongodb/data:/data
-    ports:
-      - 27017:27017
-    networks:
-      - cnaas
+    environment:
+      - GITREPO_ETC
+      - DB_PASSWORD=cnaas
+      - DB_HOSTNAME=docker_cnaas_postgres_1
+    depends_on:
+      - "cnaas_httpd"
+      - "cnaas_api"
 networks:
   cnaas:
+    driver: bridge
+    name: cnaas
+    ipam:
+      config:
+      - subnet: 172.18.0.0/24
+    driver_opts:
+      com.docker.network.bridge.name: br-cnaas

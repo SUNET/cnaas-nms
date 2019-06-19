@@ -16,7 +16,6 @@ import cnaas_nms.db.base
 import cnaas_nms.db.site
 
 from cnaas_nms.db.linknet import Linknet
-from cnaas_nms.db.groups import Groups, DeviceGroups
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.api.generic import build_filter
@@ -219,37 +218,6 @@ class Device(cnaas_nms.db.base.Base):
                 setattr(instance, _, data[_])
 
     @classmethod
-    def device_groups_add(cls, **kwargs):
-        data, error = cls.validate(**kwargs)
-        if error != []:
-            return error
-        fields = kwargs['hostname'].split('.')
-        if len(fields) < 5:
-            return error
-        site = fields[0]
-        device_type = fields[1]
-        building = fields[2]
-        floor = fields[3]
-        index = fields[4]
-        device_id = Device.device_get(hostname=kwargs['hostname'])
-        if not Groups.group_get(index=0, name=site):
-            Groups.group_add(site)
-        cls.device_group_add(site, device_id)
-        if not Groups.group_get(index=0, name=device_type):
-            Groups.group_add(device_type)
-        cls.device_group_add(device_type, device_id)
-        if not Groups.group_get(index=0, name=building):
-            Groups.group_add(building)
-        cls.device_group_add(building, device_id)
-        if not Groups.group_get(index=0, name=floor):
-            Groups.group_add(floor)
-        cls.device_group_add(floor, device_id)
-        if not Groups.group_get(index=0, name=index):
-            Groups.group_add(index)
-        cls.device_group_add(index, device_id)
-
-
-    @classmethod
     def device_hash_add(cls, device_id, hexdigest):
         with sqla_session() as session:
             instance: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
@@ -265,26 +233,6 @@ class Device(cnaas_nms.db.base.Base):
                 return 'Device not found'
             return instance.confhash
 
-    @classmethod
-    def device_group_add(cls, name, index):
-        with sqla_session() as session:
-            instance: Groups = session.query(Groups).filter(Groups.name ==
-                                                            name).one_or_none()
-            if not instance:
-                return empty_result(status='error', data='Group not found'), 404
-            group = instance.as_dict()
-            instance: Device = session.query(Device).filter(Device.id ==
-                                                            index).one_or_none()
-            if not instance:
-                return 'Could not find device'
-            device = instance.as_dict()
-            device_groups = DeviceGroups()
-            device_groups.device_id = device['id']
-            device_groups.groups_id = group['id']
-            session.add(device_groups)
-        return None
-
-    @classmethod
     def validate(cls, **kwargs):
         data = {}
         errors = []

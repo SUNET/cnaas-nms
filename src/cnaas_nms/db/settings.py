@@ -1,11 +1,12 @@
 import os
+import re
 import pkg_resources
 from typing import List, Optional
 
 import yaml
 from pydantic.error_wrappers import ValidationError
 
-from cnaas_nms.db.settings_fields import f_root
+from cnaas_nms.db.settings_fields import f_root, f_groups
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.tools.log import get_logger
@@ -27,29 +28,30 @@ DIR_STRUCTURE_HOST = {
 
 DIR_STRUCTURE = {
     'global':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file',
+        'groups.yml': 'file'
+    },
     'fabric':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'core':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'dist':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'access':
-        {
-            'base_system.yml': 'file'
-        },
+    {
+        'base_system.yml': 'file'
+    },
     'devices':
-        {
-            Device: DIR_STRUCTURE_HOST
-        }
+    {
+        Device: DIR_STRUCTURE_HOST
+    }
 }
 
 
@@ -205,8 +207,52 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             settings, settings_origin = read_settings(
                 local_repo_path, ['devices', hostname, 'base_system.yml'], 'device',
                 settings, settings_origin)
-
     # Verify syntax
     check_settings_syntax(settings, settings_origin)
     return f_root(**settings).dict(), settings_origin
 
+
+def get_group_settings(hostname: Optional[str] = None,
+                       device_type: Optional[DeviceType] = None):
+    settings = dict()
+    settings_origin = dict()
+
+    with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
+        repo_config = yaml.safe_load(repo_file)
+    local_repo_path = repo_config['settings_local']
+    try:
+        verify_dir_structure(local_repo_path, DIR_STRUCTURE)
+    except VerifyPathException as e:
+        logger.exception("Exception when verifying settings repository directory structure")
+        raise e
+    data_dir = pkg_resources.resource_filename(__name__, 'data')
+    settings, settings_origin = read_settings(local_repo_path,
+                                              ['global', 'groups.yml'],
+                                              'global',
+                                              settings,
+                                              settings_origin)
+    check_settings_syntax(settings, settings_origin)
+    return f_groups(**settings).dict(), settings_origin
+
+
+def get_groups(hostname=''):
+    groups = []
+    if hostname is not '':
+        settings, origin = get_group_settings(hostname=hostname)
+    else:
+        settings, origin = get_group_settings()
+    if settings is None:
+        return groups
+    if 'groups' not in settings:
+        return groups
+    if settings['groups'] is None:
+        return groups
+    for group in settings['groups']:
+        if 'name' not in group['group']:
+            continue
+        if 'regex' not in group['group']:
+            continue
+        if not re.match(group['group']['regex'], hostname):
+            continue
+        groups.append(group['group']['name'])
+    return groups

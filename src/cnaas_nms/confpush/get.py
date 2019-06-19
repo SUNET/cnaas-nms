@@ -37,8 +37,11 @@ def get_running_config(hostname):
 
 
 def get_running_config_hash(hostname):
-    config = get_running_config(hostname)['config']['running']
-    hash_object = hashlib.sha256(config.encode())
+    config = get_running_config(hostname)
+    print(config)
+    if config is None:
+        return config
+    hash_object = hashlib.sha256(config['config']['running'].encode())
     return hash_object.hexdigest()
 
 

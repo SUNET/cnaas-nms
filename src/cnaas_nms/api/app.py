@@ -21,7 +21,7 @@ app = Flask(__name__)
 api = Api(app)
 
 
-app.config['SECRET_KEY'] = 'kakakekekeff'
+app.config['SECRET_KEY'] = os.urandom(128)
 
 
 @app.route('/jobs', methods=['GET'])

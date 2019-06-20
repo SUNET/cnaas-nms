@@ -1,0 +1,69 @@
+<html>
+  <head>
+    <title>CNaaS</title>
+  </head>
+  <style>
+  #users {
+      font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+      border-collapse: collapse;
+      width: 100%;
+  }
+  #users td, #users th {
+      border: 1px solid #ddd;
+      padding: 8px;
+  }
+  #users tr:nth-child(even){background-color: #f2f2f2;}
+  #users tr:hover {background-color: #ddd;}
+  #users th {
+      padding-top: 12px;
+      padding-bottom: 12px;
+      text-align: left;
+      background-color: #4CAF50;
+      color: white;
+  }
+  </style>
+
+  <body style="background-color:#d0d0d0;text-align:left">
+    <table id="users">
+      <tr>
+	<th>ID</th>
+	<th>Hostname</th>
+	<th>Site ID</th>
+	<th>Description</th>
+	<th>Management IP</th>
+	<th>DHCP IP</th>
+	<th>Serial #</th>
+	<th>ZTP MAC address</th>
+	<th>Platform</th>
+	<th>Vendor</th>
+	<th>Model</th>
+	<th>OS version</th>
+	<th>Synchronized</th>
+	<th>State</th>
+	<th>Device type</th>
+	<th>Last seen</th>
+      </tr>
+      
+      {% for device in devices %}
+      <tr>
+	<td> {{ device.id }} </td>
+	<td> {{ device.hostname }} </td>
+	<td> {{ device.site_id }} </td>
+	<td> {{ device.description }} </td>
+	<td> {{ device.management_ip }} </td>
+	<td> {{ device.dhcp_ip }} </td>
+	<td> {{ device.serial }} </td>
+	<td> {{ device.ztp_mac }} </td>
+	<td> {{ device.platform }} </td>
+	<td> {{ device.vendor }} </td>
+	<td> {{ device.model }} </td>
+	<td> {{ device.os_version }} </td>
+	<td> {{ device.synchronized }} </td>
+	<td> {{ device.state }} </td>
+	<td> {{ device.device_type }} </td>
+	<td> {{ device.last_seen }} </td>	
+      </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>

@@ -17,9 +17,9 @@ CNaaS provided example setting repository from github::
 Tell the NMS API to fetch latest updates from the settings repo and try a sync to devices
 with dry_run to preview changes::
 
-    curl http://10.0.1.5:5000/api/v1.0/repository/settings -d '{"action": "refresh"}' -X PUT -H "Content-Type: application/json"
-    curl http://10.0.1.5:5000/api/v1.0/device_syncto -d '{"hostname": "ex2300-top", "dry_run": true}' -X POST -H "Content-Type: application/json"
-    curl http://10.0.1.5:5000/api/v1.0/job?limit=1
+    curl https://localhost/api/v1.0/repository/settings -d '{"action": "refresh"}' -X PUT -H "Content-Type: application/json"
+    curl https://localhost/api/v1.0/device_syncto -d '{"hostname": "ex2300-top", "dry_run": true}' -X POST -H "Content-Type: application/json"
+    curl https://localhost/api/v1.0/job?limit=1
 
 The API call to device_syncto will start a job running in the background on the API server. To
 show the progress/output of the job run the last command (/job) until you get a finished result.
@@ -30,14 +30,14 @@ Zero-touch provisioning of access switch
 Power on switch, wait for it to boot using DHCP. List new devices that has booted using
 CNaaS startup config::
 
-    curl http://10.0.1.5:5000/api/v1.0/device?filter=state,DISCOVERED
+    curl https://localhost/api/v1.0/device?filter=state,DISCOVERED
 
 If the device serial/MAC matches with a device you want to provision, call the API to
 initialize the device with a specified hostname and device type::
 
-    curl http://10.0.1.5:5000/api/v1.0/device_init/20 -d '{"hostname": "ex2300-top", "device_type": "ACCESS"}' -X POST -H "Content-Type: application/json"
+    curl https://localhost/api/v1.0/device_init/20 -d '{"hostname": "ex2300-top", "device_type": "ACCESS"}' -X POST -H "Content-Type: application/json"
 
 Check job status to see progress, there should be two jobs running after each other, step1 and step2::
 
-    curl http://10.0.1.5:5000/api/v1.0/job?limit=2
+    curl https://localhost/api/v1.0/job?limit=2
 

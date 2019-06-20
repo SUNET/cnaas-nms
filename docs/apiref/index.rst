@@ -1,7 +1,23 @@
 API Reference
 =============
 
-Devices
--------
+Contents
+========
+.. toctree::
+   :maxdepth: 1
 
-GET
+   Home <self>
+   devices
+   groups
+   jobs
+   links
+   mgmtdomains
+   repository
+   settings
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

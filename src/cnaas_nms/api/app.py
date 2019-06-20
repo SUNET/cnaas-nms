@@ -24,7 +24,7 @@ api = Api(app)
 app.config['SECRET_KEY'] = 'kakakekekeff'
 
 
-@app.route('/status', methods=['GET'])
+@app.route('/jobs', methods=['GET'])
 def status():
     return Status.jobs()
 

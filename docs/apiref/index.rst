@@ -9,6 +9,7 @@ Contents
    Home <self>
    devices
    groups
+   jobs
    links
    mgmtdomains
    repository

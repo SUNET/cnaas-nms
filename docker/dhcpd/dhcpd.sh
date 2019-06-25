@@ -24,4 +24,6 @@ git pull
 
 touch /var/lib/dhcp/dhcpd.leases
 
+sleep 10
+
 /usr/sbin/dhcpd -4 -f -d --no-pid -cf /opt/cnaas/dhcpd.conf

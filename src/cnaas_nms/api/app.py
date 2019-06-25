@@ -14,8 +14,6 @@ from cnaas_nms.api.status import Status
 from cnaas_nms.version import __api_version__
 import os
 
-from flask import Flask, g
-import flask_sijax
 
 app = Flask(__name__)
 api = Api(app)

@@ -12,7 +12,7 @@ if [ ! -z "$GITREPO_ETC" ]
 then
 	cd /opt/cnaas
 	rm -rf /opt/cnaas/etc
-	git clone "$GITREPO_ETC" etc
+	git clone $GITREPO_ETC etc
 	if [ -f "/opt/cnaas/etc/dhcpd/dhcpd.conf" ]
 	then
 		cp /opt/cnaas/etc/dhcpd/dhcpd.conf /opt/cnaas/dhcpd.conf

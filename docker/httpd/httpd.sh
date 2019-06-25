@@ -7,7 +7,7 @@ then
 else
 	cd /opt/cnaas/www
 	rm -rf /opt/cnaas/www/templates
-	git clone "$GITREPO_TEMPLATES" templates
+	git clone $GITREPO_TEMPLATES templates
 fi
 
 set -e

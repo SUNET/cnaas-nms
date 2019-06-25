@@ -83,9 +83,10 @@ class Device(cnaas_nms.db.base.Base):
     model = Column(String(64))
     os_version = Column(String(64))
     synchronized = Column(Boolean, default=False)
-    state = Column(Enum(DeviceState), nullable=False) # type: ignore
+    state = Column(Enum(DeviceState), nullable=False)  # type: ignore
     device_type = Column(Enum(DeviceType), nullable=False)
-    last_seen = Column(DateTime, default=datetime.datetime.now) # onupdate=now
+    confhash = Column(String(64))  # SHA256 = 64 characters
+    last_seen = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -217,6 +218,21 @@ class Device(cnaas_nms.db.base.Base):
                 setattr(instance, _, data[_])
 
     @classmethod
+    def set_config_hash(cls, hostname, hexdigest):
+        with sqla_session() as session:
+            instance: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if not instance:
+                return 'Device not found'
+            instance.confhash = hexdigest
+
+    @classmethod
+    def get_config_hash(cls, hostname):
+        with sqla_session() as session:
+            instance: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if not instance:
+                return None
+            return instance.confhash
+
     def validate(cls, **kwargs):
         data = {}
         errors = []

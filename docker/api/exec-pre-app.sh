@@ -31,7 +31,7 @@ fi
 
 # Clean old coverage reports if they exist
 set +e
-if [ -e /coverage/.coverage]; then
+if [ -e /coverage/.coverage ]; then
     rm /coverage/.coverage*
 fi
 

@@ -233,6 +233,7 @@ class Device(cnaas_nms.db.base.Base):
                 return None
             return instance.confhash
 
+    @classmethod
     def validate(cls, **kwargs):
         data = {}
         errors = []

@@ -139,6 +139,13 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
         session.commit()
         hostname = dev.hostname
 
+    try:
+        update_interfacedb(hostname, replace=True)
+    except Exception as e:
+        logger.exception(
+            "Exception while updating interface database for device {}: {}".\
+            format(hostname, str(e)))
+
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 

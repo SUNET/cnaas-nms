@@ -52,11 +52,11 @@ class CnaasInventory(Inventory):
         groups['S_DHCP_BOOT']['username'] = 'admin'
         groups['S_DHCP_BOOT']['password'] = 'admin'
         groups['S_DISCOVERED']['username'] = 'admin'
-        groups['S_DISCOVERED']['password'] = 'admin'
+        groups['S_DISCOVERED']['password'] = 'abc123abc123'
         groups['S_INIT']['username'] = 'admin'
-        groups['S_INIT']['password'] = 'admin'
+        groups['S_INIT']['password'] = 'abc123abc123'
         groups['S_MANAGED']['username'] = 'admin'
-        groups['S_MANAGED']['password'] = 'admin'
+        groups['S_MANAGED']['password'] = 'abc123abc123'
         defaults = {'data': {'k': 'v'} }
         super().__init__(hosts=hosts, groups=groups, defaults=defaults, **kwargs)
 

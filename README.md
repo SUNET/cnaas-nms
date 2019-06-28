@@ -10,7 +10,7 @@ Planned features:
 1. Automated procedure for firmware upgrades
 1. Multi-vendor support
 
-[https://cnaas-nms.readthedocs.io/](Documentation)
+[Documentation](https://cnaas-nms.readthedocs.io/)
 
 ## Components
 

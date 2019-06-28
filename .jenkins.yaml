@@ -10,10 +10,10 @@ disabled: false
 #   - cnaas-api
 #   - cnaas-postgres
   
-git:
-  branch: master
-  extensions:
-    shallow_clone: true
+# git:
+#   branch: master
+#   extensions:
+#     shallow_clone: true
 
 script:
   - "python3.7 -m venv venv"

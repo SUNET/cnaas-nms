@@ -31,29 +31,25 @@ extra_jobs:
       - docker
     docker_name: cnaas/httpd
     docker_context_dir: docker/httpd
-    docker_tags:
-      - "v0.1.0"
+    docker_tags: ['v0.1.0']
 
   - name: cnaas-dhcpd
     builders:
       - docker
     docker_name: cnaas/dhcpd
     docker_context_dir: docker/dhcpd
-    docker_tags:
-      - "v0.1.0"
+    docker_tags: ['v0.1.0']
 
   - name: cnaas-api
     builders:
       - docker
     docker_name: cnaas/api
     docker_context_dir: docker/api
-    docker_tags:
-      - "v0.1.0"
+    docker_tags: ['v0.1.0']
 
   - name: cnaas-postgres
     builders:
       - docker
     docker_name: cnaas/postgres
     docker_context_dir: docker/postgres
-    docker_tags:
-      - "v0.1.0"
+    docker_tags: ['v0.1.0']

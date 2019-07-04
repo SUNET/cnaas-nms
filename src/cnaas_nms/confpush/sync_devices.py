@@ -100,7 +100,7 @@ def push_sync_device(task, dry_run: bool = True):
 
 
 @job_wrapper
-def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None,
+def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
                  dry_run: bool = True, force: bool = False) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
@@ -117,7 +117,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
     if hostname:
         nr_filtered = nr.filter(name=hostname).filter(managed=True)
     elif device_type:
-        nr_filtered = nr.filter(F(groups__contains='T_'+device_type.name))  # device type
+        nr_filtered = nr.filter(F(groups__contains='T_'+device_type))  # device type
     else:
         nr_filtered = nr.filter(synchronized=False).filter(managed=True)  # all unsynchronized devices
 
@@ -126,8 +126,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         device_list
     ))
 
+    alterned_devices = []
     for device in device_list:
-        alterned_devices = []
         stored_config_hash = Device.get_config_hash(device)
         if stored_config_hash is None:
             continue

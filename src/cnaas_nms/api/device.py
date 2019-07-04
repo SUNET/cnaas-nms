@@ -138,7 +138,7 @@ class DeviceSyncApi(Resource):
             what = hostname
         elif 'device_type' in json_data:
             if DeviceType.has_name(str(json_data['device_type']).upper()):
-                kwargs['device_type'] = DeviceType[str(json_data['device_type']).upper()]
+                kwargs['device_type'] = str(json_data['device_type']).upper()
             else:
                 return empty_result(
                     status='error',

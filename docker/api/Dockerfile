@@ -25,7 +25,6 @@ COPY cert/* /etc/nginx/conf.d/
 # Give nginx some special treatment
 RUN unlink /etc/nginx/sites-enabled/default
 RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
-RUN chmod +x /usr/local/bin/nginx_run.sh
 RUN chown www-data:www-data /var/log/nginx
 RUN chown -R  www-data:www-data /var/log/nginx/
 RUN chown -R www-data:www-data /var/lib/nginx

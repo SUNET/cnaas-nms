@@ -21,7 +21,6 @@ COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY config/nginx_app.conf /etc/nginx/sites-available/
 COPY config/nginx.conf /etc/nginx/
 COPY cert/* /etc/nginx/conf.d/
-COPY config/nginx_run.sh /usr/local/bin/
 
 # Give nginx some special treatment
 RUN unlink /etc/nginx/sites-enabled/default

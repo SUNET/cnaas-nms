@@ -4,7 +4,7 @@ import enum
 from ipaddress import IPv4Interface, IPv4Address
 from typing import Optional
 
-from sqlalchemy import Column, Integer, Unicode, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Unicode, UniqueConstraint
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship, load_only
 from sqlalchemy_utils import IPAddressType
@@ -32,6 +32,7 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
     site = relationship("Site")
     vlan = Column(Integer)
     description = Column(Unicode(255))
+    esi_mac = Column(String(12))
 
     def as_dict(self):
         """Return JSON serializable dict."""

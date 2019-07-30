@@ -154,7 +154,8 @@ class Device(cnaas_nms.db.base.Base):
         peer_hostnames = []
         intf: Interface = Interface()
         for intf in intfs:
-            peer_hostnames.append(intf.data['neighbor'])
+            if intf.data:
+                peer_hostnames.append(intf.data['neighbor'])
         return peer_hostnames
 
     @classmethod

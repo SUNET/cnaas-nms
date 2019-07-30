@@ -170,3 +170,28 @@ class DeviceSyncApi(Resource):
 
         return res
 
+
+class DeviceConfigApi(Resource):
+    def get(self, hostname: str):
+        result = empty_result()
+        result['data'] = {'config': None}
+        if not Device.valid_hostname(hostname):
+            return empty_result(
+                status='error',
+                data=f"Invalid hostname specified"
+            ), 400
+
+        try:
+            config = cnaas_nms.confpush.sync_devices.generate_only(hostname)
+            result['data']['config'] = {
+                'hostname': hostname,
+                'generated_config': config,
+            }
+        except Exception as e:
+            return empty_result(
+                status='error',
+                data="Exception: {}".format(str(e))
+            ), 500
+
+        return result
+

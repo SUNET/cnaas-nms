@@ -46,6 +46,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
             platform: str = dev.platform
         else:
             raise ValueError("Unknown platform: {}".format(dev.platform))
+        settings, settings_origin = get_settings(hostname, devtype)
 
         if devtype == DeviceType.ACCESS:
             neighbor_hostnames = dev.get_uplink_peers(session)
@@ -71,6 +72,10 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
                 'mgmt_prefixlen': 32,
                 'downlinks': []
             }
+            if 'interfaces' in settings and settings['interfaces']:
+                for intf in settings['interfaces']:
+                    if 'ifclass' in intf and intf['ifclass'] == 'downlink':
+                        dist_device_variables['downlinks'].append({'ifname': intf['name']})
 
         intfs = session.query(Interface).filter(Interface.device == dev).all()
         uplinks = []
@@ -91,8 +96,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
         if 'dist_device_variables' in locals() and dist_device_variables:
             device_variables = {**dist_device_variables, **device_variables}
 
-    settings, settings_origin = get_settings(hostname, devtype)
-    # Merge dicts
+    # Merge device variables with settings before sending to template rendering
     template_vars = {**device_variables, **settings}
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:

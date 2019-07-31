@@ -23,7 +23,8 @@ class SettingsSyntaxError(Exception):
 
 
 DIR_STRUCTURE_HOST = {
-    'base_system.yml': 'file'
+    'base_system.yml': 'file',
+    'interfaces.yml': 'file'
 }
 
 DIR_STRUCTURE = {
@@ -206,6 +207,9 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         if os.path.isdir(os.path.join(local_repo_path, 'devices', hostname)):
             settings, settings_origin = read_settings(
                 local_repo_path, ['devices', hostname, 'base_system.yml'], 'device',
+                settings, settings_origin)
+            settings, settings_origin = read_settings(
+                local_repo_path, ['devices', hostname, 'interfaces.yml'], 'device',
                 settings, settings_origin)
     # Verify syntax
     check_settings_syntax(settings, settings_origin)

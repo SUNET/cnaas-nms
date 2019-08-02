@@ -45,3 +45,26 @@ def find_mgmtdomain(session, hostnames: List[str]) -> Optional[Mgmtdomain]:
             ((Mgmtdomain.device_a == device1) & (Mgmtdomain.device_b == device0))
         ).one_or_none()
     return mgmtdomain
+
+
+def get_all_mgmtdomains(session, hostname: str) -> List[Mgmtdomain]:
+    """
+    Get all mgmtdomains for a specific distribution switch.
+
+    Args:
+        session: sqla session
+        hostname: hostname of distribution switch
+
+    Raises:
+        ValueError: on invalid hostname etc
+    """
+    if not Device.valid_hostname(hostname):
+        raise ValueError(f"Argument {hostname} is not a valid hostname")
+    try:
+        dev = session.query(Device).filter(Device.hostname == hostname).one()
+    except NoResultFound:
+        raise ValueError(f"hostname {hostname} not found in device database")
+
+    mgmtdomains = session.query(Mgmtdomain). \
+        filter((Mgmtdomain.device_a == dev) | (Mgmtdomain.device_b == dev)).all()
+    return mgmtdomains

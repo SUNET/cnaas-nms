@@ -70,12 +70,20 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
             dist_device_variables = {
                 'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
                 'mgmt_prefixlen': 32,
-                'downlinks': []
+                'downlinks': [],
+                'mgmtdomains': []
             }
             if 'interfaces' in settings and settings['interfaces']:
                 for intf in settings['interfaces']:
                     if 'ifclass' in intf and intf['ifclass'] == 'downlink':
                         dist_device_variables['downlinks'].append({'ifname': intf['name']})
+            for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
+                dist_device_variables['mgmtdomains'].append({
+                    'ipv4_gw': mgmtdom.ipv4_gw,
+                    'vlan': mgmtdom.vlan,
+                    'description': mgmtdom.description,
+                    'esi_mac': mgmtdom.esi_mac
+                })
 
         intfs = session.query(Interface).filter(Interface.device == dev).all()
         uplinks = []

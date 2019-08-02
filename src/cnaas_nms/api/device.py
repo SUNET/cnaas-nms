@@ -182,10 +182,11 @@ class DeviceConfigApi(Resource):
             ), 400
 
         try:
-            config = cnaas_nms.confpush.sync_devices.generate_only(hostname)
+            config, template_vars = cnaas_nms.confpush.sync_devices.generate_only(hostname)
             result['data']['config'] = {
                 'hostname': hostname,
                 'generated_config': config,
+                'available_variables': template_vars
             }
         except Exception as e:
             return empty_result(

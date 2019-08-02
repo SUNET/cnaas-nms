@@ -71,12 +71,18 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
                 'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
                 'mgmt_prefixlen': 32,
                 'downlinks': [],
+                'custom_interfaces': [],
                 'mgmtdomains': []
             }
             if 'interfaces' in settings and settings['interfaces']:
                 for intf in settings['interfaces']:
                     if 'ifclass' in intf and intf['ifclass'] == 'downlink':
                         dist_device_variables['downlinks'].append({'ifname': intf['name']})
+                    elif 'ifclass' in intf and intf['ifclass'] == 'custom':
+                        dist_device_variables['custom_interfaces'].append({
+                            'ifname': intf['name'],
+                            'config': intf['config']
+                        })
             for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
                 dist_device_variables['mgmtdomains'].append({
                     'ipv4_gw': mgmtdom.ipv4_gw,
@@ -142,7 +148,16 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
                  )
 
 
-def generate_only(hostname: str):
+def generate_only(hostname: str) -> (str, dict):
+    """
+    Generate configuration for a device and return it as a text string.
+
+    Args:
+        hostname: Hostname of device generate config for
+
+    Returns:
+        (string with config, dict with available template variables)
+    """
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     if len(nr_filtered.inventory.hosts) != 1:
@@ -152,11 +167,10 @@ def generate_only(hostname: str):
         if nrresult.failed:
             print_result(nrresult)
             raise Exception("Failed to generate config for {}".format(hostname))
-        # TODO: consider returning: nrresult[hostname][1].host["template_vars"]
-        return nrresult[hostname][1].result
+        return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
     except Exception as e:
         logger.exception("Exception while generating config: {}".format(str(e)))
-        return nrresult[hostname][1].result
+        return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
 
 
 @job_wrapper

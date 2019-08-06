@@ -199,14 +199,14 @@ def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=
     """
     if recdepth < 1:
         return data
-    elif type(data) == list:
+    elif isinstance(data, list):
         ret = []
         for item in data:
             f_item = filter_yamldata_groups(item, groups, recdepth-1)
             if f_item:
                 ret.append(f_item)
         return ret
-    elif type(data) == dict:
+    elif isinstance(data, dict):
         ret = {}
         for k, v in data.items():
             if k == 'group':

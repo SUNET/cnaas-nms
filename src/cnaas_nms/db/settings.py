@@ -1,7 +1,7 @@
 import os
 import re
 import pkg_resources
-from typing import List, Optional
+from typing import List, Optional, Union, Tuple
 
 import yaml
 from pydantic.error_wrappers import ValidationError
@@ -31,7 +31,8 @@ DIR_STRUCTURE = {
     'global':
     {
         'base_system.yml': 'file',
-        'groups.yml': 'file'
+        'groups.yml': 'file',
+        'routing.yml': 'file'
     },
     'fabric':
     {
@@ -158,13 +159,66 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
 
 
 def read_settings(local_repo_path: str, path: List[str], origin: str,
-                  merged_settings, merged_settings_origin):
+                  merged_settings, merged_settings_origin, groups=None) -> Tuple[dict, dict]:
+    """
+
+    Args:
+        local_repo_path: Local path to settings repository
+        path: Path to look for inside repo
+        origin: What to name call this origin
+        merged_settings: Existing settings
+        merged_settings_origin: Existing settings origin info
+        groups: Optional list of groups to filter on (using filter_yamldata_groups)
+
+    Returns:
+        merged_settings, merged_settings_origin
+    """
     with open(get_setting_filename(local_repo_path, path), 'r') as f:
-        settings: dict = yaml.safe_load(f)
+        settings: Union[List, dict] = yaml.safe_load(f)
+        if groups:
+            settings = filter_yamldata_groups(settings, groups)
         if settings and isinstance(settings, dict):
             return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
         else:
             return merged_settings, merged_settings_origin
+
+
+def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=100) -> \
+        Union[List, dict]:
+    """Filter data and remove dictionary items if they have a key that specifies
+    a group, but that group is not included in our groups list.
+    Should only be called with yaml.safe_load:ed data.
+
+    Args:
+        data: yaml safe_load:ed data
+        groups: a list of groups to filter on
+        recdepth: recursion depth limit, default 100
+
+    Returns:
+        filtered data
+    """
+    if recdepth < 1:
+        return data
+    elif type(data) == list:
+        ret = []
+        for item in data:
+            f_item = filter_yamldata_groups(item, groups, recdepth-1)
+            if f_item:
+                ret.append(f_item)
+        return ret
+    elif type(data) == dict:
+        ret = {}
+        for k, v in data.items():
+            if k == 'group':
+                if v in groups:
+                    return data
+                else:
+                    return {}
+            else:
+                ret[k] = filter_yamldata_groups(v, groups, recdepth-1)
+        return ret
+    else:
+        return data
 
 
 def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None):
@@ -211,6 +265,10 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             settings, settings_origin = read_settings(
                 local_repo_path, ['devices', hostname, 'interfaces.yml'], 'device',
                 settings, settings_origin)
+        groups = get_groups(hostname)
+        settings, settings_origin = read_settings(
+            local_repo_path, ['global', 'routing.yml'], 'global',
+            settings, settings_origin, groups)
     # Verify syntax
     check_settings_syntax(settings, settings_origin)
     return f_root(**settings).dict(), settings_origin
@@ -256,7 +314,7 @@ def get_groups(hostname=''):
             continue
         if 'regex' not in group['group']:
             continue
-        if not re.match(group['group']['regex'], hostname):
+        if hostname and not re.match(group['group']['regex'], hostname):
             continue
         groups.append(group['group']['name'])
     return groups

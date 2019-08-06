@@ -200,14 +200,14 @@ def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=
     if recdepth < 1:
         return data
     elif isinstance(data, list):
-        ret = []
+        ret_l = []
         for item in data:
             f_item = filter_yamldata_groups(item, groups, recdepth-1)
             if f_item:
-                ret.append(f_item)
-        return ret
+                ret_l.append(f_item)
+        return ret_l
     elif isinstance(data, dict):
-        ret = {}
+        ret_d = {}
         for k, v in data.items():
             if k == 'group':
                 if v in groups:
@@ -215,8 +215,8 @@ def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=
                 else:
                     return {}
             else:
-                ret[k] = filter_yamldata_groups(v, groups, recdepth-1)
-        return ret
+                ret_d[k] = filter_yamldata_groups(v, groups, recdepth-1)
+        return ret_d
     else:
         return data
 
@@ -276,8 +276,8 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
 
 def get_group_settings(hostname: Optional[str] = None,
                        device_type: Optional[DeviceType] = None):
-    settings = dict()
-    settings_origin = dict()
+    settings: dict = {}
+    settings_origin: dict = {}
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
         repo_config = yaml.safe_load(repo_file)

@@ -106,3 +106,18 @@ To remove a device, pass the device ID in a DELTE call:
 ::
 
    curl -X PUT https://hostname/api/v1.0/device/10
+
+
+Preview config
+--------------
+
+To preview what config would be generated for a device without actually
+touching the device use generate_config:
+
+::
+
+  curl https://hostname/api/v1.0/device/<device_hostname>/generate_config
+
+This will return both the generated configuration based on the template for
+this device type, and also a list of available vaiables that could be used
+in the template.

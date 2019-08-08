@@ -75,24 +75,23 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
             }
             if 'interfaces' in settings and settings['interfaces']:
                 for intf in settings['interfaces']:
+                    ifindexnum = 0
                     try:
                         ifindexnum = Interface.interface_index_num(intf['name'])
-                    except ValueError:
+                    except ValueError as e:
                         pass
-                    else:
-                        ifindexnum = 0
                     if 'ifclass' in intf and intf['ifclass'] == 'downlink':
                         dist_device_variables['interfaces'].append({
-                            'ifname': intf['name'],
+                            'name': intf['name'],
                             'ifclass': intf['ifclass'],
-                            'ifindexnum': ifindexnum
+                            'indexnum': ifindexnum
                         })
                     elif 'ifclass' in intf and intf['ifclass'] == 'custom':
                         dist_device_variables['interfaces'].append({
-                            'ifname': intf['name'],
+                            'name': intf['name'],
                             'ifclass': intf['ifclass'],
                             'config': intf['config'],
-                            'ifindexnum': ifindexnum
+                            'indexnum': ifindexnum
                         })
             for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
                 dist_device_variables['mgmtdomains'].append({
@@ -121,9 +120,11 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
         if 'dist_device_variables' in locals() and dist_device_variables:
             device_variables = {**dist_device_variables, **device_variables}
 
-    print(device_variables)
     # Merge device variables with settings before sending to template rendering
-    template_vars = {**device_variables, **settings}
+    # Device variables override any names from settings, for example the
+    # interfaces list from settings are replaced with an interface list from
+    # device variables that contains more information
+    template_vars = {**settings, **device_variables}
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)

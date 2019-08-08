@@ -8,28 +8,16 @@ from cnaas_nms.api.jobs import JobsApi, JobByIdApi
 from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById
-from cnaas_nms.api.web import WebStatus
-from cnaas_nms.api.status import Status
 
 from cnaas_nms.version import __api_version__
 import os
 
 
 app = Flask(__name__)
-api = Api(app)
-
-
 app.config['SECRET_KEY'] = os.urandom(128)
 
+api = Api(app)
 
-@app.route('/jobs', methods=['GET'])
-def status():
-    return Status.jobs()
-
-
-@app.route('/devices', methods=['GET'])
-def devices():
-    return Status.devices()
 
 # Devices
 api.add_resource(DeviceByIdApi, f'/api/{ __api_version__ }/device/<int:device_id>')

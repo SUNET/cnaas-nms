@@ -76,7 +76,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
             if 'interfaces' in settings and settings['interfaces']:
                 for intf in settings['interfaces']:
                     try:
-                        ifindexnum = Interface.interface_index_num(intf['ifname'])
+                        ifindexnum = Interface.interface_index_num(intf['name'])
                     except ValueError:
                         pass
                     else:

@@ -76,5 +76,6 @@ class DeviceTests(unittest.TestCase):
                 self.assertIsInstance(nei, Device)
                 pprint.pprint(nei.as_dict())
 
+
 if __name__ == '__main__':
     unittest.main()

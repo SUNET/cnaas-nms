@@ -384,7 +384,7 @@ COPY public.apscheduler_jobs (id, next_run_time, job_state) FROM stdin;
 COPY public.device (id, hostname, site_id, description, management_ip, dhcp_ip, serial, ztp_mac, platform, vendor, model, os_version, synchronized, state, device_type, last_seen) FROM stdin;
 1	testdevice	1	Test device!	1.2.3.4	\N	\N	\N	eos	\N	\N	\N	f	UNKNOWN	UNKNOWN	2019-02-13 11:17:32.038118
 6	mac-080027F60C55	\N	\N	\N	\N	\N	080027F60C55	eos	\N	\N	\N	f	DHCP_BOOT	UNKNOWN	2019-02-27 07:41:18.026646
-9	eosdist	\N	\N	10.0.1.22	\N	\N	08002708a8be	eos	\N	\N	\N	t	MANAGED	DIST	2019-02-27 10:30:23.338681
+9	eosdist	\N	\N	10.100.3.101	\N	\N	08002708a8be	eos	\N	\N	\N	t	MANAGED	DIST	2019-02-27 10:30:23.338681
 12	eosdist2	\N	\N	10.0.1.23	\N	\N	08002708a8b0	eos	\N	\N	\N	t	MANAGED	DIST	2019-03-13 09:43:13.439735
 13	eosaccess	\N	\N	10.0.6.6	10.0.0.20	\N	0800275C091F	eos	\N	\N	\N	f	MANAGED	ACCESS	2019-04-09 08:43:50.268572
 \.

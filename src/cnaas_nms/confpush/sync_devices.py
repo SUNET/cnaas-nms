@@ -22,27 +22,84 @@ from cnaas_nms.scheduler.wrapper import job_wrapper
 logger = get_logger()
 
 
-def push_sync_device(task, dry_run: bool = True):
+def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
+    """
+    Nornir task to generate config and push to device
+
+    Args:
+        task: nornir task, sent by nornir when doing .run()
+        dry_run: Don't commit config to device, just do compare/diff
+        generate_only: Only generate text config, don't try to commit or
+                       even do dry_run compare to running config
+
+    Returns:
+
+    """
     hostname = task.host.name
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
         mgmt_ip = dev.management_ip
+        if not mgmt_ip:
+            raise Exception("Could not find management IP for device {}".format(hostname))
         devtype: DeviceType = dev.device_type
         if isinstance(dev.platform, str):
             platform: str = dev.platform
         else:
             raise ValueError("Unknown platform: {}".format(dev.platform))
+        settings, settings_origin = get_settings(hostname, devtype)
 
-        neighbor_hostnames = dev.get_uplink_peers(session)
-        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
-        if not mgmtdomain:
-            raise Exception(
-                "Could not find appropriate management domain for uplink peer devices: {}".format(
-                    neighbor_hostnames))
+        if devtype == DeviceType.ACCESS:
+            neighbor_hostnames = dev.get_uplink_peers(session)
+            if not neighbor_hostnames:
+                raise Exception("Could not find any uplink neighbors for device {}".format(
+                    hostname))
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
+            if not mgmtdomain:
+                raise Exception(
+                    "Could not find appropriate management domain for uplink peer devices: {}".
+                    format(neighbor_hostnames))
 
-        if not mgmt_ip:
-            raise Exception("Could not find management IP for device {}".format(hostname))
-        mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
+            mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
+            access_device_variables = {
+                'mgmt_vlan_id': mgmtdomain.vlan,
+                'mgmt_gw': mgmt_gw_ipif.ip,
+                'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
+                'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen)
+            }
+        elif devtype == DeviceType.DIST:
+            dist_device_variables = {
+                'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
+                'mgmt_prefixlen': 32,
+                'interfaces': [],
+                'mgmtdomains': []
+            }
+            if 'interfaces' in settings and settings['interfaces']:
+                for intf in settings['interfaces']:
+                    ifindexnum = 0
+                    try:
+                        ifindexnum = Interface.interface_index_num(intf['name'])
+                    except ValueError as e:
+                        pass
+                    if 'ifclass' in intf and intf['ifclass'] == 'downlink':
+                        dist_device_variables['interfaces'].append({
+                            'name': intf['name'],
+                            'ifclass': intf['ifclass'],
+                            'indexnum': ifindexnum
+                        })
+                    elif 'ifclass' in intf and intf['ifclass'] == 'custom':
+                        dist_device_variables['interfaces'].append({
+                            'name': intf['name'],
+                            'ifclass': intf['ifclass'],
+                            'config': intf['config'],
+                            'indexnum': ifindexnum
+                        })
+            for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
+                dist_device_variables['mgmtdomains'].append({
+                    'ipv4_gw': mgmtdom.ipv4_gw,
+                    'vlan': mgmtdom.vlan,
+                    'description': mgmtdom.description,
+                    'esi_mac': mgmtdom.esi_mac
+                })
 
         intfs = session.query(Interface).filter(Interface.device == dev).all()
         uplinks = []
@@ -54,20 +111,20 @@ def push_sync_device(task, dry_run: bool = True):
             elif intf.configtype == InterfaceConfigType.ACCESS_UPLINK:
                 uplinks.append({'ifname': intf.name})
         device_variables = {
-            'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
             'mgmt_ip': str(mgmt_ip),
-            'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
             'uplinks': uplinks,
-            'access_auto': access_auto,
-            'mgmt_vlan_id': mgmtdomain.vlan,
-            'mgmt_gw': mgmt_gw_ipif.ip
+            'access_auto': access_auto
         }
+        if 'access_device_variables' in locals() and access_device_variables:
+            device_variables = {**access_device_variables, **device_variables}
+        if 'dist_device_variables' in locals() and dist_device_variables:
+            device_variables = {**dist_device_variables, **device_variables}
 
-    settings, settings_origin = get_settings(hostname, devtype)
-    # Merge dicts
-    template_vars = {**device_variables, **settings}
-
-    logger.debug("Synchronize device config for host: {}".format(task.host.name))
+    # Merge device variables with settings before sending to template rendering
+    # Device variables override any names from settings, for example the
+    # interfaces list from settings are replaced with an interface list from
+    # device variables that contains more information
+    template_vars = {**settings, **device_variables}
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)
@@ -80,6 +137,7 @@ def push_sync_device(task, dry_run: bool = True):
         mapping = yaml.safe_load(f)
         template = mapping[devtype.name]['entrypoint']
 
+    logger.debug("Generate config for host: {}".format(task.host.name))
     r = task.run(task=text.template_file,
                  name="Generate device config",
                  template=template,
@@ -90,13 +148,42 @@ def push_sync_device(task, dry_run: bool = True):
     # jinja2.exceptions.UndefinedError
 
     task.host["config"] = r.result
+    task.host["template_vars"] = template_vars
 
-    task.run(task=networking.napalm_configure,
-             name="Sync device config",
-             replace=True,
-             configuration=task.host["config"],
-             dry_run=dry_run
-             )
+    if not generate_only:
+        logger.debug("Synchronize device config for host: {}".format(task.host.name))
+
+        task.run(task=networking.napalm_configure,
+                 name="Sync device config",
+                 replace=True,
+                 configuration=task.host["config"],
+                 dry_run=dry_run
+                 )
+
+
+def generate_only(hostname: str) -> (str, dict):
+    """
+    Generate configuration for a device and return it as a text string.
+
+    Args:
+        hostname: Hostname of device generate config for
+
+    Returns:
+        (string with config, dict with available template variables)
+    """
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname).filter(managed=True)
+    if len(nr_filtered.inventory.hosts) != 1:
+        raise ValueError("Invalid hostname: {}".format(hostname))
+    try:
+        nrresult = nr_filtered.run(task=push_sync_device, generate_only=True)
+        if nrresult.failed:
+            print_result(nrresult)
+            raise Exception("Failed to generate config for {}".format(hostname))
+        return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
+    except Exception as e:
+        logger.exception("Exception while generating config: {}".format(str(e)))
+        return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
 
 
 @job_wrapper
@@ -109,6 +196,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     Args:
         hostname: Specify a single host by hostname to synchronize
         device_type: Specify a device type to synchronize
+        dry_run: Don't commit generated config to device
+        force: Commit config even if changes made outside CNaaS will get
+               overwritten
 
     Returns:
         NornirJobResult

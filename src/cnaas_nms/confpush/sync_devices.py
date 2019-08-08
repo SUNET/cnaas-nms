@@ -70,18 +70,29 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
             dist_device_variables = {
                 'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
                 'mgmt_prefixlen': 32,
-                'downlinks': [],
-                'custom_interfaces': [],
+                'interfaces': [],
                 'mgmtdomains': []
             }
             if 'interfaces' in settings and settings['interfaces']:
                 for intf in settings['interfaces']:
+                    try:
+                        ifindexnum = Interface.interface_index_num(intf['ifname'])
+                    except ValueError:
+                        pass
+                    else:
+                        ifindexnum = 0
                     if 'ifclass' in intf and intf['ifclass'] == 'downlink':
-                        dist_device_variables['downlinks'].append({'ifname': intf['name']})
-                    elif 'ifclass' in intf and intf['ifclass'] == 'custom':
-                        dist_device_variables['custom_interfaces'].append({
+                        dist_device_variables['interfaces'].append({
                             'ifname': intf['name'],
-                            'config': intf['config']
+                            'ifclass': intf['ifclass'],
+                            'ifindexnum': ifindexnum
+                        })
+                    elif 'ifclass' in intf and intf['ifclass'] == 'custom':
+                        dist_device_variables['interfaces'].append({
+                            'ifname': intf['name'],
+                            'ifclass': intf['ifclass'],
+                            'config': intf['config'],
+                            'ifindexnum': ifindexnum
                         })
             for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
                 dist_device_variables['mgmtdomains'].append({
@@ -110,6 +121,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
         if 'dist_device_variables' in locals() and dist_device_variables:
             device_variables = {**dist_device_variables, **device_variables}
 
+    print(device_variables)
     # Merge device variables with settings before sending to template rendering
     template_vars = {**device_variables, **settings}
 

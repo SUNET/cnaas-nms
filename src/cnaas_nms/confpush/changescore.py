@@ -3,6 +3,7 @@ import re
 
 line_start = r"^[+-][ ]*"
 line_start_remove = r"^-[ ]*"
+DEFAULT_LINE_SCORE = 1.0
 # Stops looking after first match. Only searches a single line at a time.
 change_patterns = [
     {
@@ -38,7 +39,7 @@ def calculate_line_score(line: str):
     for pattern in change_patterns:
         if re.match(pattern['regex'], line):
             return 1 * pattern['modifier']
-    return 1
+    return DEFAULT_LINE_SCORE
 
 
 def calculate_score(config: str, diff: str) -> float:
@@ -62,7 +63,6 @@ def calculate_score(config: str, diff: str) -> float:
             total_line_score += calculate_line_score(line)
 
     changed_ratio = changed_lines / float(len(config_lines))
-    print("{} {}".format(changed_ratio, total_line_score))
 
     # Calculate score, 20% based on number of lines changed, 80% on individual
     # line score with applied modifiers

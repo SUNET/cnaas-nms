@@ -287,4 +287,4 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         total_change_score = max(min(int(median(change_scores) + 0.5), 100), 1)
     logger.info("Change impact score: {}".format(total_change_score))
     # TODO: add field for change score in NornirJobResult object
-    return NornirJobResult(nrresult=nrresult)
+    return NornirJobResult(nrresult=nrresult, change_score=total_change_score)

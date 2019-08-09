@@ -102,13 +102,13 @@ class GetTests(unittest.TestCase):
         self.assertFalse(result_step2['eosaccess'][0]['failed'],
                          "Could not reach device after ZTP")
 
-    def test_2_syncto(self):
+    def test_2_syncto_access(self):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
             json={"hostname": "eosaccess", "dry_run": True},
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to do sync_to")
+        self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
 
     def test_3_interfaces(self):
         r = requests.get(
@@ -123,6 +123,14 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to update interface")
+
+    def test_4_syncto_dist(self):
+        r = requests.post(
+            f'{URL}/api/v1.0/device_syncto',
+            json={"hostname": "eosdist", "dry_run": True},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")
 
 
 if __name__ == '__main__':

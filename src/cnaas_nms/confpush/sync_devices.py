@@ -1,5 +1,6 @@
 from typing import Optional
 from ipaddress import IPv4Interface
+from statistics import median
 import os
 import yaml
 
@@ -11,6 +12,7 @@ import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.confpush.get import get_uplinks, get_running_config_hash
+from cnaas_nms.confpush.changescore import calculate_score
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -160,6 +162,12 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
                  dry_run=dry_run
                  )
 
+        change_score = 0
+        if task.results[1].diff:
+            config = task.results[1].host["config"]
+            diff = task.results[1].diff
+            task.host["change_score"] = calculate_score(config, diff)
+
 
 def generate_only(hostname: str) -> (str, dict):
     """
@@ -240,6 +248,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     failed_hosts = list(nrresult.failed_hosts.keys())
 
     if not dry_run:
+        # set new config hash and mark device synchronized
         for key in nrresult.keys():
             if key in failed_hosts:
                 continue
@@ -259,4 +268,23 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     if nrresult.failed:
         logger.error("Not all devices were successfully synchronized")
 
-    return NornirJobResult(nrresult=nrresult)
+    total_change_score = 1
+    change_scores = []
+    # calculate change impact score
+    for host, results in nrresult.items():
+        if host in failed_hosts:
+            total_change_score = 100
+            break
+        change_scores.append(results[0].host["change_score"])
+        logger.debug("Change score for host {}: {}".format(
+            host, results[0].host["change_score"]))
+
+    if max(change_scores) > 1000:
+        # If some device has a score higher than this, disregard any averages
+        # and report max impact score
+        total_change_score = 100
+    else:
+        total_change_score = max(min(int(median(change_scores) + 0.5), 100), 1)
+    logger.info("Change impact score: {}".format(total_change_score))
+    # TODO: add field for change score in NornirJobResult object
+    return NornirJobResult(nrresult=nrresult, change_score=total_change_score)

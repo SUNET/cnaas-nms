@@ -31,7 +31,7 @@ python3 -m venv /opt/cnaas/venv
 cd /opt/cnaas/venv/
 source bin/activate
 git clone https://github.com/SUNET/cnaas-nms.git
-git checkout develop
 cd cnaas-nms/
+git checkout develop
 python3 -m pip install -r requirements.txt
 

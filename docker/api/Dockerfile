@@ -33,6 +33,6 @@ RUN chown www-data:www-data /var/lib/nginx/
 RUN chown www-data:www-data /opt/cnaas
 
 # Expose HTTPS
-EXPOSE 443
+EXPOSE 1443
 
 ENTRYPOINT supervisord -c /etc/supervisor/supervisord.conf

@@ -26,6 +26,7 @@ COPY cert/* /etc/nginx/conf.d/
 RUN unlink /etc/nginx/sites-enabled/default
 RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
 RUN chown www-data:www-data /var/log/nginx
+RUN chown www-data:www-data /etc/cnaas-nms/repository.yml
 RUN chown -R  www-data:www-data /var/log/nginx/
 RUN chown -R www-data:www-data /var/lib/nginx
 RUN chown www-data:www-data /var/lib/nginx/

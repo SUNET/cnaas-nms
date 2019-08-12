@@ -16,7 +16,8 @@ def cnaas_init():
     nr = InitNornir(
         inventory={
             "plugin": "cnaas_nms.confpush.nornir_plugins.cnaas_inventory.CnaasInventory"
-        }
+        },
+        logging={"file": "/tmp/nornir.log", "level": "debug"}
     )
     return nr
 

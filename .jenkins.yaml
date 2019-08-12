@@ -9,7 +9,7 @@ disabled: false
 #   - cnaas-dhcpd
 #   - cnaas-api
 #   - cnaas-postgres
-  
+
 git:
   branch: develop
   extensions:
@@ -27,24 +27,32 @@ script:
 
 extra_jobs:
   - name: cnaas-httpd
+    git:
+      branch: develop
     builders:
       - docker
     docker_name: cnaas/httpd
     docker_context_dir: docker/httpd
 
   - name: cnaas-dhcpd
+    git:
+      branch: develop
     builders:
       - docker
     docker_name: cnaas/dhcpd
     docker_context_dir: docker/dhcpd
 
   - name: cnaas-api
+    git:
+      branch: develop
     builders:
       - docker
     docker_name: cnaas/api
     docker_context_dir: docker/api
 
   - name: cnaas-postgres
+    git:
+      branch: develop
     builders:
       - docker
     docker_name: cnaas/postgres

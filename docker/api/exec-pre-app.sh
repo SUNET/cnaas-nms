@@ -1,17 +1,18 @@
 #!/bin/sh
 
 set -e
+
 sed -e "s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|" \
     -e "s|^\(settings_remote: \).\+$|\1 $GITREPO_SETTINGS|" \
-  < /etc/cnaas-nms/repository.yml > repository.yml.new \
-  && mv -f repository.yml.new /etc/cnaas-nms/repository.yml
+  < /etc/cnaas-nms/repository.yml > /tmp/repository.yml.new \
+  && cat /tmp/repository.yml.new > /etc/cnaas-nms/repository.yml
 
 if [ -e "/opt/cnaas/settings" ]; then
-    rm -r /opt/cnaas/settings
+    rm -rf /opt/cnaas/settings
 fi
 
 if [ -e "/opt/cnaas/templates" ]; then
-    rm -r /opt/cnaas/templates
+    rm -rf /opt/cnaas/templates
 fi
 
 git clone $GITREPO_SETTINGS /opt/cnaas/settings

@@ -11,7 +11,7 @@ disabled: false
 #   - cnaas-postgres
   
 git:
-  branch: master
+  branch: develop
   extensions:
     shallow_clone: true
 

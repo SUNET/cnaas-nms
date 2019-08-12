@@ -279,7 +279,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         logger.debug("Change score for host {}: {}".format(
             host, results[0].host["change_score"]))
 
-    if max(change_scores) > 1000:
+    if not change_scores or total_change_score >= 100:
+        total_change_score = 100
+    elif max(change_scores) > 1000:
         # If some device has a score higher than this, disregard any averages
         # and report max impact score
         total_change_score = 100

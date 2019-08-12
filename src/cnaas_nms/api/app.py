@@ -1,41 +1,31 @@
 from flask import Flask, render_template
 from flask_restful import Api
 from cnaas_nms.api.device import DeviceByIdApi, DevicesApi, LinknetsApi, \
-    DeviceInitApi, DeviceSyncApi
+    DeviceInitApi, DeviceSyncApi, DeviceConfigApi
 from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi, JobByIdApi
 from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById
-from cnaas_nms.api.web import WebStatus
-from cnaas_nms.api.status import Status
 
 from cnaas_nms.version import __api_version__
 import os
 
 
 app = Flask(__name__)
-api = Api(app)
-
-
 app.config['SECRET_KEY'] = os.urandom(128)
 
+api = Api(app)
 
-@app.route('/jobs', methods=['GET'])
-def status():
-    return Status.jobs()
-
-
-@app.route('/devices', methods=['GET'])
-def devices():
-    return Status.devices()
 
 # Devices
 api.add_resource(DeviceByIdApi, f'/api/{ __api_version__ }/device/<int:device_id>')
 api.add_resource(DevicesApi, f'/api/{ __api_version__ }/device')
 api.add_resource(DeviceInitApi, f'/api/{ __api_version__ }/device_init/<int:device_id>')
 api.add_resource(DeviceSyncApi, f'/api/{ __api_version__ }/device_syncto')
+api.add_resource(DeviceConfigApi, f'/api/{ __api_version__ }/device/<string:hostname>/generate_config')
+# device/<string:hostname>/current_config
 
 # Links
 api.add_resource(LinknetsApi, f'/api/{ __api_version__ }/linknet')

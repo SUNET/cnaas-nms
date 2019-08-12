@@ -26,10 +26,24 @@ class f_syslog_server(BaseModel):
     host: str = host_schema
 
 
+class f_interface(BaseModel):
+    name: str = None
+    ifclass: str = None
+    config: Optional[str] = None
+
+
+class f_vrf(BaseModel):
+    name: str = None
+    rd: str = None
+    group: str = None
+
+
 class f_root(BaseModel):
     ntp_servers: Optional[List[f_ntp_server]]
     radius_servers: Optional[List[f_radius_server]]
     syslog_servers: Optional[List[f_syslog_server]]
+    interfaces: Optional[List[f_interface]]
+    vrfs: Optional[List[f_vrf]]
 
 
 class f_group_item(BaseModel):

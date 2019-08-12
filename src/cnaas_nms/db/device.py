@@ -76,6 +76,8 @@ class Device(cnaas_nms.db.base.Base):
     description = Column(Unicode(255))
     management_ip = Column(IPAddressType)
     dhcp_ip = Column(IPAddressType)
+    infra_ip = Column(IPAddressType)
+    oob_ip = Column(IPAddressType)
     serial = Column(String(64))
     ztp_mac = Column(String(12))
     platform = Column(String(64))
@@ -152,7 +154,8 @@ class Device(cnaas_nms.db.base.Base):
         peer_hostnames = []
         intf: Interface = Interface()
         for intf in intfs:
-            peer_hostnames.append(intf.data['neighbor'])
+            if intf.data:
+                peer_hostnames.append(intf.data['neighbor'])
         return peer_hostnames
 
     @classmethod

@@ -10,6 +10,9 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.tools.log import get_logger
+
+logger = get_logger()
 
 
 class DeviceByIdApi(Resource):
@@ -169,4 +172,31 @@ class DeviceSyncApi(Resource):
         res['job_id'] = job_id
 
         return res
+
+
+class DeviceConfigApi(Resource):
+    def get(self, hostname: str):
+        result = empty_result()
+        result['data'] = {'config': None}
+        if not Device.valid_hostname(hostname):
+            return empty_result(
+                status='error',
+                data=f"Invalid hostname specified"
+            ), 400
+
+        try:
+            config, template_vars = cnaas_nms.confpush.sync_devices.generate_only(hostname)
+            result['data']['config'] = {
+                'hostname': hostname,
+                'generated_config': config,
+                'available_variables': template_vars
+            }
+        except Exception as e:
+            logger.exception(f"Exception while generating config for device {hostname}")
+            return empty_result(
+                status='error',
+                data="Exception while generating config for device {}: {} {}".format(hostname, type(e), str(e))
+            ), 500
+
+        return result
 

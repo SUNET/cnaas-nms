@@ -37,7 +37,12 @@ class Scheduler(object, metaclass=SingletonType):
         try:
             fcntl.lockf(self.lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            self.use_mule = True
+            try:
+                import uwsgi
+            except Exception:
+                self.use_mule = False
+            else:
+                self.use_mule = True
         else:
             self.use_mule = False
         caller = self.get_caller(caller=inspect.currentframe())

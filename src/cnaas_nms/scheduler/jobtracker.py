@@ -44,6 +44,9 @@ class Jobtracker(DataclassPersistence):
         try:
             if isinstance(res, NornirJobResult) and isinstance(res.nrresult, AggregatedResult):
                 self.result = nr_result_serialize(res.nrresult)
+                self.result['_totals'] = {'selected_devices': len(res.nrresult)}
+                if res.change_score:
+                    self.result['_totals']['change_score'] = res.change_score
             elif isinstance(res, (StrJobResult, DictJobResult)):
                 self.result = res.result
             else:

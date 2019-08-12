@@ -10,6 +10,7 @@ from typing import Optional
 @dataclass
 class NornirJobResult(JobResult):
     nrresult: Optional[MultiResult] = None
+    change_score: Optional[float] = None
 
 
 def cnaas_init():

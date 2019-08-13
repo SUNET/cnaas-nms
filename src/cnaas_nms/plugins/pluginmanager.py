@@ -10,7 +10,16 @@ from cnaas_nms.tools.log import get_logger
 logger = get_logger()
 
 
-class PluginManager:
+class SingletonType(type):
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonType, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class PluginManagerHandler(object, metaclass=SingletonType):
     def __init__(self):
         self.pm = pluggy.PluginManager("cnaas-nms")
         self.pm.add_hookspecs(CnaasPluginSpec)
@@ -48,3 +57,9 @@ class PluginManager:
         for res in self.pm.hook.selftest():
             if not res:
                 logger.error("Plugin initialization selftest failed")
+
+    def get_plugins(self):
+        module_names = []
+        for name, plugin in self.pm.list_name_plugin():
+            module_names.append(plugin.__module__)
+        return module_names

@@ -8,6 +8,7 @@ from cnaas_nms.api.jobs import JobsApi, JobByIdApi
 from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById
+from cnaas_nms.api.plugins import PluginsApi
 
 from cnaas_nms.version import __api_version__
 import os
@@ -49,3 +50,6 @@ api.add_resource(SettingsApi, f'/api/{ __api_version__ }/settings')
 # Groups
 api.add_resource(GroupsApi, f'/api/{ __api_version__ }/groups')
 api.add_resource(GroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_name>')
+
+# Plugins
+api.add_resource(PluginsApi, f'/api/{ __api_version__ }/plugins')

@@ -152,7 +152,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
     task.host["config"] = r.result
     task.host["template_vars"] = template_vars
 
-    if not generate_only:
+    if generate_only:
+        task.host["change_score"] = 0
+    else:
         logger.debug("Synchronize device config for host: {}".format(task.host.name))
 
         task.run(task=networking.napalm_configure,
@@ -162,11 +164,12 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
                  dry_run=dry_run
                  )
 
-        change_score = 0
         if task.results[1].diff:
             config = task.results[1].host["config"]
             diff = task.results[1].diff
             task.host["change_score"] = calculate_score(config, diff)
+        else:
+            task.host["change_score"] = 0
 
 
 def generate_only(hostname: str) -> (str, dict):
@@ -275,9 +278,10 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         if host in failed_hosts:
             total_change_score = 100
             break
-        change_scores.append(results[0].host["change_score"])
-        logger.debug("Change score for host {}: {}".format(
-            host, results[0].host["change_score"]))
+        if "change_score" in results[0].host:
+            change_scores.append(results[0].host["change_score"])
+            logger.debug("Change score for host {}: {}".format(
+                host, results[0].host["change_score"]))
 
     if not change_scores or total_change_score >= 100:
         total_change_score = 100

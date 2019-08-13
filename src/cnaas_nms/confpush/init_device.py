@@ -119,6 +119,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(
                     neighbor_hostnames))
+        # TODO: save ip in temporary table so it's not allocated to someone else while pushing config
         mgmt_ip = mgmtdomain.find_free_mgmt_ip(session)
         if not mgmt_ip:
             raise Exception("Could not find free management IP for management domain {}".format(
@@ -163,6 +164,9 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.management_ip = device_variables['mgmt_ip']
+
+    # Plugin hook, allocated IP
+    # send: mgmt_ip , mgmt_network , hostname , VRF?
 
     # step3. register apscheduler job that continues steps
 
@@ -228,7 +232,14 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         dev.state = DeviceState.MANAGED
         dev.device_type = DeviceType.ACCESS
         dev.synchronized = False
+        dev.serial = facts['serial_number']
+        dev.vendor = facts['vendor']
+        dev.model = facts['model']
+        dev.os_version = facts['os_version']
         #TODO: remove dhcp_ip ?
+
+    # Plugin hook: new managed device
+    # Send: hostname , device type , serial , platform , vendor , model , os version
 
     try:
         update_interfacedb(hostname, replace=True)

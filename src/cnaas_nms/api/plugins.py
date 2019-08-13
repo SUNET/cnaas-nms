@@ -1,3 +1,4 @@
+from flask import request
 from flask_restful import Resource
 
 from cnaas_nms.api.generic import empty_result
@@ -18,11 +19,14 @@ class PluginsApi(Resource):
                                             'plugindata': plugindata})
 
     def put(self):
-        # run selftest
-        pass
-#        json_data = request.get_json()
-        pmh = PluginManagerHandler()
-        res = pmh.pm.hook.selftest()
-        return empty_result('success', {'result': res})
-#        return empty_result('error', "No action specified"), 400
+        json_data = request.get_json()
+        if 'action' in json_data:
+            if str(json_data['action']).upper() == 'SELFTEST':
+                pmh = PluginManagerHandler()
+                res = pmh.pm.hook.selftest()
+                return empty_result('success', {'result': res})
+            else:
+                return empty_result('error', "Unknown action specified"), 400
+        else:
+            return empty_result('error', "No action specified"), 400
 

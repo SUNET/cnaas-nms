@@ -18,10 +18,18 @@ class PluginManager:
     @classmethod
     def get_plugindata(cls, config='/etc/cnaas-nms/plugins.yml'):
         with open(config, 'r') as plugins_file:
-            return yaml.safe_load(plugins_file)
+            data = yaml.safe_load(plugins_file)
+            if 'plugins' in data and isinstance(data['plugins'], list):
+                return data
+            else:
+                logger.error("No plugins defined in plugins.yml")
+                return None
 
     def load_plugins(self):
         plugindata = self.get_plugindata()
+        if not plugindata:
+            logger.error("Could not get plugins")
+            return
         for plugin in plugindata['plugins']:
             if not 'filename':
                 logger.error("Invalid plugin configuration: {}".format(plugin))
@@ -37,7 +45,6 @@ class PluginManager:
             else:
                 self.pm.register(pluginmodule.Plugin())
 
-        print(self.pm.list_name_plugin())
         for res in self.pm.hook.selftest():
             if not res:
-                logger.error("Plugin initialization test failed")
+                logger.error("Plugin initialization selftest failed")

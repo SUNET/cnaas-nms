@@ -16,7 +16,8 @@ class CnaasPluginSpec(object):
 
 
 class CnaasBasePlugin(object):
-    def get_vars(self, module_name=None):
+    @classmethod
+    def get_vars(cls, module_name=None):
         data = cnaas_nms.plugins.pluginmanager.PluginManager.get_plugindata()
         plugin_name = module_name.split('.')[-1]
         for plugin in data['plugins']:

@@ -1,19 +1,31 @@
 import logging
 
 from cnaas_nms.plugins.pluginspec import CnaasBasePlugin, hookimpl
+from cnaas_nms.tools.log import get_logger
+
+
+logger = get_logger()
 
 
 class Plugin(CnaasBasePlugin):
+    @classmethod
+    def get_logger(cls):
+        pluginvars = cls.get_vars(__name__)
+        file_logger = logging.getLogger("filewriter")
+        try:
+            handler = logging.FileHandler(pluginvars['logfile'])
+        except PermissionError:
+            logger.error("Permission denied for logfile: {}".format(pluginvars['logfile']))
+            return None
+        file_logger.addHandler(handler)
+        file_logger.setLevel(logging.DEBUG)
+        return file_logger
+
     @hookimpl
     def selftest(self):
-        vars = self.get_vars(__name__)
-        print("vars: {}".format(vars))
-        logger = logging.getLogger("filewriter")
-        try:
-            handler = logging.FileHandler(vars['logfile'])
-        except PermissionError:
+        file_logger = self.get_logger()
+        if file_logger:
+            file_logger.info("Staring filewriter")
+            return True
+        else:
             return False
-        logger.addHandler(handler)
-        logger.setLevel(logging.DEBUG)
-        logger.info("Staring filewriter")
-        return True

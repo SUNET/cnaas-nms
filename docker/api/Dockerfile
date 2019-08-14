@@ -8,6 +8,7 @@ RUN mkdir /etc/cnaas-nms
 COPY config/db_config.yml /etc/cnaas-nms/db_config.yml
 COPY config/api.yml /etc/cnaas-nms/api.yml
 COPY config/repository.yml /etc/cnaas-nms/repository.yml
+COPY config/plugins.yml /etc/cnaas-nms/plugins.yml
 
 # Setup script
 COPY cnaas-setup.sh /opt/cnaas/cnaas-setup.sh

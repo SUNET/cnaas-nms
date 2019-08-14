@@ -175,7 +175,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
                                    hostname=hostname
                                    )
     except Exception as e:
-        logger.error("Error while running plugin hooks for allocated_ipv4: ".format(str(e)))
+        logger.exception("Error while running plugin hooks for allocated_ipv4: ".format(str(e)))
 
     # step3. register apscheduler job that continues steps
 
@@ -262,7 +262,7 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
             os_version=facts['os_version']
         )
     except Exception as e:
-        logger.error("Error while running plugin hooks for new_managed_device: ".format(str(e)))
+        logger.exception("Error while running plugin hooks for new_managed_device: ".format(str(e)))
 
     try:
         update_interfacedb(hostname, replace=True)

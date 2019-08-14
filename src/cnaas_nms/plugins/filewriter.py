@@ -34,11 +34,14 @@ class Plugin(CnaasBasePlugin):
     @hookimpl
     def allocated_ipv4(self, vrf, ipv4_address, ipv4_network, hostname):
         file_logger = self.get_logger()
-        file_logger.info("{} {} {} {}".format(vrf, ipv4_address, ipv4_network, hostname))
+        if file_logger:
+            file_logger.info("Allocated IPv4: {} {} {} {}".format(
+                vrf, ipv4_address, ipv4_network, hostname))
 
     @hookimpl
     def new_managed_device(self, hostname, device_type, serial_number, vendor,
                            model, os_version):
         file_logger = self.get_logger()
-        file_logger.info("{} {} {} {} {} {}".format(hostname, device_type, serial_number,
-                                                    vendor, model, os_version))
+        if file_logger:
+            file_logger.info("New managed device: {} {} {} {} {} {}".format(
+                hostname, device_type, serial_number, vendor, model, os_version))

@@ -6,6 +6,7 @@ import atexit
 import signal
 
 from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 
 
 if 'COVERAGE' in os.environ:
@@ -33,6 +34,9 @@ def main_loop():
     print("Running scheduler in uwsgi mule")
     scheduler = Scheduler()
     scheduler.start()
+
+    pmh = PluginManagerHandler()
+    pmh.load_plugins()
 
     while True:
         mule_data = uwsgi.mule_get_msg()

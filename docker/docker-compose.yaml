@@ -3,7 +3,7 @@ services:
   cnaas_api:
     build: ./api/
     ports:
-      - 443:443
+      - 443:1443
     networks:
       - cnaas
     environment:

@@ -132,6 +132,20 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")
 
+    def test_5_plugins(self):
+        r = requests.get(
+            f'{URL}/api/v1.0/plugins',
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to get running plugins")
+
+        r = requests.put(
+            f'{URL}/api/v1.0/plugins',
+            json={"action": "selftest"},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to run plugin selftests")
+
 
 if __name__ == '__main__':
     unittest.main()

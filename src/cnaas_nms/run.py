@@ -6,6 +6,7 @@ import signal
 
 from cnaas_nms.api import app
 from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 
 
 os.environ['PYTHONPATH'] = os.getcwd()
@@ -39,6 +40,9 @@ def get_app():
     except (ModuleNotFoundError, ImportError):
         scheduler = Scheduler()
         scheduler.start()
+
+    pmh = PluginManagerHandler()
+    pmh.load_plugins()
 
     return app.app
 

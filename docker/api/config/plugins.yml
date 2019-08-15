@@ -1,0 +1,5 @@
+---
+plugins:
+  - filename: filewriter.py
+    vars:
+      logfile: "/tmp/filewriter.log"

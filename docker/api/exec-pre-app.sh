@@ -51,5 +51,4 @@ fi
 #. bin/activate
 #cd /opt/cnaas/venv/cnaas-nms/
 #git pull
-#python3 -m pip install -r requirements.txt
 

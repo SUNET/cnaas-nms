@@ -14,6 +14,7 @@ Contents
    mgmtdomains
    repository
    settings
+   plugins
 
 Indices and tables
 ==================

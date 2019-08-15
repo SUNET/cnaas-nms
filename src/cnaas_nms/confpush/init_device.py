@@ -20,6 +20,7 @@ from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.confpush.update import update_interfacedb
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.settings import get_settings
+from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -119,6 +120,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(
                     neighbor_hostnames))
+        # TODO: save ip in temporary table so it's not allocated to someone else while pushing config
         mgmt_ip = mgmtdomain.find_free_mgmt_ip(session)
         if not mgmt_ip:
             raise Exception("Could not find free management IP for management domain {}".format(
@@ -164,6 +166,17 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.management_ip = device_variables['mgmt_ip']
 
+    # Plugin hook, allocated IP
+    # send: mgmt_ip , mgmt_network , hostname , VRF?
+    try:
+        pmh = PluginManagerHandler()
+        pmh.pm.hook.allocated_ipv4(vrf='mgmt', ipv4_address=str(mgmt_ip),
+                                   ipv4_network=str(mgmt_gw_ipif.network),
+                                   hostname=hostname
+                                   )
+    except Exception as e:
+        logger.exception("Error while running plugin hooks for allocated_ipv4: ".format(str(e)))
+
     # step3. register apscheduler job that continues steps
 
     scheduler = Scheduler()
@@ -179,6 +192,7 @@ def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResu
         next_job_id = next_job_id
     )
 
+
 def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optional[Job]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
@@ -190,6 +204,7 @@ def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optiona
         return next_job_id
     else:
         return None
+
 
 @job_wrapper
 def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResult:
@@ -228,7 +243,26 @@ def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResul
         dev.state = DeviceState.MANAGED
         dev.device_type = DeviceType.ACCESS
         dev.synchronized = False
+        dev.serial = facts['serial_number']
+        dev.vendor = facts['vendor']
+        dev.model = facts['model']
+        dev.os_version = facts['os_version']
         #TODO: remove dhcp_ip ?
+
+    # Plugin hook: new managed device
+    # Send: hostname , device type , serial , platform , vendor , model , os version
+    try:
+        pmh = PluginManagerHandler()
+        pmh.pm.hook.new_managed_device(
+            hostname=hostname,
+            device_type=DeviceType.ACCESS.name,
+            serial_number=facts['serial_number'],
+            vendor=facts['vendor'],
+            model=facts['model'],
+            os_version=facts['os_version']
+        )
+    except Exception as e:
+        logger.exception("Error while running plugin hooks for new_managed_device: ".format(str(e)))
 
     try:
         update_interfacedb(hostname, replace=True)

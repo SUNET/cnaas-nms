@@ -44,7 +44,8 @@ python3 -m pip install -r requirements.txt
 #cd /opt/cnaas/venv/cnaas-nms/
 #git remote update
 #git fetch
-#git checkout --track origin/feature.integrationtests
+#git checkout --track origin/feature.plugins
+#python3 -m pip install -r requirements.txt
 
 #rm -rf /var/lib/apt/lists/*
 

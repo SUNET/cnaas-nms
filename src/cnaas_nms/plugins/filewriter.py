@@ -40,7 +40,7 @@ class Plugin(CnaasBasePlugin):
 
     @hookimpl
     def new_managed_device(self, hostname, device_type, serial_number, vendor,
-                           model, os_version):
+                           model, os_version, management_ip):
         file_logger = self.get_logger()
         if file_logger:
             file_logger.info("New managed device: {} {} {} {} {} {}".format(

@@ -81,29 +81,32 @@ class MgmtdomainsApi(Resource):
         json_data = request.get_json()
         data = {}
         errors = []
+
         with sqla_session() as session:
-            if 'device_a' in json_data:
-                hostname_a = str(json_data['device_a'])
-                if not Device.valid_hostname(hostname_a):
-                    errors.append(f"Invalid hostname for device_a: {hostname_a}")
+            if 'device_a_id' in json_data:
+                try:
+                    device_a_id = int(json_data['device_a_id'])
+                except Exception:
+                    errors.appemnd('Invalid device ID for device_a_id')
                 else:
-                    device_a = session.query(Device).\
-                        filter(Device.hostname == hostname_a).one_or_none()
-                    if not device_a:
-                        errors.append(f"Device with hostname {hostname_a} not found")
+                    device_a_db = session.query(Device).\
+                        filter(Device.id == device_a_id).one_or_none()
+                    if not device_a_db:
+                        errors.append(f"Device with ID {device_a_id} not found")
                     else:
-                        data['device_a'] = device_a
-            if 'device_b' in json_data:
-                hostname_b = str(json_data['device_b'])
-                if not Device.valid_hostname(hostname_b):
-                    errors.append(f"Invalid hostname for device_b: {hostname_b}")
+                        data['device_a_id'] = device_a_id
+            if 'device_b_id' in json_data:
+                try:
+                    device_b_id = int(json_data['device_b_id'])
+                except Exception:
+                    errors.appemnd('Invalid device ID for device_b_id')
                 else:
-                    device_b = session.query(Device).\
-                        filter(Device.hostname == hostname_b).one_or_none()
-                    if not device_b:
-                        errors.append(f"Device with hostname {hostname_b} not found")
+                    device_b_db = session.query(Device).\
+                        filter(Device.id == device_b_id).one_or_none()
+                    if not device_b_db:
+                        errors.append(f"Device with ID {device_b_id} not found")
                     else:
-                        data['device_b'] = device_b
+                        data['device_b_id'] = device_b_id
             if 'vlan' in json_data:
                 try:
                     vlan_id_int = int(json_data['vlan'])
@@ -124,15 +127,15 @@ class MgmtdomainsApi(Resource):
                     else:
                         errors.append("Bad prefix length for management network: {}".format(
                             prefix_len))
-            required_keys = ['device_a', 'device_b', 'vlan', 'ipv4_gw']
+            required_keys = ['device_a_id', 'device_b_id', 'vlan', 'ipv4_gw']
             if all([key in data for key in required_keys]):
                 new_mgmtd = Mgmtdomain()
-                new_mgmtd.device_a = data['device_a']
-                new_mgmtd.device_b = data['device_b']
+                new_mgmtd.device_a_id = data['device_a_id']
+                new_mgmtd.device_b_id = data['device_b_id']
                 new_mgmtd.ipv4_gw = data['ipv4_gw']
                 new_mgmtd.vlan = data['vlan']
                 result = session.add(new_mgmtd)
-                return empty_result(result, 200)
+                return empty_result(), 200
             else:
                 errors.append("Not all required inputs were found: {}".\
                               format(', '.join(required_keys)))

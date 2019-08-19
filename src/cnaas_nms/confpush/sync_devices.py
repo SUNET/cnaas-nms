@@ -20,8 +20,10 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.scheduler.scheduler import Scheduler
 
 logger = get_logger()
+AUTOPUSH_MAX_SCORE = 10
 
 
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
@@ -199,7 +201,7 @@ def generate_only(hostname: str) -> (str, dict):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 dry_run: bool = True, force: bool = False) -> NornirJobResult:
+                 dry_run: bool = True, force: bool = False, auto_push = False) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -210,6 +212,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         dry_run: Don't commit generated config to device
         force: Commit config even if changes made outside CNaaS will get
                overwritten
+        auto_push: Automatically do live-run after dry-run if change score is low
 
     Returns:
         NornirJobResult
@@ -292,5 +295,20 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     else:
         total_change_score = max(min(int(median(change_scores) + 0.5), 100), 1)
     logger.info("Change impact score: {}".format(total_change_score))
-    # TODO: add field for change score in NornirJobResult object
-    return NornirJobResult(nrresult=nrresult, change_score=total_change_score)
+
+    next_job_id = None
+    if auto_push and len(device_list) == 1 and hostname and dry_run:
+        if total_change_score < AUTOPUSH_MAX_SCORE:
+            scheduler = Scheduler()
+            next_job_id = scheduler.add_onetime_job(
+                'cnaas_nms.confpush.sync_devices:sync_devices',
+                when=0,
+                kwargs={'hostname': hostname, 'dry_run': False, 'force': force})
+            logger.info(f"Auto-push scheduled live-run of commit as job id {next_job_id}")
+        else:
+            logger.info(
+                f"Auto-push of config to device {hostname} failed because change score of "
+                f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
+            )
+
+    return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id, change_score=total_change_score)

@@ -16,7 +16,7 @@ Contents
    :maxdepth: 1
 
    Home <self>
-   Tutorial <tutorials/intro/index>
+   Tutorials <tutorials/index>
    howto/index
    apiref/index
    reporef/index

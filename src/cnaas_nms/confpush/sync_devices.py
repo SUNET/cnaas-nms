@@ -197,6 +197,26 @@ def generate_only(hostname: str) -> (str, dict):
         return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
 
 
+def sync_check_hash(task, force=False):
+    """
+    Compared stored configuration hash with the actual one. Raise an
+    exception if they differ.
+
+    Args:
+       task: Nornir task.
+    """
+    if force is True:
+        return
+    stored_config_hash = Device.get_config_hash(task.host.name)
+    if stored_config_hash is '':
+        return
+    current_config_hash = get_running_config_hash(task.host.name)
+    if current_config_hash is None:
+        raise Exception('Failed to get configuration hash for {}'.format(task.host.name))
+    if stored_config_hash != current_config_hash:
+        raise Exception('Configuration is altered for device {}'.format(task.host.name))
+
+
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
                  dry_run: bool = True, force: bool = False) -> NornirJobResult:
@@ -227,19 +247,12 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         device_list
     ))
 
-    alterned_devices = []
-    for device in device_list:
-        stored_config_hash = Device.get_config_hash(device)
-        if stored_config_hash is None:
-            continue
-        current_config_hash = get_running_config_hash(device)
-        if current_config_hash is None:
-            raise Exception('Failed to get configuration hash')
-        if stored_config_hash != current_config_hash:
-            logger.info("Device {} configuration is altered outside of CNaaS!".format(device))
-            alterned_devices.append(device)
-    if alterned_devices != [] and force is False:
-        raise Exception('Configuration for {} is altered outside of CNaaS'.format(', '.join(alterned_devices)))
+    try:
+        nrhash = nr_filtered.run(task=sync_check_hash, force=force)
+        print_result(nrhash)
+    except Exception as e:
+        logger.exception("Exception when comparing hash: {}".format(str(e)))
+        return NornirJobResult(nrresult=nrhash)
 
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run)

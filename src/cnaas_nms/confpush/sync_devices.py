@@ -197,24 +197,37 @@ def generate_only(hostname: str) -> (str, dict):
         return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
 
 
-def sync_check_hash(task, force=False):
+def sync_check_hash(*args, **kwargs):
     """
     Compared stored configuration hash with the actual one. Raise an
     exception if they differ.
 
     Args:
-       task: Nornir task.
+       device: Hostname of device
+       force: Ignore hash check
     """
-    if force is True:
+    if kwargs['force'] is True:
         return
-    stored_config_hash = Device.get_config_hash(task.host.name)
-    if stored_config_hash is '':
-        return
-    current_config_hash = get_running_config_hash(task.host.name)
+    stored_config_hash = Device.get_config_hash(kwargs['device'])
+    current_config_hash = get_running_config_hash(kwargs['device'])
     if current_config_hash is None:
-        raise Exception('Failed to get configuration hash for {}'.format(task.host.name))
-    if stored_config_hash != current_config_hash:
-        raise Exception('Configuration is altered for device {}'.format(task.host.name))
+        raise Exception('Failed to get configuration for {}'.format(kwargs['device']))
+    if stored_config_hash is not '' and stored_config_hash != current_config_hash:
+        raise Exception('Configuration is altered for device {}'.format(kwargs['device']))
+    return
+
+
+def sync_check_hash_run(task, force=False):
+    """
+    Start the task which will compare device configuration hashes.
+
+    Args:
+        task: Nornir task
+        force: Ignore device hash
+    """
+    r = task.run(task=sync_check_hash,
+                 device=task.host.name,
+                 force=force)
 
 
 @job_wrapper
@@ -248,11 +261,12 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     ))
 
     try:
-        nrhash = nr_filtered.run(task=sync_check_hash, force=force)
-        print_result(nrhash)
+        nrresult = nr_filtered.run(task=sync_check_hash_run, force=force)
+        print_result(nrresult)
+        if nrresult.failed:
+            raise Exception('Configuration hash check failed')
     except Exception as e:
-        logger.exception("Exception when comparing hash: {}".format(str(e)))
-        return NornirJobResult(nrresult=nrhash)
+        raise Exception('Configuration hash check failed for {}'.format(' '.join(nrresult.failed_hosts.keys())))
 
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run)

@@ -8,6 +8,7 @@ from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
 from nornir.core.filter import F
 
+
 import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
@@ -20,6 +21,10 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
+from nornir.plugins.tasks.networking import napalm_get
+
+from hashlib import sha256
+
 
 logger = get_logger()
 
@@ -197,27 +202,7 @@ def generate_only(hostname: str) -> (str, dict):
         return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
 
 
-def sync_check_hash(*args, **kwargs):
-    """
-    Compared stored configuration hash with the actual one. Raise an
-    exception if they differ.
-
-    Args:
-       device: Hostname of device
-       force: Ignore hash check
-    """
-    if kwargs['force'] is True:
-        return
-    stored_config_hash = Device.get_config_hash(kwargs['device'])
-    current_config_hash = get_running_config_hash(kwargs['device'])
-    if current_config_hash is None:
-        raise Exception('Failed to get configuration for {}'.format(kwargs['device']))
-    if stored_config_hash is not '' and stored_config_hash != current_config_hash:
-        raise Exception('Configuration is altered for device {}'.format(kwargs['device']))
-    return
-
-
-def sync_check_hash_run(task, force=False):
+def sync_check_hash(task, force=False):
     """
     Start the task which will compare device configuration hashes.
 
@@ -225,9 +210,19 @@ def sync_check_hash_run(task, force=False):
         task: Nornir task
         force: Ignore device hash
     """
-    r = task.run(task=sync_check_hash,
-                 device=task.host.name,
-                 force=force)
+    if force is True:
+        return
+    res = task.run(task=napalm_get, getters=["config"])
+    stored_hash = Device.get_config_hash(task.host.name)
+    if stored_hash is None:
+        return
+    running_config = dict(res.result)['config']['running'].encode()
+    if running_config is None:
+        raise Exception('Failed to get running configuration')
+    hash_obj = sha256(running_config)
+    running_hash = hash_obj.hexdigest()
+    if stored_hash != running_hash:
+        raise Exception('Device {} configuration is altered outside of CNaaS!'.format(task.host.name))
 
 
 @job_wrapper
@@ -261,10 +256,10 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     ))
 
     try:
-        nrresult = nr_filtered.run(task=sync_check_hash_run, force=force)
+        nrresult = nr_filtered.run(task=sync_check_hash, force=force)
         print_result(nrresult)
         if nrresult.failed:
-            raise Exception('Configuration hash check failed')
+            raise Exception
     except Exception as e:
         raise Exception('Configuration hash check failed for {}'.format(' '.join(nrresult.failed_hosts.keys())))
 

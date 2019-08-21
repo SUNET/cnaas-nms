@@ -252,9 +252,14 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         return NornirJobResult(nrresult=nrresult)
 
     failed_hosts = list(nrresult.failed_hosts.keys())
+    for hostname in failed_hosts:
+        logger.error("Synchronization of device '{}' failed".format(hostname))
+
+    if nrresult.failed:
+        logger.error("Not all devices were successfully synchronized")
 
     if not dry_run:
-        # set new config hash and mark device synchronized
+        # set new config hash
         for key in nrresult.keys():
             if key in failed_hosts:
                 continue
@@ -263,42 +268,50 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                 raise Exception('Failed to get configuration hash')
             Device.set_config_hash(key, new_config_hash)
 
-        with sqla_session() as session:
-            for hostname in device_list:
-                if hostname in failed_hosts:
-                    logger.error("Synchronization of device '{}' failed".format(hostname))
-                    continue
-                dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-                dev.synchronized = True
-
-    if nrresult.failed:
-        logger.error("Not all devices were successfully synchronized")
-
     total_change_score = 1
     change_scores = []
+    changed_hosts = []
+    unchanged_hosts = []
     # calculate change impact score
     for host, results in nrresult.items():
-        if host in failed_hosts:
-            total_change_score = 100
-            break
-        if "change_score" in results[0].host:
-            change_scores.append(results[0].host["change_score"])
-            logger.debug("Change score for host {}: {}".format(
-                host, results[0].host["change_score"]))
+        if results[2].diff:
+            changed_hosts.append(host)
+            if "change_score" in results[0].host:
+                change_scores.append(results[0].host["change_score"])
+                logger.debug("Change score for host {}: {}".format(
+                    host, results[0].host["change_score"]))
+        else:
+            unchanged_hosts.append(host)
+            change_scores.append(0)
+            logger.debug("Empty diff for host {}, 0 change score".format(
+                host))
 
-    if not change_scores or total_change_score >= 100:
+    # set devices as synchronized if needed
+    with sqla_session() as session:
+        for hostname in changed_hosts:
+            if not dry_run:
+                dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+                dev.synchronized = True
+        for hostname in unchanged_hosts:
+            dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+            dev.synchronized = True
+
+    if not change_scores or total_change_score >= 100 or failed_hosts:
         total_change_score = 100
     elif max(change_scores) > 1000:
         # If some device has a score higher than this, disregard any averages
         # and report max impact score
         total_change_score = 100
     else:
+        # calculate median value and round up, use min value of 1 and max of 100
         total_change_score = max(min(int(median(change_scores) + 0.5), 100), 1)
     logger.info("Change impact score: {}".format(total_change_score))
 
     next_job_id = None
     if auto_push and len(device_list) == 1 and hostname and dry_run:
-        if total_change_score < AUTOPUSH_MAX_SCORE:
+        if not changed_hosts:
+            logger.info("None of the selected host has any changes (diff), skipping auto-push")
+        elif total_change_score < AUTOPUSH_MAX_SCORE:
             scheduler = Scheduler()
             next_job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.sync_devices:sync_devices',

@@ -32,6 +32,10 @@ Example response:
     "job_id": "5d5aa787ba050d5fd085f1ce"
   }
 
+The status success in this case only means that the job was scheduled successfully, but
+you have to poll the job API to see that result of what was done, the job itself might still
+fail.
+
 Arguments:
 ----------
 

@@ -41,10 +41,10 @@ git checkout develop
 python3 -m pip install -r requirements.txt
 
 # Temporary for testing new branch
-#cd /opt/cnaas/venv/cnaas-nms/
-#git remote update
-#git fetch
-#git checkout --track origin/feature.plugins
+cd /opt/cnaas/venv/cnaas-nms/
+git remote update
+git fetch
+git checkout --track origin/feature.autopush
 #python3 -m pip install -r requirements.txt
 
 #rm -rf /var/lib/apt/lists/*

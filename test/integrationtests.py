@@ -105,7 +105,7 @@ class GetTests(unittest.TestCase):
     def test_2_syncto_access(self):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
-            json={"hostname": "eosaccess", "dry_run": True},
+            json={"hostname": "eosaccess", "dry_run": True, "auto_push": True},
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
@@ -132,7 +132,14 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")
 
-    def test_5_plugins(self):
+    def test_5_genconfig(self):
+        r = requests.get(
+            f'{URL}/api/v1.0/device/eosdist/generate_config',
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to generate config for eosdist")
+
+    def test_6_plugins(self):
         r = requests.get(
             f'{URL}/api/v1.0/plugins',
             verify=TLS_VERIFY

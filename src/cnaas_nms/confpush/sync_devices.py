@@ -202,7 +202,7 @@ def generate_only(hostname: str) -> (str, dict):
         return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
 
 
-def sync_check_hash(task, force=False):
+def sync_check_hash(task, force=False, dry_run=True):
     """
     Start the task which will compare device configuration hashes.
 
@@ -212,10 +212,10 @@ def sync_check_hash(task, force=False):
     """
     if force is True:
         return
-    res = task.run(task=napalm_get, getters=["config"])
     stored_hash = Device.get_config_hash(task.host.name)
     if stored_hash is None:
         return
+    res = task.run(task=napalm_get, getters=["config"])
     running_config = dict(res.result)['config']['running'].encode()
     if running_config is None:
         raise Exception('Failed to get running configuration')
@@ -256,7 +256,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     ))
 
     try:
-        nrresult = nr_filtered.run(task=sync_check_hash, force=force)
+        nrresult = nr_filtered.run(task=sync_check_hash,
+                                   force=force,
+                                   dry_run=dry_run)
         print_result(nrresult)
         if nrresult.failed:
             raise Exception

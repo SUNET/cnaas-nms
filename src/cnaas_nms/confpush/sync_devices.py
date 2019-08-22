@@ -1,6 +1,7 @@
 from typing import Optional
 from ipaddress import IPv4Interface
 from statistics import median
+from hashlib import sha256
 import os
 import yaml
 
@@ -21,6 +22,8 @@ from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.scheduler.scheduler import Scheduler
+from nornir.plugins.tasks.networking import napalm_get
+
 
 logger = get_logger()
 AUTOPUSH_MAX_SCORE = 10
@@ -199,6 +202,29 @@ def generate_only(hostname: str) -> (str, dict):
         return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
 
 
+def sync_check_hash(task, force=False, dry_run=True):
+    """
+    Start the task which will compare device configuration hashes.
+
+    Args:
+        task: Nornir task
+        force: Ignore device hash
+    """
+    if force is True:
+        return
+    stored_hash = Device.get_config_hash(task.host.name)
+    if stored_hash is None:
+        return
+    res = task.run(task=napalm_get, getters=["config"])
+    running_config = dict(res.result)['config']['running'].encode()
+    if running_config is None:
+        raise Exception('Failed to get running configuration')
+    hash_obj = sha256(running_config)
+    running_hash = hash_obj.hexdigest()
+    if stored_hash != running_hash:
+        raise Exception('Device {} configuration is altered outside of CNaaS!'.format(task.host.name))
+
+
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
                  dry_run: bool = True, force: bool = False, auto_push = False) -> NornirJobResult:
@@ -230,19 +256,15 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         device_list
     ))
 
-    alterned_devices = []
-    for device in device_list:
-        stored_config_hash = Device.get_config_hash(device)
-        if stored_config_hash is None:
-            continue
-        current_config_hash = get_running_config_hash(device)
-        if current_config_hash is None:
-            raise Exception('Failed to get configuration hash')
-        if stored_config_hash != current_config_hash:
-            logger.info("Device {} configuration is altered outside of CNaaS!".format(device))
-            alterned_devices.append(device)
-    if alterned_devices != [] and force is False:
-        raise Exception('Configuration for {} is altered outside of CNaaS'.format(', '.join(alterned_devices)))
+    try:
+        nrresult = nr_filtered.run(task=sync_check_hash,
+                                   force=force,
+                                   dry_run=dry_run)
+        print_result(nrresult)
+        if nrresult.failed:
+            raise Exception
+    except Exception as e:
+        raise Exception('Configuration hash check failed for {}'.format(' '.join(nrresult.failed_hosts.keys())))
 
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run)

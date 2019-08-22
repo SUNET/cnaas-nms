@@ -43,10 +43,11 @@ class PluginManagerHandler(object, metaclass=SingletonType):
             if not 'filename':
                 logger.error("Invalid plugin configuration: {}".format(plugin))
             try:
-                module_name = "cnaas_nms.plugins." + plugin['filename'].rsplit('.',1)[0]
+                module_name = "cnaas_nms.plugins." + plugin['filename'].rsplit('.', 1)[0]
                 pluginmodule = importlib.import_module(module_name)
             except Exception:
                 logger.error("Could not load module {}".format(module_name))
+                continue
 
             if not callable(pluginmodule.Plugin):
                 logger.error("Could not find callable Plugin class in module {}".

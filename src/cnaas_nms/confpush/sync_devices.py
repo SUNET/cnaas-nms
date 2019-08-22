@@ -1,9 +1,9 @@
+import os
+import yaml
 from typing import Optional
 from ipaddress import IPv4Interface
 from statistics import median
 from hashlib import sha256
-import os
-import yaml
 
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result

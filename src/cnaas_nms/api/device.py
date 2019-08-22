@@ -161,6 +161,8 @@ class DeviceSyncApi(Resource):
             kwargs['dry_run'] = False
         if 'force' in json_data and isinstance(json_data['force'], bool):
             kwargs['force'] = json_data['force']
+        if 'auto_push' in json_data and isinstance(json_data['auto_push'], bool):
+            kwargs['auto_push'] = json_data['auto_push']
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(

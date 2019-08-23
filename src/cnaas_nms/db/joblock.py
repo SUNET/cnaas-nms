@@ -12,6 +12,7 @@ class JoblockNotFoundError(Exception):
 
 
 class Joblock(cnaas_nms.db.base.Base):
+    __tablename__ = 'joblock'
     jobid = Column(String(24), unique=True, primary_key=True)  # mongodb ObjectId, 12-byte hex
     name = Column(String(32), unique=True, nullable=False)
     start_time = Column(DateTime, default=datetime.datetime.now)  # onupdate=now

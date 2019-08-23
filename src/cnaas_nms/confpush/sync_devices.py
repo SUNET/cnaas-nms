@@ -280,6 +280,13 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
+        try:
+            if not dry_run:
+                with sqla_session() as session:
+                    logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+                    Joblock.release_lock(session, job_id=job_id)
+        except Exception:
+            pass
         return NornirJobResult(nrresult=nrresult)
 
     failed_hosts = list(nrresult.failed_hosts.keys())
@@ -296,6 +303,13 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                 continue
             new_config_hash = get_running_config_hash(key)
             if new_config_hash is None:
+                try:
+                    if not dry_run:
+                        with sqla_session() as session:
+                            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+                            Joblock.release_lock(session, job_id=job_id)
+                except Exception:
+                    pass
                 raise Exception('Failed to get configuration hash')
             Device.set_config_hash(key, new_config_hash)
 

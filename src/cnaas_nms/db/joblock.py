@@ -18,6 +18,18 @@ class Joblock(cnaas_nms.db.base.Base):
     start_time = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
     abort = Column(Boolean, default=False)
 
+    def as_dict(self) -> dict:
+        """Return JSON serializable dict."""
+        d = {}
+        for col in self.__table__.columns:
+            value = getattr(self, col.name)
+            if issubclass(value.__class__, cnaas_nms.db.base.Base):
+                continue
+            elif issubclass(value.__class__, datetime.datetime):
+                value = str(value)
+            d[col.name] = value
+        return d
+
     @classmethod
     def aquire_lock(cls, session: sqla_session, name: str, jobid: str) -> bool:
         curlock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
@@ -56,7 +68,8 @@ class Joblock(cnaas_nms.db.base.Base):
             jobid: jobid
 
         Returns:
-            Dict example: {'name': 'syncto', 'jobid': '5d5aa92dba050d64aa2966dc', 'abort': False}
+            Dict example: {'name': 'syncto', 'jobid': '5d5aa92dba050d64aa2966dc',
+            'start_time': '2019-08-23 10:45:07.788892', 'abort': False}
 
         """
         if jobid:
@@ -67,7 +80,7 @@ class Joblock(cnaas_nms.db.base.Base):
             raise ValueError("Either name or jobid must be set to release lock")
 
         if curlock:
-            return {'name': curlock.name, 'jobid': curlock.jobid, 'abort': curlock.abort}
+            return curlock.as_dict()
         else:
             return None
 

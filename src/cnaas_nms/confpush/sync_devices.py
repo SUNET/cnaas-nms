@@ -18,6 +18,7 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
@@ -227,7 +228,8 @@ def sync_check_hash(task, force=False, dry_run=True):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 dry_run: bool = True, force: bool = False, auto_push = False) -> NornirJobResult:
+                 dry_run: bool = True, force: bool = False, auto_push = False,
+                 job_id: Optional[str] = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -239,6 +241,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         force: Commit config even if changes made outside CNaaS will get
                overwritten
         auto_push: Automatically do live-run after dry-run if change score is low
+        job_id: job_id provided by scheduler when adding a new job
 
     Returns:
         NornirJobResult
@@ -265,6 +268,12 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             raise Exception
     except Exception as e:
         raise Exception('Configuration hash check failed for {}'.format(' '.join(nrresult.failed_hosts.keys())))
+
+    if not dry_run:
+        with sqla_session() as session:
+            logger.info("Trying to acquire lock for devices to run syncto job: {}".format(job_id))
+            if not Joblock.acquire_lock(session, name='devices', job_id=job_id):
+                raise JoblockError("Unable to acquire lock for configuring devices")
 
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run)
@@ -317,6 +326,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         for hostname in unchanged_hosts:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
             dev.synchronized = True
+        if not dry_run:
+            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+            Joblock.release_lock(session, job_id=job_id)
 
     if not change_scores or total_change_score >= 100 or failed_hosts:
         total_change_score = 100

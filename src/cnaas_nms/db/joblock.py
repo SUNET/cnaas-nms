@@ -7,7 +7,7 @@ import cnaas_nms.db.base
 from cnaas_nms.db.session import sqla_session
 
 
-class JoblockNotFoundError(Exception):
+class JoblockError(Exception):
     pass
 
 
@@ -31,27 +31,27 @@ class Joblock(cnaas_nms.db.base.Base):
         return d
 
     @classmethod
-    def aquire_lock(cls, session: sqla_session, name: str, jobid: str) -> bool:
+    def acquire_lock(cls, session: sqla_session, name: str, job_id: str) -> bool:
         curlock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
         if curlock:
             return False
-        newlock = Joblock(jobid=jobid, name=name, start_time=datetime.datetime.now())
+        newlock = Joblock(jobid=job_id, name=name, start_time=datetime.datetime.now())
         session.add(newlock)
         session.commit()
         return True
 
     @classmethod
     def release_lock(cls, session: sqla_session, name: Optional[str] = None,
-                     jobid: Optional[str] = None):
-        if jobid:
-            curlock = session.query(Joblock).filter(Joblock.jobid == jobid).one_or_none()
+                     job_id: Optional[str] = None):
+        if job_id:
+            curlock = session.query(Joblock).filter(Joblock.jobid == job_id).one_or_none()
         elif name:
             curlock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
         else:
             raise ValueError("Either name or jobid must be set to release lock")
 
         if not curlock:
-            raise JoblockNotFoundError("Current lock could not be found")
+            raise JoblockError("Current lock could not be found")
 
         session.delete(curlock)
         session.commit()
@@ -59,7 +59,7 @@ class Joblock(cnaas_nms.db.base.Base):
 
     @classmethod
     def get_lock(cls, session: sqla_session, name: Optional[str] = None,
-                 jobid: Optional[str] = None) -> Optional[Dict[str, str]]:
+                 job_id: Optional[str] = None) -> Optional[Dict[str, str]]:
         """
 
         Args:
@@ -72,8 +72,8 @@ class Joblock(cnaas_nms.db.base.Base):
             'start_time': '2019-08-23 10:45:07.788892', 'abort': False}
 
         """
-        if jobid:
-            curlock: Joblock = session.query(Joblock).filter(Joblock.jobid == jobid).one_or_none()
+        if job_id:
+            curlock: Joblock = session.query(Joblock).filter(Joblock.jobid == job_id).one_or_none()
         elif name:
             curlock: Joblock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
         else:

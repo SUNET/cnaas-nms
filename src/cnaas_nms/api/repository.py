@@ -4,6 +4,7 @@ from flask_restful import Resource
 from cnaas_nms.db.git import RepoType, refresh_repo, get_repo_status
 from cnaas_nms.db.settings import VerifyPathException
 from cnaas_nms.api.generic import empty_result
+from cnaas_nms.db.joblock import JoblockError
 
 
 class RepositoryApi(Resource):
@@ -13,7 +14,6 @@ class RepositoryApi(Resource):
         except:
             return empty_result('error', "Invalid repository type"), 400
         return empty_result('success', get_repo_status(repo_type))
-
 
     def put(self, repo):
         json_data = request.get_json()
@@ -33,7 +33,11 @@ class RepositoryApi(Resource):
                         'error',
                         "Repository structure is invalid: {}".format(type(e).__name__, str(e))
                     )
-
+                except JoblockError as e:
+                    return empty_result(
+                        'error',
+                        "Another job is locking configuration of devices, try again later ({})".format(str(e))
+                    )
             else:
                 return empty_result('error', "Invalid action"), 400
         else:

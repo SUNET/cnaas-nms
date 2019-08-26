@@ -286,7 +286,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                     logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
                     Joblock.release_lock(session, job_id=job_id)
         except Exception:
-            pass
+            logger.error("Unable to release devices lock after syncto job")
         return NornirJobResult(nrresult=nrresult)
 
     failed_hosts = list(nrresult.failed_hosts.keys())
@@ -309,7 +309,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
                             Joblock.release_lock(session, job_id=job_id)
                 except Exception:
-                    pass
+                    logger.error("Unable to release devices lock after syncto job")
                 raise Exception('Failed to get configuration hash')
             Device.set_config_hash(key, new_config_hash)
 

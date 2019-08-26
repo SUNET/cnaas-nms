@@ -28,7 +28,7 @@ The result will look like this:
 
 ::
 
-   {
+  {
     "status": "success",
     "data": {
         "jobs": [
@@ -66,4 +66,26 @@ The result will look like this:
             }
         ]
     }
-}
+  }
+
+Locks
+-----
+
+Some jobs running in CNaaS will require a lock to make sure that jobs are not
+interfering with each other. For example, only a single syncto job should be
+running at the same time or things might break in unexpected ways.
+To keep track of who is currently holding the lock for a particular feature
+a record is kept in the SQL database. If something unexpected goes wrong this
+lock might need to be manually cleared.
+
+List current locks:
+
+::
+
+   curl http://hostname/api/v1.0/joblocks
+
+Manually clear/delete a lock:
+
+::
+
+   curl http://hostname/api/v1.0/joblocks -X DELETE -d '{"name": "devices"}' -H "Content-Type: application/json"

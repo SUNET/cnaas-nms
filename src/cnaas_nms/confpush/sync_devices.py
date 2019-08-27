@@ -29,7 +29,7 @@ from hashlib import sha256
 logger = get_logger()
 
 
-def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
+def push_sync_device(task, dry_run: bool = True, generate_only: bool = False, job=None):
     """
     Nornir task to generate config and push to device
 
@@ -175,6 +175,8 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
             task.host["change_score"] = calculate_score(config, diff)
         else:
             task.host["change_score"] = 0
+    if job:
+        job.finished_devices_update(task.host.name)
 
 
 def generate_only(hostname: str) -> (str, dict):
@@ -227,7 +229,7 @@ def sync_check_hash(task, force=False, dry_run=True):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 dry_run: bool = True, force: bool = False) -> NornirJobResult:
+                 dry_run: bool = True, force: bool = False, job=None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -266,7 +268,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         raise Exception('Configuration hash check failed for {}'.format(' '.join(nrresult.failed_hosts.keys())))
 
     try:
-        nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run)
+        nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run,
+                                   job=job)
         print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))

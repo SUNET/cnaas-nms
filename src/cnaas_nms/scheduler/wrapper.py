@@ -31,6 +31,7 @@ def job_wrapper(func):
                 job = None
         if job:
             job.start(fname = func.__name__)
+        kwargs['kwargs']['job'] = job
         try:
             # kwargs is contained in an item called kwargs because of the apscheduler.add_job call
             res = func(*args, **kwargs['kwargs'])

@@ -1,5 +1,10 @@
 version: '3.7'
 services:
+
+  #
+  # CNaaS services
+  #
+  
   cnaas_api:
     build: ./api/
     ports:
@@ -17,28 +22,7 @@ services:
       - type: bind
         source: ./coverage
         target: /coverage
-  cnaas_postgres:
-    build: ./postgres/
-    ports:
-      - 5432:5432
-    environment:
-      - POSTGRES_USER=cnaas
-      - POSTGRES_PASSWD=cnaas
-      - POSTGRES_DB=cnaas
-    networks:
-      - cnaas
-  cnaas_mongo:
-    build: ./mongo/
-    volumes:
-      - /opt/cnaas/mongodb/data:/data
-    ports:
-      - 27017:27017
-    environment:
-      - POSTGRES_USER=cnaas
-      - POSTGRES_PASSWD=cnaas
-      - POSTGRES_DB=cnaas
-    networks:
-      - cnaas
+
   cnaas_httpd:
     build: ./httpd/
     ports:
@@ -47,6 +31,7 @@ services:
       - cnaas
     environment:
       - GITREPO_TEMPLATES
+
   cnaas_dhcpd:
     build: ./dhcpd/
     ports:
@@ -60,6 +45,43 @@ services:
     depends_on:
       - "cnaas_httpd"
       - "cnaas_api"
+
+
+  #
+  # Databases
+  #
+  
+  cnaas_postgres:
+    build: ./postgres/
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=cnaas
+      - POSTGRES_PASSWD=cnaas
+      - POSTGRES_DB=cnaas
+    networks:
+      - cnaas
+  
+  cnaas_mongo:
+    build: ./mongo/
+    volumes:
+      - /opt/cnaas/mongodb/data:/data
+    ports:
+      - 27017:27017
+    environment:
+      - POSTGRES_USER=cnaas
+      - POSTGRES_PASSWD=cnaas
+      - POSTGRES_DB=cnaas
+    networks:
+      - cnaas
+
+  cnaas_redis:
+    build: ./redis/
+    ports:
+      - 6379:6379
+    networks:
+      - cnaas
+
 networks:
   cnaas:
     driver: bridge

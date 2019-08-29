@@ -62,8 +62,13 @@ The result will look like this:
                 },
                 "exception": null,
                 "traceback": null,
-                "next_job_id": null
+                "next_job_id": null,
+		"finished_devices": "[\"test_device_1\", \"test_device_2\"]"
             }
-        ]
-    }
-}
+         ]
+      }
+   }
+
+The finished_devices attribute will be populated when the devices
+finishes. This will be updated for every 10:th device since we want to
+avoid using to much system resources.

@@ -7,7 +7,12 @@ import signal
 from cnaas_nms.api import app
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.joblock import Joblock
+from cnaas_nms.tools.log import get_logger
 
+
+logger = get_logger()
 
 os.environ['PYTHONPATH'] = os.getcwd()
 
@@ -43,6 +48,12 @@ def get_app():
 
     pmh = PluginManagerHandler()
     pmh.load_plugins()
+
+    try:
+        with sqla_session() as session:
+            Joblock.clear_locks(session)
+    except Exception as e:
+        logger.exception("Unable to clear old locks from database at startup: {}".format(str(e)))
 
     return app.app
 

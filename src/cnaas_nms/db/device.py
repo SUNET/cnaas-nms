@@ -89,6 +89,7 @@ class Device(cnaas_nms.db.base.Base):
     device_type = Column(Enum(DeviceType), nullable=False)
     confhash = Column(String(64))  # SHA256 = 64 characters
     last_seen = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
+    port = Column(Integer)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -342,5 +343,12 @@ class Device(cnaas_nms.db.base.Base):
                         errors.append('Invalid device type')
         else:
             errors.append('Required field device_type not found')
+        if 'port' in kwargs:
+            try:
+                port = int(kwargs['port'])
+            except Exception:
+                errors.append('Invalid port recevied, must be an integer.')
+            else:
+                data['port'] = port
 
         return data, errors

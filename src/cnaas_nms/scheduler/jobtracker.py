@@ -12,6 +12,8 @@ from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResul
 from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
 from cnaas_nms.db.dataclass_persistence import DataclassPersistence
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.session import redis_session
+
 
 logger = get_logger()
 
@@ -39,7 +41,7 @@ class Jobtracker(DataclassPersistence):
             'start_time': datetime.datetime.utcnow(),
             'function_name': fname,
             'status': JobStatus.RUNNING,
-            'finished_devices': ['kaka']
+            'finished_devices': []
         })
 
     def finish_success(self, res: dict, next_job_id: Optional[str]):
@@ -73,10 +75,14 @@ class Jobtracker(DataclassPersistence):
             'traceback': bson.json_util.dumps(traceback)
         })
 
-    def finished_devices_update(self, host):
+    def finished_devices_update(self):
         finished_devices = self.finished_devices
-        finished_devices.append(host)
+        with redis_session() as db:
+            while(db.llen('finished_devices') != 0):
+                last_finished = db.lpop('finished_devices').decode('utf-8')
+                finished_devices.append(last_finished)
         self.update({'finished_devices': finished_devices})
+
 
     @classmethod
     def get_running_jobs(cls, start_time: Optional[datetime.datetime] = None) -> List:

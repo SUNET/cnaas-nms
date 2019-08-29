@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from pymongo import MongoClient
+from redis import StrictRedis
 
 
 def get_dbdata(config='/etc/cnaas-nms/db_config.yml'):
@@ -23,7 +24,7 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
     if 'CNAAS_DB_PASSWORD' in os.environ:
         db_data['password'] = os.environ['CNAAS_DB_PASSWORD']
     if 'CNAAS_DB_DATABASE' in os.environ:
-        db_data['database'] = os.environ['CNAAS_DB_DATABSE']        
+        db_data['database'] = os.environ['CNAAS_DB_DATABSE']
 
     conn_str = (
         f"{db_data['type']}://{db_data['username']}:{db_data['password']}@"
@@ -67,3 +68,9 @@ def mongo_db(**kwargs):
         yield db
     finally:
         client.close()
+
+@contextmanager
+def redis_session(**kwargs):
+    db_data = get_dbdata(**kwargs)
+    with StrictRedis(host=db_data['redis_hostname'], port=6379) as conn:
+        yield conn

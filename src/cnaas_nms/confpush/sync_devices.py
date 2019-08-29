@@ -11,7 +11,7 @@ from nornir.core.filter import F
 
 import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.confpush.get import get_uplinks, get_running_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
 from cnaas_nms.tools.log import get_logger
@@ -21,6 +21,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.scheduler.jobtracker import Jobtracker
 from nornir.plugins.tasks.networking import napalm_get
 
 from hashlib import sha256
@@ -29,7 +30,7 @@ from hashlib import sha256
 logger = get_logger()
 
 
-def push_sync_device(task, dry_run: bool = True, generate_only: bool = False, job=None):
+def push_sync_device(task, dry_run: bool = True, generate_only: bool = False, job: Jobtracker = None):
     """
     Nornir task to generate config and push to device
 
@@ -175,8 +176,11 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False, jo
             task.host["change_score"] = calculate_score(config, diff)
         else:
             task.host["change_score"] = 0
-    if job:
-        job.finished_devices_update(task.host.name)
+    with redis_session() as db:
+        db.lpush('finished_devices', task.host.name)
+        finished_len = db.llen('finished_devices')
+    if finished_len >= 10:
+        job.finished_devices_update()
 
 
 def generate_only(hostname: str) -> (str, dict):
@@ -229,7 +233,7 @@ def sync_check_hash(task, force=False, dry_run=True):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 dry_run: bool = True, force: bool = False, job=None) -> NornirJobResult:
+                 dry_run: bool = True, force: bool = False, job: Jobtracker = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -275,6 +279,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
         return NornirJobResult(nrresult=nrresult)
 
+    job.finished_devices_update()
     failed_hosts = list(nrresult.failed_hosts.keys())
 
     if not dry_run:

@@ -73,11 +73,13 @@ def push_base_management_access(task, device_variables):
 
 
 @job_wrapper
-def init_access_device_step1(device_id: int, new_hostname: str) -> NornirJobResult:
+def init_access_device_step1(device_id: int, new_hostname: str, job_id: Optional[str] = None) -> NornirJobResult:
     """Initialize access device for management by CNaaS-NMS
 
     Args:
-        hostname (str): Hostname of device to initialize
+        device_id: Device to select for initialization
+        new_hostname: Hostname to configure for the new device
+        job_id: job_id provided by scheduler when adding job
 
     Returns:
         Nornir result object
@@ -207,7 +209,8 @@ def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optiona
 
 
 @job_wrapper
-def init_access_device_step2(device_id: int, iteration:int=-1) -> NornirJobResult:
+def init_access_device_step2(device_id: int, iteration: int = -1, job_id: Optional[str] = None) ->\
+        NornirJobResult:
     # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()

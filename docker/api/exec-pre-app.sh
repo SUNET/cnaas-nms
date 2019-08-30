@@ -43,9 +43,7 @@ fi
 
 # Clean old coverage reports if they exist
 set +e
-if [ -e /coverage/.coverage ]; then
-    rm /coverage/.coverage*
-fi
+rm /coverage/.coverage* || true
 
 # Temporary for dev
 #cd /opt/cnaas/venv/

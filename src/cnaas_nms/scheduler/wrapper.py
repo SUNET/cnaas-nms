@@ -29,6 +29,8 @@ def job_wrapper(func):
                 job.load(job_id)
             except:
                 job = None
+            else:
+                kwargs['kwargs']['job_id'] = job_id
         if job:
             job.start(fname = func.__name__)
         try:

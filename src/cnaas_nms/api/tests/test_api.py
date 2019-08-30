@@ -5,36 +5,35 @@ import pkg_resources
 import os
 
 import unittest
-import cnaas_nms.api
+import cnaas_nms.api.app
 
 from flask import request
 from flask_restful import Resource
 
 from cnaas_nms.db.session import sqla_session, sqla_execute
-from cnaas_nms.db.groups import Groups, DeviceGroups
 
-from cnaas_nms.tools.testsetup import DockerTemporaryInstance
+from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
 from cnaas_nms.tools.testsetup import MongoTemporaryInstance
 
 from flask import request
 from flask_restful import Resource
 
 from cnaas_nms.db.session import sqla_session, sqla_execute
-from cnaas_nms.db.groups import Groups, DeviceGroups
 
 
 class ApiTests(unittest.TestCase):
     def setUp(self):
-        self.client = cnaas_nms.api.app.test_client()
-        self.tmp_postgres = DockerTemporaryInstance()
-        self.tmp_mongo = MongoTemporaryInstance()
+        self.client = cnaas_nms.api.app.app.test_client()
+#        self.tmp_postgres = PostgresTemporaryInstance()
+#        self.tmp_mongo = MongoTemporaryInstance()
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
 
     def tearDown(self):
-        self.tmp_postgres.shutdown()
-        self.tmp_mongo.shutdown()
+#        self.tmp_postgres.shutdown()
+#        self.tmp_mongo.shutdown()
+        pass
 
     def test_get_single_device(self):
         device_id = 1
@@ -182,6 +181,16 @@ class ApiTests(unittest.TestCase):
         result = self.client.post('/api/v1.0/device', json=data)
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
+
+    def test_get_joblocks(self):
+        result = self.client.get('/api/v1.0/joblocks')
+
+        # 200 OK
+        self.assertEqual(result.status_code, 200)
+        # Success in json
+        self.assertEqual(result.json['status'], 'success')
+        # Exactly one result
+        #self.assertEqual(len(result.json['data']['jobs']), 1)
 
 
 if __name__ == '__main__':

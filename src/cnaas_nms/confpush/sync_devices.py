@@ -245,6 +245,7 @@ def update_config_hash(task):
     else:
         with sqla_session() as session:
             Device.set_config_hash(session, task.host.name, new_config_hash)
+            logger.debug("Config hash for {} updated to {}".format(task.host.name, new_config_hash))
 
 
 @job_wrapper
@@ -320,24 +321,6 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     if nrresult.failed:
         logger.error("Not all devices were successfully synchronized")
 
-    if not dry_run:
-        def exclude_filter(name, exclude_list=failed_hosts):
-            if name in exclude_list:
-                return False
-            else:
-                return True
-
-        # set new config hash for devices that was successfully updated
-        nr_successful = nr_filtered.filter(filter_func=exclude_filter)
-        try:
-            nrresult_confighash = nr_successful.run(task=update_config_hash)
-        except Exception as e:
-            logger.exception("Exception while updating config hashes: {}".format(str(e)))
-        else:
-            if nrresult_confighash.failed:
-                logger.error("Unable to update some config hashes: {}".format(
-                    list(nrresult_confighash.failed_hosts.keys())))
-
     total_change_score = 1
     change_scores = []
     changed_hosts = []
@@ -357,6 +340,24 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             change_scores.append(0)
             logger.debug("Empty diff for host {}, 0 change score".format(
                 host))
+
+    if not dry_run:
+        def exclude_filter(host, exclude_list=failed_hosts+unchanged_hosts):
+            if host.name in exclude_list:
+                return False
+            else:
+                return True
+
+        # set new config hash for devices that was successfully updated
+        nr_successful = nr_filtered.filter(filter_func=exclude_filter)
+        try:
+            nrresult_confighash = nr_successful.run(task=update_config_hash)
+        except Exception as e:
+            logger.exception("Exception while updating config hashes: {}".format(str(e)))
+        else:
+            if nrresult_confighash.failed:
+                logger.error("Unable to update some config hashes: {}".format(
+                    list(nrresult_confighash.failed_hosts.keys())))
 
     # set devices as synchronized if needed
     with sqla_session() as session:

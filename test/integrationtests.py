@@ -102,15 +102,7 @@ class GetTests(unittest.TestCase):
         self.assertFalse(result_step2['eosaccess'][0]['failed'],
                          "Could not reach device after ZTP")
 
-    def test_2_syncto_access(self):
-        r = requests.post(
-            f'{URL}/api/v1.0/device_syncto',
-            json={"hostname": "eosaccess", "dry_run": True},
-            verify=TLS_VERIFY
-        )
-        self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
-
-    def test_3_interfaces(self):
+    def test_2_interfaces(self):
         r = requests.get(
             f'{URL}/api/v1.0/device/eosaccess/interfaces',
             verify=TLS_VERIFY
@@ -124,6 +116,14 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to update interface")
 
+    def test_3_syncto_access(self):
+        r = requests.post(
+            f'{URL}/api/v1.0/device_syncto',
+            json={"hostname": "eosaccess", "dry_run": True, "auto_push": True},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
+
     def test_4_syncto_dist(self):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
@@ -132,7 +132,14 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")
 
-    def test_5_plugins(self):
+    def test_5_genconfig(self):
+        r = requests.get(
+            f'{URL}/api/v1.0/device/eosdist/generate_config',
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to generate config for eosdist")
+
+    def test_6_plugins(self):
         r = requests.get(
             f'{URL}/api/v1.0/plugins',
             verify=TLS_VERIFY

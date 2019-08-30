@@ -36,6 +36,8 @@ class CnaasInventory(Inventory):
                 hostname = self._get_management_ip(instance.management_ip, instance.dhcp_ip)
                 if hostname:
                     hosts[instance.hostname]['hostname'] = hostname
+                if instance.port and isinstance(instance.port, int):
+                    hosts[instance.hostname]['port'] = instance.port
         groups = {
             'global': {
                 'data': {

@@ -15,6 +15,7 @@ class NornirJobResult(JobResult):
 
 def cnaas_init():
     nr = InitNornir(
+        core={"num_workers": 50},
         inventory={
             "plugin": "cnaas_nms.confpush.nornir_plugins.cnaas_inventory.CnaasInventory"
         },

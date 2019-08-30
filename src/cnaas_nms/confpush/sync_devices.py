@@ -1,13 +1,13 @@
+import os
+import yaml
 from typing import Optional
 from ipaddress import IPv4Interface
 from statistics import median
-import os
-import yaml
+from hashlib import sha256
 
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
 from nornir.core.filter import F
-
 
 import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
@@ -18,16 +18,18 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.scheduler.jobtracker import Jobtracker
-from nornir.plugins.tasks.networking import napalm_get
 
-from hashlib import sha256
+from cnaas_nms.scheduler.jobtracker import Jobtracker
+from cnaas_nms.scheduler.scheduler import Scheduler
+from nornir.plugins.tasks.networking import napalm_get
 
 
 logger = get_logger()
+AUTOPUSH_MAX_SCORE = 10
 
 
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False, job: Jobtracker = None):
@@ -163,12 +165,14 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False, jo
     else:
         logger.debug("Synchronize device config for host: {}".format(task.host.name))
 
+        task.host.open_connection("napalm", configuration=task.nornir.config)
         task.run(task=networking.napalm_configure,
                  name="Sync device config",
                  replace=True,
                  configuration=task.host["config"],
                  dry_run=dry_run
                  )
+        task.host.close_connection("napalm")
 
         if task.results[1].diff:
             config = task.results[1].host["config"]
@@ -233,7 +237,8 @@ def sync_check_hash(task, force=False, dry_run=True):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 dry_run: bool = True, force: bool = False, job: Jobtracker = None) -> NornirJobResult:
+                 dry_run: bool = True, force: bool = False, auto_push = False,
+                 job_id: Optional[str] = None, job: Jobtracker = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -244,6 +249,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         dry_run: Don't commit generated config to device
         force: Commit config even if changes made outside CNaaS will get
                overwritten
+        auto_push: Automatically do live-run after dry-run if change score is low
+        job_id: job_id provided by scheduler when adding a new job
 
     Returns:
         NornirJobResult
@@ -271,58 +278,109 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     except Exception as e:
         raise Exception('Configuration hash check failed for {}'.format(' '.join(nrresult.failed_hosts.keys())))
 
+    if not dry_run:
+        with sqla_session() as session:
+            logger.info("Trying to acquire lock for devices to run syncto job: {}".format(job_id))
+            if not Joblock.acquire_lock(session, name='devices', job_id=job_id):
+                raise JoblockError("Unable to acquire lock for configuring devices")
+
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run,
                                    job=job)
         print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
+        try:
+            if not dry_run:
+                with sqla_session() as session:
+                    logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+                    Joblock.release_lock(session, job_id=job_id)
+        except Exception:
+            logger.error("Unable to release devices lock after syncto job")
         return NornirJobResult(nrresult=nrresult)
 
     job.finished_devices_update()
     failed_hosts = list(nrresult.failed_hosts.keys())
+    for hostname in failed_hosts:
+        logger.error("Synchronization of device '{}' failed".format(hostname))
+
+    if nrresult.failed:
+        logger.error("Not all devices were successfully synchronized")
 
     if not dry_run:
-        # set new config hash and mark device synchronized
+        # set new config hash
         for key in nrresult.keys():
             if key in failed_hosts:
                 continue
             new_config_hash = get_running_config_hash(key)
             if new_config_hash is None:
+                try:
+                    if not dry_run:
+                        with sqla_session() as session:
+                            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+                            Joblock.release_lock(session, job_id=job_id)
+                except Exception:
+                    logger.error("Unable to release devices lock after syncto job")
                 raise Exception('Failed to get configuration hash')
             Device.set_config_hash(key, new_config_hash)
 
-        with sqla_session() as session:
-            for hostname in device_list:
-                if hostname in failed_hosts:
-                    logger.error("Synchronization of device '{}' failed".format(hostname))
-                    continue
-                dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-                dev.synchronized = True
-
-    if nrresult.failed:
-        logger.error("Not all devices were successfully synchronized")
-
     total_change_score = 1
     change_scores = []
+    changed_hosts = []
+    unchanged_hosts = []
     # calculate change impact score
     for host, results in nrresult.items():
-        if host in failed_hosts:
-            total_change_score = 100
-            break
-        if "change_score" in results[0].host:
-            change_scores.append(results[0].host["change_score"])
-            logger.debug("Change score for host {}: {}".format(
-                host, results[0].host["change_score"]))
+        if results[2].diff:
+            changed_hosts.append(host)
+            if "change_score" in results[0].host:
+                change_scores.append(results[0].host["change_score"])
+                logger.debug("Change score for host {}: {}".format(
+                    host, results[0].host["change_score"]))
+        else:
+            unchanged_hosts.append(host)
+            change_scores.append(0)
+            logger.debug("Empty diff for host {}, 0 change score".format(
+                host))
 
-    if not change_scores or total_change_score >= 100:
+    # set devices as synchronized if needed
+    with sqla_session() as session:
+        for hostname in changed_hosts:
+            if not dry_run:
+                dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+                dev.synchronized = True
+        for hostname in unchanged_hosts:
+            dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+            dev.synchronized = True
+        if not dry_run:
+            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+            Joblock.release_lock(session, job_id=job_id)
+
+    if not change_scores or total_change_score >= 100 or failed_hosts:
         total_change_score = 100
     elif max(change_scores) > 1000:
         # If some device has a score higher than this, disregard any averages
         # and report max impact score
         total_change_score = 100
     else:
+        # calculate median value and round up, use min value of 1 and max of 100
         total_change_score = max(min(int(median(change_scores) + 0.5), 100), 1)
     logger.info("Change impact score: {}".format(total_change_score))
-    # TODO: add field for change score in NornirJobResult object
-    return NornirJobResult(nrresult=nrresult, change_score=total_change_score)
+
+    next_job_id = None
+    if auto_push and len(device_list) == 1 and hostname and dry_run:
+        if not changed_hosts:
+            logger.info("None of the selected host has any changes (diff), skipping auto-push")
+        elif total_change_score < AUTOPUSH_MAX_SCORE:
+            scheduler = Scheduler()
+            next_job_id = scheduler.add_onetime_job(
+                'cnaas_nms.confpush.sync_devices:sync_devices',
+                when=0,
+                kwargs={'hostname': hostname, 'dry_run': False, 'force': force})
+            logger.info(f"Auto-push scheduled live-run of commit as job id {next_job_id}")
+        else:
+            logger.info(
+                f"Auto-push of config to device {hostname} failed because change score of "
+                f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
+            )
+
+    return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id, change_score=total_change_score)

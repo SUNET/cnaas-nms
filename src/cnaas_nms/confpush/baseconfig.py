@@ -13,9 +13,9 @@ logger = get_logger()
 
 
 @job_wrapper
-def sync_basetemplate(hostname: Optional[str]=None,
-                      device_type: Optional[DeviceType]=None,
-                      dry_run: bool=True) -> NornirJobResult:
+def sync_basetemplate(hostname: Optional[str] = None,
+                      device_type: Optional[DeviceType] = None,
+                      dry_run: bool=True, job_id: Optional[str] = None) -> NornirJobResult:
     """Synchronize base system template to device or device group.
 
     Args:

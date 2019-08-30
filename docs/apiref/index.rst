@@ -15,6 +15,7 @@ Contents
    repository
    settings
    plugins
+   syncto
 
 Indices and tables
 ==================

@@ -163,12 +163,14 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
     else:
         logger.debug("Synchronize device config for host: {}".format(task.host.name))
 
+        task.host.open_connection("napalm", configuration=task.nornir.config)
         task.run(task=networking.napalm_configure,
                  name="Sync device config",
                  replace=True,
                  configuration=task.host["config"],
                  dry_run=dry_run
                  )
+        task.host.close_connection("napalm")
 
         if task.results[1].diff:
             config = task.results[1].host["config"]

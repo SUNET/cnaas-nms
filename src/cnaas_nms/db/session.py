@@ -4,6 +4,7 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 from pymongo import MongoClient
 
 
@@ -37,7 +38,7 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
 def sqla_session(**kwargs):
     conn_str = get_sqlalchemy_conn_str(**kwargs)
 
-    engine = create_engine(conn_str)
+    engine = create_engine(conn_str, poolclass=NullPool)
     connection = engine.connect()
     Session = sessionmaker(bind=engine)
     session = Session()

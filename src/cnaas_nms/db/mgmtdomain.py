@@ -48,6 +48,11 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
             elif issubclass(value.__class__, datetime.datetime):
                 value = str(value)
             d[col.name] = value
+        try:
+            d['device_a'] = str(self.device_a.hostname)
+            d['device_b'] = str(self.device_b.hostname)
+        except Exception:
+            pass
         return d
 
     def find_free_mgmt_ip(self, session) -> Optional[IPv4Address]:

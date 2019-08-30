@@ -36,12 +36,9 @@ def get_running_config(hostname):
     return nr_result[hostname].result
 
 
-def get_running_config_hash(hostname):
+def calc_config_hash(hostname, config):
     try:
-        config = get_running_config(hostname)
-        if config is None:
-            return None
-        hash_object = hashlib.sha256(config['config']['running'].encode())
+        hash_object = hashlib.sha256(config.encode())
     except Exception:
         raise Exception(f'Failed to get running configuration from {hostname}')
     return hash_object.hexdigest()

@@ -222,20 +222,18 @@ class Device(cnaas_nms.db.base.Base):
                 setattr(instance, _, data[_])
 
     @classmethod
-    def set_config_hash(cls, hostname, hexdigest):
-        with sqla_session() as session:
-            instance: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
-            if not instance:
-                return 'Device not found'
-            instance.confhash = hexdigest
+    def set_config_hash(cls, session, hostname, hexdigest):
+        instance: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not instance:
+            return 'Device not found'
+        instance.confhash = hexdigest
 
     @classmethod
-    def get_config_hash(cls, hostname):
-        with sqla_session() as session:
-            instance: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
-            if not instance:
-                return None
-            return instance.confhash
+    def get_config_hash(cls, session, hostname):
+        instance: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not instance:
+            return None
+        return instance.confhash
 
     @classmethod
     def validate(cls, **kwargs):

@@ -12,6 +12,8 @@ from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResul
 from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
 from cnaas_nms.db.dataclass_persistence import DataclassPersistence
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.session import redis_session
+
 
 logger = get_logger()
 
@@ -32,12 +34,14 @@ class Jobtracker(DataclassPersistence):
     exception: Optional[str] = None
     traceback: Optional[str] = None
     next_job_id: Optional[str] = None
+    finished_devices: Optional[list] = None
 
     def start(self, fname: str):
         self.update({
             'start_time': datetime.datetime.utcnow(),
             'function_name': fname,
-            'status': JobStatus.RUNNING
+            'status': JobStatus.RUNNING,
+            'finished_devices': []
         })
 
     def finish_success(self, res: dict, next_job_id: Optional[str]):
@@ -71,6 +75,7 @@ class Jobtracker(DataclassPersistence):
             'traceback': bson.json_util.dumps(traceback)
         })
 
+
     @classmethod
     def get_running_jobs(cls, start_time: Optional[datetime.datetime] = None) -> List:
         if not start_time:
@@ -85,4 +90,3 @@ class Jobtracker(DataclassPersistence):
             if job.status == JobStatus.RUNNING and job.start_time > start_time:
                 ret.append(job)
         return ret
-

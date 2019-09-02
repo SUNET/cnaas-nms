@@ -12,7 +12,7 @@ from nornir.core.task import MultiResult
 
 import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.confpush.get import get_uplinks, calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
 from cnaas_nms.tools.log import get_logger
@@ -23,6 +23,8 @@ from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
+
+from cnaas_nms.scheduler.jobtracker import Jobtracker
 from cnaas_nms.scheduler.scheduler import Scheduler
 from nornir.plugins.tasks.networking import napalm_get
 
@@ -31,7 +33,8 @@ logger = get_logger()
 AUTOPUSH_MAX_SCORE = 10
 
 
-def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
+def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
+                     job_id: Optional[str] = None):
     """
     Nornir task to generate config and push to device
 
@@ -179,6 +182,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False):
             task.host["change_score"] = calculate_score(config, diff)
         else:
             task.host["change_score"] = 0
+    if job_id:
+        with redis_session() as db:
+            db.lpush('finished_devices_' + str(job_id), task.host.name)
 
 
 def generate_only(hostname: str) -> (str, dict):
@@ -301,7 +307,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                 raise JoblockError("Unable to acquire lock for configuring devices")
 
     try:
-        nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run)
+        nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run,
+                                   job_id=job_id)
         print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))

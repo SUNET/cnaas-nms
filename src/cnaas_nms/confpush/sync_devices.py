@@ -32,7 +32,8 @@ logger = get_logger()
 AUTOPUSH_MAX_SCORE = 10
 
 
-def push_sync_device(task, dry_run: bool = True, generate_only: bool = False, job: Jobtracker = None):
+def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
+                     job_id: Optional[str] = None):
     """
     Nornir task to generate config and push to device
 
@@ -180,11 +181,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False, jo
             task.host["change_score"] = calculate_score(config, diff)
         else:
             task.host["change_score"] = 0
-    with redis_session() as db:
-        db.lpush('finished_devices', task.host.name)
-        finished_len = db.llen('finished_devices')
-    if finished_len >= 10:
-        job.finished_devices_update()
+    if job_id:
+        with redis_session() as db:
+            db.lpush('finished_devices_' + str(job_id), task.host.name)
 
 
 def generate_only(hostname: str) -> (str, dict):
@@ -238,7 +237,7 @@ def sync_check_hash(task, force=False, dry_run=True):
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
                  dry_run: bool = True, force: bool = False, auto_push = False,
-                 job_id: Optional[str] = None, job: Jobtracker = None) -> NornirJobResult:
+                 job_id: Optional[str] = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -286,7 +285,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
 
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run,
-                                   job=job)
+                                   job_id=job_id)
         print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
@@ -299,7 +298,6 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             logger.error("Unable to release devices lock after syncto job")
         return NornirJobResult(nrresult=nrresult)
 
-    job.finished_devices_update()
     failed_hosts = list(nrresult.failed_hosts.keys())
     for hostname in failed_hosts:
         logger.error("Synchronization of device '{}' failed".format(hostname))

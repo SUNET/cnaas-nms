@@ -75,14 +75,6 @@ class Jobtracker(DataclassPersistence):
             'traceback': bson.json_util.dumps(traceback)
         })
 
-    def finished_devices_update(self):
-        finished_devices = self.finished_devices
-        with redis_session() as db:
-            while(db.llen('finished_devices') != 0):
-                last_finished = db.lpop('finished_devices').decode('utf-8')
-                finished_devices.append(last_finished)
-        self.update({'finished_devices': finished_devices})
-
 
     @classmethod
     def get_running_jobs(cls, start_time: Optional[datetime.datetime] = None) -> List:

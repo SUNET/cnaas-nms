@@ -1,9 +1,13 @@
 import traceback
+import threading
+
 from typing import Optional
 
 from cnaas_nms.scheduler.jobtracker import Jobtracker
 from cnaas_nms.scheduler.jobresult import JobResult
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.session import redis_session
+
 
 logger = get_logger()
 
@@ -20,6 +24,16 @@ def insert_job_id(result: JobResult, job_id: str) -> JobResult:
     return result
 
 
+def update_device_progress(stop_event: threading.Event, job: Jobtracker):
+    while not stop_event.wait(2):
+        finished_devices = job.finished_devices
+        with redis_session() as db:
+            while(db.llen('finished_devices_' + str(job.id)) != 0):
+                last_finished = db.lpop('finished_devices_' + str(job.id)).decode('utf-8')
+                finished_devices.append(last_finished)
+        job.update({'finished_devices': finished_devices})
+
+
 def job_wrapper(func):
     """Decorator to save job status in job tracker database."""
     def wrapper(job_id: Optional[str]=None, *args, **kwargs):
@@ -32,7 +46,12 @@ def job_wrapper(func):
             else:
                 kwargs['kwargs']['job_id'] = job_id
         if job:
-            job.start(fname = func.__name__)
+            job.start(fname=func.__name__)
+            if func.__name__ is 'sync_devices':
+                stop_event = threading.Event()
+                device_thread = threading.Thread(target=update_device_progress,
+                                                 args=(stop_event, job))
+                device_thread.start()
         try:
             # kwargs is contained in an item called kwargs because of the apscheduler.add_job call
             res = func(*args, **kwargs['kwargs'])
@@ -42,11 +61,12 @@ def job_wrapper(func):
             tb = traceback.format_exc()
             logger.debug("Exception traceback in job_wrapper: {}".format(tb))
             if job:
+                stop_event.set()
                 job.finish_exception(e, tb)
             raise e
         else:
             if job:
+                stop_event.set()
                 job.finish_success(res, find_nextjob(res))
             return res
     return wrapper
-

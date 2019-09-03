@@ -8,11 +8,12 @@ from hashlib import sha256
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
 from nornir.core.filter import F
+from nornir.core.task import MultiResult
 
 import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session, redis_session
-from cnaas_nms.confpush.get import get_uplinks, get_running_config_hash
+from cnaas_nms.confpush.get import get_uplinks, calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
@@ -221,7 +222,8 @@ def sync_check_hash(task, force=False, dry_run=True):
     """
     if force is True:
         return
-    stored_hash = Device.get_config_hash(task.host.name)
+    with sqla_session() as session:
+        stored_hash = Device.get_config_hash(session, task.host.name)
     if stored_hash is None:
         return
     res = task.run(task=napalm_get, getters=["config"])
@@ -232,6 +234,24 @@ def sync_check_hash(task, force=False, dry_run=True):
     running_hash = hash_obj.hexdigest()
     if stored_hash != running_hash:
         raise Exception('Device {} configuration is altered outside of CNaaS!'.format(task.host.name))
+
+
+def update_config_hash(task):
+    try:
+        res = task.run(task=napalm_get, getters=["config"])
+        if not isinstance(res, MultiResult) or len(res) != 1 or not isinstance(res[0].result, dict) \
+                or 'config' not in res[0].result:
+            raise Exception("Unable to get config from device")
+        new_config_hash = calc_config_hash(task.host.name, res[0].result['config']['running'])
+        if not new_config_hash:
+            raise ValueError("Empty config hash")
+    except Exception as e:
+        logger.exception("Unable to get config hash: {}".format(str(e)))
+        raise e
+    else:
+        with sqla_session() as session:
+            Device.set_config_hash(session, task.host.name, new_config_hash)
+            logger.debug("Config hash for {} updated to {}".format(task.host.name, new_config_hash))
 
 
 @job_wrapper
@@ -272,10 +292,13 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                                    force=force,
                                    dry_run=dry_run)
         print_result(nrresult)
-        if nrresult.failed:
-            raise Exception
     except Exception as e:
-        raise Exception('Configuration hash check failed for {}'.format(' '.join(nrresult.failed_hosts.keys())))
+        logger.exception("Exception while checking config hash: {}".format(str(e)))
+        raise e
+    else:
+        if nrresult.failed:
+            raise Exception('Configuration hash check failed for {}'.format(
+                ' '.join(nrresult.failed_hosts.keys())))
 
     if not dry_run:
         with sqla_session() as session:
@@ -305,30 +328,15 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     if nrresult.failed:
         logger.error("Not all devices were successfully synchronized")
 
-    if not dry_run:
-        # set new config hash
-        for key in nrresult.keys():
-            if key in failed_hosts:
-                continue
-            new_config_hash = get_running_config_hash(key)
-            if new_config_hash is None:
-                try:
-                    if not dry_run:
-                        with sqla_session() as session:
-                            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
-                            Joblock.release_lock(session, job_id=job_id)
-                except Exception:
-                    logger.error("Unable to release devices lock after syncto job")
-                raise Exception('Failed to get configuration hash')
-            Device.set_config_hash(key, new_config_hash)
-
     total_change_score = 1
     change_scores = []
     changed_hosts = []
     unchanged_hosts = []
     # calculate change impact score
     for host, results in nrresult.items():
-        if results[2].diff:
+        if len(results) != 3:
+            logger.debug("Unable to calculate change score for failed device {}".format(host))
+        elif results[2].diff:
             changed_hosts.append(host)
             if "change_score" in results[0].host:
                 change_scores.append(results[0].host["change_score"])
@@ -339,6 +347,24 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             change_scores.append(0)
             logger.debug("Empty diff for host {}, 0 change score".format(
                 host))
+
+    if not dry_run:
+        def exclude_filter(host, exclude_list=failed_hosts+unchanged_hosts):
+            if host.name in exclude_list:
+                return False
+            else:
+                return True
+
+        # set new config hash for devices that was successfully updated
+        nr_successful = nr_filtered.filter(filter_func=exclude_filter)
+        try:
+            nrresult_confighash = nr_successful.run(task=update_config_hash)
+        except Exception as e:
+            logger.exception("Exception while updating config hashes: {}".format(str(e)))
+        else:
+            if nrresult_confighash.failed:
+                logger.error("Unable to update some config hashes: {}".format(
+                    list(nrresult_confighash.failed_hosts.keys())))
 
     # set devices as synchronized if needed
     with sqla_session() as session:

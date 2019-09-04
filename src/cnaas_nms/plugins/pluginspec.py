@@ -18,7 +18,7 @@ class CnaasPluginSpec(object):
         """A new IPv4 address has been allocated by CNaaS NMS"""
 
     def new_managed_device(self, hostname, device_type, serial_number, vendor,
-                           model, os_version):
+                           model, os_version, management_ip):
         """A new managed device has been added, or a device has become managed."""
 
 

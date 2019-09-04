@@ -250,6 +250,7 @@ def init_access_device_step2(device_id: int, iteration: int = -1, job_id: Option
         dev.vendor = facts['vendor']
         dev.model = facts['model']
         dev.os_version = facts['os_version']
+        management_ip = dev.management_ip
         #TODO: remove dhcp_ip ?
 
     # Plugin hook: new managed device
@@ -262,7 +263,8 @@ def init_access_device_step2(device_id: int, iteration: int = -1, job_id: Option
             serial_number=facts['serial_number'],
             vendor=facts['vendor'],
             model=facts['model'],
-            os_version=facts['os_version']
+            os_version=facts['os_version'],
+            management_ip=str(management_ip)
         )
     except Exception as e:
         logger.exception("Error while running plugin hooks for new_managed_device: ".format(str(e)))

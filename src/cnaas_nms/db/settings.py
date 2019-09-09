@@ -32,7 +32,8 @@ DIR_STRUCTURE = {
     {
         'base_system.yml': 'file',
         'groups.yml': 'file',
-        'routing.yml': 'file'
+        'routing.yml': 'file',
+        'vxlans.yml': 'file'
     },
     'fabric':
     {
@@ -145,7 +146,13 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
         f_root(**settings_dict)
     except ValidationError as e:
         msg = ''
-        for error in e.errors():
+        for num, error in enumerate(e.errors()):
+            # If there are two errors and the last one is of type none allowed
+            # then skip recording the second error because it's an implication
+            # of the first error (the value has to be correct or none)
+            # TODO: handle multiple occurances of this?
+            if len(e.errors()) == 2 and num == 1 and error['type'] == 'type_error.none.allowed':
+                continue
             loc = error['loc']
             error_msg = "Validation error for setting {}, bad value: {} (value origin: {})\n".format(
                 '->'.join(str(x) for x in loc),
@@ -186,7 +193,7 @@ def read_settings(local_repo_path: str, path: List[str], origin: str,
 def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=100) -> \
         Union[List, dict]:
     """Filter data and remove dictionary items if they have a key that specifies
-    a group, but that group is not included in our groups list.
+    a list of groups, but none of those groups are included in the groups argument.
     Should only be called with yaml.safe_load:ed data.
 
     Args:
@@ -209,10 +216,13 @@ def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=
     elif isinstance(data, dict):
         ret_d = {}
         for k, v in data.items():
-            if k == 'group':
-                if v in groups:
-                    return data
-                else:
+            if k == 'groups':
+                group_match = False
+                for group in v.split():
+                    if group in groups:
+                        group_match = True
+                        ret_d[k] = v.split()
+                if not group_match:
                     return {}
             else:
                 ret_d[k] = filter_yamldata_groups(v, groups, recdepth-1)
@@ -268,6 +278,9 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         groups = get_groups(hostname)
         settings, settings_origin = read_settings(
             local_repo_path, ['global', 'routing.yml'], 'global',
+            settings, settings_origin, groups)
+        settings, settings_origin = read_settings(
+            local_repo_path, ['global', 'vxlans.yml'], 'global',
             settings, settings_origin, groups)
     # Verify syntax
     check_settings_syntax(settings, settings_origin)

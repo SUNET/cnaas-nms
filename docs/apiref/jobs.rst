@@ -63,7 +63,10 @@ The result will look like this:
                 "exception": null,
                 "traceback": null,
                 "next_job_id": null,
-		"finished_devices": "[\"test_device_1\", \"test_device_2\"]"
+		"finished_devices": [
+                    "test_device_1",
+                    "test_device_2"
+                ]
             }
          ]
       }

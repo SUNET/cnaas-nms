@@ -61,7 +61,9 @@ class DataclassPersistence:
         elif isinstance(property, (ObjectId, datetime.datetime)):
             return str(property)
         elif isinstance(property, dict):
-            return property #TODO: recurse?
+            return property  # TODO: recurse?
+        elif isinstance(property, list):
+            return property  # TODO: recurse?
         else:
             return bson.json_util.dumps(property)
 

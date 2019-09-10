@@ -15,8 +15,10 @@ ipv4_if_schema = Schema(..., regex=IPV4_IF_REGEX)
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
 VLAN_NAME_REGEX = r'^[a-zA-Z][a-zA-Z0-9-_]{0,31}$'
-vlan_name_schema = Schema(..., regex=VLAN_NAME_REGEX)
-vlan_id_schema = Schema(..., gt=0, lt=4096)
+vlan_name_schema = Schema(..., regex=VLAN_NAME_REGEX,
+                          description="Max 32 alphanumeric chars, " +
+                                      "beginning with a non-numeric character")
+vlan_id_schema = Schema(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
 
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
@@ -49,6 +51,7 @@ class f_vrf(BaseModel):
 
 class f_vxlan(BaseModel):
     name: str = None
+    vrf: str = vlan_name_schema
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
     ipv4_gw: str = ipv4_if_schema

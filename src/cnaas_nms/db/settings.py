@@ -9,6 +9,7 @@ from pydantic.error_wrappers import ValidationError
 from cnaas_nms.db.settings_fields import f_root, f_groups
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -153,6 +154,8 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
             # TODO: handle multiple occurrences of this?
             if len(e.errors()) == 2 and num == 1 and error['type'] == 'type_error.none.allowed':
                 continue
+            # TODO: Find a way to present customised error message when string
+            # regex match fails instead of just showing the regex pattern.
             loc = error['loc']
             error_msg = "Validation error for setting {}, bad value: {} (value origin: {})\n".format(
                 '->'.join(str(x) for x in loc),
@@ -263,7 +266,29 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
         return data
 
 
-def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None):
+def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not dev:
+            return settings
+        if dev.device_type != DeviceType.DIST:
+            return settings
+        neighbor_devices = dev.get_neighbors(session)
+        # Downstream device hostnames
+        ds_hostnames = []
+        for neighbor_dev in neighbor_devices:
+            if neighbor_dev.device_type == DeviceType.ACCESS:
+                ds_hostnames.append(neighbor_dev.hostname)
+        for ds_hostname in ds_hostnames:
+            ds_settings, _ = get_settings(ds_hostname, DeviceType.ACCESS)
+            for vxlan in ds_settings['vxlans']:
+                if vxlan['name'] not in [d['name'] for d in settings['vxlans']]:
+                    settings['vxlans'].append(vxlan)
+    return settings
+
+
+def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None) -> \
+        Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
     with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
@@ -315,6 +340,7 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         settings, settings_origin = read_settings(
             local_repo_path, ['global', 'vxlans.yml'], 'global',
             settings, settings_origin, groups, hostname)
+        settings = get_downstream_dependencies(hostname, settings)
     # Verify syntax
     check_settings_syntax(settings, settings_origin)
     return f_root(**settings).dict(), settings_origin

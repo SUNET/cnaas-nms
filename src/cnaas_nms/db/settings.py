@@ -150,7 +150,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
             # If there are two errors and the last one is of type none allowed
             # then skip recording the second error because it's an implication
             # of the first error (the value has to be correct or none)
-            # TODO: handle multiple occurances of this?
+            # TODO: handle multiple occurrences of this?
             if len(e.errors()) == 2 and num == 1 and error['type'] == 'type_error.none.allowed':
                 continue
             loc = error['loc']
@@ -165,8 +165,16 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
         raise SettingsSyntaxError(msg)
 
 
+def check_settings_collissions(settings_dict):
+    pass
+#    get_groups()
+#    get inventory
+#    loop through hosts, apply vlans for each group, check collisions
+
+
 def read_settings(local_repo_path: str, path: List[str], origin: str,
-                  merged_settings, merged_settings_origin, groups=None) -> Tuple[dict, dict]:
+                  merged_settings, merged_settings_origin,
+                  groups: List[str] = None, hostname: str = None) -> Tuple[dict, dict]:
     """
 
     Args:
@@ -175,22 +183,25 @@ def read_settings(local_repo_path: str, path: List[str], origin: str,
         origin: What to name call this origin
         merged_settings: Existing settings
         merged_settings_origin: Existing settings origin info
-        groups: Optional list of groups to filter on (using filter_yamldata_groups)
+        groups: Optional list of groups to filter on (using filter_yamldata)
+        hostname: Optional hostname to filter on (using filter_yamldata)
 
     Returns:
         merged_settings, merged_settings_origin
     """
     with open(get_setting_filename(local_repo_path, path), 'r') as f:
         settings: Union[List, dict] = yaml.safe_load(f)
-        if groups:
-            settings = filter_yamldata_groups(settings, groups)
+        if groups or hostname:
+            syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings, {}, origin)
+            check_settings_syntax(syntax_dict, syntax_dict_origin)
+            settings = filter_yamldata(settings, groups, hostname)
         if settings and isinstance(settings, dict):
             return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
         else:
             return merged_settings, merged_settings_origin
 
 
-def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=100) -> \
+def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, recdepth=100) -> \
         Union[List, dict]:
     """Filter data and remove dictionary items if they have a key that specifies
     a list of groups, but none of those groups are included in the groups argument.
@@ -199,6 +210,7 @@ def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=
     Args:
         data: yaml safe_load:ed data
         groups: a list of groups to filter on
+        hostname: a hostname to filter on
         recdepth: recursion depth limit, default 100
 
     Returns:
@@ -209,23 +221,43 @@ def filter_yamldata_groups(data: Union[List, dict], groups: List[str], recdepth=
     elif isinstance(data, list):
         ret_l = []
         for item in data:
-            f_item = filter_yamldata_groups(item, groups, recdepth-1)
+            f_item = filter_yamldata(item, groups, hostname, recdepth-1)
             if f_item:
                 ret_l.append(f_item)
         return ret_l
     elif isinstance(data, dict):
         ret_d = {}
         for k, v in data.items():
+            do_filter = False
+            group_match = False
+            hostname_match = False
             if k == 'groups':
-                group_match = False
-                for group in v.split():
+                if not v:
+                    continue
+                if not isinstance(v, list):  # Should already be checked by pydantic now
+                    raise SettingsSyntaxError(
+                        "Groups field must be a list or empty (currently {}) in: {}".
+                        format(type(v).__name__, data))
+                do_filter = True
+                for group in v:
                     if group in groups:
                         group_match = True
-                        ret_d[k] = v.split()
-                if not group_match:
-                    return {}
+                        ret_d[k] = v
+            elif k == 'devices':
+                if not v:
+                    continue
+                if not isinstance(v, list):  # Should already be checked by pydantic now
+                    raise SettingsSyntaxError(
+                        "Devices field must be a list or empty (currently {}) in: {}".
+                        format(type(v).__name__, data))
+                do_filter = True
+                if hostname in v:
+                    hostname_match = True
+                    ret_d[k] = v
+            if do_filter and not (group_match or hostname_match):
+                return {}
             else:
-                ret_d[k] = filter_yamldata_groups(v, groups, recdepth-1)
+                ret_d[k] = filter_yamldata(v, groups, hostname, recdepth-1)
         return ret_d
     else:
         return data
@@ -275,13 +307,14 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             settings, settings_origin = read_settings(
                 local_repo_path, ['devices', hostname, 'interfaces.yml'], 'device',
                 settings, settings_origin)
+        # Some settings parsing require knowledge of group memberships
         groups = get_groups(hostname)
         settings, settings_origin = read_settings(
             local_repo_path, ['global', 'routing.yml'], 'global',
             settings, settings_origin, groups)
         settings, settings_origin = read_settings(
             local_repo_path, ['global', 'vxlans.yml'], 'global',
-            settings, settings_origin, groups)
+            settings, settings_origin, groups, hostname)
     # Verify syntax
     check_settings_syntax(settings, settings_origin)
     return f_root(**settings).dict(), settings_origin
@@ -300,7 +333,6 @@ def get_group_settings(hostname: Optional[str] = None,
     except VerifyPathException as e:
         logger.exception("Exception when verifying settings repository directory structure")
         raise e
-    data_dir = pkg_resources.resource_filename(__name__, 'data')
     settings, settings_origin = read_settings(local_repo_path,
                                               ['global', 'groups.yml'],
                                               'global',

@@ -53,15 +53,16 @@ class f_vxlan(BaseModel):
     vlan_name: str = vlan_name_schema
     ipv4_gw: str = ipv4_if_schema
     groups: List[str] = []
+    devices: List[str] = []
 
 
 class f_root(BaseModel):
-    ntp_servers: Optional[List[f_ntp_server]]
-    radius_servers: Optional[List[f_radius_server]]
-    syslog_servers: Optional[List[f_syslog_server]]
-    interfaces: Optional[List[f_interface]]
-    vrfs: Optional[List[f_vrf]]
-    vxlans: Optional[List[f_vxlan]]
+    ntp_servers: List[f_ntp_server] = []
+    radius_servers: List[f_radius_server] = []
+    syslog_servers: List[f_syslog_server] = []
+    interfaces: List[f_interface] = []
+    vrfs: List[f_vrf] = []
+    vxlans: List[f_vxlan] = []
 
 
 class f_group_item(BaseModel):

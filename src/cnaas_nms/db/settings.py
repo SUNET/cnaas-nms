@@ -1,15 +1,16 @@
 import os
 import re
 import pkg_resources
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Union, Tuple, Set
 
 import yaml
 from pydantic.error_wrappers import ValidationError
 
 from cnaas_nms.db.settings_fields import f_root, f_groups
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
-from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -20,6 +21,10 @@ class VerifyPathException(Exception):
 
 
 class SettingsSyntaxError(Exception):
+    pass
+
+
+class VlanConflictError(Exception):
     pass
 
 
@@ -168,11 +173,72 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
         raise SettingsSyntaxError(msg)
 
 
-def check_settings_collissions(settings_dict):
-    pass
-#    get_groups()
-#    get inventory
-#    loop through hosts, apply vlans for each group, check collisions
+def check_settings_collisions(settings_dict, unique_vlans=True):
+    """Check settings for any duplicates/collisions.
+    This will call get_settings on all devices so make sure to not call this
+    from get_settings.
+
+    Args:
+        settings_dict:
+        unique_vlans: If enabled VLANs has to be globally unique
+
+    Returns:
+
+    """
+    mgmt_vlans: Set[int] = set()
+    global_vlans: Set[int] = set()
+    device_vlan_ids: dict[str, Set[int]] = {}  # save used VLAN ids per device
+    device_vlan_names: dict[str, Set[str]] = {}  # save used VLAN names per device
+    with sqla_session() as session:
+        mgmtdoms = session.query(Mgmtdomain).all()
+        for mgmtdom in mgmtdoms:
+            if mgmtdom.vlan and isinstance(mgmtdom.vlan, int):
+                if unique_vlans and mgmtdom.vlan in mgmt_vlans:
+                    raise VlanConflictError(
+                        "Management VLAN {} used in multiple management domains".format(
+                            mgmtdom.vlan
+                        ))
+                mgmt_vlans.add(mgmtdom.vlan)
+        global_vlans = mgmt_vlans
+        managed_devices: List[Device] = \
+            session.query(Device).filter(Device.state == DeviceState.MANAGED).all()
+        for dev in managed_devices:
+            dev_settings, _ = get_settings(dev.hostname, dev.device_type)
+            print(dev_settings)
+            if 'vxlans' not in dev_settings:
+                continue
+            for vxlan in dev_settings['vxlans']:
+                print("DEBUG10: {} {}".format(dev.hostname, vxlan))
+                # VLAN id checks
+                if 'vlan_id' not in vxlan or not isinstance(vxlan['vlan_id'], int):
+                    continue
+                if unique_vlans and vxlan['vlan_id'] in global_vlans:
+                    raise VlanConflictError(
+                        "VLAN id {} used in VXLAN {} is already used elsewhere".format(
+                            vxlan['vlan_id'], vxlan['name']
+                        ))
+                elif dev.hostname in device_vlan_ids and \
+                        vxlan['vlan_id'] in device_vlan_ids[dev.hostname]:
+                    raise VlanConflictError("VLAN id {} used multiple times in device {}".format(
+                        vxlan['vlan_id'], dev.hostname
+                    ))
+                else:
+                    device_vlan_ids[dev.hostname] = {vxlan['vlan_id']}
+                    global_vlans.add(vxlan['vlan_id'])
+                # VLAN name checks
+                if 'vlan_name' not in vxlan or not isinstance(vxlan['vlan_name'], str):
+                    continue
+                if dev.hostname in device_vlan_names and \
+                        vxlan['vlan_name'] in device_vlan_names[dev.hostname]:
+                    raise VlanConflictError("VLAN name {} used multiple times in device {}".format(
+                        vxlan['vlan_name'], dev.hostname
+                    ))
+                else:
+                    device_vlan_names[dev.hostname] = {vxlan['vlan_name']}
+    print("DEBUG00 {}".format(mgmt_vlans))
+    print("DEBUG01 {}".format(global_vlans))
+    print("DEBUG02 {}".format(device_vlan_ids))
+    print("DEBUG03 {}".format(device_vlan_names))
 
 
 def read_settings(local_repo_path: str, path: List[str], origin: str,

@@ -10,7 +10,8 @@ import yaml
 
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE
+from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
+    check_settings_collisions, VlanConflictError
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.jobtracker import Jobtracker, JobStatus
@@ -177,8 +178,12 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
                 if not Device.valid_hostname(hostname):
                     continue
                 get_settings(hostname)
+            check_settings_collisions()
         except SettingsSyntaxError as e:
             logger.exception("Error in settings repo configuration: {}".format(str(e)))
+            raise e
+        except VlanConflictError as e:
+            logger.exception("VLAN conflict in repo configuration: {}".format(str(e)))
             raise e
         logger.debug("Files changed in settings repository: {}".format(changed_files))
         updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)

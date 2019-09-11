@@ -173,21 +173,20 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
         raise SettingsSyntaxError(msg)
 
 
-def check_settings_collisions(settings_dict, unique_vlans=True):
+def check_settings_collisions(unique_vlans=True):
     """Check settings for any duplicates/collisions.
     This will call get_settings on all devices so make sure to not call this
     from get_settings.
 
     Args:
-        settings_dict:
         unique_vlans: If enabled VLANs has to be globally unique
 
     Returns:
 
     """
     mgmt_vlans: Set[int] = set()
-    global_vlans: Set[int] = set()
-    device_vlan_ids: dict[str, Set[int]] = {}  # save used VLAN ids per device
+    global_vlans: dict[int, str] = {}  # save global VLAN IDs and their unique vxlan name
+    device_vlan_ids: dict[str, Set[int]] = {}  # save used VLAN IDs per device
     device_vlan_names: dict[str, Set[str]] = {}  # save used VLAN names per device
     with sqla_session() as session:
         mgmtdoms = session.query(Mgmtdomain).all()
@@ -199,7 +198,7 @@ def check_settings_collisions(settings_dict, unique_vlans=True):
                             mgmtdom.vlan
                         ))
                 mgmt_vlans.add(mgmtdom.vlan)
-        global_vlans = mgmt_vlans
+        global_vlans = dict.fromkeys(mgmt_vlans, 'management')
         managed_devices: List[Device] = \
             session.query(Device).filter(Device.state == DeviceState.MANAGED).all()
         for dev in managed_devices:
@@ -212,7 +211,8 @@ def check_settings_collisions(settings_dict, unique_vlans=True):
                 # VLAN id checks
                 if 'vlan_id' not in vxlan or not isinstance(vxlan['vlan_id'], int):
                     continue
-                if unique_vlans and vxlan['vlan_id'] in global_vlans:
+                if unique_vlans and vxlan['vlan_id'] in global_vlans and \
+                        global_vlans[vxlan['vlan_id']] != vxlan['name']:
                     raise VlanConflictError(
                         "VLAN id {} used in VXLAN {} is already used elsewhere".format(
                             vxlan['vlan_id'], vxlan['name']
@@ -222,9 +222,11 @@ def check_settings_collisions(settings_dict, unique_vlans=True):
                     raise VlanConflictError("VLAN id {} used multiple times in device {}".format(
                         vxlan['vlan_id'], dev.hostname
                     ))
+                elif dev.hostname in device_vlan_ids:
+                    device_vlan_ids[dev.hostname].add(vxlan['vlan_id'])
                 else:
                     device_vlan_ids[dev.hostname] = {vxlan['vlan_id']}
-                    global_vlans.add(vxlan['vlan_id'])
+                global_vlans[vxlan['vlan_id']] = vxlan['name']
                 # VLAN name checks
                 if 'vlan_name' not in vxlan or not isinstance(vxlan['vlan_name'], str):
                     continue
@@ -233,6 +235,8 @@ def check_settings_collisions(settings_dict, unique_vlans=True):
                     raise VlanConflictError("VLAN name {} used multiple times in device {}".format(
                         vxlan['vlan_name'], dev.hostname
                     ))
+                elif dev.hostname in device_vlan_names:
+                    device_vlan_names[dev.hostname].add(vxlan['vlan_name'])
                 else:
                     device_vlan_names[dev.hostname] = {vxlan['vlan_name']}
     print("DEBUG00 {}".format(mgmt_vlans))

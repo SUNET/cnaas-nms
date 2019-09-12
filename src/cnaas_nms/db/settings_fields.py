@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from pydantic import BaseModel, Schema
 
@@ -19,7 +19,7 @@ vlan_name_schema = Schema(..., regex=VLAN_NAME_REGEX,
                           description="Max 32 alphanumeric chars, " +
                                       "beginning with a non-numeric character")
 vlan_id_schema = Schema(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
-
+vxlan_vni_schema = Schema(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Schema(..., regex=GROUP_NAME, max_length=253)
@@ -50,7 +50,8 @@ class f_vrf(BaseModel):
 
 
 class f_vxlan(BaseModel):
-    name: str = None
+    description: str = None
+    vni: int = vxlan_vni_schema
     vrf: str = vlan_name_schema
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
@@ -65,7 +66,7 @@ class f_root(BaseModel):
     syslog_servers: List[f_syslog_server] = []
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
-    vxlans: List[f_vxlan] = []
+    vxlans: Dict[str, f_vxlan] = {}
 
 
 class f_group_item(BaseModel):

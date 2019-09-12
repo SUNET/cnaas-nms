@@ -4,7 +4,8 @@ import unittest
 import pkg_resources
 
 from cnaas_nms.db.settings import get_settings, verify_dir_structure, \
-    DIR_STRUCTURE, VerifyPathException
+    DIR_STRUCTURE, VerifyPathException, \
+    check_vlan_collisions, VlanConflictError
 from cnaas_nms.db.device import DeviceType
 
 class SettingsTests(unittest.TestCase):
@@ -34,6 +35,120 @@ class SettingsTests(unittest.TestCase):
         # Assert that directory structure is actually verified by making sure an
         # is raised when looking in the filesystem root
         self.assertRaises(VerifyPathException, verify_dir_structure, '', DIR_STRUCTURE)
+
+    def test_vlan_collisions(self):
+        mgmt_vlans = {100}
+        # Check colliding mgmt vlan
+        devices_dict = {
+            'device1': {
+                'vxlans': {
+                    'vxlan1': {
+                        'vni': 100100,
+                        'vrf': 'vrf1',
+                        'vlan_id': 100,
+                        'vlan_name': 'vlanname1',
+                        'ipv4_gw': '10.0.0.1/24'
+                    }
+                }
+            }
+        }
+        self.assertRaises(VlanConflictError, check_vlan_collisions, devices_dict, mgmt_vlans)
+        # Check colliding vxlan vni in same device
+        devices_dict = {
+            'device1': {
+                'vxlans': {
+                    'vxlan1': {
+                        'vni': 100200,
+                        'vrf': 'vrf1',
+                        'vlan_id': 200,
+                        'vlan_name': 'vlanname1',
+                        'ipv4_gw': '10.0.0.1/24'
+                    },
+                }
+            },
+            'device2': {
+                'vxlans': {
+                    'vxlan2': {
+                        'vni': 100200,
+                        'vrf': 'vrf1',
+                        'vlan_id': 201,
+                        'vlan_name': 'vlanname1',
+                        'ipv4_gw': '10.0.1.1/24'
+                    }
+                }
+            }
+        }
+        self.assertRaises(VlanConflictError, check_vlan_collisions, devices_dict, mgmt_vlans)
+        # Check colliding vlan_id in same device
+        devices_dict = {
+            'device1': {
+                'vxlans': {
+                    'vxlan1': {
+                        'vni': 100200,
+                        'vrf': 'vrf1',
+                        'vlan_id': 200,
+                        'vlan_name': 'vlanname1',
+                        'ipv4_gw': '10.0.0.1/24'
+                    },
+                    'vxlan2': {
+                        'vni': 100201,
+                        'vrf': 'vrf1',
+                        'vlan_id': 200,
+                        'vlan_name': 'vlanname2',
+                        'ipv4_gw': '10.0.1.1/24'
+                    }
+                }
+            }
+        }
+        self.assertRaises(VlanConflictError, check_vlan_collisions, devices_dict, mgmt_vlans)
+        # Check colliding vlan name in same device
+        devices_dict = {
+            'device1': {
+                'vxlans': {
+                    'vxlan1': {
+                        'vni': 100200,
+                        'vrf': 'vrf1',
+                        'vlan_id': 200,
+                        'vlan_name': 'vlanname1',
+                        'ipv4_gw': '10.0.0.1/24'
+                    },
+                    'vxlan2': {
+                        'vni': 100201,
+                        'vrf': 'vrf1',
+                        'vlan_id': 201,
+                        'vlan_name': 'vlanname1',
+                        'ipv4_gw': '10.0.1.1/24'
+                    }
+                }
+            }
+        }
+        self.assertRaises(VlanConflictError, check_vlan_collisions, devices_dict, mgmt_vlans)
+        # Check valid config
+        devices_dict = {
+            'device1': {
+                'vxlans': {
+                    'vxlan1': {
+                        'vni': 100200,
+                        'vrf': 'vrf1',
+                        'vlan_id': 200,
+                        'vlan_name': 'vlanname1',
+                        'ipv4_gw': '10.0.0.1/24'
+                    },
+                }
+            },
+            'device2': {
+                'vxlans': {
+                    'vxlan2': {
+                        'vni': 100201,
+                        'vrf': 'vrf1',
+                        'vlan_id': 201,
+                        'vlan_name': 'vlanname1',
+                        'ipv4_gw': '10.0.1.1/24'
+                    }
+                }
+            }
+        }
+        self.assertIsNone(check_vlan_collisions(devices_dict, mgmt_vlans))
 
 
 if __name__ == '__main__':

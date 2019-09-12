@@ -7,6 +7,7 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.settings import get_settings
 
 
 class InterfaceApi(Resource):
@@ -32,6 +33,7 @@ class InterfaceApi(Resource):
         json_data = request.get_json()
         data = {}
         errors = []
+        device_settings = None
 
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
@@ -44,7 +46,8 @@ class InterfaceApi(Resource):
                     if not isinstance(if_dict, dict):
                         errors.append("Each interface must have a dict with data to update")
                         continue
-                    intf = session.query(Interface).filter(Interface.device == dev).\
+                    intfdata = {}
+                    intf: Interface = session.query(Interface).filter(Interface.device == dev).\
                         filter(Interface.name == if_name).one_or_none()
                     if not intf:
                         errors.append(f"Interface {if_name} not found")
@@ -53,11 +56,32 @@ class InterfaceApi(Resource):
                     if 'configtype' in if_dict:
                         configtype = if_dict['configtype'].upper()
                         if InterfaceConfigType.has_name(configtype):
-                            intf.configtype = InterfaceConfigType[configtype]
-                            updated = True
-                            data[if_name] = {'configtype': configtype}
+                            if intf.configtype != InterfaceConfigType[configtype]:
+                                intf.configtype = InterfaceConfigType[configtype]
+                                updated = True
+                                data[if_name] = {'configtype': configtype}
                         else:
                             errors.append(f"Invalid configtype received: {configtype}")
+
+                    if 'data' in if_dict:
+                        if 'vxlan' in if_dict['data']:
+                            if not device_settings:
+                                device_settings, _ = get_settings(hostname, dev.device_type)
+                            if if_dict['data']['vxlan'] in device_settings['vxlans']:
+                                intfdata['vxlan'] = if_dict['data']['vxlan']
+                            else:
+                                errors.append("Specified VXLAN {} is not present in {}".format(
+                                    if_dict['data']['vxlan'], hostname
+                                ))
+
+                    if intfdata:
+                        intf.data = intfdata
+                        updated = True
+                        if if_name in data:
+                            data[if_name]['data'] = intfdata
+                        else:
+                            data[if_name] = {'data': intfdata}
+
             if updated:
                 dev.synchronized = False
 

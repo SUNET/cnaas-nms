@@ -1,7 +1,7 @@
 import os
 import re
 import pkg_resources
-from typing import List, Optional, Union, Tuple, Set
+from typing import List, Optional, Union, Tuple, Set, Dict
 
 import yaml
 from pydantic.error_wrappers import ValidationError
@@ -173,7 +173,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
         raise SettingsSyntaxError(msg)
 
 
-def check_settings_collisions(unique_vlans=True):
+def check_settings_collisions(unique_vlans: bool = True):
     """Check settings for any duplicates/collisions.
     This will call get_settings on all devices so make sure to not call this
     from get_settings.
@@ -185,9 +185,7 @@ def check_settings_collisions(unique_vlans=True):
 
     """
     mgmt_vlans: Set[int] = set()
-    global_vlans: dict[int, str] = {}  # save global VLAN IDs and their unique vxlan name
-    device_vlan_ids: dict[str, Set[int]] = {}  # save used VLAN IDs per device
-    device_vlan_names: dict[str, Set[str]] = {}  # save used VLAN names per device
+    devices_dict: dict[str, dict] = {}
     with sqla_session() as session:
         mgmtdoms = session.query(Mgmtdomain).all()
         for mgmtdom in mgmtdoms:
@@ -198,51 +196,70 @@ def check_settings_collisions(unique_vlans=True):
                             mgmtdom.vlan
                         ))
                 mgmt_vlans.add(mgmtdom.vlan)
-        global_vlans = dict.fromkeys(mgmt_vlans, 'management')
         managed_devices: List[Device] = \
             session.query(Device).filter(Device.state == DeviceState.MANAGED).all()
         for dev in managed_devices:
             dev_settings, _ = get_settings(dev.hostname, dev.device_type)
-            print(dev_settings)
-            if 'vxlans' not in dev_settings:
+            devices_dict[dev.hostname] = dev_settings
+    check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
+
+
+def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
+                          unique_vlans: bool = True):
+    # save global VLAN IDs and their unique vxlan name
+    global_vlans: dict[int, str] = dict.fromkeys(mgmt_vlans, 'management')
+    global_vnis: dict[int, str] = {}
+    device_vlan_ids: dict[str, Set[int]] = {}  # save used VLAN IDs per device
+    device_vlan_names: dict[str, Set[str]] = {}  # save used VLAN names per device
+    for hostname, settings in devices_dict.items():
+        if 'vxlans' not in settings:
+            continue
+        for vxlan_name, vxlan_data in settings['vxlans'].items():
+            # VXLAN VNI checks
+            if 'vni' not in vxlan_data or not isinstance(vxlan_data['vni'], int):
+                logger.error("VXLAN {} is missing vni".format(vxlan_name))
                 continue
-            for vxlan in dev_settings['vxlans']:
-                print("DEBUG10: {} {}".format(dev.hostname, vxlan))
-                # VLAN id checks
-                if 'vlan_id' not in vxlan or not isinstance(vxlan['vlan_id'], int):
-                    continue
-                if unique_vlans and vxlan['vlan_id'] in global_vlans and \
-                        global_vlans[vxlan['vlan_id']] != vxlan['name']:
-                    raise VlanConflictError(
-                        "VLAN id {} used in VXLAN {} is already used elsewhere".format(
-                            vxlan['vlan_id'], vxlan['name']
-                        ))
-                elif dev.hostname in device_vlan_ids and \
-                        vxlan['vlan_id'] in device_vlan_ids[dev.hostname]:
-                    raise VlanConflictError("VLAN id {} used multiple times in device {}".format(
-                        vxlan['vlan_id'], dev.hostname
+            if vxlan_data['vni'] in global_vnis and \
+                    global_vnis[vxlan_data['vni']] != vxlan_name:
+                raise VlanConflictError(
+                    "VXLAN VNI {} used in VXLAN {} is already used elsewhere".format(
+                        vxlan_data['vni'], vxlan_name
                     ))
-                elif dev.hostname in device_vlan_ids:
-                    device_vlan_ids[dev.hostname].add(vxlan['vlan_id'])
-                else:
-                    device_vlan_ids[dev.hostname] = {vxlan['vlan_id']}
-                global_vlans[vxlan['vlan_id']] = vxlan['name']
-                # VLAN name checks
-                if 'vlan_name' not in vxlan or not isinstance(vxlan['vlan_name'], str):
-                    continue
-                if dev.hostname in device_vlan_names and \
-                        vxlan['vlan_name'] in device_vlan_names[dev.hostname]:
-                    raise VlanConflictError("VLAN name {} used multiple times in device {}".format(
-                        vxlan['vlan_name'], dev.hostname
+            elif vxlan_data['vni'] not in global_vnis:
+                global_vnis[vxlan_data['vni']] = vxlan_name
+            # VLAN id checks
+            if 'vlan_id' not in vxlan_data or not isinstance(vxlan_data['vlan_id'], int):
+                logger.error("VXLAN {} is missing vlan_id".format(vxlan_name))
+                continue
+            if unique_vlans and vxlan_data['vlan_id'] in global_vlans and \
+                    global_vlans[vxlan_data['vlan_id']] != vxlan_name:
+                raise VlanConflictError(
+                    "VLAN id {} used in VXLAN {} is already used elsewhere".format(
+                        vxlan_data['vlan_id'], vxlan_name
                     ))
-                elif dev.hostname in device_vlan_names:
-                    device_vlan_names[dev.hostname].add(vxlan['vlan_name'])
-                else:
-                    device_vlan_names[dev.hostname] = {vxlan['vlan_name']}
-    print("DEBUG00 {}".format(mgmt_vlans))
-    print("DEBUG01 {}".format(global_vlans))
-    print("DEBUG02 {}".format(device_vlan_ids))
-    print("DEBUG03 {}".format(device_vlan_names))
+            elif hostname in device_vlan_ids and \
+                    vxlan_data['vlan_id'] in device_vlan_ids[hostname]:
+                raise VlanConflictError("VLAN id {} used multiple times in device {}".format(
+                    vxlan_data['vlan_id'], hostname
+                ))
+            elif hostname in device_vlan_ids:
+                device_vlan_ids[hostname].add(vxlan_data['vlan_id'])
+            else:
+                device_vlan_ids[hostname] = {vxlan_data['vlan_id']}
+            global_vlans[vxlan_data['vlan_id']] = vxlan_name
+            # VLAN name checks
+            if 'vlan_name' not in vxlan_data or not isinstance(vxlan_data['vlan_name'], str):
+                logger.error("VXLAN {} is missing vlan_name".format(vxlan_name))
+                continue
+            if hostname in device_vlan_names and \
+                    vxlan_data['vlan_name'] in device_vlan_names[hostname]:
+                raise VlanConflictError("VLAN name {} used multiple times in device {}".format(
+                    vxlan_data['vlan_name'], hostname
+                ))
+            elif hostname in device_vlan_names:
+                device_vlan_names[hostname].add(vxlan_data['vlan_name'])
+            else:
+                device_vlan_names[hostname] = {vxlan_data['vlan_name']}
 
 
 def read_settings(local_repo_path: str, path: List[str], origin: str,
@@ -328,9 +345,11 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
                     hostname_match = True
                     ret_d[k] = v
             if do_filter and not (group_match or hostname_match):
-                return {}
+                return None
             else:
-                ret_d[k] = filter_yamldata(v, groups, hostname, recdepth-1)
+                ret_v = filter_yamldata(v, groups, hostname, recdepth - 1)
+                if ret_v:
+                    ret_d[k] = ret_v
         return ret_d
     else:
         return data
@@ -351,9 +370,9 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
                 ds_hostnames.append(neighbor_dev.hostname)
         for ds_hostname in ds_hostnames:
             ds_settings, _ = get_settings(ds_hostname, DeviceType.ACCESS)
-            for vxlan in ds_settings['vxlans']:
-                if vxlan['name'] not in [d['name'] for d in settings['vxlans']]:
-                    settings['vxlans'].append(vxlan)
+            for vxlan_name, vxlan_data in ds_settings['vxlans'].items():
+                if vxlan_name not in settings['vxlans'].keys():
+                    settings['vxlans'][vxlan_name] = vxlan_data
     return settings
 
 

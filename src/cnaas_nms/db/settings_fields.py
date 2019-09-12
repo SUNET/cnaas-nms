@@ -38,8 +38,8 @@ class f_syslog_server(BaseModel):
 
 
 class f_interface(BaseModel):
-    name: str = None
-    ifclass: str = None
+    name: str
+    ifclass: str
     config: Optional[str] = None
 
 

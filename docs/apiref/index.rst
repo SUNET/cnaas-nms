@@ -16,6 +16,7 @@ Contents
    settings
    plugins
    syncto
+   interfaces
 
 Indices and tables
 ==================

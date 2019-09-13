@@ -143,7 +143,8 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
                     name_only=True).split()
             changed_files.update(diff_files)
             prev_commit = item.commit.hexsha
-    except (InvalidGitRepositoryError, NoSuchPathError) as e:
+    # "ValueError: Reference at 'refs/heads/master' does not exist" can also cause this
+    except (InvalidGitRepositoryError, NoSuchPathError, ValueError) as e:
         logger.info("Local repository {} not found, cloning from remote".\
                     format(local_repo_path))
         try:

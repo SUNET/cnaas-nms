@@ -61,12 +61,14 @@ def job_wrapper(func):
             tb = traceback.format_exc()
             logger.debug("Exception traceback in job_wrapper: {}".format(tb))
             if job:
-                stop_event.set()
+                if func.__name__ is 'sync_devices':
+                    stop_event.set()
                 job.finish_exception(e, tb)
             raise e
         else:
             if job:
-                stop_event.set()
+                if func.__name__ is 'sync_devices':
+                    stop_event.set()
                 job.finish_success(res, find_nextjob(res))
             return res
     return wrapper

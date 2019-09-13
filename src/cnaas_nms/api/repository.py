@@ -2,7 +2,7 @@ from flask import request
 from flask_restful import Resource
 
 from cnaas_nms.db.git import RepoType, refresh_repo, get_repo_status
-from cnaas_nms.db.settings import VerifyPathException
+from cnaas_nms.db.settings import VerifyPathException, SettingsSyntaxError
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.joblock import JoblockError
 
@@ -31,12 +31,17 @@ class RepositoryApi(Resource):
                 except VerifyPathException as e:
                     return empty_result(
                         'error',
-                        "Repository structure is invalid: {}".format(type(e).__name__, str(e))
+                        "Repository structure is invalid ({}): {}".format(type(e).__name__, str(e))
                     )
                 except JoblockError as e:
                     return empty_result(
                         'error',
                         "Another job is locking configuration of devices, try again later ({})".format(str(e))
+                    )
+                except SettingsSyntaxError as e:
+                    return empty_result(
+                        'error',
+                        "Syntax error in repository: {}".format(str(e))
                     )
             else:
                 return empty_result('error', "Invalid action"), 400

@@ -15,8 +15,8 @@ if [ -e "/opt/cnaas/templates" ]; then
     rm -rf /opt/cnaas/templates
 fi
 
-git clone $GITREPO_SETTINGS /opt/cnaas/settings
-git clone $GITREPO_TEMPLATES /opt/cnaas/templates
+#git clone $GITREPO_SETTINGS /opt/cnaas/settings
+#git clone $GITREPO_TEMPLATES /opt/cnaas/templates
 
 # Wait for postgres to start
 echo ">> Waiting for postgres to start"

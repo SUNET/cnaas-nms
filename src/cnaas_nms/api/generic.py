@@ -1,5 +1,10 @@
+import re
+
 from flask import request
 import sqlalchemy
+
+
+FILTER_RE = re.compile(r"^filter\[([a-zA-Z0-9_.]+)\](\[[a-z]+\])?$")
 
 
 def limit_results() -> int:
@@ -25,27 +30,36 @@ def build_filter(f_class, query):
         ValueError
     """
     args = request.args
-    if not 'filter' in args:
-        return query
-    split = args['filter'].split(',')
-    if not len(split) == 2:
-        # invalid
-        return query
-    attribute, value = split
-    if not attribute in f_class.__table__._columns.keys():
-        raise ValueError("{} is not a valid attribute to filter on".format(attribute))
-    # Special handling from Enum type, check valid enum names
-    if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Enum):
-        value = value.upper()
-        allowed_names = set(item.name for item in \
-                            f_class.__table__._columns[attribute].type.enum_class)
-        if value not in allowed_names:
-            raise ValueError("{} is not a valid value for {}".format(
-                value, attribute
-            ))
+    for arg, value in args.items():
+        match = re.match(FILTER_RE, arg)
+        if not match or len(match.groups()) != 2:
+            continue
+        attribute = match.groups()[0].replace('.', '_')
+        operator = match.groups()[1]
+        if operator:
+            operator = operator.lstrip('[').rstrip(']')
 
-    kwargs = {attribute: value}
-    return query.filter_by(**kwargs)
+        if attribute not in f_class.__table__._columns.keys():
+            raise ValueError("{} is not a valid attribute to filter on".format(attribute))
+        # Special handling from Enum type, check valid enum names
+        if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Enum):
+            value = value.upper()
+            allowed_names = set(item.name for item in \
+                                f_class.__table__._columns[attribute].type.enum_class)
+            if value not in allowed_names:
+                raise ValueError("{} is not a valid value for {}".format(
+                    value, attribute
+                ))
+        f_class_field = getattr(f_class, attribute)
+        if operator == 'contains':
+            f_class_op = getattr(f_class_field, 'contains')
+        else:
+            f_class_op = getattr(f_class_field, '__eq__')
+
+#        kwargs = {attribute: value}
+        query = query.filter(f_class_op(value))
+
+    return query
 
 
 def empty_result(status='success', data=None):

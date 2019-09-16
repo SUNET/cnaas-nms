@@ -23,7 +23,24 @@ def limit_results() -> int:
     return limit
 
 
-def build_filter(f_class, query):
+def offset_results() -> int:
+    """Find number of results to offset query to, either by user requested
+    param or a default value."""
+    offset = 0
+
+    args = request.args
+    if 'offset' in args:
+        try:
+            r_limit = int(args['offset'])
+            offset = max(0, r_limit)
+        except:
+            pass
+
+    return offset
+
+
+
+def build_filter(f_class, query: sqlalchemy.orm.query.Query):
     """Generate SQLalchemy filter based on query string and return
     filtered query.
     Raises:
@@ -56,9 +73,10 @@ def build_filter(f_class, query):
         else:
             f_class_op = getattr(f_class_field, '__eq__')
 
-#        kwargs = {attribute: value}
         query = query.filter(f_class_op(value))
 
+    query = query.limit(limit_results())
+    query = query.offset(offset_results())
     return query
 
 

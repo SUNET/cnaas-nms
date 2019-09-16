@@ -435,8 +435,7 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
     return f_root(**settings).dict(), settings_origin
 
 
-def get_group_settings(hostname: Optional[str] = None,
-                       device_type: Optional[DeviceType] = None):
+def get_group_settings():
     settings: dict = {}
     settings_origin: dict = {}
 
@@ -459,10 +458,7 @@ def get_group_settings(hostname: Optional[str] = None,
 
 def get_groups(hostname=''):
     groups = []
-    if hostname is not '':
-        settings, origin = get_group_settings(hostname=hostname)
-    else:
-        settings, origin = get_group_settings()
+    settings, origin = get_group_settings()
     if settings is None:
         return groups
     if 'groups' not in settings:

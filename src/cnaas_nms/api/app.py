@@ -22,10 +22,10 @@ api = Api(app)
 
 # Devices
 api.add_resource(DeviceByIdApi, f'/api/{ __api_version__ }/device/<int:device_id>')
-api.add_resource(DevicesApi, f'/api/{ __api_version__ }/device')
 api.add_resource(DeviceInitApi, f'/api/{ __api_version__ }/device_init/<int:device_id>')
 api.add_resource(DeviceSyncApi, f'/api/{ __api_version__ }/device_syncto')
 api.add_resource(DeviceConfigApi, f'/api/{ __api_version__ }/device/<string:hostname>/generate_config')
+api.add_resource(DevicesApi, f'/api/{ __api_version__ }/devices')
 # device/<string:hostname>/current_config
 
 # Links

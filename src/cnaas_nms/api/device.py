@@ -47,8 +47,13 @@ class DeviceByIdApi(Resource):
 
 class DevicesApi(Resource):
     def get(self):
-        result = empty_result()
-        data = {'devices': Device.device_get()}
+        data = {'devices': []}
+        with sqla_session() as session:
+            query = session.query(Device)
+            query = build_filter(Device, query)
+            for instance in query:
+                data['devices'].append(instance.as_dict())
+
         return empty_result(status='success', data=data), 200
 
     def post(self):

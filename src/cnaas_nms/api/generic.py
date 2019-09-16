@@ -47,8 +47,21 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
         ValueError
     """
     args = request.args
+    f_class_order_by_field = None
+    order = None  # sqlalchemy asc or desc
     for arg, value in args.items():
         match = re.match(FILTER_RE, arg)
+        if arg == 'sort' and isinstance(value, str):
+            order_by_field = value.lower()
+            if order_by_field.startswith('-'):
+                order_by_field = order_by_field.lstrip('-')
+                order = sqlalchemy.desc
+            else:
+                order = sqlalchemy.asc
+
+            if order_by_field in f_class.__table__._columns.keys():
+                f_class_order_by_field = getattr(f_class, order_by_field)
+            continue
         if not match or len(match.groups()) != 2:
             continue
         attribute = match.groups()[0].replace('.', '_')
@@ -75,6 +88,8 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
 
         query = query.filter(f_class_op(value))
 
+    if f_class_order_by_field:
+        query = query.order_by(order(f_class_order_by_field))
     query = query.limit(limit_results())
     query = query.offset(offset_results())
     return query

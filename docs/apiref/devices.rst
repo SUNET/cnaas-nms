@@ -6,18 +6,67 @@ The API is used to manage devices, interfaces and other objects used by the CNaa
 Show devices
 ------------
 
-To list all devices the following REST call can be done:
+A single device entry can be listed by device_id:
 
 ::
 
-   curl https://hostname/api/v1.0/device
+   curl https://hostname/api/v1.0/device/9
 
-However, is a single device should be filtered out, the device name
-can be send as part of the URL:
+This will return the entire device entry from the database:
 
 ::
 
-   curl https://hostname/api/v1.0/device/ex2300-top
+  {
+      "status": "success",
+      "data": {
+          "devices": [
+              {
+                  "id": 9,
+                  "hostname": "eosdist",
+                  "site_id": null,
+                  "description": null,
+                  "management_ip": "10.100.3.101",
+                  "dhcp_ip": null,
+                  "infra_ip": null,
+                  "oob_ip": null,
+                  "serial": null,
+                  "ztp_mac": "08002708a8be",
+                  "platform": "eos",
+                  "vendor": null,
+                  "model": null,
+                  "os_version": null,
+                  "synchronized": true,
+                  "state": "MANAGED",
+                  "device_type": "DIST",
+                  "confhash": null,
+                  "last_seen": "2019-02-27 10:30:23.338681",
+                  "port": null
+              }
+          ]
+      }
+  }
+
+
+To list all devices the following API call can be used:
+
+::
+
+   curl https://hostname/api/v1.0/devices
+
+You can also do filtering, ordering and limiting of results from the devices API:
+
+::
+
+   curl "https://hostname/api/v1.0/devices?filter[hostname][contains]=eos&filter[device.type]=dist&limit=2&offset=0&sort=-hostname"
+
+This will filter the results like so:
+
+* Only devices that has a hostname that contains the string "eos" will be returned
+* Only devices that has type exactly matching "dist" will be returned
+* A maximum of two results will be returned (limit=2)
+* The results will start with the first entry found (offset=0)
+* The results will be ordered based on the column hostname, in descending order. "-" means descending, no prefix means ascending (sort=-hostname)
+
 
 Add devices
 -----------
@@ -105,7 +154,7 @@ To remove a device, pass the device ID in a DELTE call:
 
 ::
 
-   curl -X PUT https://hostname/api/v1.0/device/10
+   curl -X DELETE https://hostname/api/v1.0/device/10
 
 
 Preview config

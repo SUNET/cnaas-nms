@@ -29,17 +29,17 @@ api.add_resource(DevicesApi, f'/api/{ __api_version__ }/devices')
 # device/<string:hostname>/current_config
 
 # Links
-api.add_resource(LinknetsApi, f'/api/{ __api_version__ }/linknet')
+api.add_resource(LinknetsApi, f'/api/{ __api_version__ }/linknets')
 
 # Interfaces
 api.add_resource(InterfaceApi, f'/api/{ __api_version__ }/device/<string:hostname>/interfaces')
 
 # Management domains
-api.add_resource(MgmtdomainsApi, f'/api/{ __api_version__ }/mgmtdomain')
+api.add_resource(MgmtdomainsApi, f'/api/{ __api_version__ }/mgmtdomains')
 api.add_resource(MgmtdomainByIdApi, f'/api/{ __api_version__ }/mgmtdomain/<int:mgmtdomain_id>')
 
 # Jobs
-api.add_resource(JobsApi, f'/api/{ __api_version__ }/job')
+api.add_resource(JobsApi, f'/api/{ __api_version__ }/jobs')
 api.add_resource(JobByIdApi, f'/api/{ __api_version__ }/job/<string:id>')
 api.add_resource(JobLockApi, f'/api/{ __api_version__ }/joblocks')
 

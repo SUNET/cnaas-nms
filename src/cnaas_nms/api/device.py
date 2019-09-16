@@ -45,17 +45,7 @@ class DeviceByIdApi(Resource):
         return empty_result(status='success'), 200
 
 
-class DevicesApi(Resource):
-    def get(self):
-        data = {'devices': []}
-        with sqla_session() as session:
-            query = session.query(Device)
-            query = build_filter(Device, query)
-            for instance in query:
-                data['devices'].append(instance.as_dict())
-
-        return empty_result(status='success', data=data), 200
-
+class DeviceApi(Resource):
     def post(self):
         json_data = request.get_json()
         data = {}
@@ -71,6 +61,18 @@ class DevicesApi(Resource):
                 return errors
         Device.device_add(**json_data)
         return empty_result(status='success'), 200
+
+
+class DevicesApi(Resource):
+    def get(self):
+        data = {'devices': []}
+        with sqla_session() as session:
+            query = session.query(Device)
+            query = build_filter(Device, query)
+            for instance in query:
+                data['devices'].append(instance.as_dict())
+
+        return empty_result(status='success', data=data), 200
 
 
 class LinknetsApi(Resource):

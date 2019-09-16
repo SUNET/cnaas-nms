@@ -37,7 +37,7 @@ class GetTests(unittest.TestCase):
         for i in range(100):
             try:
                 r = requests.get(
-                    f'{URL}/api/v1.0/device',
+                    f'{URL}/api/v1.0/devices',
                     verify=TLS_VERIFY
                 )
             except Exception as e:
@@ -54,8 +54,8 @@ class GetTests(unittest.TestCase):
     def wait_for_discovered_device(self):
         for i in range(100):
             r = requests.get(
-                f'{URL}/api/v1.0/device',
-                params={'filter': 'state,DISCOVERED'},
+                f'{URL}/api/v1.0/devices',
+                params={'filter[state]': 'DISCOVERED'},
                 verify=TLS_VERIFY
             )
             if len(r.json()['data']['devices']) == 1:

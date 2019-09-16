@@ -51,7 +51,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['data']['devices'][0]['id'], device_id)
 
     def test_get_last_job(self):
-        result = self.client.get('/api/v1.0/job?limit=1')
+        result = self.client.get('/api/v1.0/jobs?limit=1')
 
         pprint.pprint(result.json)
 
@@ -63,7 +63,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(result.json['data']['jobs']), 1)
 
     def test_get_managementdomain(self):
-        result = self.client.get('/api/v1.0/mgmtdomain?limit=1')
+        result = self.client.get('/api/v1.0/mgmtdomains?limit=1')
         # 200 OK
         self.assertEqual(result.status_code, 200)
         # Succes in json

@@ -63,7 +63,7 @@ class DeviceTests(unittest.TestCase):
 
     def test_2_get_device(self):
         device_id = 0
-        result = self.client.get('/api/v1.0/device')
+        result = self.client.get('/api/v1.0/devices')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
         for _ in json_data['data']['devices']:
@@ -91,7 +91,7 @@ class DeviceTests(unittest.TestCase):
             "device_type": "ACCESS",
         }
         device_id = 0
-        result = self.client.get('/api/v1.0/device')
+        result = self.client.get('/api/v1.0/devices')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
         for _ in json_data['data']['devices']:
@@ -117,7 +117,7 @@ class DeviceTests(unittest.TestCase):
 
     def test_4_delete_device(self):
         device_id = 0
-        result = self.client.get('/api/v1.0/device')
+        result = self.client.get('/api/v1.0/devices')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
         for _ in json_data['data']['devices']:
@@ -127,3 +127,7 @@ class DeviceTests(unittest.TestCase):
         self.assertIsNot(device_id, 0)
         result = self.client.delete(f'/api/v1.0/device/{device_id}')
         self.assertEqual(result.status_code, 200)
+
+
+if __name__ == '__main__':
+    unittest.main()

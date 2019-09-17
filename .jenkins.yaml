@@ -26,14 +26,6 @@ script:
 #   room: "cnaas"
 
 extra_jobs:
-  - name: cnaas-httpd
-    builders:
-      - docker
-    docker_name: cnaas/httpd
-    docker_context_dir: docker/httpd
-    docker_tags:
-      - "v0.1.0"
-
   - name: cnaas-dhcpd
     builders:
       - docker

@@ -24,7 +24,8 @@ services:
         target: /coverage
 
   cnaas_httpd:
-    build: ./httpd/
+    image:
+      docker.sunet.se/cnaas/httpd
     ports:
       - 80:80
     networks:

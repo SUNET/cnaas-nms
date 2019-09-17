@@ -18,7 +18,6 @@ import cnaas_nms.db.site
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.api.generic import build_filter
 
 
 class DeviceException(Exception):
@@ -192,21 +191,6 @@ class Device(cnaas_nms.db.base.Base):
             for _ in data:
                 setattr(new_device, _, data[_])
             session.add(new_device)
-
-    @classmethod
-    def device_get(cls, hostname=''):
-        result = []
-        with sqla_session() as session:
-            if hostname != '':
-                instance: Device = session.query(Device).filter(Device.hostname ==
-                                                                hostname).one_or_none()
-                return instance.id
-            else:
-                query = session.query(Device)
-                query = build_filter(Device, query)
-                for instance in query:
-                    result.append(instance.as_dict())
-        return result
 
     @classmethod
     def device_update(cls, device_id, **kwargs):

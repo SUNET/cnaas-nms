@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 from flask_restful import Api
-from cnaas_nms.api.device import DeviceByIdApi, DevicesApi, LinknetsApi, \
-    DeviceInitApi, DeviceSyncApi, DeviceConfigApi
+from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
+    LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi
 from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi, JobByIdApi, JobLockApi
@@ -22,24 +22,25 @@ api = Api(app)
 
 # Devices
 api.add_resource(DeviceByIdApi, f'/api/{ __api_version__ }/device/<int:device_id>')
-api.add_resource(DevicesApi, f'/api/{ __api_version__ }/device')
 api.add_resource(DeviceInitApi, f'/api/{ __api_version__ }/device_init/<int:device_id>')
 api.add_resource(DeviceSyncApi, f'/api/{ __api_version__ }/device_syncto')
 api.add_resource(DeviceConfigApi, f'/api/{ __api_version__ }/device/<string:hostname>/generate_config')
+api.add_resource(DeviceApi, f'/api/{ __api_version__ }/device')
+api.add_resource(DevicesApi, f'/api/{ __api_version__ }/devices')
 # device/<string:hostname>/current_config
 
 # Links
-api.add_resource(LinknetsApi, f'/api/{ __api_version__ }/linknet')
+api.add_resource(LinknetsApi, f'/api/{ __api_version__ }/linknets')
 
 # Interfaces
 api.add_resource(InterfaceApi, f'/api/{ __api_version__ }/device/<string:hostname>/interfaces')
 
 # Management domains
-api.add_resource(MgmtdomainsApi, f'/api/{ __api_version__ }/mgmtdomain')
+api.add_resource(MgmtdomainsApi, f'/api/{ __api_version__ }/mgmtdomains')
 api.add_resource(MgmtdomainByIdApi, f'/api/{ __api_version__ }/mgmtdomain/<int:mgmtdomain_id>')
 
 # Jobs
-api.add_resource(JobsApi, f'/api/{ __api_version__ }/job')
+api.add_resource(JobsApi, f'/api/{ __api_version__ }/jobs')
 api.add_resource(JobByIdApi, f'/api/{ __api_version__ }/job/<string:id>')
 api.add_resource(JobLockApi, f'/api/{ __api_version__ }/joblocks')
 

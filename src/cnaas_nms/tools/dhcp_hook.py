@@ -31,6 +31,12 @@ if sys.argv[1] == "commit":
                 logger.info("New device booted via DHCP to state DISCOVERED: {}".format(
                     ztp_mac
                 ))
+            elif db_entry.state == DeviceState.DISCOVERED:
+                if str(db_entry.dhcp_ip) != dhcp_ip:
+                    logger.info("Updating DHCP IP for device with ZTP MAC {} to: {}".format(
+                        ztp_mac, dhcp_ip
+                    ))
+                    db_entry.dhcp_ip = dhcp_ip
             else:
                 logger.error("New device booted via DHCP in unhandled state {}: {}".format(
                     db_entry.state,

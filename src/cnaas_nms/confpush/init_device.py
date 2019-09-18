@@ -251,7 +251,7 @@ def init_access_device_step2(device_id: int, iteration: int = -1, job_id: Option
         dev.model = facts['model']
         dev.os_version = facts['os_version']
         management_ip = dev.management_ip
-        #TODO: remove dhcp_ip ?
+        dev.dhcp_ip = None
 
     # Plugin hook: new managed device
     # Send: hostname , device type , serial , platform , vendor , model , os version

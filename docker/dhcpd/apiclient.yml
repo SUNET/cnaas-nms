@@ -1,0 +1,4 @@
+---
+cnaas_nms:
+  base_url: https://cnaas_api:1443
+  verify_tls: False

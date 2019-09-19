@@ -31,8 +31,9 @@ def main() -> int:
 
         apidata = get_apidata()
         base_url = apidata['cnaas_nms']['base_url']
+        verify_tls = apidata['cnaas_nms']['verify_tls']
         params = {'filter[ztp_mac]': ztp_mac}
-        r = requests.get(f"{base_url}/api/v1.0/devices", params=params)
+        r = requests.get(f"{base_url}/api/v1.0/devices", params=params, verify=verify_tls)
         if r.status_code != 200:
             logger.error("Could not query device API: {} (status {})".format(
                 r.text, r.status_code))
@@ -52,7 +53,7 @@ def main() -> int:
             dev_id: int = int(dev_dict['id'])
             if dev_dict['state'] == 'DHCP_BOOT':
                 data = {"ztp_mac": ztp_mac, "dhcp_ip": dhcp_ip}
-                r = requests.post(f"{base_url}/api/v1.0/device_discover", json=data)
+                r = requests.post(f"{base_url}/api/v1.0/device_discover", json=data, verify=verify_tls)
                 if r.status_code != 200:
                     logger.error("Error when scheduling job to discover device: {} ({})".format(
                         r.text, r.status_code
@@ -73,7 +74,7 @@ def main() -> int:
             elif dev_dict['state'] == 'DISCOVERED':
                 if dev_dict['dhcp_ip'] != dhcp_ip:
                     data = {"dhcp_ip": dhcp_ip}
-                    r = requests.put(f"{base_url}/api/v1.0/device/{dev_id}", json=data)
+                    r = requests.put(f"{base_url}/api/v1.0/device/{dev_id}", json=data, verify=verify_tls)
                     logger.info(
                         "Updating DHCP IP for device with ZTP MAC {} to: {} (status {})".format(
                             ztp_mac, dhcp_ip, r.status_code
@@ -98,7 +99,7 @@ def main() -> int:
                 "state": "DHCP_BOOT",
                 "device_type": "UNKNOWN"
             }
-            r = requests.post(f"{base_url}/api/v1.0/device", json=data)
+            r = requests.post(f"{base_url}/api/v1.0/device", json=data, verify=verify_tls)
             if r.status_code != 200:
                 logger.error("Error when adding new device: {} ({})".format(
                     r.text, r.status_code

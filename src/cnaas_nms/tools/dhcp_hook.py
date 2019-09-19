@@ -45,8 +45,9 @@ def main() -> int:
         except Exception as e:
             logger.error("Invalid JSON response from devices API: {}".format(r.text))
             return 11
-        if not r_data['status'] != "success":
+        if r_data['status'] != "success":
             logger.error("Could not query device API: {} (status {})".format(r.text, r_data['status']))
+            return 12
         devices = r_data['data']['devices']
         if devices:
             dev_dict: dict = devices[0]

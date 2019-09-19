@@ -125,6 +125,27 @@ class DeviceInitApi(Resource):
         return res
 
 
+class DeviceDiscoverApi(Resource):
+    def post(self):
+        json_data = request.get_json()
+        if 'ztp_mac' not in json_data:
+            return empty_result(status='error', data="POST data must include 'ztp_mac'"), 400
+        if 'dhcp_ip' not in json_data:
+            return empty_result(status='error', data="POST data must include 'dhcp_ip'"), 400
+        ztp_mac = json_data['ztp_mac']
+        dhcp_ip = json_data['dhcp_ip']
+
+        job_id = cnaas_nms.confpush.init_device.schedule_discover_device(
+            ztp_mac=ztp_mac, dhcp_ip=dhcp_ip, iteration=1)
+
+        logger.debug(f"Discover device for ztp_mac {ztp_mac} scheduled as ID {job_id}")
+
+        res = empty_result(data=f"Scheduled job to discover device for ztp_mac {ztp_mac}")
+        res['job_id'] = job_id
+
+        return res
+
+
 class DeviceSyncApi(Resource):
     def post(self):
         json_data = request.get_json()

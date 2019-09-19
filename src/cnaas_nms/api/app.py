@@ -1,7 +1,7 @@
 from flask import Flask, render_template
 from flask_restful import Api
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
-    LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi
+    LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
 from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
 from cnaas_nms.api.jobs import JobsApi, JobByIdApi, JobLockApi
@@ -23,6 +23,7 @@ api = Api(app)
 # Devices
 api.add_resource(DeviceByIdApi, f'/api/{ __api_version__ }/device/<int:device_id>')
 api.add_resource(DeviceInitApi, f'/api/{ __api_version__ }/device_init/<int:device_id>')
+api.add_resource(DeviceDiscoverApi, f'/api/{ __api_version__ }/device_discover')
 api.add_resource(DeviceSyncApi, f'/api/{ __api_version__ }/device_syncto')
 api.add_resource(DeviceConfigApi, f'/api/{ __api_version__ }/device/<string:hostname>/generate_config')
 api.add_resource(DeviceApi, f'/api/{ __api_version__ }/device')

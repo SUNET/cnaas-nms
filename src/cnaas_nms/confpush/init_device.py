@@ -279,3 +279,68 @@ def init_access_device_step2(device_id: int, iteration: int = -1, job_id: Option
     return NornirJobResult(
         nrresult = nrresult
     )
+
+
+def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int) -> Optional[Job]:
+    max_iterations = 5
+    if iteration > 0 and iteration < max_iterations:
+        scheduler = Scheduler()
+        next_job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.init_device:discover_device',
+            when=(60*iteration),
+            kwargs={'ztp_mac': ztp_mac, 'dhcp_ip': dhcp_ip, 'iteration': iteration+1})
+        return next_job_id
+    else:
+        return None
+
+
+@job_wrapper
+def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1, job_id: Optional[str] = None):
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.ztp_mac == ztp_mac).one_or_none()
+        if not dev:
+            raise ValueError("Device with ztp_mac {} not found".format(ztp_mac))
+        if dev.state != DeviceState.DHCP_BOOT:
+            raise ValueError("Device with ztp_mac {} is in incorrect state: {}".format(
+                ztp_mac, str(dev.state)
+            ))
+        hostname = dev.hostname
+
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname)
+
+    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
+
+    if nrresult.failed:
+        logger.info("Could not contact device with ztp_mac {} (attempt {})".format(
+            ztp_mac, iteration
+        ))
+        next_job_id = schedule_discover_device(ztp_mac, dhcp_ip, iteration)
+        if next_job_id:
+            return NornirJobResult(
+                nrresult = nrresult,
+                next_job_id = next_job_id
+            )
+        else:
+            return NornirJobResult(nrresult = nrresult)
+    try:
+        facts = nrresult[hostname][0].result['facts']
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(Device.ztp_mac == ztp_mac).one()
+            dev.serial = facts['serial_number']
+            dev.vendor = facts['vendor']
+            dev.model = facts['model']
+            dev.os_version = facts['os_version']
+            dev.state = DeviceState.DISCOVERED
+            if str(dev.dhcp_ip) != dhcp_ip:
+                dev.dhcp_ip = dhcp_ip
+            logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned, " +
+                        "moving to DISCOVERED state")
+    except Exception as e:
+        logger.exception("Could not update device with ztp_mac {} with new facts: {}".format(
+            ztp_mac, str(e)
+        ))
+        logger.debug("nrresult for ztp_mac {}: {}".format(ztp_mac, nrresult))
+        raise e
+
+    return NornirJobResult(nrresult=nrresult)

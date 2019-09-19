@@ -36,13 +36,14 @@ def main() -> int:
         if r.status_code != 200:
             logger.error("Could not query device API: {} (status {})".format(
                 r.text, r.status_code))
+            return 10
         try:
             r_data = r.json()
-            if 'status' not in r_data:
+            if 'status' not in r_data or 'data' not in r_data:
                 raise ValueError("No status key in json data")
         except Exception as e:
             logger.error("Invalid JSON response from devices API: {}".format(r.text))
-            return 3
+            return 11
         if not r_data['status'] != "success":
             logger.error("Could not query device API: {} (status {})".format(r.text, r_data['status']))
         devices = r_data['data']['devices']
@@ -52,16 +53,31 @@ def main() -> int:
             if dev_dict['state'] == 'DHCP_BOOT':
                 data = {"ztp_mac": ztp_mac, "dhcp_ip": dhcp_ip}
                 r = requests.post(f"{base_url}/api/v1.0/device_discover", json=data)
-                logger.info("New device booted via DHCP to state DISCOVERED: {}".format(
-                    ztp_mac
-                ))
+                if r.status_code != 200:
+                    logger.error("Error when scheduling job to discover device: {} ({})".format(
+                        r.text, r.status_code
+                    ))
+                    return 20
+                try:
+                    r_data = r.json()
+                    if 'status' not in r_data or 'job_id' not in r_data:
+                        raise ValueError("No status key in json data")
+                except Exception as e:
+                    logger.error("Invalid JSON response from device_discover API: {}".format(r.text))
+                    return 21
+
+                logger.info("Device in state DHCP_BOOT acquired new lease, " +
+                            "scheduling job id {} to discover device".format(
+                                r_data['job_id']
+                            ))
             elif dev_dict['state'] == 'DISCOVERED':
                 if dev_dict['dhcp_ip'] != dhcp_ip:
                     data = {"dhcp_ip": dhcp_ip}
                     r = requests.put(f"{base_url}/api/v1.0/device/{dev_id}", json=data)
-                    logger.info("Updating DHCP IP for device with ZTP MAC {} to: {}".format(
-                        ztp_mac, dhcp_ip
-                    ))
+                    logger.info(
+                        "Updating DHCP IP for device with ZTP MAC {} to: {} (status {})".format(
+                            ztp_mac, dhcp_ip, r.status_code
+                        ))
             else:
                 logger.error(
                     "Device with ztp_mac {} in state {} unexpectedly booted via DHCP ({})".format(
@@ -71,7 +87,9 @@ def main() -> int:
                     ))
 
         else:
-            # add device
+            # Add new device
+            logger.info("New device booted via DHCP to state DHCP_BOOT: {}".
+                        format(ztp_mac))
             data = {
                 "ztp_mac": ztp_mac,
                 "dhcp_ip": dhcp_ip,
@@ -81,8 +99,22 @@ def main() -> int:
                 "device_type": "UNKNOWN"
             }
             r = requests.post(f"{base_url}/api/v1.0/device", json=data)
-            logger.info("New device booted via DHCP to state DHCP_BOOT: {}".
-                        format(ztp_mac))
+            if r.status_code != 200:
+                logger.error("Error when adding new device: {} ({})".format(
+                    r.text, r.status_code
+                ))
+                return 30
+            try:
+                r_data = r.json()
+                if 'status' not in r_data or 'data' not in r_data:
+                    raise ValueError("No status key in json data")
+            except Exception as e:
+                logger.error("Invalid JSON response from POST to device API: {}".format(r.text))
+                return 21
+            logger.info("Added new device with hostname {} as id {} in device database".format(
+                r_data['data']['added_device']['hostname'],
+                r_data['data']['added_device']['id']
+            ))
 
 
 if __name__ == '__main__':

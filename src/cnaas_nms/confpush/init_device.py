@@ -239,7 +239,8 @@ def init_access_device_step2(device_id: int, iteration: int = -1, job_id: Option
     except:
         raise InitError("Could not log in to device during init step 2")
     if hostname != found_hostname:
-        raise InitError("Newly initialized device presents wrong hostname")
+        raise InitError("Newly initialized device {} presents wrong hostname: {}".format(
+            hostname, found_hostname))
 
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.id == device_id).one()

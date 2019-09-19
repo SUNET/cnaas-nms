@@ -1,7 +1,7 @@
 import enum
 import os
 import datetime
-from typing import Set, Tuple
+from typing import Set, Tuple, Dict
 
 from git import Repo
 from git import InvalidGitRepositoryError, NoSuchPathError
@@ -33,28 +33,74 @@ class RepoType(enum.Enum):
         return any(value == item.name for item in cls)
 
 
-def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> str:
+class RepoState(enum.Enum):
+    UNKNOWN = 0
+    UNINITIALIZED = 1
+    CONSISTENT = 2
+    INCONSISTENT = 3
+
+
+def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> Dict[str, str]:
+    """
+
+    Args:
+        repo_type:
+
+    Returns:
+        {
+          "status": "success",
+          "error_message": None,
+          "repository_state": "consistent",
+          "name_rev": "ae4277e3706092547bc680fb175a783f34847cc4 master",
+          "committer": "Johan Marcusson",
+          "committed_datetime": "2019-09-12 14:41:34+02:00",
+          "message": "test"
+        }
+
+    """
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)
 
     if repo_type == RepoType.TEMPLATES:
         local_repo_path = repo_config['templates_local']
-        remote_repo_path = repo_config['templates_remote']
     elif repo_type == RepoType.SETTINGS:
         local_repo_path = repo_config['settings_local']
-        remote_repo_path = repo_config['settings_remote']
     else:
         raise ValueError("Invalid repository")
 
     try:
         local_repo = Repo(local_repo_path)
-        return 'Commit {} by {} at {}\n'.format(
-            local_repo.head.commit.name_rev,
-            local_repo.head.commit.committer,
-            local_repo.head.commit.committed_datetime
-        )
+        return {
+            "status": "success",
+            "error_message": None,
+            "repository_state": "consistent",
+            "name_rev": str(local_repo.head.commit.name_rev),
+            "committer": str(local_repo.head.commit.committer),
+            "committed_datetime": str(local_repo.head.commit.committed_datetime),
+            "message": str(local_repo.head.commit.message)
+        }
     except (InvalidGitRepositoryError, NoSuchPathError) as e:
-        return 'Repository is not yet cloned from remote'
+        return {
+            "status": "error",
+            "error_message": "Repository is not yet cloned from remote",
+            "repository_state": "unknown",
+            "name_rev": None,
+            "committer": None,
+            "committed_datetime": None,
+            "message": None
+        }
+    except Exception as e:
+        logger.exception("Exception while getting repository status: {}".format(str(e)))
+        return {
+            "status": "error",
+            "error_message": "Exception while getting repository status: {}".format(str(e)),
+            "repository_state": "unknown",
+            "name_rev": None,
+            "committer": None,
+            "committed_datetime": None,
+            "message": None
+        }
+
 
 
 def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:

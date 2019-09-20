@@ -112,7 +112,7 @@ def main() -> int:
                     raise ValueError("No status key in json data")
             except Exception as e:
                 logger.error("Invalid JSON response from POST to device API: {}".format(r.text))
-                return 21
+                return 31
             logger.info("Added new device with hostname {} as id {} in device database".format(
                 r_data['data']['added_device']['hostname'],
                 r_data['data']['added_device']['id']

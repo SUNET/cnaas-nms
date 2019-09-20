@@ -52,7 +52,7 @@ class CnaasInventory(Inventory):
         for group in get_groups():
             groups[group] = {}
         groups['S_DHCP_BOOT']['username'] = 'admin'
-        groups['S_DHCP_BOOT']['password'] = 'admin'
+        groups['S_DHCP_BOOT']['password'] = 'abc123abc123'
         groups['S_DISCOVERED']['username'] = 'admin'
         groups['S_DISCOVERED']['password'] = 'abc123abc123'
         groups['S_INIT']['username'] = 'admin'

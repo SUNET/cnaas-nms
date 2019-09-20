@@ -40,6 +40,7 @@ class Plugin(CnaasBasePlugin):
         headers = {'Authorization': 'Token '+self.apitoken}
         data = {
             "ip": management_ip,
+            "sysname": hostname,
             "roomid": self.roomid,
             "organizationid": self.organizationid,
             "categoryid": "SW",

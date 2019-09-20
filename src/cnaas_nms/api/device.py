@@ -29,20 +29,27 @@ class DeviceByIdApi(Resource):
 
     def delete(self, device_id):
         with sqla_session() as session:
-            instance = session.query(Device).filter(Device.id == device_id).one_or_none()
-            if instance:
-                session.delete(instance)
+            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if dev:
+                session.delete(dev)
                 session.commit()
-                return empty_result(), 200
+                return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
             else:
                 return empty_result('error', "Device not found"), 404
 
     def put(self, device_id):
         json_data = request.get_json()
-        errors = Device.device_update(device_id, **json_data)
-        if errors is not None:
-            return empty_result(status='error', data=errors), 404
-        return empty_result(status='success'), 200
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(
+                Device.id == device_id).one_or_none()
+
+            if not dev:
+                return empty_result(status='error', data=f"No device with id {device_id}")
+
+            errors = dev.device_update(**json_data)
+            if errors is not None:
+                return empty_result(status='error', data=errors), 404
+            return empty_result(status='success', data={"updated_device": dev.as_dict()}), 200
 
 
 class DeviceApi(Resource):
@@ -59,8 +66,11 @@ class DeviceApi(Resource):
             if instance is not None:
                 errors.append('Device already exists')
                 return errors
-        Device.device_add(**json_data)
-        return empty_result(status='success'), 200
+        with sqla_session() as session:
+            new_device = Device.device_create(**json_data)
+            session.add(new_device)
+            session.flush()
+            return empty_result(status='success', data={"added_device": new_device.as_dict()}), 200
 
 
 class DevicesApi(Resource):

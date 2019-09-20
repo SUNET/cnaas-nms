@@ -17,7 +17,6 @@ import cnaas_nms.db.site
 
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
-from cnaas_nms.db.session import sqla_session
 
 
 class DeviceException(Exception):
@@ -160,6 +159,8 @@ class Device(cnaas_nms.db.base.Base):
 
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:
+        if not isinstance(hostname, str):
+            return False
         if hostname.endswith('.'):
             hostname = hostname[:-1]
         if len(hostname) < 1 or len(hostname) > 253:
@@ -182,28 +183,22 @@ class Device(cnaas_nms.db.base.Base):
             dev.synchronized = syncstatus
 
     @classmethod
-    def device_add(cls, **kwargs):
+    def device_create(cls, **kwargs) -> Device:
         data, errors = cls.validate(**kwargs)
         if errors != []:
-            return errors
-        with sqla_session() as session:
-            new_device = Device()
-            for _ in data:
-                setattr(new_device, _, data[_])
-            session.add(new_device)
+            raise ValueError("Validation errors: {}".format(errors))
 
-    @classmethod
-    def device_update(cls, device_id, **kwargs):
-        data, error = cls.validate(**kwargs)
+        new_device = Device()
+        for field in data:
+            setattr(new_device, field, data[field])
+        return new_device
+
+    def device_update(self, **kwargs):
+        data, error = self.validate(new_entry=False, **kwargs)
         if error != []:
             return error
-        with sqla_session() as session:
-            instance: Device = session.query(Device).filter(Device.id ==
-                                                            device_id).one_or_none()
-            if not instance:
-                return ['Device not found']
-            for _ in data:
-                setattr(instance, _, data[_])
+        for field in data:
+            setattr(self, field, data[field])
 
     @classmethod
     def set_config_hash(cls, session, hostname, hexdigest):
@@ -220,7 +215,7 @@ class Device(cnaas_nms.db.base.Base):
         return instance.confhash
 
     @classmethod
-    def validate(cls, **kwargs):
+    def validate(cls, new_entry=True, **kwargs):
         data = {}
         errors = []
         if 'hostname' in kwargs:
@@ -229,7 +224,8 @@ class Device(cnaas_nms.db.base.Base):
             else:
                 errors.append("Invalid hostname received")
         else:
-            errors.append('Required ifeld hostname not found')
+            if new_entry:
+                errors.append('Required field hostname not found')
 
         if 'site_id' in kwargs:
             try:
@@ -309,7 +305,8 @@ class Device(cnaas_nms.db.base.Base):
                     else:
                         errors.append('Invalid device state received.')
         else:
-            errors.append('Required field device_state not found')
+            if new_entry:
+                errors.append('Required field state not found')
         if 'device_type' in kwargs:
             if isinstance(kwargs['device_type'], DeviceType):
                 data['device_type'] = kwargs['device_type']
@@ -324,7 +321,8 @@ class Device(cnaas_nms.db.base.Base):
                     else:
                         errors.append('Invalid device type')
         else:
-            errors.append('Required field device_type not found')
+            if new_entry:
+                errors.append('Required field device_type not found')
         if 'port' in kwargs:
             try:
                 port = int(kwargs['port'])
@@ -332,5 +330,9 @@ class Device(cnaas_nms.db.base.Base):
                 errors.append('Invalid port recevied, must be an integer.')
             else:
                 data['port'] = port
+
+        for k, v in kwargs.items():
+            if k not in cls.__table__.columns:
+                errors.append("Unknown attribute '{}' for device".format(k))
 
         return data, errors

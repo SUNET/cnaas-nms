@@ -89,7 +89,9 @@ def init_access_device_step1(device_id: int, new_hostname: str, job_id: Optional
     """
     # Check that we can find device and that it's in the correct state to start init
     with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.id == device_id).one()
+        dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+        if not dev:
+            raise ValueError(f"No device with id {device_id} found")
         if dev.state != DeviceState.DISCOVERED:
             raise DeviceStateException("Device must be in state DISCOVERED to begin init")
         old_hostname = dev.hostname

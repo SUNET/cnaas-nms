@@ -9,14 +9,14 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.scheduler.wrapper import job_wrapper
 
 
-if 'CNAAS_HTTPD_HOST' not in os.environ:
+if 'HTTPD_HOSTNAME' not in os.environ:
     URL = 'https://cnaas_httpd/api/v1.0/firmware'
 else:
-    URL = os.environ['CNAAS_HTTPD_HOST']
+    URL = os.environ['HTTPD_HOSTNAME']
 
 
 @job_wrapper
-def get_firmware(**kwargs):
+def get_firmware(**kwargs: dict) -> str:
     try:
         res = requests.post(URL, json=kwargs,
                             verify=False)
@@ -29,7 +29,7 @@ def get_firmware(**kwargs):
 
 
 @job_wrapper
-def get_firmware_chksum(**kwargs):
+def get_firmware_chksum(**kwargs: dict) -> str:
     try:
         url = URL + '/' + kwargs['filename']
         res = requests.get(url, verify=False)
@@ -40,7 +40,7 @@ def get_firmware_chksum(**kwargs):
 
 
 @job_wrapper
-def remove_file(**kwargs):
+def remove_file(**kwargs: dict) -> str:
     try:
         url = URL + '/' + kwargs['filename']
         res = requests.delete(url, verify=False)
@@ -53,7 +53,7 @@ def remove_file(**kwargs):
 
 
 class FirmwareApi(Resource):
-    def post(self):
+    def post(self) -> dict:
         json_data = request.get_json()
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
@@ -65,7 +65,7 @@ class FirmwareApi(Resource):
 
         return res
 
-    def get(self):
+    def get(self) -> dict:
         try:
             res = requests.get('https://localhost/api/v1.0/firmware',
                                verify=False)
@@ -77,7 +77,7 @@ class FirmwareApi(Resource):
 
 
 class FirmwareImageApi(Resource):
-    def get(self, filename):
+    def get(self, filename: str) -> dict:
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.api.firmware:get_firmware_chksum',
@@ -88,7 +88,7 @@ class FirmwareImageApi(Resource):
 
         return res
 
-    def delete(self, filename):
+    def delete(self, filename: str) -> dict:
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.api.firmware:remove_file',

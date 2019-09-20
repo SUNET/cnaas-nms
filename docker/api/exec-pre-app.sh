@@ -1,5 +1,12 @@
 #!/bin/sh
 
+if [ -f "/tmp/pre-exec.lock" ]
+then
+	exit 0
+else
+	touch "/tmp/pre-exec.lock"
+fi
+
 set -e
 
 sed -e "s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|" \

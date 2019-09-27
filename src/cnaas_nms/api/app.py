@@ -1,5 +1,7 @@
 from flask import Flask, render_template
 from flask_restful import Api
+from flask_socketio import SocketIO
+
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
     LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
 from cnaas_nms.api.interface import InterfaceApi
@@ -15,6 +17,7 @@ import os
 
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 app.config['SECRET_KEY'] = os.urandom(128)
 
 api = Api(app)

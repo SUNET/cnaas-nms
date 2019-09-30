@@ -56,7 +56,7 @@ To list a single firmware image:
 
 ::
    
-   curl https://remote_host/api/v1.0/firmware/firmware.bin
+   curl https://hostname/api/v1.0/firmware/firmware.bin
 
    {
      "status": "success",

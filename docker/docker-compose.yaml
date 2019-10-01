@@ -32,7 +32,6 @@ services:
       - cnaas
     environment:
       - GITREPO_TEMPLATES
-
   cnaas_dhcpd:
     build: ./dhcpd/
     ports:

@@ -10,6 +10,7 @@ from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.get_apidata import get_apidata
 
 
 logger = get_logger()
@@ -30,11 +31,6 @@ if 'COVERAGE' in os.environ:
     atexit.register(save_coverage)
     signal.signal(signal.SIGTERM, save_coverage)
     signal.signal(signal.SIGINT, save_coverage)
-
-
-def get_apidata(config='/etc/cnaas-nms/api.yml'):
-    with open(config, 'r') as api_file:
-        return yaml.safe_load(api_file)
 
 
 def get_app():

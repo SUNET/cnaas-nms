@@ -16,7 +16,14 @@ To download firmware from a URL, the following method can be used:
 
 ::
    
-   curl https://hostname/api/v1.0/firmware -X POST -H "Content-Type: application/json" -d '{"url": "http://remote_host/firmware.bin", "sha1": "e0537400b5f134aa960603c9b715a8ce30306071"}'
+   curl https://hostname/api/v1.0/firmware -X POST -H "Content-Type: application/json" -d '{"url": "http://remote_host/firmware.bin", "sha1": "e0537400b5f134aa960603c9b715a8ce30306071", "verify_tls": false}'
+
+
+The method will accept three attributes: url, sha1 and verify_tls:
+
+* url: The URL to the file we should download.
+* sha1: The checksum of the file.
+* verify_tls: Should we validate SSL certificates or not?
 
 That will schedule a new job which will report back the outcome of the download. The job status can be seen using the jobs API:
 

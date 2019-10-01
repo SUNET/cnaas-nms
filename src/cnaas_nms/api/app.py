@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 from flask_restful import Api
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, join_room, send
 
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
     LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
@@ -60,3 +60,11 @@ api.add_resource(GroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_
 
 # Plugins
 api.add_resource(PluginsApi, f'/api/{ __api_version__ }/plugins')
+
+
+# Socketio
+@socketio.on('join')
+def on_join(data):
+    room = data['room']
+    join_room(room)
+    send("Entered room", room=room)

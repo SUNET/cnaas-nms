@@ -218,9 +218,9 @@ def update_linknets(hostname):
         for local_if, data in neighbors.items():
             logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
             remote_device_inst = session.query(Device).\
-                filter(Device.hostname == data[0]['hostname']).one()
+                filter(Device.hostname == data[0]['hostname']).one_or_none()
             if not remote_device_inst:
-                logger.debug(f"Unknown connected device: {data[0]['hostname']}")
+                logger.info(f"Unknown connected device: {data[0]['hostname']}")
                 continue
             logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
@@ -267,3 +267,4 @@ def update_linknets(hostname):
             new_link.device_b_port = data[0]['port']
             session.add(new_link)
             ret.append(new_link.as_dict())
+    return ret

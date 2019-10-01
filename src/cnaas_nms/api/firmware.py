@@ -14,22 +14,31 @@ from cnaas_nms.tools.get_apidata import get_apidata
 logger = get_logger()
 
 
-apidata = get_apidata()
-if isinstance(apidata, dict) and 'httpd_url' in apidata:
-    HTTPD_URL = apidata['httpd_url']
-else:
-    HTTPD_URL = 'https://cnaas_httpd/api/v1.0/'
+def httpd_url() -> str:
+    apidata = get_apidata()
+    httpd_url = 'https://cnaas_httpd/api/v1.0/'
+    if isinstance(apidata, dict) and 'httpd_url' in apidata:
+        httpd_url = apidata['httpd_url']
+    return httpd_url
+
+
+def verify_tls() -> bool:
+    verify_tls = True
+    apidata = get_apidata()
+    if isinstance(apidata, dict) and 'verify_tls' in apidata:
+        verify_tls = apidata['verify_tls']
+    return verify_tls
 
 
 @job_wrapper
 def get_firmware(**kwargs: dict) -> str:
     try:
-        res = requests.post(HTTPD_URL, json=kwargs,
-                            verify=False)
+        res = requests.post(httpd_url(), json=kwargs,
+                            verify=verify_tls())
         json_data = json.loads(res.content)
     except Exception as e:
         logger.exception(f"Exception while getting firmware: {e}")
-        return 'Could not download firmware'
+        return 'Could not download firmware: ' + str(e)
     if json_data['status'] == 'error':
         return json_data['message']
     return 'File downloaded from: ' + kwargs['url']
@@ -38,8 +47,8 @@ def get_firmware(**kwargs: dict) -> str:
 @job_wrapper
 def get_firmware_chksum(**kwargs: dict) -> str:
     try:
-        url = HTTPD_URL + '/' + kwargs['filename']
-        res = requests.get(url, verify=False)
+        url = httpd_url() + '/' + kwargs['filename']
+        res = requests.get(url, verify=verify_tls())
         json_data = json.loads(res.content)
     except Exception as e:
         logger.exception(f"Exceptionb while getting checksum: {e}")
@@ -52,8 +61,8 @@ def get_firmware_chksum(**kwargs: dict) -> str:
 @job_wrapper
 def remove_file(**kwargs: dict) -> str:
     try:
-        url = HTTPD_URL + '/' + kwargs['filename']
-        res = requests.delete(url, verify=False)
+        url = httpd_url() + '/' + kwargs['filename']
+        res = requests.delete(url, verify=verify_tls())
         json_data = json.loads(res.content)
     except Exception as e:
         logger.exception(f"Exception when removing firmware: {e}")
@@ -78,8 +87,8 @@ class FirmwareApi(Resource):
 
     def get(self) -> dict:
         try:
-            res = requests.get('https://localhost/api/v1.0/firmware',
-                               verify=False)
+            res = requests.get(httpd_url() + 'firmware',
+                               verify=verify_tls())
             json_data = json.loads(res.content)
         except Exception as e:
             logger.exception(f"Exception when getting images: {e}")

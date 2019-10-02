@@ -11,6 +11,7 @@ from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById
 from cnaas_nms.api.plugins import PluginsApi
+from cnaas_nms.api.firmware import FirmwareApi, FirmwareImageApi
 
 from cnaas_nms.version import __api_version__
 import os
@@ -20,46 +21,50 @@ app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins='*')  # TODO: remove origin * once we have a webUI
 app.config['SECRET_KEY'] = os.urandom(128)
 
-api = Api(app)
+api = Api(app, prefix=f'/api/{ __api_version__ }')
 
 
 # Devices
-api.add_resource(DeviceByIdApi, f'/api/{ __api_version__ }/device/<int:device_id>')
-api.add_resource(DeviceInitApi, f'/api/{ __api_version__ }/device_init/<int:device_id>')
-api.add_resource(DeviceDiscoverApi, f'/api/{ __api_version__ }/device_discover')
-api.add_resource(DeviceSyncApi, f'/api/{ __api_version__ }/device_syncto')
-api.add_resource(DeviceConfigApi, f'/api/{ __api_version__ }/device/<string:hostname>/generate_config')
-api.add_resource(DeviceApi, f'/api/{ __api_version__ }/device')
-api.add_resource(DevicesApi, f'/api/{ __api_version__ }/devices')
+api.add_resource(DeviceByIdApi, '/device/<int:device_id>')
+api.add_resource(DeviceInitApi, '/device_init/<int:device_id>')
+api.add_resource(DeviceDiscoverApi, '/device_discover')
+api.add_resource(DeviceSyncApi, '/device_syncto')
+api.add_resource(DeviceConfigApi, '/device/<string:hostname>/generate_config')
+api.add_resource(DeviceApi, '/device')
+api.add_resource(DevicesApi, '/devices')
 # device/<string:hostname>/current_config
 
 # Links
-api.add_resource(LinknetsApi, f'/api/{ __api_version__ }/linknets')
+api.add_resource(LinknetsApi, '/linknets')
 
 # Interfaces
-api.add_resource(InterfaceApi, f'/api/{ __api_version__ }/device/<string:hostname>/interfaces')
+api.add_resource(InterfaceApi, '/device/<string:hostname>/interfaces')
 
 # Management domains
-api.add_resource(MgmtdomainsApi, f'/api/{ __api_version__ }/mgmtdomains')
-api.add_resource(MgmtdomainByIdApi, f'/api/{ __api_version__ }/mgmtdomain/<int:mgmtdomain_id>')
+api.add_resource(MgmtdomainsApi, '/mgmtdomains')
+api.add_resource(MgmtdomainByIdApi, '/mgmtdomain/<int:mgmtdomain_id>')
 
 # Jobs
-api.add_resource(JobsApi, f'/api/{ __api_version__ }/jobs')
-api.add_resource(JobByIdApi, f'/api/{ __api_version__ }/job/<string:id>')
-api.add_resource(JobLockApi, f'/api/{ __api_version__ }/joblocks')
+api.add_resource(JobsApi, '/jobs')
+api.add_resource(JobByIdApi, '/job/<string:id>')
+api.add_resource(JobLockApi, '/joblocks')
 
 # File repository
-api.add_resource(RepositoryApi, f'/api/{ __api_version__ }/repository/<string:repo>')
+api.add_resource(RepositoryApi, '/repository/<string:repo>')
+
+# Firmware
+api.add_resource(FirmwareApi, '/firmware')
+api.add_resource(FirmwareImageApi, '/firmware/<string:filename>')
 
 # Settings
-api.add_resource(SettingsApi, f'/api/{ __api_version__ }/settings')
+api.add_resource(SettingsApi, '/settings')
 
 # Groups
-api.add_resource(GroupsApi, f'/api/{ __api_version__ }/groups')
-api.add_resource(GroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_name>')
+api.add_resource(GroupsApi, '/groups')
+api.add_resource(GroupsApiById, '/groups/<string:group_name>')
 
 # Plugins
-api.add_resource(PluginsApi, f'/api/{ __api_version__ }/plugins')
+api.add_resource(PluginsApi, '/plugins')
 
 
 # SocketIO listen for new log messages

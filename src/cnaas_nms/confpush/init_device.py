@@ -306,6 +306,8 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1, job_id: Optional[s
             raise ValueError("Device with ztp_mac {} is in incorrect state: {}".format(
                 ztp_mac, str(dev.state)
             ))
+        if str(dev.dhcp_ip) != dhcp_ip:
+            dev.dhcp_ip = dhcp_ip
         hostname = dev.hostname
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
@@ -334,8 +336,6 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1, job_id: Optional[s
             dev.model = facts['model']
             dev.os_version = facts['os_version']
             dev.state = DeviceState.DISCOVERED
-            if str(dev.dhcp_ip) != dhcp_ip:
-                dev.dhcp_ip = dhcp_ip
             logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned, " +
                         "moving to DISCOVERED state")
     except Exception as e:

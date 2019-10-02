@@ -17,7 +17,8 @@ Contents
    plugins
    syncto
    interfaces
-
+   firmware
+   
 Indices and tables
 ==================
 

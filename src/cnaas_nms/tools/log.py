@@ -2,14 +2,14 @@ import logging
 
 from flask import current_app
 
-import cnaas_nms.api.app
-
 
 class WebsocketHandler(logging.StreamHandler):
     def __init__(self):
         logging.StreamHandler.__init__(self)
 
     def socketio_emit(self, msg, rooms=[]):
+        # late import to avoid circular dependency on import
+        import cnaas_nms.api.app
         if cnaas_nms.api.app.socketio:
             for room in rooms:
                 cnaas_nms.api.app.socketio.emit('cnaas_log', msg, room=room)

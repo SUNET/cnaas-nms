@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 from flask_restful import Api
-from flask_socketio import SocketIO, join_room, emit
+from flask_socketio import SocketIO, join_room
 
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
     LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi

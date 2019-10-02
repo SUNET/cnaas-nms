@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 from flask_restful import Api
-from flask_socketio import SocketIO, join_room, send
+from flask_socketio import SocketIO, join_room, emit
 
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
     LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
@@ -17,7 +17,7 @@ import os
 
 
 app = Flask(__name__)
-socketio = SocketIO(app)
+socketio = SocketIO(app, cors_allowed_origins='*')  # TODO: remove origin * once we have a webUI
 app.config['SECRET_KEY'] = os.urandom(128)
 
 api = Api(app)
@@ -62,9 +62,15 @@ api.add_resource(GroupsApiById, f'/api/{ __api_version__ }/groups/<string:group_
 api.add_resource(PluginsApi, f'/api/{ __api_version__ }/plugins')
 
 
-# Socketio
-@socketio.on('join')
-def on_join(data):
-    room = data['room']
+# SocketIO listen for new log messages
+@socketio.on('logs')
+def ws_logs(data):
+    room: str = None
+    if 'level' in data and data['level'] in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+        room = data['level']
+    elif 'jobid' in data and isinstance(data['jobid'], str):
+        room = data['jobid']
+    else:
+        return False  # TODO: how to send error message to client?
+
     join_room(room)
-    send("Entered room", room=room)

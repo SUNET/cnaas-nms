@@ -1,9 +1,9 @@
 alembic==1.0.10
 APScheduler==3.5.3
 coverage==4.5.3
-eventlet==0.25.1
 Flask-RESTful==0.3.7
 Flask-SocketIO==4.2.1
+gevent==1.4.0
 GitPython==2.1.11
 mypy==0.670
 mypy-extensions==0.4.1

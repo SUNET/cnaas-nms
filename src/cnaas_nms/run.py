@@ -57,8 +57,8 @@ def get_app():
 if __name__ == '__main__':
     apidata = get_apidata()
     if isinstance(apidata, dict) and 'host' in apidata:
-        get_app().run(debug=True, host=apidata['host'])
+        app.socketio.run(get_app(), debug=True, host=apidata['host'])
     else:
-        get_app().run(debug=True)
+        app.socketio.run(get_app(), debug=True)
 else:
     cnaas_app = get_app()

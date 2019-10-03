@@ -1,3 +1,7 @@
+# gevent monkey patching required if you start flask with the auto-reloader (debug mode)
+from gevent import monkey
+monkey.patch_all()
+
 from flask import Flask, render_template
 from flask_restful import Api
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \

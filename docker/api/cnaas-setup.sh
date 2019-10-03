@@ -23,6 +23,7 @@ apt-get update && \
       netcat \
       nginx \
       supervisor \
+      libssl-dev \
     && apt-get clean
 
 pip3 install uwsgi
@@ -44,7 +45,7 @@ python3 -m pip install -r requirements.txt
 #cd /opt/cnaas/venv/cnaas-nms/
 #git remote update
 #git fetch
-#git checkout --track origin/feature.autopush
+#git checkout --track origin/feature.websocket
 #python3 -m pip install -r requirements.txt
 
 #rm -rf /var/lib/apt/lists/*

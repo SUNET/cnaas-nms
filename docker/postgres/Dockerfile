@@ -1,4 +1,4 @@
-FROM postgres:latest
+FROM postgres:11
 
 COPY nms.sql /docker-entrypoint-initdb.d/
 

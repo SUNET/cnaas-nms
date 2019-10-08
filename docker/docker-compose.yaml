@@ -15,9 +15,19 @@ services:
       - GITREPO_TEMPLATES
       - GITREPO_SETTINGS
       - COVERAGE
+      - USERNAME_DHCP_BOOT
+      - PASSWORD_DHCP_BOOT
+      - USERNAME_DISCOVERED
+      - PASSWORD_DISCOVERED
+      - USERNAME_INIT
+      - PASSWORD_INIT
+      - USERNAME_MANAGED
+      - PASSWORD_MANAGED
     depends_on:
       - "cnaas_postgres"
       - "cnaas_mongo"
+      - "cnaas_redis"
+      - "cnaas_httpd"
     volumes:
       - type: bind
         source: ./coverage

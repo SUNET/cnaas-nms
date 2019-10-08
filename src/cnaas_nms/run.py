@@ -14,11 +14,9 @@ if 'COVERAGE' in os.environ:
     cov = coverage.coverage(data_file='/coverage/.coverage-{}'.format(os.getpid()))
     cov.start()
 
-
     def save_coverage():
         cov.stop()
         cov.save()
-
 
     atexit.register(save_coverage)
     signal.signal(signal.SIGTERM, save_coverage)

@@ -8,6 +8,14 @@ mkdir coverage/
 export GITREPO_TEMPLATES="git://gitops.sunet.se/cnaas-lab-templates"
 export GITREPO_SETTINGS="git://gitops.sunet.se/cnaas-lab-settings"
 export GITREPO_ETC="git://gitops.sunet.se/cnaas-lab-etc"
+export USERNAME_DHCP_BOOT="admin"
+export PASSWORD_DHCP_BOOT="abc123abc123"
+export USERNAME_DISCOVERED="admin"
+export PASSWORD_DISCOVERED="abc123abc123"
+export USERNAME_INIT="admin"
+export PASSWORD_INIT="abc123abc123"
+export USERNAME_MANAGED="admin"
+export PASSWORD_MANAGED="abc123abc123"
 export COVERAGE=1
 docker-compose up -d
 

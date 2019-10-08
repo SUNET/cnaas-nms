@@ -11,28 +11,13 @@ services:
       - 443:1443
     networks:
       - cnaas
-
     environment:
-      # These envronment variables are hard-coded here for testing
-      # purposes. If you intend to run this is in production, please
-      # remove the usernames and password and pass them as environment
-      # variables when starting the containers.
       - GITREPO_TEMPLATES
       - GITREPO_SETTINGS
       - COVERAGE
-      - USERNAME_DHCP_BOOT=admin
-      - PASSWORD_DHCP_BOOT=abc123abc123
-      - USERNAME_DISCOVERED=admin
-      - PASSWORD_DISCOVERED=abc123abc123
-      - USERNAME_INIT=admin
-      - PASSWORD_INIT=abc123abc123
-      - USERNAME_MANAGED=admin
-      - PASSWORD_MANAGED=abc123abc123
     depends_on:
       - "cnaas_postgres"
       - "cnaas_mongo"
-      - "cnaas_redis"
-      - "cnaas_httpd"
     volumes:
       - type: bind
         source: ./coverage

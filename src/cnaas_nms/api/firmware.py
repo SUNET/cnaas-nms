@@ -16,7 +16,7 @@ logger = get_logger()
 
 def httpd_url() -> str:
     apidata = get_apidata()
-    httpd_url = 'https://cnaas_httpd/api/v1.0/'
+    httpd_url = 'https://cnaas_httpd/api/v1.0/firmware'
     if isinstance(apidata, dict) and 'httpd_url' in apidata:
         httpd_url = apidata['httpd_url']
     return httpd_url

@@ -8,6 +8,15 @@ POSTGRES_ADDR=
 
 CNAAS_COMPONENTS="api dhcpd httpd"
 
+USERNAME_DHCP_BOOT="admin"
+PASSWORD_DHCP_BOOT="abc123abc123"
+USERNAME_DISCOVERED="admin"
+PASSWORD_DISCOVERED="abc123abc123"
+USERNAME_INIT="admin"
+PASSWORD_INIT="abc123abc123"
+USERNAME_MANAGED="admin"
+PASSWORD_MANAGED="abc123abc123"
+
 config_write() {
     for i in $CNAAS_COMPONENTS; do
 	echo "type: postgresql" > ${i}/db_config.yml

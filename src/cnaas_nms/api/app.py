@@ -1,6 +1,8 @@
 from flask import Flask, render_template
 from flask_restful import Api
 from flask_socketio import SocketIO, join_room
+from flask_jwt_extended import JWTManager
+
 
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
     LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
@@ -20,6 +22,14 @@ import os
 app = Flask(__name__)
 socketio = SocketIO(app, cors_allowed_origins='*')  # TODO: remove origin * once we have a webUI
 app.config['SECRET_KEY'] = os.urandom(128)
+app.config['JWT_PRIVATE_KEY'] = open('/tmp/ec256-key-pair.pem').read()
+app.config['JWT_PUBLIC_KEY'] = open('/tmp/ec256-key-pair.pem').read()
+app.config['JWT_ALGORITHM'] = 'ES256'
+app.config['JWT_IDENTITY_CLAIM'] = 'sub'
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
+
+jwt = JWTManager(app)
+
 
 api = Api(app, prefix=f'/api/{ __api_version__ }')
 

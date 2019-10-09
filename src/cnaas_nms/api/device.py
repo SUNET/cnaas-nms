@@ -11,6 +11,8 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
+from flask_jwt_extended import jwt_required
+
 
 logger = get_logger()
 
@@ -74,6 +76,7 @@ class DeviceApi(Resource):
 
 
 class DevicesApi(Resource):
+    @jwt_required
     def get(self):
         data = {'devices': []}
         with sqla_session() as session:
@@ -239,4 +242,3 @@ class DeviceConfigApi(Resource):
             ), 500
 
         return result
-

@@ -32,6 +32,12 @@ services:
       - type: bind
         source: ./coverage
         target: /coverage
+      - type: volume
+        source: cnaas-templates
+        target: /opt/cnaas/templates
+      - type: volume
+        source: cnaas-settings
+        target: /opt/cnaas/settings
 
   cnaas_httpd:
     image:
@@ -63,6 +69,8 @@ services:
   
   cnaas_postgres:
     build: ./postgres/
+    volumes:
+      - cnaas-postgres-data:/var/lib/postgresql/data
     ports:
       - 5432:5432
     environment:
@@ -75,7 +83,7 @@ services:
   cnaas_mongo:
     build: ./mongo/
     volumes:
-      - /opt/cnaas/mongodb/data:/data
+      - cnaas-mongo-data:/data
     ports:
       - 27017:27017
     environment:
@@ -101,3 +109,9 @@ networks:
       - subnet: 172.18.0.0/24
     driver_opts:
       com.docker.network.bridge.name: br-cnaas
+
+volumes:
+  cnaas-templates:
+  cnaas-settings:
+  cnaas-postgres-data:
+  cnaas-mongo-data:

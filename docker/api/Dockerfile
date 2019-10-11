@@ -2,6 +2,8 @@ FROM debian:buster
 
 # Create directories
 RUN mkdir -p /opt/cnaas
+RUN mkdir /opt/cnaas/templates
+RUN mkdir /opt/cnaas/settings
 RUN mkdir /etc/cnaas-nms
 
 # Copy configuration files
@@ -36,6 +38,10 @@ RUN chown -R  www-data:www-data /var/log/nginx/
 RUN chown -R www-data:www-data /var/lib/nginx
 RUN chown www-data:www-data /var/lib/nginx/
 RUN chown www-data:www-data /opt/cnaas
+RUN chown -R www-data:www-data /opt/cnaas/templates
+RUN chown -R www-data:www-data /opt/cnaas/settings
+
+
 
 # Expose HTTPS
 EXPOSE 1443

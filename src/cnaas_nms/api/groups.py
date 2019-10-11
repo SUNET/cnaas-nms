@@ -1,6 +1,7 @@
 from typing import List, Optional
 
 from flask_restful import Resource
+from flask_jwt_extended import jwt_required
 
 from cnaas_nms.db.device import Device
 from cnaas_nms.api.generic import empty_result
@@ -26,6 +27,7 @@ def groups_populate(group_name: Optional[str] = None):
 
 
 class GroupsApi(Resource):
+    @jwt_required
     def get(self):
         result = empty_result()
         tmpgroups = groups_populate()
@@ -34,6 +36,7 @@ class GroupsApi(Resource):
 
 
 class GroupsApiById(Resource):
+    @jwt_required
     def get(self, group_name):
         result = empty_result()
         tmpgroups = groups_populate(group_name)

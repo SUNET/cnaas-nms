@@ -1,11 +1,13 @@
 from flask import request
 from flask_restful import Resource
+from flask_jwt_extended import jwt_required
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 
 
 class PluginsApi(Resource):
+    @jwt_required
     def get(self):
         try:
             pmh = PluginManagerHandler()
@@ -18,6 +20,7 @@ class PluginsApi(Resource):
             return empty_result('success', {'loaded_plugins': plugin_module_names,
                                             'plugindata': plugindata})
 
+    @jwt_required
     def put(self):
         json_data = request.get_json()
         if 'action' in json_data:

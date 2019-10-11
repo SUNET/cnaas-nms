@@ -5,6 +5,8 @@ import yaml
 
 from flask import request
 from flask_restful import Resource
+from flask_jwt_extended import jwt_required
+
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.scheduler.wrapper import job_wrapper
@@ -73,6 +75,7 @@ def remove_file(**kwargs: dict) -> str:
 
 
 class FirmwareApi(Resource):
+    @jwt_required
     def post(self) -> dict:
         json_data = request.get_json()
         scheduler = Scheduler()
@@ -85,6 +88,7 @@ class FirmwareApi(Resource):
 
         return res
 
+    @jwt_required
     def get(self) -> dict:
         try:
             res = requests.get(httpd_url() + 'firmware',
@@ -98,6 +102,7 @@ class FirmwareApi(Resource):
 
 
 class FirmwareImageApi(Resource):
+    @jwt_required
     def get(self, filename: str) -> dict:
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
@@ -109,6 +114,7 @@ class FirmwareImageApi(Resource):
 
         return res
 
+    @jwt_required
     def delete(self, filename: str) -> dict:
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(

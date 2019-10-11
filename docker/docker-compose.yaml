@@ -92,6 +92,13 @@ services:
     networks:
       - cnaas
 
+  cnaas_auth:
+    image: docker.sunet.se/auth-server-poc:latest
+    ports:
+      - 2443:1443
+    networks:
+      - cnaas
+
 networks:
   cnaas:
     driver: bridge

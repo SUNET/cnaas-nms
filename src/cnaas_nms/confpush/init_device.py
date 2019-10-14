@@ -21,6 +21,7 @@ from cnaas_nms.confpush.update import update_interfacedb
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
+from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -124,11 +125,14 @@ def init_access_device_step1(device_id: int, new_hostname: str, job_id: Optional
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(
                     neighbor_hostnames))
-        # TODO: save ip in temporary table so it's not allocated to someone else while pushing config
+        ReservedIP.clean_reservations(session, device=dev)
+        session.commit()
         mgmt_ip = mgmtdomain.find_free_mgmt_ip(session)
         if not mgmt_ip:
-            raise Exception("Could not find free management IP for management domain {}".format(
-            mgmtdomain.id))
+            raise Exception("Could not find free management IP for management domain {}/{}".format(
+                mgmtdomain.id, mgmtdomain.description))
+        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
+        session.add(reserved_ip)
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
         device_variables = {
             'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
@@ -169,6 +173,9 @@ def init_access_device_step1(device_id: int, new_hostname: str, job_id: Optional
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.management_ip = device_variables['mgmt_ip']
+        reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
+        if reserved_ip:
+            session.delete(reserved_ip)
 
     # Plugin hook, allocated IP
     # send: mgmt_ip , mgmt_network , hostname , VRF?

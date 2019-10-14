@@ -98,6 +98,6 @@ networks:
     name: cnaas
     ipam:
       config:
-      - subnet: 172.18.0.0/24
+      - subnet: 172.30.0.0/24
     driver_opts:
       com.docker.network.bridge.name: br-cnaas

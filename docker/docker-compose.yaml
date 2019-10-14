@@ -52,6 +52,7 @@ services:
       - GITREPO_ETC
       - DB_PASSWORD=cnaas
       - DB_HOSTNAME=docker_cnaas_postgres_1
+      - JWT_AUTH_TOKEN
     depends_on:
       - "cnaas_httpd"
       - "cnaas_api"

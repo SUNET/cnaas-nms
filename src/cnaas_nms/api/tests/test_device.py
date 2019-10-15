@@ -8,11 +8,14 @@ import unittest
 from cnaas_nms.api import app
 from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
 from cnaas_nms.tools.testsetup import MongoTemporaryInstance
+from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 
 class DeviceTests(unittest.TestCase):
     def setUp(self):
-        self.client = app.app.test_client()
+        self.app = app.app
+        self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app)
+        self.client = self.app.test_client()
         self.tmp_postgres = PostgresTemporaryInstance()
         self.tmp_mongo = MongoTemporaryInstance()
         data_dir = pkg_resources.resource_filename(__name__, 'data')

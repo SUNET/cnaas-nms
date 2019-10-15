@@ -1,5 +1,6 @@
 from flask import request
 from flask_restful import Resource
+from flask_jwt_extended import jwt_required
 
 from cnaas_nms.api.generic import limit_results, empty_result
 from cnaas_nms.scheduler.jobtracker import Jobtracker
@@ -8,6 +9,7 @@ from cnaas_nms.db.session import sqla_session
 
 
 class JobsApi(Resource):
+    @jwt_required
     def get(self):
         ret_jobs = []
         for job in Jobtracker.get_last_entries(num_entries=limit_results()):
@@ -19,6 +21,7 @@ class JobsApi(Resource):
 
 
 class JobByIdApi(Resource):
+    @jwt_required
     def get(self, id):
         job = Jobtracker()
         try:
@@ -30,6 +33,7 @@ class JobByIdApi(Resource):
 
 
 class JobLockApi(Resource):
+    @jwt_required
     def get(self):
         locks = []
         with sqla_session() as session:
@@ -37,6 +41,7 @@ class JobLockApi(Resource):
                 locks.append(lock.as_dict())
         return empty_result('success', data={'locks': locks})
 
+    @jwt_required
     def delete(self):
         json_data = request.get_json()
 

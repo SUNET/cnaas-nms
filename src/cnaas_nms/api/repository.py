@@ -1,5 +1,6 @@
 from flask import request
 from flask_restful import Resource
+from flask_jwt_extended import jwt_required
 
 from cnaas_nms.db.git import RepoType, refresh_repo, get_repo_status
 from cnaas_nms.db.settings import VerifyPathException, SettingsSyntaxError
@@ -8,6 +9,7 @@ from cnaas_nms.db.joblock import JoblockError
 
 
 class RepositoryApi(Resource):
+    @jwt_required
     def get(self, repo):
         try:
             repo_type = RepoType[str(repo).upper()]
@@ -15,6 +17,7 @@ class RepositoryApi(Resource):
             return empty_result('error', "Invalid repository type"), 400
         return empty_result('success', get_repo_status(repo_type))
 
+    @jwt_required
     def put(self, repo):
         json_data = request.get_json()
         try:

@@ -58,6 +58,7 @@ services:
       - GITREPO_ETC
       - DB_PASSWORD=cnaas
       - DB_HOSTNAME=docker_cnaas_postgres_1
+      - JWT_AUTH_TOKEN
     depends_on:
       - "cnaas_httpd"
       - "cnaas_api"
@@ -97,6 +98,13 @@ services:
     build: ./redis/
     ports:
       - 6379:6379
+    networks:
+      - cnaas
+
+  cnaas_auth:
+    image: docker.sunet.se/auth-server-poc:latest
+    ports:
+      - 2443:1443
     networks:
       - cnaas
 

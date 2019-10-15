@@ -1,5 +1,7 @@
 from flask import request
 from flask_restful import Resource
+from flask_jwt_extended import jwt_required
+
 from ipaddress import IPv4Interface
 
 from cnaas_nms.api.generic import build_filter, empty_result, limit_results
@@ -9,6 +11,7 @@ from cnaas_nms.db.session import sqla_session
 
 
 class MgmtdomainByIdApi(Resource):
+    @jwt_required
     def get(self, mgmtdomain_id):
         result = empty_result()
         result['data'] = {'mgmtdomains': []}
@@ -21,6 +24,7 @@ class MgmtdomainByIdApi(Resource):
                 return empty_result('error', "Management domain not found"), 404
         return result
 
+    @jwt_required
     def delete(self, mgmtdomain_id):
         with sqla_session() as session:
             instance = session.query(Mgmtdomain).\
@@ -32,6 +36,7 @@ class MgmtdomainByIdApi(Resource):
             else:
                 return empty_result('error', "Management domain not found"), 404
 
+    @jwt_required
     def put(self, mgmtdomain_id):
         json_data = request.get_json()
         data = {}
@@ -66,6 +71,7 @@ class MgmtdomainByIdApi(Resource):
 
 
 class MgmtdomainsApi(Resource):
+    @jwt_required
     def get(self):
         result = empty_result()
         result['data'] = {'mgmtdomains': []}
@@ -77,6 +83,7 @@ class MgmtdomainsApi(Resource):
                 result['data']['mgmtdomains'].append(instance.as_dict())
         return result
 
+    @jwt_required
     def post(self):
         json_data = request.get_json()
         data = {}

@@ -1,5 +1,6 @@
 from flask import request
 from flask_restful import Resource
+from flask_jwt_extended import jwt_required
 
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
@@ -8,6 +9,7 @@ from cnaas_nms.api.generic import empty_result
 
 
 class SettingsApi(Resource):
+    @jwt_required
     def get(self):
         args = request.args
         hostname = None

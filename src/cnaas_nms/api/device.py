@@ -11,11 +11,14 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
+from flask_jwt_extended import jwt_required
+
 
 logger = get_logger()
 
 
 class DeviceByIdApi(Resource):
+    @jwt_required
     def get(self, device_id):
         result = empty_result()
         result['data'] = {'devices': []}
@@ -27,6 +30,7 @@ class DeviceByIdApi(Resource):
                 return empty_result('error', "Device not found"), 404
         return result
 
+    @jwt_required
     def delete(self, device_id):
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
@@ -37,6 +41,7 @@ class DeviceByIdApi(Resource):
             else:
                 return empty_result('error', "Device not found"), 404
 
+    @jwt_required
     def put(self, device_id):
         json_data = request.get_json()
         with sqla_session() as session:
@@ -53,6 +58,7 @@ class DeviceByIdApi(Resource):
 
 
 class DeviceApi(Resource):
+    @jwt_required
     def post(self):
         json_data = request.get_json()
         data = {}
@@ -74,6 +80,7 @@ class DeviceApi(Resource):
 
 
 class DevicesApi(Resource):
+    @jwt_required
     def get(self):
         data = {'devices': []}
         with sqla_session() as session:
@@ -86,6 +93,7 @@ class DevicesApi(Resource):
 
 
 class LinknetsApi(Resource):
+    @jwt_required
     def get(self):
         result = {'linknet': []}
         with sqla_session() as session:
@@ -96,6 +104,7 @@ class LinknetsApi(Resource):
 
 
 class DeviceInitApi(Resource):
+    @jwt_required
     def post(self, device_id: int):
         if not isinstance(device_id, int):
             return empty_result(status='error', data="'device_id' must be an integer"), 400
@@ -136,6 +145,7 @@ class DeviceInitApi(Resource):
 
 
 class DeviceDiscoverApi(Resource):
+    @jwt_required
     def post(self):
         json_data = request.get_json()
         if 'ztp_mac' not in json_data:
@@ -157,6 +167,7 @@ class DeviceDiscoverApi(Resource):
 
 
 class DeviceSyncApi(Resource):
+    @jwt_required
     def post(self):
         json_data = request.get_json()
         kwargs: dict = {}
@@ -215,6 +226,7 @@ class DeviceSyncApi(Resource):
 
 
 class DeviceConfigApi(Resource):
+    @jwt_required
     def get(self, hostname: str):
         result = empty_result()
         result['data'] = {'config': None}
@@ -239,4 +251,3 @@ class DeviceConfigApi(Resource):
             ), 500
 
         return result
-

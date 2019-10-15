@@ -103,6 +103,7 @@ def init_access_device_step1(device_id: int, new_hostname: str, job_id: Optional
     except Exception as e:
         raise ConnectionCheckError(f"Failed to connect to device_id {device_id}: {str(e)}")
     if nrresult_old.failed:
+        print_result(nrresult_old)
         raise ConnectionCheckError(f"Failed to connect to device_id {device_id}")
 
     cnaas_nms.confpush.get.update_linknets(old_hostname)

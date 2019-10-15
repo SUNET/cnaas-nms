@@ -3,10 +3,12 @@
 import requests
 import time
 import unittest
+import os
 
 
 URL = "https://localhost"
 TLS_VERIFY = False
+AUTH_HEADER = {"Authorization": "Bearer {}".format(os.environ['JWT_AUTH_TOKEN'])}
 
 
 if not TLS_VERIFY:
@@ -20,6 +22,7 @@ class GetTests(unittest.TestCase):
 
         r = requests.put(
             f'{URL}/api/v1.0/repository/templates',
+            headers=AUTH_HEADER,
             json={"action": "refresh"},
             verify=TLS_VERIFY
         )
@@ -27,6 +30,7 @@ class GetTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200, "Failed to refresh templates")
         r = requests.put(
             f'{URL}/api/v1.0/repository/settings',
+            headers=AUTH_HEADER,
             json={"action": "refresh"},
             verify=TLS_VERIFY
         )
@@ -38,6 +42,7 @@ class GetTests(unittest.TestCase):
             try:
                 r = requests.get(
                     f'{URL}/api/v1.0/devices',
+                    headers=AUTH_HEADER,
                     verify=TLS_VERIFY
                 )
             except Exception as e:
@@ -55,6 +60,7 @@ class GetTests(unittest.TestCase):
         for i in range(100):
             r = requests.get(
                 f'{URL}/api/v1.0/devices',
+                headers=AUTH_HEADER,
                 params={'filter[state]': 'DISCOVERED'},
                 verify=TLS_VERIFY
             )
@@ -69,6 +75,7 @@ class GetTests(unittest.TestCase):
         for i in range(100):
             r = requests.get(
                 f'{URL}/api/v1.0/job/{job_id}',
+                headers=AUTH_HEADER,
                 verify=TLS_VERIFY
             )
             if r.status_code == 200:
@@ -86,6 +93,7 @@ class GetTests(unittest.TestCase):
         self.assertTrue(hostname, "No device in state discovered found for ZTP")
         r = requests.post(
             f'{URL}/api/v1.0/device_init/{device_id}',
+            headers=AUTH_HEADER,
             json={"hostname": "eosaccess", "device_type": "ACCESS"},
             verify=TLS_VERIFY
         )
@@ -105,12 +113,14 @@ class GetTests(unittest.TestCase):
     def test_2_interfaces(self):
         r = requests.get(
             f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            headers=AUTH_HEADER,
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to get interfaces")
 
         r = requests.put(
             f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            headers=AUTH_HEADER,
             json={"interfaces": {"Ethernet1": {"configtype": "ACCESS_AUTO"}}},
             verify=TLS_VERIFY
         )
@@ -118,6 +128,7 @@ class GetTests(unittest.TestCase):
 
         r = requests.put(
             f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            headers=AUTH_HEADER,
             json={"interfaces": {"Ethernet1": {"data": {"vxlan": "student1"}}}},
             verify=TLS_VERIFY
         )
@@ -126,6 +137,7 @@ class GetTests(unittest.TestCase):
     def test_3_syncto_access(self):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
+            headers=AUTH_HEADER,
             json={"hostname": "eosaccess", "dry_run": True, "auto_push": True},
             verify=TLS_VERIFY
         )
@@ -134,6 +146,7 @@ class GetTests(unittest.TestCase):
     def test_4_syncto_dist(self):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
+            headers=AUTH_HEADER,
             json={"hostname": "eosdist", "dry_run": True},
             verify=TLS_VERIFY
         )
@@ -142,6 +155,7 @@ class GetTests(unittest.TestCase):
     def test_5_genconfig(self):
         r = requests.get(
             f'{URL}/api/v1.0/device/eosdist/generate_config',
+            headers=AUTH_HEADER,
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to generate config for eosdist")
@@ -149,12 +163,14 @@ class GetTests(unittest.TestCase):
     def test_6_plugins(self):
         r = requests.get(
             f'{URL}/api/v1.0/plugins',
+            headers=AUTH_HEADER,
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to get running plugins")
 
         r = requests.put(
             f'{URL}/api/v1.0/plugins',
+            headers=AUTH_HEADER,
             json={"action": "selftest"},
             verify=TLS_VERIFY
         )

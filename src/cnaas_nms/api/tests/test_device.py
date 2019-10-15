@@ -13,14 +13,17 @@ from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 class DeviceTests(unittest.TestCase):
     def setUp(self):
-        self.app = app.app
-        self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app)
-        self.client = self.app.test_client()
-        self.tmp_postgres = PostgresTemporaryInstance()
-        self.tmp_mongo = MongoTemporaryInstance()
+        self.jwt_auth_token = None
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
+            if 'jwt_auth_token' in self.testdata:
+                self.jwt_auth_token = self.testdata['jwt_auth_token']
+        self.app = app.app
+        self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
+        self.client = self.app.test_client()
+        self.tmp_postgres = PostgresTemporaryInstance()
+        self.tmp_mongo = MongoTemporaryInstance()
 
     def tearDown(self):
         self.tmp_postgres.shutdown()

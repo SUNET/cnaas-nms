@@ -14,14 +14,12 @@ sed -e "s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|" \
   < /etc/cnaas-nms/repository.yml > /tmp/repository.yml.new \
   && cat /tmp/repository.yml.new > /etc/cnaas-nms/repository.yml
 
-if [ -e "/opt/cnaas/settings" ]; then
-    rm -rf /opt/cnaas/settings
-fi
-
-if [ -e "/opt/cnaas/templates" ]; then
-    rm -rf /opt/cnaas/templates
-fi
-
+#if [ -e "/opt/cnaas/settings" ]; then
+#    rm -rf /opt/cnaas/settings
+#fi
+#if [ -e "/opt/cnaas/templates" ]; then
+#    rm -rf /opt/cnaas/templates
+#fi
 #git clone $GITREPO_SETTINGS /opt/cnaas/settings
 #git clone $GITREPO_TEMPLATES /opt/cnaas/templates
 

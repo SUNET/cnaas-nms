@@ -16,14 +16,15 @@ disabled: false
 #     shallow_clone: true
 
 script:
-  - "python3.7 -m venv venv"
-  - ". venv/bin/activate"
-  - "pip install --upgrade setuptools pip wheel mypy"
-  - "pip install --index-url https://pypi.sunet.se -r requirements.txt"
-  - "nosetests --with-xunit"
+  - "ssh root@puckly.sunet.se /root/starttests.sh ${GIT_BRANCH}"
+  # - "python3.7 -m venv venv"
+  # - ". venv/bin/activate"
+  # - "pip install --upgrade setuptools pip wheel mypy"
+  # - "pip install --index-url https://pypi.sunet.se -r requirements.txt"
+  # - "nosetests --with-xunit"
 
-# slack:
-#   room: "cnaas"
+slack:
+  room: "cnaas-builds"
 
 extra_jobs:
   - name: cnaas-dhcpd

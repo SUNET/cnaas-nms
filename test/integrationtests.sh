@@ -24,13 +24,8 @@ docker-compose up -d
 # go back to test dir
 popd
 
-#wait for port 5000
-#retry refresh templates 100 times until success
-
 python3 -m integrationtests
-
-echo "Press any key to continue"
-read
+RETSTATUS=$?
 
 #coverage
 # workaround to trigger coverage save
@@ -72,3 +67,5 @@ else
 fi
 
 docker-compose down
+
+exit $RETSTATUS

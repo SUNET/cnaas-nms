@@ -17,8 +17,6 @@ from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById
 from cnaas_nms.api.plugins import PluginsApi
 from cnaas_nms.api.firmware import FirmwareApi, FirmwareImageApi
-from cnaas_nms.api.generic import empty_result
-
 from cnaas_nms.version import __api_version__
 
 

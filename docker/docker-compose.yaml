@@ -43,7 +43,7 @@ services:
     image:
       docker.sunet.se/cnaas/httpd
     ports:
-      - 80:80
+      - 80:1180
     networks:
       - cnaas
     environment:

@@ -72,8 +72,6 @@ services:
     build: ./postgres/
     volumes:
       - cnaas-postgres-data:/var/lib/postgresql/data
-    ports:
-      - 5432:5432
     environment:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWD=cnaas
@@ -85,8 +83,6 @@ services:
     build: ./mongo/
     volumes:
       - cnaas-mongo-data:/data
-    ports:
-      - 27017:27017
     environment:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWD=cnaas
@@ -96,8 +92,6 @@ services:
 
   cnaas_redis:
     build: ./redis/
-    ports:
-      - 6379:6379
     networks:
       - cnaas
 

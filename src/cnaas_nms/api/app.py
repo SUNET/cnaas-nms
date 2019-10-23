@@ -1,8 +1,10 @@
+import os
+
 from flask import Flask, render_template
 from flask_restful import Api
 from flask_socketio import SocketIO, join_room
 from flask_jwt_extended import JWTManager
-
+from flask import jsonify
 
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
     LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
@@ -14,9 +16,23 @@ from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById
 from cnaas_nms.api.plugins import PluginsApi
 from cnaas_nms.api.firmware import FirmwareApi, FirmwareImageApi
-
 from cnaas_nms.version import __api_version__
-import os
+
+from jwt.exceptions import DecodeError, InvalidSignatureError, \
+    InvalidTokenError
+
+
+class CnaasApi(Api):
+    def handle_error(self, e):
+        if isinstance(e, DecodeError):
+            data = {'status': 'error', 'data': 'Could not deode JWT token'}
+        elif isinstance(e, InvalidTokenError):
+            data = {'status': 'error', 'data': 'Invalid authentication header'}
+        elif isinstance(e, InvalidSignatureError):
+            data = {'status': 'error', 'data': 'Invalid token signature'}
+        else:
+            return super(CnaasApi, self).handle_error(e)
+        return jsonify(data)
 
 
 app = Flask(__name__)
@@ -24,14 +40,12 @@ socketio = SocketIO(app, cors_allowed_origins='*')  # TODO: remove origin * once
 app.config['SECRET_KEY'] = os.urandom(128)
 app.config['JWT_PRIVATE_KEY'] = open('certs/private.pem').read()
 app.config['JWT_PUBLIC_KEY'] = open('certs/public.pem').read()
-app.config['JWT_ALGORITHM'] = 'ES256'
 app.config['JWT_IDENTITY_CLAIM'] = 'sub'
+app.config['JWT_ALGORITHM'] = 'ES256'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
 
 jwt = JWTManager(app)
-
-
-api = Api(app, prefix=f'/api/{ __api_version__ }')
+api = CnaasApi(app, prefix=f'/api/{ __api_version__ }')
 
 
 # Devices

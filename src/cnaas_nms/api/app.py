@@ -30,6 +30,10 @@ class CnaasApi(Api):
             data = {'status': 'error', 'data': 'Invalid authentication header'}
         elif isinstance(e, InvalidSignatureError):
             data = {'status': 'error', 'data': 'Invalid token signature'}
+        elif isinstance(e, IndexError):
+            # We might catch IndexErrors which are not cuased by JWT,
+            # but this is better than nothing.
+            data = {'status': 'error', 'data': 'JWT token missing?'}
         else:
             return super(CnaasApi, self).handle_error(e)
         return jsonify(data)

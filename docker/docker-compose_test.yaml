@@ -8,7 +8,7 @@ services:
   cnaas_api:
     build: ./api/
     ports:
-      - 443:1443
+      - 10.100.2.2:443:1443
     networks:
       - cnaas
     environment:
@@ -43,7 +43,7 @@ services:
     image:
       docker.sunet.se/cnaas/httpd
     ports:
-      - 80:1180
+      - 10.100.2.2:80:1180
     networks:
       - cnaas
     environment:
@@ -51,7 +51,7 @@ services:
   cnaas_dhcpd:
     build: ./dhcpd/
     ports:
-      - 67:67/udp
+      - 10.100.2.2:67:67/udp
     networks:
       - cnaas
     environment:
@@ -72,8 +72,6 @@ services:
     build: ./postgres/
     volumes:
       - cnaas-postgres-data:/var/lib/postgresql/data
-    ports:
-      - 5432:5432
     environment:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWD=cnaas
@@ -85,8 +83,6 @@ services:
     build: ./mongo/
     volumes:
       - cnaas-mongo-data:/data
-    ports:
-      - 27017:27017
     environment:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWD=cnaas
@@ -96,15 +92,13 @@ services:
 
   cnaas_redis:
     build: ./redis/
-    ports:
-      - 6379:6379
     networks:
       - cnaas
 
   cnaas_auth:
     image: docker.sunet.se/auth-server-poc:latest
     ports:
-      - 2443:1443
+      - 10.100.2.2:2443:1443
     networks:
       - cnaas
 

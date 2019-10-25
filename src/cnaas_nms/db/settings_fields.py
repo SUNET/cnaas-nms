@@ -60,6 +60,11 @@ class f_vxlan(BaseModel):
     devices: List[str] = []
 
 
+class f_underlay(BaseModel):
+    infra_lo_net: str = ipv4_if_schema
+    infra_link_net: str = ipv4_if_schema
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -67,6 +72,7 @@ class f_root(BaseModel):
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
     vxlans: Dict[str, f_vxlan] = {}
+    underlay: f_underlay = None
 
 
 class f_group_item(BaseModel):

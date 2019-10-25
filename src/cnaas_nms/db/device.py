@@ -336,3 +336,5 @@ class Device(cnaas_nms.db.base.Base):
                 errors.append("Unknown attribute '{}' for device".format(k))
 
         return data, errors
+
+

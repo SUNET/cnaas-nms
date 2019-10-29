@@ -50,3 +50,43 @@ class Linknet(cnaas_nms.db.base.Base):
                 value = str(value)
             d[col.name] = value
         return d
+
+    @classmethod
+    def create_linknet(cls, session, hostname_a, interface_a, hostname_b, interface_b, linknet):
+        """Add a linknet between two dist/core devices."""
+        dev_a: cnaas_nms.db.device.Device = session.query(cnaas_nms.db.device.Device).\
+            filter(cnaas_nms.db.device.Device.hostname == hostname_a).one_or_none()
+        if not dev_a:
+            raise ValueError(f"Hostname {hostname_a} not found in database")
+        if dev_a.state != cnaas_nms.db.device.DeviceState.MANAGED:
+            raise ValueError(f"Hostname {hostname_a} is not a managed device")
+        if dev_a.device_type not in [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]:
+            raise ValueError("Linknets can only be added between two core/dist devices (hostname_a is {})".format(
+                str(dev_a.device_type)
+            ))
+        dev_b: cnaas_nms.db.device.Device = session.query(cnaas_nms.db.device.Device).\
+            filter(cnaas_nms.db.device.Device.hostname == hostname_b).one_or_none()
+        if not dev_b:
+            raise ValueError(f"Hostname {hostname_b} not found in database")
+        if dev_b.state != cnaas_nms.db.device.DeviceState.MANAGED:
+            raise ValueError(f"Hostname {hostname_b} is not a managed device")
+        if dev_b.device_type not in [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]:
+            raise ValueError("Linknets can only be added between two core/dist devices (hostname_b is {})".format(
+                str(dev_b.device_type)
+            ))
+
+        if not isinstance(linknet, ipaddress.IPv4Network) or linknet.prefixlen != 31:
+            import pdb
+            pdb.set_trace()
+            raise ValueError("Linknet must be an IPv4Network with prefix length of 31")
+        ip_a, ip_b = linknet.hosts()
+        new_linknet: Linknet = Linknet()
+        new_linknet.device_a = dev_a
+        new_linknet.device_a_port = interface_a
+        new_linknet.device_a_ip = ip_a
+        new_linknet.device_b = dev_b
+        new_linknet.device_b_port = interface_b
+        new_linknet.device_b_ip = ip_b
+        return new_linknet
+
+

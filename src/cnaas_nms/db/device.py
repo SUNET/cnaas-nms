@@ -14,8 +14,8 @@ from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
 import cnaas_nms.db.site
+import cnaas_nms.db.linknet
 
-from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 
 
@@ -106,7 +106,7 @@ class Device(cnaas_nms.db.base.Base):
         return d
 
     def get_neighbors(self, session) -> List[Device]:
-        """Look up neighbors from Linknets and return them as a list of Device objects."""
+        """Look up neighbors from cnaas_nms.db.linknet.Linknets and return them as a list of Device objects."""
         linknets = self.get_linknets(session)
         ret = []
         for linknet in linknets:
@@ -119,22 +119,26 @@ class Device(cnaas_nms.db.base.Base):
     def get_linknets(self, session):
         """Look up linknets and return a list of Linknet objects."""
         ret = []
-        linknets = session.query(Linknet).\
+        linknets = session.query(cnaas_nms.db.linknet.Linknet).\
             filter(
-                (Linknet.device_a_id == self.id)
+                (cnaas_nms.db.linknet.Linknet.device_a_id == self.id)
                 |
-                (Linknet.device_b_id == self.id)
+                (cnaas_nms.db.linknet.Linknet.device_b_id == self.id)
             )
         for linknet in linknets:
             ret.append(linknet)
         return ret
 
-    def get_link_to(self, session, peer_device: Device) -> Optional[Linknet]:
-        return session.query(Linknet).\
+    def get_link_to(self, session, peer_device: Device) -> Optional[cnaas_nms.db.linknet.Linknet]:
+        """Return linknet connecting to device peer_device."""
+        # TODO: support multiple links to the same neighbor?
+        return session.query(cnaas_nms.db.linknet.Linknet).\
             filter(
-                ((Linknet.device_a_id == self.id) & (Linknet.device_b_id == peer_device.id))
+                ((cnaas_nms.db.linknet.Linknet.device_a_id == self.id) &
+                 (cnaas_nms.db.linknet.Linknet.device_b_id == peer_device.id))
                 |
-                ((Linknet.device_b_id == self.id) & (Linknet.device_a_id == peer_device.id))
+                ((cnaas_nms.db.linknet.Linknet.device_b_id == self.id) &
+                 (cnaas_nms.db.linknet.Linknet.device_a_id == peer_device.id))
             ).one_or_none()
 
     def get_link_to_local_ifname(self, session, peer_device: Device) -> Optional[str]:
@@ -146,6 +150,16 @@ class Device(cnaas_nms.db.base.Base):
             return linknet.device_a_port
         elif linknet.device_b_id == self.id:
             return linknet.device_b_port
+
+    def get_neighbor_ip(self, session, peer_device: Device):
+        """Get the remote peer IP address for the linknet going towards device."""
+        linknet = self.get_link_to(session, peer_device)
+        if not linknet:
+            return None
+        if linknet.device_a_id == self.id:
+            return linknet.device_b_ip
+        elif linknet.device_b_id == self.id:
+            return linknet.device_a_ip
 
     def get_uplink_peers(self, session):
         intfs = session.query(Interface).filter(Interface.device == self).\

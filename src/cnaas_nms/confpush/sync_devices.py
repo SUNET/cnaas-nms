@@ -112,6 +112,19 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     'description': mgmtdom.description,
                     'esi_mac': mgmtdom.esi_mac
                 })
+            # find fabric neighbors
+            fabric_links = []
+            for neighbor_d in dev.get_neighbors(session):
+                if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
+                    local_if = dev.get_link_to_local_ifname(session, neighbor_d)
+                    neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
+                    if local_if:
+                        fabric_links.append({
+                            'ifname': local_if,
+                            'neighbor_hostname': neighbor_d.hostname,
+                            'neighbor_infra_lo': neighbor_d.infra_ip,
+                            'neighbor_ip': neighbor_ip
+                        })
 
         intfs = session.query(Interface).filter(Interface.device == dev).all()
         uplinks = []

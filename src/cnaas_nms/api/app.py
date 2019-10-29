@@ -7,9 +7,10 @@ from flask_jwt_extended import JWTManager
 from flask import jsonify
 
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
-    LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
+    DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
 from cnaas_nms.api.interface import InterfaceApi
 from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
+from cnaas_nms.api.linknet import LinknetsApi
 from cnaas_nms.api.jobs import JobsApi, JobByIdApi, JobLockApi
 from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi

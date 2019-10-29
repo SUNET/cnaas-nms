@@ -81,6 +81,7 @@ class Linknet(cnaas_nms.db.base.Base):
             raise ValueError("Linknet must be an IPv4Network with prefix length of 31")
         ip_a, ip_b = linknet.hosts()
         new_linknet: Linknet = Linknet()
+        new_linknet.ipv4_network = str(linknet)
         new_linknet.device_a = dev_a
         new_linknet.device_a_port = interface_a
         new_linknet.device_a_ip = ip_a

@@ -1,13 +1,11 @@
 from flask import request
 from flask_restful import Resource
-from ipaddress import IPv4Address
 
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
@@ -90,17 +88,6 @@ class DevicesApi(Resource):
                 data['devices'].append(instance.as_dict())
 
         return empty_result(status='success', data=data), 200
-
-
-class LinknetsApi(Resource):
-    @jwt_required
-    def get(self):
-        result = {'linknet': []}
-        with sqla_session() as session:
-            query = session.query(Linknet)
-            for instance in query:
-                result['linknet'].append(instance.as_dict())
-        return empty_result(status='success', data=result)
 
 
 class DeviceInitApi(Resource):

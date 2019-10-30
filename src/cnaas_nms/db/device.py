@@ -141,7 +141,7 @@ class Device(cnaas_nms.db.base.Base):
                  (cnaas_nms.db.linknet.Linknet.device_a_id == peer_device.id))
             ).one_or_none()
 
-    def get_link_to_local_ifname(self, session, peer_device: Device) -> Optional[str]:
+    def get_neighbor_local_ifname(self, session, peer_device: Device) -> Optional[str]:
         """Get the local interface name on this device that links to peer_device."""
         linknet = self.get_link_to(session, peer_device)
         if not linknet:
@@ -150,6 +150,16 @@ class Device(cnaas_nms.db.base.Base):
             return linknet.device_a_port
         elif linknet.device_b_id == self.id:
             return linknet.device_b_port
+
+    def get_neighbor_local_ipif(self, session, peer_device: Device) -> Optional[str]:
+        """Get the local interface IP on this device that links to peer_device."""
+        linknet = self.get_link_to(session, peer_device)
+        if not linknet:
+            return None
+        if linknet.device_a_id == self.id:
+            return "{}/{}".format(linknet.device_a_ip, ipaddress.IPv4Network(linknet.ipv4_network).prefixlen)
+        elif linknet.device_b_id == self.id:
+            return "{}/{}".format(linknet.device_b_ip, ipaddress.IPv4Network(linknet.ipv4_network).prefixlen)
 
     def get_neighbor_ip(self, session, peer_device: Device):
         """Get the remote peer IP address for the linknet going towards device."""
@@ -351,12 +361,15 @@ class Device(cnaas_nms.db.base.Base):
             if new_entry:
                 errors.append('Required field device_type not found')
         if 'port' in kwargs:
-            try:
-                port = int(kwargs['port'])
-            except Exception:
-                errors.append('Invalid port recevied, must be an integer.')
+            if kwargs['port']:
+                try:
+                    port = int(kwargs['port'])
+                except Exception:
+                    errors.append('Invalid port recevied, must be an integer.')
+                else:
+                    data['port'] = port
             else:
-                data['port'] = port
+                data['port'] = None
 
         for k, v in kwargs.items():
             if k not in cls.__table__.columns:

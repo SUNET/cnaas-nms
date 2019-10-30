@@ -13,11 +13,11 @@ from cnaas_nms.confpush.underlay import find_free_infra_linknet
 class LinknetsApi(Resource):
     @jwt_required
     def get(self):
-        result = {'linknet': []}
+        result = {'linknets': []}
         with sqla_session() as session:
             query = session.query(Linknet)
             for instance in query:
-                result['linknet'].append(instance.as_dict())
+                result['linknets'].append(instance.as_dict())
         return empty_result(status='success', data=result)
 
     def post(self):

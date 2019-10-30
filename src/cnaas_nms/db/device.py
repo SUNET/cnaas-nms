@@ -252,25 +252,38 @@ class Device(cnaas_nms.db.base.Base):
         if 'description' in kwargs:
             data['description'] = kwargs['description']
 
-        if 'management_ip' in kwargs and kwargs['management_ip']:
-            try:
-                addr = ipaddress.IPv4Address(kwargs['management_ip'])
-            except Exception:
-                errors.append('Invalid management_ip received. Must be correct IPv4 address.')
+        if 'management_ip' in kwargs:
+            if kwargs['management_ip']:
+                try:
+                    addr = ipaddress.IPv4Address(kwargs['management_ip'])
+                except Exception:
+                    errors.append('Invalid management_ip received. Must be correct IPv4 address.')
+                else:
+                    data['management_ip'] = addr
             else:
-                data['management_ip'] = addr
-        else:
-            data['management_ip'] = None
+                data['management_ip'] = None
+
+        if 'infra_ip' in kwargs:
+            if kwargs['infra_ip']:
+                try:
+                    addr = ipaddress.IPv4Address(kwargs['infra_ip'])
+                except Exception:
+                    errors.append('Invalid infra_ip received. Must be correct IPv4 address.')
+                else:
+                    data['infra_ip'] = addr
+            else:
+                data['infra_ip'] = None
 
         if 'dhcp_ip' in kwargs:
-            try:
-                addr = ipaddress.IPv4Address(kwargs['dhcp_ip'])
-            except Exception:
-                errors.append('Invalid dhcp_ip received. Must be correct IPv4 address.')
+            if kwargs['dhcp_ip']:
+                try:
+                    addr = ipaddress.IPv4Address(kwargs['dhcp_ip'])
+                except Exception:
+                    errors.append('Invalid dhcp_ip received. Must be correct IPv4 address.')
+                else:
+                    data['dhcp_ip'] = addr
             else:
-                data['dhcp_ip'] = addr
-        else:
-            data['dhcp_ip'] = None
+                data['dhcp_ip'] = None
 
         if 'serial' in kwargs:
             try:

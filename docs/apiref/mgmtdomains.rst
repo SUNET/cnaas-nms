@@ -11,56 +11,40 @@ All management domain can be listed using CURL:
 
 ::
 
-   curl -X GET http://hostname/api/v1.0/mgmtdomain
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomains
 
 That will return a JSON structured response which describes all domains available:
 
 ::
 
-   {
-    "status": "success",
-    "data": {
-	"mgmtdomains": [
-	    {
-		"id": 4,
-		"ipv4_gw": "192.168.50.0/24",
-		"device_a_id": 9,
-		"device_a_ip": null,
-		"device_b_id": 12,
-		"device_b_ip": null,
-		"site_id": null,
-		"vlan": 600,
-		"description": null
-	    }
-	]
+  {
+      "status": "success",
+      "data": {
+          "mgmtdomains": [
+              {
+                  "id": 10,
+                  "ipv4_gw": "10.0.6.1/24",
+                  "device_a_id": 9,
+                  "device_a_ip": null,
+                  "device_b_id": 12,
+                  "device_b_ip": null,
+                  "site_id": null,
+                  "vlan": 600,
+                  "description": null,
+                  "esi_mac": null,
+                  "device_a": "eosdist",
+                  "device_b": "eosdist2"
+              }
+          ]
       }
-   }
+  }
 
-
-We can also retreive a specific domain by specifying its ID:
+You can also specify one specifc mgmtdomain to query by using:
 
 ::
 
-   curl -X GET http://hostname/api/v1.0/mgmtdomain
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomain/10
 
-   {
-    "status": "success",
-    "data": {
-	"mgmtdomains": [
-	    {
-		"id": 4,
-		"ipv4_gw": "192.168.50.0/24",
-		"device_a_id": 9,
-		"device_a_ip": null,
-		"device_b_id": 12,
-		"device_b_ip": null,
-		"site_id": null,
-		"vlan": 600,
-		"description": null
-	    }
-	]
-     }
-   }
 
 
 Add management domain
@@ -79,7 +63,7 @@ Example using CURL:
 
 ::
 
-   curl -H "Content-Type: application/json" -X POST http://localhost:5000/api/v1.0/mgmtdomain -d '{"ipv4_gw": "1.2.3.4/32", "device_a": 9, "device_b": 12, "vlan": 100}'
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomains -H "Content-Type: application/json" -X POST -d '{"ipv4_gw": "1.2.3.4/32", "device_a": 9, "device_b": 12, "vlan": 100}'
 
 
 Update management domain
@@ -89,7 +73,7 @@ To update a doamin, we can send a PUT request and specify its ID. We will have t
 
 ::
 
-   curl -H "Content-Type: application/json" -X PUT http://localhost:5000/api/v1.0/mgmtdomain/4 -d '{"ipv4_gw": "1.2.3.4/32", "device_a": 9, "device_b": 12, "vlan": 100}'
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomain/4 -H "Content-Type: application/json" -X PUT -d '{"ipv4_gw": "1.2.3.4/32", "device_a": 9, "device_b": 12, "vlan": 100}'
 
 
 Remove management domain
@@ -101,4 +85,4 @@ Once again using CURL:
 
 ::
 
-   curl -X DELETE http://hostname/api/v1.0/mgmtdomain/4
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomain/4 -X DELETE

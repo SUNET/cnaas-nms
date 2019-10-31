@@ -46,7 +46,7 @@ class DeviceTests(unittest.TestCase):
             "device_type": "ACCESS",
         }
         result = self.client.post('/api/v1.0/device', json=device_data)
-        self.assertEqual(result.status_code, 404)
+        self.assertEqual(result.status_code, 400)
 
     def test_1_add_new_device(self):
         device_data = {

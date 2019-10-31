@@ -75,17 +75,16 @@ A single device can be added by sending a REST call with a JSON
 strcuture describing the device as data. The JSON strcuture should
 have the following format:
 
-::
-
    * hostname (mandatory)
    * site_id (optional)
    * site (optional)
    * description (optional)
    * management_ip (optional)
+   * infra_ip (optional)
    * dhcp_ip (optional)
    * serial (optional)
    * ztp_mac (optional)
-   * platform (optional)
+   * platform (mandatory)
    * vendor (optional)
    * model (optional)
    * os_version (optional)
@@ -93,8 +92,8 @@ have the following format:
    * state (mandatory)
    * device_type (mandatory)
 
-There are three mandatory fields that can not be left out: hostname,
-state and device_type.
+There are four mandatory fields that can not be left out: hostname,
+state, platform and device_type.
 
 Device state can be one of the following:
 
@@ -111,19 +110,21 @@ Device state can be one of the following:
 
 The mandatory field device_type can be:
 
-::
-
    * UNKNOWN
    * ACCESS
    * DIST
    * CORE
 
+If you specify a device_type of CORE or DIST but do not specify management_ip
+or infra_ip these will be selected automatically from the next available IP
+from the network specified in the settings repository.
+
 Example CURL call:
 
 ::
 
-   curl --header "Content-Type: application/json" -X POST --data
-   '"hostname":"foo","state":"UNKNOWN","device_type":"UNKNOWN"'
+   curl -H "Content-Type: application/json" -X POST -d
+   '{"hostname":"foo", "state":"UNKNOWN", "device_type":"DIST", "platform": "eos"}'
    https://hostname/api/v1.0/device
 
 Modify devices

@@ -354,7 +354,7 @@ class Device(cnaas_nms.db.base.Base):
                     errors.append('Invalid device type')
                 else:
                     if DeviceType.has_name(devicetype):
-                        data['device_type'] = kwargs['device_type']
+                        data['device_type'] = devicetype
                     else:
                         errors.append('Invalid device type')
         else:

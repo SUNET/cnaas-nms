@@ -77,6 +77,7 @@ class f_vxlan(BaseModel):
 class f_underlay(BaseModel):
     infra_lo_net: str = ipv4_if_schema
     infra_link_net: str = ipv4_if_schema
+    mgmt_lo_net: str = ipv4_if_schema
 
 
 class f_root(BaseModel):

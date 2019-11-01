@@ -5,6 +5,7 @@ from flask_restful import Api
 from flask_socketio import SocketIO, join_room
 from flask_jwt_extended import JWTManager
 from flask import jsonify
+from flask_cors import CORS
 
 from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
     LinknetsApi, DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
@@ -36,7 +37,9 @@ class CnaasApi(Api):
 
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins='*')  # TODO: remove origin * once we have a webUI
+# TODO: make origins configurable
+cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
+socketio = SocketIO(app, cors_allowed_origins='*')
 app.config['SECRET_KEY'] = os.urandom(128)
 app.config['JWT_PRIVATE_KEY'] = open('certs/private.pem').read()
 app.config['JWT_PUBLIC_KEY'] = open('certs/public.pem').read()

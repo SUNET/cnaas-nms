@@ -62,7 +62,7 @@ class DeviceTests(unittest.TestCase):
             "model": '',
             "os_version": '',
             "state": "MANAGED",
-            "device_type": "ACCESS",
+            "device_type": "DIST",
         }
         result = self.client.post('/api/v1.0/device', json=device_data)
         self.assertEqual(result.status_code, 200)

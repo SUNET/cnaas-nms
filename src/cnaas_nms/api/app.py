@@ -1,9 +1,9 @@
 import os
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_restful import Api
 from flask_socketio import SocketIO, join_room
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, decode_token
 from flask import jsonify
 from flask_cors import CORS
 
@@ -19,9 +19,13 @@ from cnaas_nms.api.groups import GroupsApi, GroupsApiById
 from cnaas_nms.api.plugins import PluginsApi
 from cnaas_nms.api.firmware import FirmwareApi, FirmwareImageApi
 from cnaas_nms.version import __api_version__
+from cnaas_nms.tools.log import get_logger
 
 from jwt.exceptions import DecodeError, InvalidSignatureError, \
     InvalidTokenError
+
+
+logger = get_logger()
 
 
 class CnaasApi(Api):
@@ -111,3 +115,15 @@ def ws_logs(data):
         return False  # TODO: how to send error message to client?
 
     join_room(room)
+
+
+# Log all requests, include username etc
+@app.after_request
+def log_request(response):
+    try:
+        token = request.headers.get('Authorization').split(' ')[-1]
+        user = decode_token(token).get('sub')
+    except Exception:
+        user = 'unknown'
+    logger.info('User: {}, Method: {}, Status: {}, URL: {}, JSON: {}'.format(user, request.method, response.status_code, request.url, request.json))
+    return response

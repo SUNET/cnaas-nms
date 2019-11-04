@@ -162,10 +162,13 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
             # TODO: Find a way to present customised error message when string
             # regex match fails instead of just showing the regex pattern.
             loc = error['loc']
+            origin = 'unknown'
+            if loc[0] in settings_metadata_dict:
+                origin = settings_metadata_dict[loc[0]]
             error_msg = "Validation error for setting {}, bad value: {} (value origin: {})\n".format(
                 '->'.join(str(x) for x in loc),
                 get_pydantic_error_value(settings_dict, loc),
-                settings_metadata_dict[loc[0]]
+                origin
             )
             error_msg += "Message: {}\n".format(error['msg'])
             msg += error_msg
@@ -430,6 +433,15 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             local_repo_path, ['global', 'vxlans.yml'], 'global',
             settings, settings_origin, groups, hostname)
         settings = get_downstream_dependencies(hostname, settings)
+    else:
+        # Some settings parsing require knowledge of group memberships
+        groups = []
+        settings, settings_origin = read_settings(
+            local_repo_path, ['global', 'routing.yml'], 'global',
+            settings, settings_origin, groups)
+        settings, settings_origin = read_settings(
+            local_repo_path, ['global', 'vxlans.yml'], 'global',
+            settings, settings_origin, groups, hostname)
     # Verify syntax
     check_settings_syntax(settings, settings_origin)
     return f_root(**settings).dict(), settings_origin

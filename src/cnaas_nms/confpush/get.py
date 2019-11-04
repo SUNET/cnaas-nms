@@ -103,7 +103,7 @@ def get_uplinks(session, hostname: str) -> Tuple[List, List]:
     dev = session.query(Device).filter(Device.hostname == hostname).one()
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.device_type == DeviceType.DIST:
-            local_if = dev.get_link_to_local_ifname(session, neighbor_d)
+            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
             if local_if:
                 uplinks.append({'ifname': local_if})
                 neighbor_hostnames.append(neighbor_d.hostname)

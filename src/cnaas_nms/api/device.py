@@ -1,13 +1,12 @@
 from flask import request
 from flask_restful import Resource
-from ipaddress import IPv4Address
 
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
+import cnaas_nms.confpush.underlay
 
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
@@ -61,19 +60,28 @@ class DeviceApi(Resource):
     @jwt_required
     def post(self):
         json_data = request.get_json()
+        supported_platforms = ['eos', 'junos', 'ios', 'iosxr', 'nxos', 'nxos_ssh']
         data = {}
         errors = []
         data, errors = Device.validate(**json_data)
         if errors != []:
-            return empty_result(status='error', data=errors), 404
+            return empty_result(status='error', data=errors), 400
         with sqla_session() as session:
             instance: Device = session.query(Device).filter(Device.hostname ==
                                                             data['hostname']).one_or_none()
             if instance is not None:
                 errors.append('Device already exists')
-                return errors
-        with sqla_session() as session:
-            new_device = Device.device_create(**json_data)
+                return empty_result(status='error', data=errors), 400
+            if 'platform' not in data or data['platform'] not in supported_platforms:
+                errors.append("Device platform not specified or not known (must be any of: {})".
+                              format(', '.join(supported_platforms)))
+                return empty_result(status='error', data=errors), 400
+            if data['device_type'] in ['DIST', 'CORE']:
+                if 'management_ip' not in data or not data['management_ip']:
+                    data['management_ip'] = cnaas_nms.confpush.underlay.find_free_mgmt_lo_ip(session)
+                if 'infra_ip' not in data or not data['infra_ip']:
+                    data['infra_ip'] = cnaas_nms.confpush.underlay.find_free_infra_ip(session)
+            new_device = Device.device_create(**data)
             session.add(new_device)
             session.flush()
             return empty_result(status='success', data={"added_device": new_device.as_dict()}), 200
@@ -90,17 +98,6 @@ class DevicesApi(Resource):
                 data['devices'].append(instance.as_dict())
 
         return empty_result(status='success', data=data), 200
-
-
-class LinknetsApi(Resource):
-    @jwt_required
-    def get(self):
-        result = {'linknet': []}
-        with sqla_session() as session:
-            query = session.query(Linknet)
-            for instance in query:
-                result['linknet'].append(instance.as_dict())
-        return empty_result(status='success', data=result)
 
 
 class DeviceInitApi(Resource):

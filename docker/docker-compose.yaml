@@ -78,6 +78,8 @@ services:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWD=cnaas
       - POSTGRES_DB=cnaas
+    ports:
+      - 5432:5432
     networks:
       - cnaas
   
@@ -91,6 +93,8 @@ services:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWD=cnaas
       - POSTGRES_DB=cnaas
+    ports:
+      - 27017:27017
     networks:
       - cnaas
 

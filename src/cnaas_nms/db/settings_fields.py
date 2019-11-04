@@ -8,7 +8,9 @@ IPV4_REGEX = (r'(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
               r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
 FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z0-9-]{1,63}\.?)+'
 HOST_REGEX = f"^({IPV4_REGEX}|{FQDN_REGEX})$"
+HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
 host_schema = Schema(..., regex=HOST_REGEX, max_length=253)
+hostname_schema = Schema(..., regex=HOSTNAME_REGEX, max_length=253)
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
 ipv4_if_schema = Schema(..., regex=IPV4_IF_REGEX)
 
@@ -25,6 +27,14 @@ GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Schema(..., regex=GROUP_NAME, max_length=253)
 
 
+# Note: If specifying a list of a BaseModel derived class anywhere else except
+# f_root you will get validation errors, and the errors does not refer to
+# settings from the top level dict but instead use the first level after f_root
+# as their top level. This also makes error messages quite useless.
+# I don't have a solution for this at the moment, so just put list of classes
+# directly under f_root.
+
+
 class f_ntp_server(BaseModel):
     host: str = host_schema
 
@@ -35,6 +45,10 @@ class f_radius_server(BaseModel):
 
 class f_syslog_server(BaseModel):
     host: str = host_schema
+
+
+class f_evpn_spine(BaseModel):
+    hostname: str = hostname_schema
 
 
 class f_interface(BaseModel):
@@ -60,6 +74,12 @@ class f_vxlan(BaseModel):
     devices: List[str] = []
 
 
+class f_underlay(BaseModel):
+    infra_lo_net: str = ipv4_if_schema
+    infra_link_net: str = ipv4_if_schema
+    mgmt_lo_net: str = ipv4_if_schema
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -67,6 +87,8 @@ class f_root(BaseModel):
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
     vxlans: Dict[str, f_vxlan] = {}
+    underlay: f_underlay = None
+    evpn_spines: List[f_evpn_spine] = []
 
 
 class f_group_item(BaseModel):

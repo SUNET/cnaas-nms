@@ -80,3 +80,5 @@ def reset_interfacedb(hostname: str):
 
         ret = session.query(Interface).filter(Interface.device == dev).delete()
         return ret
+
+

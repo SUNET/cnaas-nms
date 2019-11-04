@@ -1,7 +1,7 @@
 import os
 import yaml
-from typing import Optional
-from ipaddress import IPv4Interface
+from typing import Optional, List
+from ipaddress import IPv4Interface, IPv4Address
 from statistics import median
 from hashlib import sha256
 
@@ -31,6 +31,28 @@ from nornir.plugins.tasks.networking import napalm_get
 
 logger = get_logger()
 AUTOPUSH_MAX_SCORE = 10
+PRIVATE_ASN_START = 4200000000
+
+
+def generate_asn(ipv4_address: IPv4Address) -> Optional[int]:
+    """Generate a unique private 4 byte AS number based on last two octets of
+    an IPv4 address (infra_lo)"""
+    return PRIVATE_ASN_START + (ipv4_address.packed[2]*256 + ipv4_address.packed[3])
+
+
+def get_evpn_spines(session, settings: dict):
+    device_hostnames = []
+    for entry in settings['evpn_spines']:
+        if 'hostname' in entry and Device.valid_hostname(entry['hostname']):
+            device_hostnames.append(entry['hostname'])
+        else:
+            logger.error("Invalid entry specified in settings->evpn_spine, ignoring: {}".format(entry))
+    ret = []
+    for hostname in device_hostnames:
+        dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if dev:
+            ret.append(dev)
+    return ret
 
 
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
@@ -51,6 +73,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
         mgmt_ip = dev.management_ip
+        infra_ip = dev.infra_ip
         if not mgmt_ip:
             raise Exception("Could not find management IP for device {}".format(hostname))
         devtype: DeviceType = dev.device_type
@@ -79,11 +102,17 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                 'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen)
             }
         elif devtype == DeviceType.DIST:
+            asn = generate_asn(infra_ip)
             dist_device_variables = {
                 'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
                 'mgmt_prefixlen': 32,
+                'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
+                'infra_ip': str(infra_ip),
                 'interfaces': [],
-                'mgmtdomains': []
+                'bgp_ipv4_peers': [],
+                'bgp_evpn_peers': [],
+                'mgmtdomains': [],
+                'asn': asn
             }
             if 'interfaces' in settings and settings['interfaces']:
                 for intf in settings['interfaces']:
@@ -111,6 +140,38 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     'vlan': mgmtdom.vlan,
                     'description': mgmtdom.description,
                     'esi_mac': mgmtdom.esi_mac
+                })
+            # find fabric neighbors
+            fabric_links = []
+            for neighbor_d in dev.get_neighbors(session):
+                if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
+                    local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+                    local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
+                    neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
+                    if local_if:
+                        dist_device_variables['interfaces'].append({
+                            'name': local_if,
+                            'ifclass': 'fabric',
+                            'ipv4if': local_ipif,
+                            'peer_hostname': neighbor_d.hostname,
+                            'peer_infra_lo': str(neighbor_d.infra_ip),
+                            'peer_ip': str(neighbor_ip),
+                            'peer_asn': generate_asn(neighbor_d.infra_ip)
+                        })
+                        dist_device_variables['bgp_ipv4_peers'].append({
+                            'peer_hostname': neighbor_d.hostname,
+                            'peer_infra_lo': str(neighbor_d.infra_ip),
+                            'peer_ip': str(neighbor_ip),
+                            'peer_asn': generate_asn(neighbor_d.infra_ip)
+                        })
+            # populate evpn spines data
+            for neighbor_d in get_evpn_spines(session, settings):
+                if neighbor_d.hostname == dev.hostname:
+                    continue
+                dist_device_variables['bgp_evpn_peers'].append({
+                    'peer_hostname': neighbor_d.hostname,
+                    'peer_infra_lo': str(neighbor_d.infra_ip),
+                    'peer_asn': generate_asn(neighbor_d.infra_ip)
                 })
 
         intfs = session.query(Interface).filter(Interface.device == dev).all()
@@ -165,7 +226,8 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
     if generate_only:
         task.host["change_score"] = 0
     else:
-        logger.debug("Synchronize device config for host: {}".format(task.host.name))
+        logger.debug("Synchronize device config for host: {} ({}:{})".format(
+            task.host.name, task.host.hostname, task.host.port))
 
         task.host.open_connection("napalm", configuration=task.nornir.config)
         task.run(task=networking.napalm_configure,
@@ -203,13 +265,18 @@ def generate_only(hostname: str) -> (str, dict):
         raise ValueError("Invalid hostname: {}".format(hostname))
     try:
         nrresult = nr_filtered.run(task=push_sync_device, generate_only=True)
+        if "template_vars" in nrresult[hostname][1].host:
+            template_vars = nrresult[hostname][1].host["template_vars"]
+        else:
+            template_vars = None
         if nrresult.failed:
             print_result(nrresult)
             raise Exception("Failed to generate config for {}".format(hostname))
-        return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
+
+        return nrresult[hostname][1].result, template_vars
     except Exception as e:
         logger.exception("Exception while generating config: {}".format(str(e)))
-        return nrresult[hostname][1].result, nrresult[hostname][1].host["template_vars"]
+        return nrresult[hostname][1].result, template_vars
 
 
 def sync_check_hash(task, force=False, dry_run=True):

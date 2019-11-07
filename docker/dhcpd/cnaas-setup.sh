@@ -20,6 +20,7 @@ apt-get update && \
       netcat-openbsd \
       net-tools \
       curl \
+      supervisor \
     && apt-get clean
 
 #rm -rf /var/lib/apt/lists/*

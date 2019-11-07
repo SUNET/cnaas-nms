@@ -125,3 +125,18 @@ class FirmwareImageApi(Resource):
         res['job_id'] = job_id
 
         return res
+
+
+class FirmwareUpgradeApi(Resource):
+    @jwt_required
+    def post(self):
+        json_data = request.get_json()
+        scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.firmware:device_upgrade',
+            when=1,
+            kwargs=json_data)
+        res = empty_result(data='Scheduled job upgrade device')
+        res['job_id'] = job_id
+
+        return res

@@ -16,7 +16,7 @@ from typing import Optional
 logger = get_logger()
 
 
-def pre_flight_check(task):
+def arista_pre_flight_check(task):
     """
     NorNir task to do some basic checks before attempting to upgrade a switch.
 
@@ -35,7 +35,7 @@ def pre_flight_check(task):
     # Get amount of free disk space
     res = task.run(napalm_cli, commands=[flash_diskspace])
     if not isinstance(res, MultiResult) or len(res.result.keys()) is not 1:
-        raise('Could not check free space')
+        raise Exception('Could not check free space')
 
     # Remove old firmware images if needed
     free_bytes = next(iter(res.result.values())).split('\n')[1]
@@ -47,7 +47,7 @@ def pre_flight_check(task):
         logger.info('Enough free space ({}b), no cleanup'.format(free_bytes))
 
 
-def firmware_download(task, filename, httpd_url):
+def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
     """
     NorNir task to download firmware image from the HTTP server.
 
@@ -65,13 +65,16 @@ def firmware_download(task, filename, httpd_url):
     firmware_download_cmd = 'copy {}/{} flash:'.format(httpd_url, filename)
 
     try:
-        res = task.run(napalm_cli, commands=[firmware_download_cmd.replace("//", "/")])
+        res = task.run(napalm_cli,
+                       commands=[firmware_download_cmd.replace("//", "/")])
+
         print_result(res)
     except Exception as e:
-        logger.info('{} failed to download firmware: {}'.format(task.host.name, e))
+        logger.info('{} failed to download firmware: {}'.format(
+            task.host.name, e))
 
 
-def firmware_activate(task, filename):
+def arista_firmware_activate(task, filename: str) -> None:
     """
     NorNir task to modify the boot config for new firmwares.
 
@@ -91,6 +94,36 @@ def firmware_activate(task, filename):
 
     print_result(res)
 
+    res = task.run(napalm_cli,
+                   commands=['show boot-config | grep -o "\\w*{}\\w*"'.format(
+                       filename)])
+
+    print_result(res)
+
+    if not isinstance(res, MultiResult) or len(res.result.keys()) is not 1:
+        raise('Could not check boot-config')
+
+    if next(iter(res.result.values())).rstrip() != filename:
+        raise Exception('Could not acticate new firmware')
+
+    logger.info('New firmware activated')
+
+
+def arista_device_reboot(task) -> None:
+    """
+    NorNir task to reboot a single device.
+
+    Args:
+        task: NorNir task.
+
+    Returns:
+        Nothing.
+
+    """
+    res = task.run(napalm_cli, commands=['write', 'reload force'])
+
+    print_result(res)
+
 
 @job_wrapper
 def device_upgrade(job_id: Optional[str] = None,
@@ -99,7 +132,8 @@ def device_upgrade(job_id: Optional[str] = None,
                    download_only: Optional[bool] = True,
                    pre_flight: Optional[bool] = True,
                    filename: Optional[bool] = None,
-                   httpd_url: Optional[str] = None) -> NornirJobResult:
+                   httpd_url: Optional[str] = None,
+                   reboot: Optional[bool] = False) -> NornirJobResult:
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     if hostname:
@@ -114,9 +148,11 @@ def device_upgrade(job_id: Optional[str] = None,
         device_list
     ))
 
+    # If pre-flight is selected, execute the pre-flight task which
+    # will verify the amount of disk space and so on.
     if pre_flight is not None:
         try:
-            nrresult = nr_filtered.run(task=pre_flight_check)
+            nrresult = nr_filtered.run(task=arista_pre_flight_check)
             print_result(nrresult)
         except Exception as e:
             logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
@@ -128,8 +164,10 @@ def device_upgrade(job_id: Optional[str] = None,
     else:
         logger.info('Skepping pre-flight check')
 
+    # Download the firmware from the HTTP container.
     try:
-        nrresult = nr_filtered.run(task=firmware_download, filename=filename,
+        nrresult = nr_filtered.run(task=arista_firmware_download,
+                                   filename=filename,
                                    httpd_url=httpd_url)
         print_result(nrresult)
     except Exception as e:
@@ -141,9 +179,12 @@ def device_upgrade(job_id: Optional[str] = None,
             raise Exception('Failed to download firmware for: {}'.format(
                 ' '.join(nrresult.failed_hosts.keys())))
 
+    # If download_only is false, continue to activate the newly downloaded
+    # firmware and verify that it if present in the boot-config.
     if download_only is False:
         try:
-            nrresult = nr_filtered.run(task=firmware_activate, filename=filename)
+            nrresult = nr_filtered.run(task=arista_firmware_activate,
+                                       filename=filename)
             print_result(nrresult)
         except Exception as e:
             logger.exception('Exception while activating firmware: {}'.format(
@@ -152,7 +193,11 @@ def device_upgrade(job_id: Optional[str] = None,
     else:
         logger.info('Will not activate new firmware')
 
-
-@job_wrapper
-def device_reboot(job_id: Optional[str] = None) -> NornirJobResult:
-    
+    # Reboot the device if needed, we will then lose the connection.
+    if reboot:
+        try:
+            nrresult = nr_filtered.run(task=arista_device_reboot)
+        except Exception as e:
+            logger.exceptio('Devices rebooted, connection lost. All good.')
+    else:
+        logger.info('Will not reboot devices')

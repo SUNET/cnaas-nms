@@ -4,7 +4,7 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
 from nornir.plugins.functions.text import print_result
 from nornir.plugins.tasks.networking import napalm_get
@@ -127,6 +127,65 @@ def arista_device_reboot(task) -> None:
     print_result(res)
 
 
+def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
+                        url: str,
+                        download_only: Optional[bool] = True,
+                        pre_flight: Optional[bool] = True) -> NornirJobResult:
+
+    # If pre-flight is selected, execute the pre-flight task which
+    # will verify the amount of disk space and so on.
+    if pre_flight is not None:
+        try:
+            res = task.run(task=arista_pre_flight_check)
+            print_result(res)
+        except Exception as e:
+            logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
+            raise e
+        else:
+            if res.failed:
+                raise Exception('Pre-flight check failed for: {}'.format(
+                    ' '.join(res.failed_hosts.keys())))
+    else:
+        logger.info('Skepping pre-flight check')
+
+    # Download the firmware from the HTTP container.
+    try:
+        res = task.run(task=arista_firmware_download, filename=filename,
+                       httpd_url=url)
+        print_result(res)
+    except Exception as e:
+        logger.exception('Exception while downloading firmware: {}'.format(
+            str(e)))
+        raise e
+
+    # If download_only is false, continue to activate the newly downloaded
+    # firmware and verify that it if present in the boot-config.
+    if download_only is False:
+        try:
+            res = task.run(task=arista_firmware_activate, filename=filename)
+            print_result(res)
+        except Exception as e:
+            logger.exception('Exception while activating firmware: {}'.format(
+                str(e)))
+            raise e
+    else:
+        logger.info('Will not activate new firmware')
+
+    # Reboot the device if needed, we will then lose the connection.
+    if reboot:
+        try:
+            res = task.run(task=arista_device_reboot)
+        except Exception as e:
+            logger.exceptio('Devices rebooted, connection lost. All good.')
+    else:
+        logger.info('Will not reboot devices')
+
+    if job_id:
+        with redis_session() as db:
+            db.lpush('finished_devices_' + str(job_id), task.host.name)
+            logger.info('finished_devices_' + str(job_id))
+
+
 @job_wrapper
 def device_upgrade(download_only: Optional[bool] = True,
                    filename: Optional[bool] = None,
@@ -158,56 +217,25 @@ def device_upgrade(download_only: Optional[bool] = True,
             if not dev or dev.device_type != DeviceType.ACCESS:
                 raise Exception('Invalid device type: {}'.format(device))
 
-    # If pre-flight is selected, execute the pre-flight task which
-    # will verify the amount of disk space and so on.
-    if pre_flight is not None:
-        try:
-            nrresult = nr_filtered.run(task=arista_pre_flight_check)
-            print_result(nrresult)
-        except Exception as e:
-            logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
-            raise e
-        else:
-            if nrresult.failed:
-                raise Exception('Pre-flight check failed for: {}'.format(
-                    ' '.join(nrresult.failed_hosts.keys())))
-    else:
-        logger.info('Skepping pre-flight check')
-
-    # Download the firmware from the HTTP container.
+    # Start tasks to take care of the upgrade
     try:
-        nrresult = nr_filtered.run(task=arista_firmware_download,
+        nrresult = nr_filtered.run(task=device_upgrade_task, job_id=job_id,
+                                   download_only=download_only,
                                    filename=filename,
-                                   httpd_url=url)
+                                   url=url,
+                                   pre_flight=pre_flight,
+                                   reboot=reboot)
         print_result(nrresult)
     except Exception as e:
-        logger.exception('Exception while downloading firmware: {}'.format(
+        logger.exception('Exception while upgrading devices: {}'.format(
             str(e)))
-        raise e
-    else:
-        if nrresult.failed:
-            raise Exception('Failed to download firmware for: {}'.format(
-                ' '.join(nrresult.failed_hosts.keys())))
+        return NornirJobResult(nrresult=nrresult)
 
-    # If download_only is false, continue to activate the newly downloaded
-    # firmware and verify that it if present in the boot-config.
-    if download_only is False:
-        try:
-            nrresult = nr_filtered.run(task=arista_firmware_activate,
-                                       filename=filename)
-            print_result(nrresult)
-        except Exception as e:
-            logger.exception('Exception while activating firmware: {}'.format(
-                str(e)))
-            raise e
-    else:
-        logger.info('Will not activate new firmware')
+    failed_hosts = list(nrresult.failed_hosts.keys())
+    for hostname in failed_hosts:
+        logger.error("Firmware upgrade of device '{}' failed".format(hostname))
 
-    # Reboot the device if needed, we will then lose the connection.
-    if reboot:
-        try:
-            nrresult = nr_filtered.run(task=arista_device_reboot)
-        except Exception as e:
-            logger.exceptio('Devices rebooted, connection lost. All good.')
-    else:
-        logger.info('Will not reboot devices')
+    if nrresult.failed:
+        logger.error("Not all devices were successfully upgraded")
+
+    return NornirJobResult(nrresult=nrresult)

@@ -4,6 +4,8 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.device import DeviceType, Device
 from nornir.plugins.functions.text import print_result
 from nornir.plugins.tasks.networking import napalm_get
 from nornir.plugins.tasks.networking import napalm_cli, napalm_configure
@@ -130,7 +132,7 @@ def device_upgrade(download_only: Optional[bool] = True,
                    filename: Optional[bool] = None,
                    group: Optional[str] = None,
                    hostname: Optional[str] = None,
-                   httpd_url: Optional[str] = None,
+                   url: Optional[str] = None,
                    job_id: Optional[str] = None,
                    pre_flight: Optional[bool] = True,
                    reboot: Optional[bool] = False) -> NornirJobResult:
@@ -147,6 +149,14 @@ def device_upgrade(download_only: Optional[bool] = True,
     logger.info("Device(s) selected for firmware upgrade: {}".format(
         device_list
     ))
+
+    # Make sure we only upgrade access switches
+    for device in device_list:
+        with sqla_session() as session:
+            dev: Device = session.query(Device).\
+                filter(Device.hostname == device).one_or_none()
+            if not dev or dev.device_type != DeviceType.ACCESS:
+                raise Exception('Invalid device type: {}'.format(device))
 
     # If pre-flight is selected, execute the pre-flight task which
     # will verify the amount of disk space and so on.
@@ -168,7 +178,7 @@ def device_upgrade(download_only: Optional[bool] = True,
     try:
         nrresult = nr_filtered.run(task=arista_firmware_download,
                                    filename=filename,
-                                   httpd_url=httpd_url)
+                                   httpd_url=url)
         print_result(nrresult)
     except Exception as e:
         logger.exception('Exception while downloading firmware: {}'.format(

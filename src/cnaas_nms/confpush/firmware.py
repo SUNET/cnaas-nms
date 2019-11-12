@@ -126,13 +126,13 @@ def arista_device_reboot(task) -> None:
 
 
 @job_wrapper
-def device_upgrade(job_id: Optional[str] = None,
-                   hostname: Optional[str] = None,
-                   group: Optional[str] = None,
-                   download_only: Optional[bool] = True,
-                   pre_flight: Optional[bool] = True,
+def device_upgrade(download_only: Optional[bool] = True,
                    filename: Optional[bool] = None,
+                   group: Optional[str] = None,
+                   hostname: Optional[str] = None,
                    httpd_url: Optional[str] = None,
+                   job_id: Optional[str] = None,
+                   pre_flight: Optional[bool] = True,
                    reboot: Optional[bool] = False) -> NornirJobResult:
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()

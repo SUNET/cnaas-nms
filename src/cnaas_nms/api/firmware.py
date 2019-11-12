@@ -3,6 +3,8 @@ import json
 import requests
 import yaml
 
+from datetime import datetime
+
 from flask import request
 from flask_restful import Resource
 from flask_jwt_extended import jwt_required
@@ -131,12 +133,31 @@ class FirmwareUpgradeApi(Resource):
     @jwt_required
     def post(self):
         json_data = request.get_json()
+        seconds = 1
+        date_format = "%Y-%m-%d %H:%M:%S"
+
+        if 'start_at' in json_data:
+            try:
+                time_start = datetime.strptime(json_data['start_at'],
+                                               date_format)
+                time_now = datetime.now()
+
+                if time_start < time_now:
+                    return empty_result(status='error',
+                                        data='start_at must be in the future')
+                time_diff = time_start - time_now
+                seconds = time_diff.seconds
+            except Exception as e:
+                logger.exception(f'Exception when scheduling job: {e}')
+                return empty_result(status='error',
+                                    data=f'Invalid date format, should be: {date_format}')
+
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.firmware:device_upgrade',
-            when=1,
+            when=seconds,
             kwargs=json_data)
-        res = empty_result(data='Scheduled job upgrade device')
+        res = empty_result(data='Scheduled job to upgrade devices')
         res['job_id'] = job_id
 
         return res

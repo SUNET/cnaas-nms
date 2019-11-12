@@ -8,6 +8,10 @@ Instead of uploading a file somewhere, you will have to tell this API
 where to download the file from. The API will then schedule a job and
 fetch the file and validate it towards the supplied SHA1 checksum.
 
+When upgrading devices we can chose to either work on a single device
+or a group of devices, this is described in more detailed further down
+in this document.
+
 
 Download firmware
 -----------------
@@ -132,3 +136,51 @@ To remove a firmware image:
     "job_id": "5d849177dd428720db72c693"
    }
     
+
+Upgrade firmware on device(s)
+-----------------------------
+
+As of today we support upgrading firmware on Arista EOS acces
+switches. The upgrade procedure can do a 'pre-flight check' which will
+make sure there is enough disk space before attempting to download the
+firmware.
+
+The API method will accept a few parameters:
+
+* group: The name of a group, all devices in that group will be upgraded.
+* hostname: If a hostname is specified, this single device will be upgraded.
+* filename: Name of the new firmware, for example "test.swi".
+* url: URL to the firmware storage, for example "http://hostname/firmware/". This should typically point to the CNaaS NMS server and files will be downloaded from the CNaaS HTTP server.
+* download_only: Only download the firmware.
+* pre_flight: If true, check disk-space etc before downloading the firmware.
+* reboot: When the firmware is downloaded, reboot the switch.
+* start_at: Schedule a firmware upgrade to be started sometime in the future.
+
+An example CURL command can look like this:
+::
+
+   curl -k -s -H "Content-Type: application/json" -X POST https://hostname/api/v1.0/upgrade -d '{"group": "ACCESS", "filename": "test_firmware.swi", "url": "http://hostname/", "download_only": false, "reboot": false, "start_at": "2019-12-24 00:00:00"}'
+
+The output from the job will look like this:
+
+::
+
+  {
+    "status": "success",
+    "data": {
+    "jobs": [
+      {
+        "id": "5dca9e10dd428713fadeac9b",
+        "start_time": "2019-11-12 11:57:05.757000",
+        "finish_time": "2019-11-12 11:57:14.630000",
+        "status": "FINISHED",
+        "function_name": "device_upgrade",
+        "result": "null",
+        "exception": null,
+        "traceback": null,
+        "next_job_id": null,
+        "finished_devices": []
+       }
+     ]
+    }
+  }

@@ -130,11 +130,25 @@ class FirmwareImageApi(Resource):
 
 
 class FirmwareUpgradeApi(Resource):
+    def firmware_url(self) -> str:
+        apidata = get_apidata()
+        httpd_url = ''
+        if isinstance(apidata, dict) and 'firmware_url' in apidata:
+            httpd_url = apidata['firmware_url']
+        return httpd_url
+
     @jwt_required
     def post(self):
         json_data = request.get_json()
         seconds = 1
         date_format = "%Y-%m-%d %H:%M:%S"
+        url = self.firmware_url()
+
+        if 'url' in json_data:
+            url = json_data['url']
+        elif url == '':
+            return empty_result(status='error',
+                                data='No external address configured for HTTPD, please specify one with "url"')
 
         if 'start_at' in json_data:
             try:

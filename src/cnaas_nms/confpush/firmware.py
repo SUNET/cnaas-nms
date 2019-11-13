@@ -7,8 +7,10 @@ from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
 from nornir.plugins.functions.text import print_result
-from nornir.plugins.tasks.networking import napalm_get
-from nornir.plugins.tasks.networking import napalm_cli, napalm_configure
+
+from nornir.plugins.tasks.networking import napalm_cli, napalm_configure, napalm_get
+from nornir.plugins.tasks.networking import netmiko_send_command
+
 from nornir.core.filter import F
 from nornir.core.task import MultiResult
 
@@ -32,7 +34,7 @@ def arista_pre_flight_check(task):
     logger.info("Pre-flight check for {}".format(task.host.name))
 
     flash_diskspace = 'bash timeout 5 df /mnt/flash | awk \'{print $4}\''
-    flash_cleanup = 'ls -t /mnt/flash | tail -n +2 | xargs rm'
+    flash_cleanup = 'bash timeout 30 ls -t /mnt/flash/*.swi | tail -n +2 | xargs rm -f'
 
     # Get amount of free disk space
     res = task.run(napalm_cli, commands=[flash_diskspace])
@@ -67,8 +69,18 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
     firmware_download_cmd = 'copy {}/{} flash:'.format(httpd_url, filename)
 
     try:
-        res = task.run(napalm_cli,
-                       commands=[firmware_download_cmd.replace("//", "/")])
+        res = task.run(netmiko_send_command, command_string='enable',
+                       auto_find_prompt=False)
+
+        print_result(res)
+
+        logger.info('Privileged state entered')
+
+        res = task.run(netmiko_send_command,
+                       command_string=firmware_download_cmd.replace("//", "/"),
+                       normalize=False,
+                       delay_factor=10,
+                       max_loops=1000)
 
         print_result(res)
     except Exception as e:

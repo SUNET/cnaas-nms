@@ -6,13 +6,14 @@ from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
-from nornir.plugins.functions.text import print_result
 
+from nornir.plugins.functions.text import print_result
 from nornir.plugins.tasks.networking import napalm_cli, napalm_configure, napalm_get
 from nornir.plugins.tasks.networking import netmiko_send_command
-
 from nornir.core.filter import F
 from nornir.core.task import MultiResult
+
+from napalm.base.exceptions import CommandErrorException
 
 from typing import Optional
 
@@ -134,7 +135,12 @@ def arista_device_reboot(task) -> None:
         Nothing.
 
     """
-    res = task.run(napalm_cli, commands=['write', 'reload force'])
+    try:
+        res = task.run(napalm_cli, commands=['write', 'reload force'])
+    except CommandErrorException as e:
+        pass
+    else:
+        raise Exception('Failed to reboot switch')
 
     print_result(res)
 

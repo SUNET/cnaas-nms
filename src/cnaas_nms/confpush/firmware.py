@@ -194,7 +194,7 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
         try:
             res = task.run(task=arista_device_reboot)
         except Exception as e:
-            logger.exceptio('Devices rebooted, connection lost. All good.')
+            logger.exception('Devices rebooted, connection lost. All good.')
     else:
         logger.info('Will not reboot devices')
 

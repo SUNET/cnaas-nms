@@ -160,7 +160,7 @@ The API method will accept a few parameters:
 An example CURL command can look like this:
 ::
 
-   curl -k -s -H "Content-Type: application/json" -X POST https://hostname/api/v1.0/upgrade -d '{"group": "ACCESS", "filename": "test_firmware.swi", "url": "http://hostname/", "pre-flight": true, "download": true, "activate": true, "reboot": true, "start_at": "2019-12-24 00:00:00"}'
+   curl -k -s -H "Content-Type: application/json" -X POST https://hostname/api/v1.0/firmware/upgrade -d '{"group": "ACCESS", "filename": "test_firmware.swi", "url": "http://hostname/", "pre-flight": true, "download": true, "activate": true, "reboot": true, "start_at": "2019-12-24 00:00:00"}'
 
 The output from the job will look like this:
 

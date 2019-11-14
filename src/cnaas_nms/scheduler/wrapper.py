@@ -27,9 +27,8 @@ def insert_job_id(result: JobResult, job_id: str) -> JobResult:
 def update_device_progress(stop_event: threading.Event, job: Jobtracker):
     while not stop_event.wait(2):
         finished_devices = job.finished_devices
-        print(finished_devices)
         with redis_session() as db:
-            while(db.llen('finished_devices_' + str(job.id)) > 0):
+            while(db.llen('finished_devices_' + str(job.id)) != 0):
                 last_finished = db.lpop('finished_devices_' + str(job.id)).decode('utf-8')
                 finished_devices.append(last_finished)
         job.update({'finished_devices': finished_devices})

@@ -51,6 +51,8 @@ def arista_pre_flight_check(task):
     else:
         logger.info('Enough free space ({}b), no cleanup'.format(free_bytes))
 
+    return "Pre-flight check done."
+
 
 def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
     """
@@ -83,6 +85,8 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
         logger.info('{} failed to download firmware: {}'.format(
             task.host.name, e))
         raise e
+
+    return "Firmware download done."
 
 
 def arista_firmware_activate(task, filename: str) -> None:
@@ -129,6 +133,8 @@ def arista_firmware_activate(task, filename: str) -> None:
         logger.exception('Failed to activate firmware: {}'.format(str(e)))
         raise e
 
+    return "Firmware activate done."
+
 
 def arista_device_reboot(task) -> None:
     """
@@ -157,6 +163,8 @@ def arista_device_reboot(task) -> None:
         logger.exception('Failed to reboot switch {}: {}'.format(task.host.name,
                                                             str(e)))
         raise e
+
+    return "Device reboot done."
 
 
 def device_upgrade_task(task, job_id: str, reboot: False, filename: str,

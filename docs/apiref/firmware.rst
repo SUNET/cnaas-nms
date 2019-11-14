@@ -177,34 +177,34 @@ The output from the job will look like this:
           "status": "FINISHED",
           "function_name": "device_upgrade",
           "result": {
-            "arista-bottom": [
+            "eoaccess": [
               {
                 "name": "device_upgrade_task",
-                "result": null,
+                "result": "Pre-flight check done.",
                 "diff": "",
                 "failed": false
               },
               {
                 "name": "arista_pre_flight_check",
-                "result": null,
+                "result": "Firmware download done.",
                 "diff": "",
                 "failed": false
               },
               {
                 "name": "arista_firmware_download",
-                "result": null,
+                "result": "Firmware download done."
                 "diff": "",
                 "failed": false
               },
               {
                 "name": "arista_firmware_activate",
-                "result": null,
+                "result": "Firmware activate done.",
                 "diff": "",
                 "failed": false
               },
               {
                 "name": "arista_device_reboot",
-                "result": null,
+                "result": "Device reboot done.",
                 "diff": "",
                 "failed": false
               }
@@ -216,7 +216,7 @@ The output from the job will look like this:
           "exception": null,
           "traceback": null,
           "next_job_id": null,
-          "finished_devices": []
+          "finished_devices": [\"eosaccess\"]
         }
       ]
     }

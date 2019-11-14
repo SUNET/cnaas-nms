@@ -135,6 +135,8 @@ class FirmwareUpgradeApi(Resource):
         httpd_url = ''
         if isinstance(apidata, dict) and 'firmware_url' in apidata:
             httpd_url = apidata['firmware_url']
+        elif 'FIRMWARE_URL' in os.environ:
+            httpd_url = os.environ['FIRMWARE_URL']
         return httpd_url
 
     @jwt_required
@@ -144,11 +146,12 @@ class FirmwareUpgradeApi(Resource):
         date_format = "%Y-%m-%d %H:%M:%S"
         url = self.firmware_url()
 
-        if 'url' in json_data:
-            url = json_data['url']
-        elif url == '':
+        if 'url' not in json_data and url == '':
             return empty_result(status='error',
-                                data='No external address configured for HTTPD, please specify one with "url"')
+                                data='No external address configured for '
+                                'HTTPD, please specify one with "url"')
+        if 'url' not in json_data:
+            json_data['url'] = url
 
         if 'start_at' in json_data:
             try:

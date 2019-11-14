@@ -36,18 +36,19 @@ def update_device_progress(stop_event: threading.Event, job: Jobtracker):
 
 def job_wrapper(func):
     """Decorator to save job status in job tracker database."""
-    def wrapper(job_id: Optional[str]=None, *args, **kwargs):
+    def wrapper(job_id: Optional[str] = None, *args, **kwargs):
+        progress_funcitons = ['sync_devices', 'device_upgrade']
         if job_id:
             job = Jobtracker()
             try:
                 job.load(job_id)
-            except:
+            except Exception:
                 job = None
             else:
                 kwargs['kwargs']['job_id'] = job_id
         if job:
             job.start(fname=func.__name__)
-            if func.__name__ is 'sync_devices':
+            if func.__name__ in progress_funcitons:
                 stop_event = threading.Event()
                 device_thread = threading.Thread(target=update_device_progress,
                                                  args=(stop_event, job))
@@ -61,13 +62,13 @@ def job_wrapper(func):
             tb = traceback.format_exc()
             logger.debug("Exception traceback in job_wrapper: {}".format(tb))
             if job:
-                if func.__name__ is 'sync_devices':
+                if func.__name__ in progress_funcitons:
                     stop_event.set()
                 job.finish_exception(e, tb)
             raise e
         else:
             if job:
-                if func.__name__ is 'sync_devices':
+                if func.__name__ in progress_funcitons:
                     stop_event.set()
                 job.finish_success(res, find_nextjob(res))
             return res

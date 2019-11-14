@@ -74,8 +74,6 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
                        expect_string='.*#')
         print_result(res)
 
-        logger.debug('Download started')
-
         res = task.run(netmiko_send_command,
                        command_string=firmware_download_cmd.replace("//", "/"),
                        delay_factor=10,
@@ -84,6 +82,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
     except Exception as e:
         logger.info('{} failed to download firmware: {}'.format(
             task.host.name, e))
+        raise e
 
 
 def arista_firmware_activate(task, filename: str) -> None:
@@ -120,15 +119,15 @@ def arista_firmware_activate(task, filename: str) -> None:
                        command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
         print_result(res)
 
-        if not isinstance(res, MultiResult) or len(res.result.keys()) is not 1:
-            raise('Could not check boot-config')
+        if not isinstance(res, MultiResult):
+            raise Exception('Could not check boot-config on {}'.format(task.host.name))
 
-        if next(iter(res.result.values())).rstrip() != filename:
-            raise Exception('Could not acticate new firmware')
+        if res.result != filename:
+            raise Exception('Firmware not activated properly on {}'.format(task.host.name))
+
     except Exception as e:
-        logger.info('Failed to activate firmware: {}'.format(str(e)))
-
-    logger.info('New firmware activated')
+        logger.exception('Failed to activate firmware: {}'.format(str(e)))
+        raise e
 
 
 def arista_device_reboot(task) -> None:
@@ -155,8 +154,9 @@ def arista_device_reboot(task) -> None:
                        max_loops=2,
                        expect_string='.*')
     except Exception as e:
-        logger.info('Failed to reboot switch {}: {}'.format(task.host.name,
+        logger.exception('Failed to reboot switch {}: {}'.format(task.host.name,
                                                             str(e)))
+        raise e
 
 
 def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
@@ -178,10 +178,9 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
             raise e
         else:
             if res.failed:
-                raise Exception('Pre-flight check failed for: {}'.format(
+                logger.exception('Pre-flight check failed for: {}'.format(
                     ' '.join(res.failed_hosts.keys())))
-    else:
-        logger.info('Skepping pre-flight check')
+                raise e
 
     # If download is true, go ahead and download the firmware
     if download:
@@ -196,8 +195,6 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
             logger.exception('Exception while downloading firmware: {}'.format(
                 str(e)))
             raise e
-    else:
-        logger.info('Will not download firmware')
 
     # If download_only is false, continue to activate the newly downloaded
     # firmware and verify that it if present in the boot-config.
@@ -211,19 +208,14 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
             logger.exception('Exception while activating firmware: {}'.format(
                 str(e)))
             raise e
-    else:
-        logger.info('Will not activate new firmware')
 
     # Reboot the device if needed, we will then lose the connection.
     if reboot:
         logger.info('Rebooting {}'.format(task.host.name))
-
         try:
             res = task.run(task=arista_device_reboot)
         except Exception as e:
             pass
-    else:
-        logger.info('Will not reboot devices')
 
     if job_id:
         with redis_session() as db:
@@ -254,13 +246,15 @@ def device_upgrade(download: Optional[bool] = True,
         device_list
     ))
 
-    # Make sure we only upgrade access switches
+    # Make sure we only upgrade Arista access switches
     for device in device_list:
         with sqla_session() as session:
             dev: Device = session.query(Device).\
                 filter(Device.hostname == device).one_or_none()
             if not dev or dev.device_type != DeviceType.ACCESS:
                 raise Exception('Invalid device type: {}'.format(device))
+            if not dev or dev.platform != 'eos':
+                raise Exception('Invalid device platform: {}'.format(device))
 
     # Start tasks to take care of the upgrade
     try:

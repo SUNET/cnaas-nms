@@ -17,7 +17,8 @@ from cnaas_nms.api.repository import RepositoryApi
 from cnaas_nms.api.settings import SettingsApi
 from cnaas_nms.api.groups import GroupsApi, GroupsApiById
 from cnaas_nms.api.plugins import PluginsApi
-from cnaas_nms.api.firmware import FirmwareApi, FirmwareImageApi
+from cnaas_nms.api.firmware import FirmwareApi, FirmwareImageApi, \
+    FirmwareUpgradeApi
 from cnaas_nms.version import __api_version__
 from cnaas_nms.tools.log import get_logger
 
@@ -91,6 +92,7 @@ api.add_resource(RepositoryApi, '/repository/<string:repo>')
 # Firmware
 api.add_resource(FirmwareApi, '/firmware')
 api.add_resource(FirmwareImageApi, '/firmware/<string:filename>')
+api.add_resource(FirmwareUpgradeApi, '/firmware/upgrade')
 
 # Settings
 api.add_resource(SettingsApi, '/settings')

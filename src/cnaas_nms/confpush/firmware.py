@@ -71,18 +71,15 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
 
     try:
         res = task.run(netmiko_send_command, command_string='enable',
-                       auto_find_prompt=False)
-
+                       expect_string='.*#')
         print_result(res)
 
-        logger.info('Privileged state entered')
+        logger.debug('Download started')
 
         res = task.run(netmiko_send_command,
                        command_string=firmware_download_cmd.replace("//", "/"),
-                       normalize=False,
                        delay_factor=10,
-                       max_loops=1000)
-
+                       max_loops=3600)
         print_result(res)
     except Exception as e:
         logger.info('{} failed to download firmware: {}'.format(
@@ -101,25 +98,35 @@ def arista_firmware_activate(task, filename: str) -> None:
         Nope.
 
     """
-    boot_file_cmd = 'boot system flash:{}'.format(filename)
+    try:
+        boot_file_cmd = 'boot system flash:{}'.format(filename)
 
-    res = task.run(napalm_configure, dry_run=False,
-                   configuration=boot_file_cmd,
-                   replace=False)
+        res = task.run(netmiko_send_command, command_string='enable',
+                       expect_string='.*#')
+        print_result(res)
 
-    print_result(res)
+        res = task.run(netmiko_send_command, command_string='conf t',
+                       expect_string='.*config.*#')
+        print_result(res)
 
-    res = task.run(napalm_cli,
-                   commands=['show boot-config | grep -o "\\w*{}\\w*"'.format(
-                       filename)])
+        res = task.run(netmiko_send_command, command_string=boot_file_cmd)
+        print_result(res)
 
-    print_result(res)
+        res = task.run(netmiko_send_command, command_string='end',
+                       expect_string='.*#')
+        print_result(res)
 
-    if not isinstance(res, MultiResult) or len(res.result.keys()) is not 1:
-        raise('Could not check boot-config')
+        res = task.run(netmiko_send_command,
+                       command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
+        print_result(res)
 
-    if next(iter(res.result.values())).rstrip() != filename:
-        raise Exception('Could not acticate new firmware')
+        if not isinstance(res, MultiResult) or len(res.result.keys()) is not 1:
+            raise('Could not check boot-config')
+
+        if next(iter(res.result.values())).rstrip() != filename:
+            raise Exception('Could not acticate new firmware')
+    except Exception as e:
+        logger.info('Failed to activate firmware: {}'.format(str(e)))
 
     logger.info('New firmware activated')
 
@@ -136,28 +143,38 @@ def arista_device_reboot(task) -> None:
 
     """
     try:
-        res = task.run(napalm_cli, commands=['write', 'reload force'])
-    except CommandErrorException as e:
-        pass
-    else:
-        raise Exception('Failed to reboot switch')
+        res = task.run(netmiko_send_command, command_string='enable',
+                       expect_string='.*#')
+        print_result(res)
 
-    print_result(res)
+        res = task.run(netmiko_send_command, command_string='write',
+                       expect_string='.*#')
+        print_result(res)
+
+        res = task.run(netmiko_send_command, command_string='reload force',
+                       max_loops=2,
+                       expect_string='.*')
+    except Exception as e:
+        logger.info('Failed to reboot switch {}: {}'.format(task.host.name,
+                                                            str(e)))
 
 
 def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
                         url: str,
-                        download_only: Optional[bool] = True,
-                        pre_flight: Optional[bool] = True) -> NornirJobResult:
+                        download: Optional[bool] = True,
+                        pre_flight: Optional[bool] = True,
+                        activate: Optional[bool] = False) -> NornirJobResult:
 
     # If pre-flight is selected, execute the pre-flight task which
     # will verify the amount of disk space and so on.
-    if pre_flight is not None:
+    if pre_flight:
+        logger.info('Running pre-flight check on {}'.format(task.host.name))
         try:
             res = task.run(task=arista_pre_flight_check)
             print_result(res)
         except Exception as e:
-            logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
+            logger.exception("Exception while doing pre-flight check: {}".
+                             format(str(e)))
             raise e
         else:
             if res.failed:
@@ -166,19 +183,27 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
     else:
         logger.info('Skepping pre-flight check')
 
-    # Download the firmware from the HTTP container.
-    try:
-        res = task.run(task=arista_firmware_download, filename=filename,
-                       httpd_url=url)
-        print_result(res)
-    except Exception as e:
-        logger.exception('Exception while downloading firmware: {}'.format(
-            str(e)))
-        raise e
+    # If download is true, go ahead and download the firmware
+    if download:
+        # Download the firmware from the HTTP container.
+        logger.info('Downloading firmware {} on {}'.format(filename,
+                                                           task.host.name))
+        try:
+            res = task.run(task=arista_firmware_download, filename=filename,
+                           httpd_url=url)
+            print_result(res)
+        except Exception as e:
+            logger.exception('Exception while downloading firmware: {}'.format(
+                str(e)))
+            raise e
+    else:
+        logger.info('Will not download firmware')
 
     # If download_only is false, continue to activate the newly downloaded
     # firmware and verify that it if present in the boot-config.
-    if download_only is False:
+    if activate:
+        logger.info('Activating firmware {} on {}'.format(
+            filename, task.host.name))
         try:
             res = task.run(task=arista_firmware_activate, filename=filename)
             print_result(res)
@@ -191,21 +216,23 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
 
     # Reboot the device if needed, we will then lose the connection.
     if reboot:
+        logger.info('Rebooting {}'.format(task.host.name))
+
         try:
             res = task.run(task=arista_device_reboot)
         except Exception as e:
-            logger.exception('Devices rebooted, connection lost. All good.')
+            pass
     else:
         logger.info('Will not reboot devices')
 
     if job_id:
         with redis_session() as db:
             db.lpush('finished_devices_' + str(job_id), task.host.name)
-            logger.info('finished_devices_' + str(job_id))
 
 
 @job_wrapper
-def device_upgrade(download_only: Optional[bool] = True,
+def device_upgrade(download: Optional[bool] = True,
+                   activate: Optional[bool] = True,
                    filename: Optional[bool] = None,
                    group: Optional[str] = None,
                    hostname: Optional[str] = None,
@@ -238,11 +265,12 @@ def device_upgrade(download_only: Optional[bool] = True,
     # Start tasks to take care of the upgrade
     try:
         nrresult = nr_filtered.run(task=device_upgrade_task, job_id=job_id,
-                                   download_only=download_only,
+                                   download=download,
                                    filename=filename,
                                    url=url,
                                    pre_flight=pre_flight,
-                                   reboot=reboot)
+                                   reboot=reboot,
+                                   activate=activate)
         print_result(nrresult)
     except Exception as e:
         logger.exception('Exception while upgrading devices: {}'.format(

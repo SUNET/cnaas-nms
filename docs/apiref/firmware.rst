@@ -147,14 +147,14 @@ firmware.
 
 The API method will accept a few parameters:
 
-* group: The name of a group, all devices in that group will be upgraded.
-* hostname: If a hostname is specified, this single device will be upgraded.
-* filename: Name of the new firmware, for example "test.swi".
-* url: URL to the firmware storage, for example "http://hostname/firmware/". This should typically point to the CNaaS NMS server and files will be downloaded from the CNaaS HTTP server.
-* download: Only download the firmware.
-* pre_flight: If true, check disk-space etc before downloading the firmware.
-* activate: Control whether we should install the new firmware or not.
-* reboot: When the firmware is downloaded, reboot the switch.
+* group: Optional. The name of a group, all devices in that group will be upgraded.
+* hostname: Optional. If a hostname is specified, this single device will be upgraded.
+* filename: Mandatory. Name of the new firmware, for example "test.swi".
+* url: Optional, can also be configured as an environment variable, FIRMQRE_URL. URL to the firmware storage, for example "http://hostname/firmware/". This should typically point to the CNaaS NMS server and files will be downloaded from the CNaaS HTTP server.
+* download: Optional, default is true. Only download the firmware.
+* pre_flight: Optional, default is true. If true, check disk-space etc before downloading the firmware.
+* activate: Optional, default is true. Control whether we should install the new firmware or not.
+* reboot: Optional, default is false. When the firmware is downloaded, reboot the switch.
 * start_at: Schedule a firmware upgrade to be started sometime in the future.
 
 An example CURL command can look like this:
@@ -180,13 +180,13 @@ The output from the job will look like this:
             "eoaccess": [
               {
                 "name": "device_upgrade_task",
-                "result": "Pre-flight check done.",
+                "result": "",
                 "diff": "",
                 "failed": false
               },
               {
                 "name": "arista_pre_flight_check",
-                "result": "Firmware download done.",
+                "result": "Pre-flight check done.",
                 "diff": "",
                 "failed": false
               },

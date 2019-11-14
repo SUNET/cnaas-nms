@@ -92,7 +92,7 @@ api.add_resource(RepositoryApi, '/repository/<string:repo>')
 # Firmware
 api.add_resource(FirmwareApi, '/firmware')
 api.add_resource(FirmwareImageApi, '/firmware/<string:filename>')
-api.add_resource(FirmwareUpgradeApi, '/upgrade')
+api.add_resource(FirmwareUpgradeApi, '/firmware/upgrade')
 
 # Settings
 api.add_resource(SettingsApi, '/settings')

@@ -44,7 +44,7 @@ def arista_pre_flight_check(task):
 
     # Remove old firmware images if needed
     free_bytes = next(iter(res.result.values())).split('\n')[1]
-    if int(free_bytes) < 1500000:
+    if int(free_bytes) < 2500000:
         logger.info('Cleaning up old firmware images on {}'.format(task.host.name))
         res = task.run(napalm_cli, commands=[flash_cleanup])
         print_result(res)

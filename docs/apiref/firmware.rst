@@ -151,15 +151,16 @@ The API method will accept a few parameters:
 * hostname: If a hostname is specified, this single device will be upgraded.
 * filename: Name of the new firmware, for example "test.swi".
 * url: URL to the firmware storage, for example "http://hostname/firmware/". This should typically point to the CNaaS NMS server and files will be downloaded from the CNaaS HTTP server.
-* download_only: Only download the firmware.
+* download: Only download the firmware.
 * pre_flight: If true, check disk-space etc before downloading the firmware.
+* activate: Control whether we should install the new firmware or not.
 * reboot: When the firmware is downloaded, reboot the switch.
 * start_at: Schedule a firmware upgrade to be started sometime in the future.
 
 An example CURL command can look like this:
 ::
 
-   curl -k -s -H "Content-Type: application/json" -X POST https://hostname/api/v1.0/upgrade -d '{"group": "ACCESS", "filename": "test_firmware.swi", "url": "http://hostname/", "download_only": false, "reboot": false, "start_at": "2019-12-24 00:00:00"}'
+   curl -k -s -H "Content-Type: application/json" -X POST https://hostname/api/v1.0/upgrade -d '{"group": "ACCESS", "filename": "test_firmware.swi", "url": "http://hostname/", "pre-flight": true, "download": true, "activate": true, "reboot": true, "start_at": "2019-12-24 00:00:00"}'
 
 The output from the job will look like this:
 
@@ -168,19 +169,55 @@ The output from the job will look like this:
   {
     "status": "success",
     "data": {
-    "jobs": [
-      {
-        "id": "5dca9e10dd428713fadeac9b",
-        "start_time": "2019-11-12 11:57:05.757000",
-        "finish_time": "2019-11-12 11:57:14.630000",
-        "status": "FINISHED",
-        "function_name": "device_upgrade",
-        "result": "null",
-        "exception": null,
-        "traceback": null,
-        "next_job_id": null,
-        "finished_devices": []
-       }
-     ]
+      "jobs": [
+        {
+          "id": "5dcd110a5670fd67a615b089",
+          "start_time": "2019-11-14 08:32:11.135000",
+          "finish_time": "2019-11-14 08:34:50.352000",
+          "status": "FINISHED",
+          "function_name": "device_upgrade",
+          "result": {
+            "arista-bottom": [
+              {
+                "name": "device_upgrade_task",
+                "result": null,
+                "diff": "",
+                "failed": false
+              },
+              {
+                "name": "arista_pre_flight_check",
+                "result": null,
+                "diff": "",
+                "failed": false
+              },
+              {
+                "name": "arista_firmware_download",
+                "result": null,
+                "diff": "",
+                "failed": false
+              },
+              {
+                "name": "arista_firmware_activate",
+                "result": null,
+                "diff": "",
+                "failed": false
+              },
+              {
+                "name": "arista_device_reboot",
+                "result": null,
+                "diff": "",
+                "failed": false
+              }
+            ],
+            "_totals": {
+              "selected_devices": 1
+            }
+          },
+          "exception": null,
+          "traceback": null,
+          "next_job_id": null,
+          "finished_devices": []
+        }
+      ]
     }
   }

@@ -4,6 +4,8 @@ from flask import Flask, render_template, request
 from flask_restful import Api
 from flask_socketio import SocketIO, join_room
 from flask_jwt_extended import JWTManager, decode_token
+from flask_jwt_extended.exceptions import NoAuthorizationError
+
 from flask import jsonify
 from flask_cors import CORS
 
@@ -40,6 +42,8 @@ class CnaasApi(Api):
         elif isinstance(e, IndexError):
             # We might catch IndexErrors which are not cuased by JWT,
             # but this is better than nothing.
+            data = {'status': 'error', 'data': 'JWT token missing?'}
+        elif isinstance(e, NoAuthorizationError):
             data = {'status': 'error', 'data': 'JWT token missing?'}
         else:
             return super(CnaasApi, self).handle_error(e)

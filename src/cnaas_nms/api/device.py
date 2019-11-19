@@ -52,10 +52,11 @@ device_init_model = device_init_api.model('device_init', {
     'device_type': fields.String(required=False)})
 
 device_discover_model = device_discover_api.model('device_discover', {
-    'ztp_mac': fields.String(required=False),
-    'dhcp_ip': fields.String(required=False)})
+    'ztp_mac': fields.String(required=True),
+    'dhcp_ip': fields.String(required=True)})
 
-device_sync_model = device_syncto_api.model('device_sync', {
+device_syncto_model = device_syncto_api.model('device_sync', {
+    'hostname': fields.String(required=False),
     'device_type': fields.String(required=False),
     'all': fields.String(required=False),
     'dry_run': fields.String(required=False),
@@ -225,7 +226,7 @@ class DeviceDiscoverApi(Resource):
 
 class DeviceSyncApi(Resource):
     @jwt_required
-    @device_syncto_api.expect(device_sync_model)
+    @device_syncto_api.expect(device_syncto_model)
     def post(self):
         """ Start sync of device(s) """
         json_data = request.get_json()

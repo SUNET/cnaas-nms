@@ -21,7 +21,7 @@ device_api = Namespace('device', description='API for handling a single device',
                        prefix='/api/{}'.format(__api_version__))
 devices_api = Namespace('devices', description='API for handling devices',
                         prefix='/api/{}'.format(__api_version__))
-device_init_api = Namespace('devices', description='API for init devices',
+device_init_api = Namespace('device_init', description='API for init devices',
                             prefix='/api/{}'.format(__api_version__))
 device_syncto_api = Namespace('device_syncto', description='API to sync devices',
                               prefix='/api/{}'.format(__api_version__))

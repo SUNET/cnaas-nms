@@ -265,6 +265,10 @@ def generate_only(hostname: str) -> (str, dict):
         raise ValueError("Invalid hostname: {}".format(hostname))
     try:
         nrresult = nr_filtered.run(task=push_sync_device, generate_only=True)
+        if nrresult[hostname][0].failed:
+            raise Exception("Could not generate config for device {}: {}".format(
+                hostname, nrresult[hostname][0].result
+            ))
         if "template_vars" in nrresult[hostname][1].host:
             template_vars = nrresult[hostname][1].host["template_vars"]
         else:

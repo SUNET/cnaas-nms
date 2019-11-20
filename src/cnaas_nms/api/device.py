@@ -318,7 +318,7 @@ class DeviceConfigApi(Resource):
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
 device_api.add_resource(DeviceConfigApi, '/<string:hostname>/generate_config')
 device_api.add_resource(DeviceApi, '')
-devices_api.add_resource(DevicesApi, '/devices')
+devices_api.add_resource(DevicesApi, '')
 device_init_api.add_resource(DeviceInitApi, '/<int:device_id>')
 device_discover_api.add_resource(DeviceDiscoverApi, '')
 device_syncto_api.add_resource(DeviceSyncApi, '')

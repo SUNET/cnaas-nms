@@ -12,23 +12,19 @@ from cnaas_nms.version import __api_version__
 api = Namespace('settings', description='Settings',
                 prefix='/api/{}'.format(__api_version__))
 
-settings_model = api.model('settings', {
-    'hostname': fields.String(required=True),
-    'device_type': fields.String(required=True),
-})
-
 
 class SettingsApi(Resource):
     @jwt_required
-    @api.expect(settings_model)
+    @api.param('hostname')
+    @api.param('device_type')
     def get(self):
         """ Get settings """
-        json_data = request.get_json()
+        args = request.args
         hostname = None
         device_type = None
-        if 'hostname' in json_data:
-            if Device.valid_hostname(json_data['hostname']):
-                hostname = json_data['hostname']
+        if 'hostname' in args:
+            if Device.valid_hostname(args['hostname']):
+                hostname = args['hostname']
             else:
                 return empty_result('error', "Invalid hostname specified"), 400
             with sqla_session() as session:
@@ -38,9 +34,9 @@ class SettingsApi(Resource):
                     device_type = dev.device_type
                 else:
                     return empty_result('error', "Hostname not found in database"), 400
-        if 'device_type' in json_data:
-            if DeviceType.has_name(json_data['device_type'].upper()):
-                device_type = DeviceType[json_data['device_type'].upper()]
+        if 'device_type' in args:
+            if DeviceType.has_name(args['device_type'].upper()):
+                device_type = DeviceType[args['device_type'].upper()]
             else:
                 return empty_result('error', "Invalid device type specified"), 400
 

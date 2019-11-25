@@ -57,14 +57,14 @@ You can also do filtering, ordering and limiting of results from the devices API
 
 ::
 
-   curl "https://hostname/api/v1.0/devices?filter[hostname][contains]=eos&filter[device.type]=dist&limit=2&offset=0&sort=-hostname"
+   curl "https://hostname/api/v1.0/devices?filter[hostname][contains]=eos&filter[device.type]=dist&page=2&per_page=50&sort=-hostname"
 
 This will filter the results like so:
 
 * Only devices that has a hostname that contains the string "eos" will be returned
 * Only devices that has type exactly matching "dist" will be returned
-* A maximum of two results will be returned (limit=2)
-* The results will start with the first entry found (offset=0)
+* A maximum of 50 results will be returned (per_page=50)
+* The second page of results will be returned, since per_page is set to 50 this means items 51-100 (page=2)
 * The results will be ordered based on the column hostname, in descending order. "-" means descending, no prefix means ascending (sort=-hostname)
 
 

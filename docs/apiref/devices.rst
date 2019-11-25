@@ -67,6 +67,8 @@ This will filter the results like so:
 * The second page of results will be returned, since per_page is set to 50 this means items 51-100 (page=2)
 * The results will be ordered based on the column hostname, in descending order. "-" means descending, no prefix means ascending (sort=-hostname)
 
+A HTTP header with the name X-Total-Count will show the unfiltered total number of devices in the database.
+
 
 Add devices
 -----------

@@ -52,7 +52,7 @@ class CnaasApi(Api):
 
 app = Flask(__name__)
 # TODO: make origins configurable
-cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
+cors = CORS(app, resources={r"/api/*": {"origins": "*"}}, expose_headers=['X-Total-Count'])
 socketio = SocketIO(app, cors_allowed_origins='*')
 app.config['SECRET_KEY'] = os.urandom(128)
 app.config['JWT_PRIVATE_KEY'] = open('certs/private.pem').read()

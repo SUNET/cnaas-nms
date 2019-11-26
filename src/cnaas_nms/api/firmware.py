@@ -6,7 +6,7 @@ import yaml
 from datetime import datetime
 
 from flask import request
-from flask_restful import Resource
+from flask_restplus import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required
 
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -14,8 +14,30 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.get_apidata import get_apidata
+from cnaas_nms.version import __api_version__
 
 logger = get_logger()
+
+
+api = Namespace('firmware', description='API for handling firmwares',
+                prefix='/api/{}'.format(__api_version__))
+
+firmware_model = api.model('firmware_download', {
+    'url': fields.String(required=True),
+    'sha1': fields.String(required=True),
+    'verify_tls': fields.Boolean(required=False),
+    'filename': fields.String(required=True)})
+
+firmware_upgrade_model = api.model('firmware_upgrade', {
+    'url': fields.String(required=True),
+    'start_at': fields.String(required=False),
+    'download': fields.Boolean(required=False),
+    'activate': fields.Boolean(required=False),
+    'filename': fields.String(required=False),
+    'group': fields.String(required=False),
+    'hostname': fields.String(required=False),
+    'pre_flight': fields.Boolean(required=False),
+    'reboot': fields.Boolean(required=False)})
 
 
 def httpd_url() -> str:
@@ -78,7 +100,9 @@ def remove_file(**kwargs: dict) -> str:
 
 class FirmwareApi(Resource):
     @jwt_required
+    @api.expect(firmware_model)
     def post(self) -> dict:
+        """ Download new firmware """
         json_data = request.get_json()
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
@@ -92,6 +116,7 @@ class FirmwareApi(Resource):
 
     @jwt_required
     def get(self) -> dict:
+        """ Get firmwares """
         try:
             res = requests.get(httpd_url() + 'firmware',
                                verify=verify_tls())
@@ -106,6 +131,7 @@ class FirmwareApi(Resource):
 class FirmwareImageApi(Resource):
     @jwt_required
     def get(self, filename: str) -> dict:
+        """ Get information about a single firmware """
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.api.firmware:get_firmware_chksum',
@@ -118,6 +144,7 @@ class FirmwareImageApi(Resource):
 
     @jwt_required
     def delete(self, filename: str) -> dict:
+        """ Remove firmware """
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.api.firmware:remove_file',
@@ -140,8 +167,11 @@ class FirmwareUpgradeApi(Resource):
         return httpd_url
 
     @jwt_required
+    @api.expect(firmware_upgrade_model)
     def post(self):
+        """ Upgrade firmware on device """
         json_data = request.get_json()
+
         seconds = 1
         date_format = "%Y-%m-%d %H:%M:%S"
         url = self.firmware_url()
@@ -178,3 +208,9 @@ class FirmwareUpgradeApi(Resource):
         res['job_id'] = job_id
 
         return res
+
+
+# Firmware
+api.add_resource(FirmwareApi, '')
+api.add_resource(FirmwareImageApi, '/<string:filename>')
+api.add_resource(FirmwareUpgradeApi, '/upgrade')

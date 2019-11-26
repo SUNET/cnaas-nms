@@ -1,7 +1,7 @@
 from typing import List
 
 from flask import request
-from flask_restful import Resource
+from flask_restplus import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required
 
 from cnaas_nms.api.generic import empty_result
@@ -9,11 +9,17 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.settings import get_settings
+from cnaas_nms.version import __api_version__
+
+
+api = Namespace('device', description='API for handling interfaces',
+                prefix='/api/{}'.format(__api_version__))
 
 
 class InterfaceApi(Resource):
     @jwt_required
     def get(self, hostname):
+        """ List all interfaces """
         result = empty_result()
         result['data'] = {'interfaces': []}
         with sqla_session() as session:
@@ -97,3 +103,5 @@ class InterfaceApi(Resource):
         else:
             return empty_result(status='success', data={'updated': data})
 
+
+api.add_resource(InterfaceApi, '/<string:hostname>/interfaces')

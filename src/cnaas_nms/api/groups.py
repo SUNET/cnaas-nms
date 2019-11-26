@@ -1,12 +1,17 @@
 from typing import List, Optional
 
-from flask_restful import Resource
+from flask_restplus import Resource, Namespace
 from flask_jwt_extended import jwt_required
 
 from cnaas_nms.db.device import Device
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.version import __api_version__
+
+
+api = Namespace('groups', description='API for handling groups',
+                prefix='/api/{}'.format(__api_version__))
 
 
 def groups_populate(group_name: Optional[str] = None):
@@ -29,6 +34,7 @@ def groups_populate(group_name: Optional[str] = None):
 class GroupsApi(Resource):
     @jwt_required
     def get(self):
+        """ Get all groups """
         result = empty_result()
         tmpgroups = groups_populate()
         result['data'] = {'groups': tmpgroups}
@@ -38,7 +44,12 @@ class GroupsApi(Resource):
 class GroupsApiById(Resource):
     @jwt_required
     def get(self, group_name):
+        """ Get a single group by ID """
         result = empty_result()
         tmpgroups = groups_populate(group_name)
         result['data'] = {'groups': tmpgroups}
         return empty_result(status='success', data=result)
+
+
+api.add_resource(GroupsApi, '')
+api.add_resource(GroupsApiById, '/<string:group_name>')

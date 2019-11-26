@@ -1,7 +1,7 @@
-from flask_restful import Resource
-from flask import request, make_response
-from sqlalchemy import func
 import json
+from flask import request, make_response
+from flask_restplus import Resource, Namespace, fields
+from sqlalchemy import func
 
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
@@ -13,14 +13,63 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from flask_jwt_extended import jwt_required
+from cnaas_nms.version import __api_version__
 
 
 logger = get_logger()
 
 
+device_api = Namespace('device', description='API for handling a single device',
+                       prefix='/api/{}'.format(__api_version__))
+devices_api = Namespace('devices', description='API for handling devices',
+                        prefix='/api/{}'.format(__api_version__))
+device_init_api = Namespace('device_init', description='API for init devices',
+                            prefix='/api/{}'.format(__api_version__))
+device_syncto_api = Namespace('device_syncto', description='API to sync devices',
+                              prefix='/api/{}'.format(__api_version__))
+device_discover_api = Namespace('device_discover', description='API to discover devices',
+                                prefix='/api/{}'.format(__api_version__))
+
+
+device_model = device_api.model('device', {
+    'hostname': fields.String(required=True),
+    'site_id': fields.Integer(required=False),
+    'description': fields.String(required=False),
+    'management_ip': fields.String(required=False),
+    'infra_ip': fields.String(required=False),
+    'dhcp_ip': fields.String(required=False),
+    'serial': fields.String(required=False),
+    'ztp_mac': fields.String(required=False),
+    'platform': fields.String(required=True),
+    'vendor': fields.String(required=False),
+    'model': fields.String(required=False),
+    'os_version': fields.String(required=False),
+    'synchronized': fields.Boolean(required=False),
+    'state': fields.String(required=True),
+    'device_type': fields.String(required=True),
+    'port': fields.Integer(required=False)})
+
+device_init_model = device_init_api.model('device_init', {
+    'hostname': fields.String(required=False),
+    'device_type': fields.String(required=False)})
+
+device_discover_model = device_discover_api.model('device_discover', {
+    'ztp_mac': fields.String(required=True),
+    'dhcp_ip': fields.String(required=True)})
+
+device_syncto_model = device_syncto_api.model('device_sync', {
+    'hostname': fields.String(required=False),
+    'device_type': fields.String(required=False),
+    'all': fields.String(required=False),
+    'dry_run': fields.String(required=False),
+    'force': fields.String(required=False),
+    'auto_push': fields.String(required=False)})
+
+
 class DeviceByIdApi(Resource):
     @jwt_required
     def get(self, device_id):
+        """ Get a device from ID """
         result = empty_result()
         result['data'] = {'devices': []}
         with sqla_session() as session:
@@ -33,6 +82,7 @@ class DeviceByIdApi(Resource):
 
     @jwt_required
     def delete(self, device_id):
+        """ Delete device from ID """
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
             if dev:
@@ -43,7 +93,9 @@ class DeviceByIdApi(Resource):
                 return empty_result('error', "Device not found"), 404
 
     @jwt_required
+    @device_api.expect(device_model)
     def put(self, device_id):
+        """ Modify device from ID """
         json_data = request.get_json()
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(
@@ -60,7 +112,9 @@ class DeviceByIdApi(Resource):
 
 class DeviceApi(Resource):
     @jwt_required
+    @device_api.expect(device_model)
     def post(self):
+        """ Add a device """
         json_data = request.get_json()
         supported_platforms = ['eos', 'junos', 'ios', 'iosxr', 'nxos', 'nxos_ssh']
         data = {}
@@ -92,6 +146,7 @@ class DeviceApi(Resource):
 class DevicesApi(Resource):
     @jwt_required
     def get(self):
+        """ Get all devices """
         data = {'devices': []}
         total_count = 0
         with sqla_session() as session:
@@ -108,11 +163,14 @@ class DevicesApi(Resource):
 
 class DeviceInitApi(Resource):
     @jwt_required
+    @device_init_api.expect(device_init_model)
     def post(self, device_id: int):
+        """ Init a device """
         if not isinstance(device_id, int):
             return empty_result(status='error', data="'device_id' must be an integer"), 400
 
         json_data = request.get_json()
+
         if 'hostname' not in json_data:
             return empty_result(status='error', data="POST data must include new 'hostname'"), 400
         else:
@@ -149,8 +207,11 @@ class DeviceInitApi(Resource):
 
 class DeviceDiscoverApi(Resource):
     @jwt_required
+    @device_discover_api.expect(device_discover_model)
     def post(self):
+        """ Discover device """
         json_data = request.get_json()
+
         if 'ztp_mac' not in json_data:
             return empty_result(status='error', data="POST data must include 'ztp_mac'"), 400
         if 'dhcp_ip' not in json_data:
@@ -171,7 +232,9 @@ class DeviceDiscoverApi(Resource):
 
 class DeviceSyncApi(Resource):
     @jwt_required
+    @device_syncto_api.expect(device_syncto_model)
     def post(self):
+        """ Start sync of device(s) """
         json_data = request.get_json()
         kwargs: dict = {}
         if 'hostname' in json_data:
@@ -231,6 +294,7 @@ class DeviceSyncApi(Resource):
 class DeviceConfigApi(Resource):
     @jwt_required
     def get(self, hostname: str):
+        """ Get device configuration """
         result = empty_result()
         result['data'] = {'config': None}
         if not Device.valid_hostname(hostname):
@@ -254,3 +318,14 @@ class DeviceConfigApi(Resource):
             ), 500
 
         return result
+
+
+# Devices
+device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
+device_api.add_resource(DeviceConfigApi, '/<string:hostname>/generate_config')
+device_api.add_resource(DeviceApi, '')
+devices_api.add_resource(DevicesApi, '')
+device_init_api.add_resource(DeviceInitApi, '/<int:device_id>')
+device_discover_api.add_resource(DeviceDiscoverApi, '')
+device_syncto_api.add_resource(DeviceSyncApi, '')
+# device/<string:hostname>/current_config

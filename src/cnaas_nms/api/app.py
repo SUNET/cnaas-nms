@@ -1,7 +1,7 @@
 import os
 
-from flask import Flask, render_template, request
-from flask_restful import Api
+from flask import Flask, render_template, request, g
+from flask_restplus import Api
 from flask_socketio import SocketIO, join_room
 from flask_jwt_extended import JWTManager, decode_token
 from flask_jwt_extended.exceptions import NoAuthorizationError
@@ -9,26 +9,36 @@ from flask_jwt_extended.exceptions import NoAuthorizationError
 from flask import jsonify
 from flask_cors import CORS
 
-from cnaas_nms.api.device import DeviceByIdApi, DeviceApi, DevicesApi, \
-    DeviceInitApi, DeviceSyncApi, DeviceConfigApi, DeviceDiscoverApi
-from cnaas_nms.api.interface import InterfaceApi
-from cnaas_nms.api.mgmtdomain import MgmtdomainsApi, MgmtdomainByIdApi
-from cnaas_nms.api.linknet import LinknetsApi
-from cnaas_nms.api.jobs import JobsApi, JobByIdApi, JobLockApi
-from cnaas_nms.api.repository import RepositoryApi
-from cnaas_nms.api.settings import SettingsApi
-from cnaas_nms.api.groups import GroupsApi, GroupsApiById
-from cnaas_nms.api.plugins import PluginsApi
-from cnaas_nms.api.firmware import FirmwareApi, FirmwareImageApi, \
-    FirmwareUpgradeApi
 from cnaas_nms.version import __api_version__
 from cnaas_nms.tools.log import get_logger
+
+from cnaas_nms.api.device import device_api, devices_api, \
+    device_init_api, device_syncto_api, device_discover_api
+from cnaas_nms.api.linknet import api as links_api
+from cnaas_nms.api.firmware import api as firmware_api
+from cnaas_nms.api.interface import api as interfaces_api
+from cnaas_nms.api.jobs import job_api, jobs_api, joblock_api
+from cnaas_nms.api.mgmtdomain import api as mgmtdomains_api
+from cnaas_nms.api.groups import api as groups_api
+from cnaas_nms.api.repository import api as repository_api
+from cnaas_nms.api.settings import api as settings_api
+from cnaas_nms.api.plugins import api as plugins_api
 
 from jwt.exceptions import DecodeError, InvalidSignatureError, \
     InvalidTokenError
 
 
 logger = get_logger()
+
+
+authorizations = {
+    'apikey': {
+        'type': 'apiKey',
+        'in': 'header',
+        'name': 'Authorization',
+        'description': "Type in 'Bearer: <your JWT token here' to autheticate."
+    }
+}
 
 
 class CnaasApi(Api):
@@ -64,51 +74,26 @@ app.config['JWT_ALGORITHM'] = 'ES256'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
 
 jwt = JWTManager(app)
-api = CnaasApi(app, prefix=f'/api/{ __api_version__ }')
+api = CnaasApi(app, prefix='/api/{}'.format(__api_version__),
+               authorizations=authorizations,
+               security='apikey')
 
-
-# Devices
-api.add_resource(DeviceByIdApi, '/device/<int:device_id>')
-api.add_resource(DeviceInitApi, '/device_init/<int:device_id>')
-api.add_resource(DeviceDiscoverApi, '/device_discover')
-api.add_resource(DeviceSyncApi, '/device_syncto')
-api.add_resource(DeviceConfigApi, '/device/<string:hostname>/generate_config')
-api.add_resource(DeviceApi, '/device')
-api.add_resource(DevicesApi, '/devices')
-# device/<string:hostname>/current_config
-
-# Links
-api.add_resource(LinknetsApi, '/linknets')
-
-# Interfaces
-api.add_resource(InterfaceApi, '/device/<string:hostname>/interfaces')
-
-# Management domains
-api.add_resource(MgmtdomainsApi, '/mgmtdomains')
-api.add_resource(MgmtdomainByIdApi, '/mgmtdomain/<int:mgmtdomain_id>')
-
-# Jobs
-api.add_resource(JobsApi, '/jobs')
-api.add_resource(JobByIdApi, '/job/<string:id>')
-api.add_resource(JobLockApi, '/joblocks')
-
-# File repository
-api.add_resource(RepositoryApi, '/repository/<string:repo>')
-
-# Firmware
-api.add_resource(FirmwareApi, '/firmware')
-api.add_resource(FirmwareImageApi, '/firmware/<string:filename>')
-api.add_resource(FirmwareUpgradeApi, '/firmware/upgrade')
-
-# Settings
-api.add_resource(SettingsApi, '/settings')
-
-# Groups
-api.add_resource(GroupsApi, '/groups')
-api.add_resource(GroupsApiById, '/groups/<string:group_name>')
-
-# Plugins
-api.add_resource(PluginsApi, '/plugins')
+api.add_namespace(device_api)
+api.add_namespace(devices_api)
+api.add_namespace(device_init_api)
+api.add_namespace(device_syncto_api)
+api.add_namespace(device_discover_api)
+api.add_namespace(links_api)
+api.add_namespace(firmware_api)
+api.add_namespace(interfaces_api)
+api.add_namespace(job_api)
+api.add_namespace(jobs_api)
+api.add_namespace(joblock_api)
+api.add_namespace(mgmtdomains_api)
+api.add_namespace(groups_api)
+api.add_namespace(repository_api)
+api.add_namespace(settings_api)
+api.add_namespace(plugins_api)
 
 
 # SocketIO listen for new log messages

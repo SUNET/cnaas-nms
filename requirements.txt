@@ -2,7 +2,7 @@ alembic==1.0.10
 APScheduler==3.5.3
 coverage==4.5.3
 Flask-Cors==3.0.8
-Flask-RESTful==0.3.7
+Flask-RESTPlus==0.13.0
 Flask-SocketIO==4.2.1
 Flask-JWT-Extended==3.24.0
 gevent==1.4.0

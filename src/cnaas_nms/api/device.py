@@ -1,5 +1,7 @@
-from flask import request, current_app
+import json
+from flask import request, make_response
 from flask_restplus import Resource, Namespace, fields
+from sqlalchemy import func
 
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
@@ -146,13 +148,17 @@ class DevicesApi(Resource):
     def get(self):
         """ Get all devices """
         data = {'devices': []}
+        total_count = 0
         with sqla_session() as session:
-            query = session.query(Device)
+            query = session.query(Device, func.count(Device.id).over().label('total'))
             query = build_filter(Device, query)
             for instance in query:
-                data['devices'].append(instance.as_dict())
+                data['devices'].append(instance.Device.as_dict())
+                total_count = instance.total
 
-        return empty_result(status='success', data=data), 200
+        resp = make_response(json.dumps(empty_result(status='success', data=data)), 200)
+        resp.headers['X-Total-Count'] = total_count
+        return resp
 
 
 class DeviceInitApi(Resource):

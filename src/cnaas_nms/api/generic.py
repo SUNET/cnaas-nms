@@ -5,18 +5,19 @@ import sqlalchemy
 
 
 FILTER_RE = re.compile(r"^filter\[([a-zA-Z0-9_.]+)\](\[[a-z]+\])?$")
+DEFAULT_PER_PAGE = 50
 
 
 def limit_results() -> int:
     """Find number of results to limit query to, either by user requested
     param or a default value."""
-    limit = 10
+    limit = DEFAULT_PER_PAGE
 
     args = request.args
-    if 'limit' in args:
+    if 'per_page' in args:
         try:
-            r_limit = int(args['limit'])
-            limit = max(1, min(100, r_limit))
+            per_page_arg = int(args['per_page'])
+            limit = max(1, min(100, per_page_arg))
         except:
             pass
 
@@ -27,17 +28,24 @@ def offset_results() -> int:
     """Find number of results to offset query to, either by user requested
     param or a default value."""
     offset = 0
+    per_page = DEFAULT_PER_PAGE
 
     args = request.args
-    if 'offset' in args:
+    if 'per_page' in args:
         try:
-            r_limit = int(args['offset'])
-            offset = max(0, r_limit)
+            per_page_arg = int(args['per_page'])
+            per_page = max(1, min(100, per_page_arg))
+        except:
+            pass
+
+    if 'page' in args:
+        try:
+            page_arg = int(args['page'])
+            offset = (max(1, page_arg) - 1) * per_page
         except:
             pass
 
     return offset
-
 
 
 def build_filter(f_class, query: sqlalchemy.orm.query.Query):

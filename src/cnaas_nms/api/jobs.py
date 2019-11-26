@@ -9,8 +9,12 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.version import __api_version__
 
 
-job_api = Namespace('jobs', description='API for handling jobs',
+job_api = Namespace('job', description='API for handling jobs',
                     prefix='/api/{}'.format(__api_version__))
+
+jobs_api = Namespace('jobs', description='API for handling jobs',
+                     prefix='/api/{}'.format(__api_version__))
+
 joblock_api = Namespace('joblocks', description='API for handling jobs',
                         prefix='/api/{}'.format(__api_version__))
 
@@ -71,6 +75,6 @@ class JobLockApi(Resource):
         return empty_result('success', data={'name': json_data['name'], 'status': 'deleted'})
 
 
-job_api.add_resource(JobsApi, '')
+jobs_api.add_resource(JobsApi, '')
 job_api.add_resource(JobByIdApi, '/<string:id>')
 joblock_api.add_resource(JobLockApi, '')

@@ -1,16 +1,24 @@
 from flask import request
-from flask_restful import Resource
+from flask_restplus import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required
 
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import VerifyPathException, get_settings
 from cnaas_nms.api.generic import empty_result
+from cnaas_nms.version import __api_version__
+
+
+api = Namespace('settings', description='Settings',
+                prefix='/api/{}'.format(__api_version__))
 
 
 class SettingsApi(Resource):
     @jwt_required
+    @api.param('hostname')
+    @api.param('device_type')
     def get(self):
+        """ Get settings """
         args = request.args
         hostname = None
         device_type = None
@@ -38,3 +46,6 @@ class SettingsApi(Resource):
             return empty_result('error', "Error getting settings: {}".format(str(e))), 400
 
         return empty_result(data={'settings': settings, 'settings_origin': settings_origin})
+
+
+api.add_resource(SettingsApi, '')

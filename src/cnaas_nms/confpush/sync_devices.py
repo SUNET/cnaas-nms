@@ -82,6 +82,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
         else:
             raise ValueError("Unknown platform: {}".format(dev.platform))
         settings, settings_origin = get_settings(hostname, devtype)
+        device_variables = {
+            'mgmt_ip': str(mgmt_ip)
+        }
 
         if devtype == DeviceType.ACCESS:
             neighbor_hostnames = dev.get_uplink_peers(session)
@@ -97,10 +100,20 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
             access_device_variables = {
                 'mgmt_vlan_id': mgmtdomain.vlan,
-                'mgmt_gw': mgmt_gw_ipif.ip,
+                'mgmt_gw': str(mgmt_gw_ipif.ip),
                 'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
-                'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen)
+                'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
+                'interfaces': []
             }
+            intfs = session.query(Interface).filter(Interface.device == dev).all()
+            intf: Interface
+            for intf in intfs:
+                access_device_variables['interfaces'].append({
+                    'name': intf.name,
+                    'ifclass': intf.configtype.name
+                })
+
+            device_variables = {**access_device_variables, **device_variables}
         elif devtype == DeviceType.DIST:
             asn = generate_asn(infra_ip)
             dist_device_variables = {
@@ -173,24 +186,6 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     'peer_infra_lo': str(neighbor_d.infra_ip),
                     'peer_asn': generate_asn(neighbor_d.infra_ip)
                 })
-
-        intfs = session.query(Interface).filter(Interface.device == dev).all()
-        uplinks = []
-        access_auto = []
-        intf: Interface
-        for intf in intfs:
-            if intf.configtype == InterfaceConfigType.ACCESS_AUTO:
-                access_auto.append({'ifname': intf.name})
-            elif intf.configtype == InterfaceConfigType.ACCESS_UPLINK:
-                uplinks.append({'ifname': intf.name})
-        device_variables = {
-            'mgmt_ip': str(mgmt_ip),
-            'uplinks': uplinks,
-            'access_auto': access_auto
-        }
-        if 'access_device_variables' in locals() and access_device_variables:
-            device_variables = {**access_device_variables, **device_variables}
-        if 'dist_device_variables' in locals() and dist_device_variables:
             device_variables = {**dist_device_variables, **device_variables}
 
     # Merge device variables with settings before sending to template rendering
@@ -261,6 +256,7 @@ def generate_only(hostname: str) -> (str, dict):
     """
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
+    template_vars = {}
     if len(nr_filtered.inventory.hosts) != 1:
         raise ValueError("Invalid hostname: {}".format(hostname))
     try:
@@ -271,8 +267,6 @@ def generate_only(hostname: str) -> (str, dict):
             ))
         if "template_vars" in nrresult[hostname][1].host:
             template_vars = nrresult[hostname][1].host["template_vars"]
-        else:
-            template_vars = None
         if nrresult.failed:
             print_result(nrresult)
             raise Exception("Failed to generate config for {}".format(hostname))
@@ -280,7 +274,10 @@ def generate_only(hostname: str) -> (str, dict):
         return nrresult[hostname][1].result, template_vars
     except Exception as e:
         logger.exception("Exception while generating config: {}".format(str(e)))
-        return nrresult[hostname][1].result, template_vars
+        if len(nrresult[hostname]) >= 2:
+            return nrresult[hostname][1].result, template_vars
+        else:
+            return str(e), template_vars
 
 
 def sync_check_hash(task, force=False, dry_run=True):

@@ -55,6 +55,31 @@ def get_evpn_spines(session, settings: dict):
     return ret
 
 
+def resolve_vlanid(vlan_name: str, vxlans: dict) -> Optional[int]:
+    if type(vlan_name) == int:
+        return int(vlan_name)
+    if not isinstance(vlan_name, str):
+        return None
+    for vxlan_name, vxlan_data in vxlans.items():
+        try:
+            if vxlan_data['vlan_name'] == vlan_name:
+                return int(vxlan_data['vlan_id'])
+        except (KeyError, ValueError) as e:
+            logger.error("Could not resolve VLAN ID for VLAN name {}: {}".format(vlan_name, str(e)))
+            return None
+
+
+def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
+    if not isinstance(vlan_name_list, list):
+        return []
+    ret = []
+    for vlan_name in vlan_name_list:
+        vlan_id = resolve_vlanid(vlan_name, vxlans)
+        if vlan_id:
+            ret.append(vlan_id)
+    return ret
+
+
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                      job_id: Optional[str] = None):
     """
@@ -101,16 +126,28 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             access_device_variables = {
                 'mgmt_vlan_id': mgmtdomain.vlan,
                 'mgmt_gw': str(mgmt_gw_ipif.ip),
-                'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
+                'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip,
+                                                              mgmt_gw_ipif.network.prefixlen))),
                 'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
                 'interfaces': []
             }
             intfs = session.query(Interface).filter(Interface.device == dev).all()
             intf: Interface
             for intf in intfs:
+                untagged_vlan = None
+                tagged_vlan_list = []
+                if intf.data:
+                    if 'untagged_vlan' in intf.data:
+                        untagged_vlan = resolve_vlanid(intf.data['untagged_vlan'],
+                                                       settings['vxlans'])
+                    if 'tagged_vlan_list' in intf.data:
+                        tagged_vlan_list = resolve_vlanid_list(intf.data['tagged_vlan_list'],
+                                                               settings['vxlans'])
                 access_device_variables['interfaces'].append({
                     'name': intf.name,
-                    'ifclass': intf.configtype.name
+                    'ifclass': intf.configtype.name,
+                    'untagged_vlan': untagged_vlan,
+                    'tagged_vlan_list': tagged_vlan_list
                 })
 
             device_variables = {**access_device_variables, **device_variables}

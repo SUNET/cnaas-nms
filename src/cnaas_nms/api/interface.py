@@ -10,6 +10,7 @@ from cnaas_nms.db.device import Device
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.version import __api_version__
+from cnaas_nms.confpush.sync_devices import resolve_vlanid, resolve_vlanid_list
 
 
 api = Namespace('device', description='API for handling interfaces',
@@ -73,14 +74,36 @@ class InterfaceApi(Resource):
                             errors.append(f"Invalid configtype received: {configtype}")
 
                     if 'data' in if_dict:
+                        if not device_settings:
+                            device_settings, _ = get_settings(hostname, dev.device_type)
                         if 'vxlan' in if_dict['data']:
-                            if not device_settings:
-                                device_settings, _ = get_settings(hostname, dev.device_type)
                             if if_dict['data']['vxlan'] in device_settings['vxlans']:
                                 intfdata['vxlan'] = if_dict['data']['vxlan']
                             else:
                                 errors.append("Specified VXLAN {} is not present in {}".format(
                                     if_dict['data']['vxlan'], hostname
+                                ))
+                        if 'untagged_vlan' in if_dict['data']:
+                            vlan_id = resolve_vlanid(if_dict['data']['untagged_vlan'], device_settings['vxlans'])
+                            if vlan_id:
+                                intfdata['untagged_vlan'] = if_dict['data']['untagged_vlan']
+                            else:
+                                errors.append("Specified VLAN name {} is not present in {}".format(
+                                    if_dict['data']['untagged_vlan'], hostname
+                                ))
+                        if 'tagged_vlan_list' in if_dict['data']:
+                            if isinstance(if_dict['data']['tagged_vlan_list'], list):
+                                vlan_id_list = resolve_vlanid_list(if_dict['data']['tagged_vlan_list'],
+                                                                   device_settings['vxlans'])
+                                if len(vlan_id_list) == len(if_dict['data']['tagged_vlan_list']):
+                                    intfdata['tagged_vlan_list'] = if_dict['data']['tagged_vlan_list']
+                                else:
+                                    errors.append("Some VLAN names {} are not present in {}".format(
+                                        ", ".join(if_dict['data']['tagged_vlan_list']), hostname
+                                    ))
+                            else:
+                                errors.append("tagged_vlan_list should be of type list, found {}".format(
+                                    type(if_dict['data']['tagged_vlan_list'])
                                 ))
 
                     if intfdata:

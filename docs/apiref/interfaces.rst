@@ -51,21 +51,21 @@ The configtype field must use some of these pre-defined values:
 - UNKNOWN: Should not be used unless there's an error in CNaaS-NMS
 - UNMANAGED: This interface is not managed by CNaaS-NMS (not implemented)
 - CONFIGFILE: This interface is managed via external config file (not implemented)
-- CUSTOM: Use custom configuration from data field (not implemented)
+- CUSTOM: Use custom configuration defined in settings YAML (only implemented for DIST type devices)
 - TEMPLATE: Use a pre-defined template (not implemented)
 - ACCESS_AUTO: Use 802.1X configuration to automatically configure port (default)
-- ACCESS_UNTAGGED: Use a static VXLAN defined in data field
-- ACCESS_TAGGED: Use a static list of VXLANs defined in data field (not implemented)
+- ACCESS_UNTAGGED: Use a static VLAN defined by name in the data field
+- ACCESS_TAGGED: Use a static list of VLANs defined by names in the data field
 - ACCESS_UPLINK: Uplink from access switch to dist switch
 
 Update interface
 ----------------
 
-Set Ethernet1 to use statically configured VXLAN called student1
+Set device eosaccess to use statically configured untagged VLAN with name "STUDENT" on interface Ethernet1
 
 ::
 
-   curl http://hostname/api/v1.0/interfaces/eosaccess -d '{"interfaces": {"Ethernet1": {"data": {"vxlan": "student1"}}}}' -X PUT -H "Content-Type: application/json"
+   curl https://hostname/api/v1.0/interfaces/eosaccess -d '{"interfaces": {"Ethernet1": {"configtype": "access_untagged", "data": {"untagged_vlan": "STUDENT"}}}}' -X PUT -H "Content-Type: application/json"
 
 Response:
 
@@ -76,23 +76,44 @@ Response:
       "data": {
           "updated": {
               "Ethernet1": {
+                  "configtype": "ACCESS_UNTAGGED",
                   "data": {
-                      "vxlan": "student1"
+                      "untagged_vlan": "STUDENT"
                   }
               }
           }
       }
   }
 
-You should also update the configtype of the interface to make
-use of the specified VXLAN:
+To change the port back to the default ACCESS_AUTO port type use:
 
 ::
 
-  curl http://hostname/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"configtype": "access_untagged", "data": {"vxlan": "student123"}}}}' -X PUT -H "Content-Type: application/json"
+  curl https://hostname/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"configtype": "access_auto"}}}' -X PUT -H "Content-Type: application/json"
 
-If you specify a VXLAN that is not available in this switch you
-will get an error message like this:
+Response:
+
+::
+
+  {
+      "status": "success",
+      "data": {
+          "updated": {
+              "Ethernet1": {
+                  "configtype": "ACCESS_AUTO"
+              }
+          }
+      }
+  }
+
+
+If you want to specify a statically configured port with tagged VLANs (trunk port) use an API call like this:
+
+::
+
+  curl ${CNAASURL}/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"configtype": "access_tagged", "data": {"tagged_vlan_list": ["STUDENTT"]}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+
+Response:
 
 ::
 
@@ -100,15 +121,19 @@ will get an error message like this:
       "status": "error",
       "message": {
           "errors": [
-              "Specified VXLAN student123 is not present in eosaccess"
+              "Some VLAN names STUDENTT are not present in eosaccess"
           ],
           "updated": {
               "Ethernet1": {
-                  "configtype": "ACCESS_UNTAGGED"
+                  "configtype": "ACCESS_TAGGED"
               }
           }
       }
   }
 
-In this case the configtype was updated but the VXLAN was not
-updated since it was not available in this switch.
+
+In this case the configtype was updated but one of the names in the VLAN list
+was not present on this switch and therefore the VLAN list was not updated.
+You can check what VLAN names exist on a specific switch by using the /settings
+API call and specifying the hostname and then look for the vlan_name field
+under a specific vxlan.

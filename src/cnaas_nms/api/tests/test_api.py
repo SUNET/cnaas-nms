@@ -129,7 +129,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
 
-    def test_update_interface(self):
+    def test_update_interface_configtype(self):
         ifname = self.testdata['interface_update']
         data = {
             "interfaces": {
@@ -154,7 +154,63 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
         self.assertEqual(ifname in result.json['data']['updated'], True)
-        
+
+    def test_update_interface_data_untagged(self):
+        # Test untagged_vlan
+        ifname = self.testdata['interface_update']
+        data = {
+            "interfaces": {
+                ifname: {
+                    "data": {
+                        "untagged_vlan": self.testdata['untagged_vlan']
+                    }
+                }
+            }
+        }
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(ifname in result.json['data']['updated'], True)
+        # Test invalid
+        data['interfaces'][ifname]['data']['untagged_vlan'] = "thisshouldnetexist"
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json['status'], 'error')
+
+    def test_update_interface_data_tagged(self):
+        # Test tagged
+        ifname = self.testdata['interface_update']
+        data = {
+            "interfaces": {
+                ifname: {
+                    "data": {
+                        "tagged_vlan_list": self.testdata['tagged_vlan_list']
+                    }
+                }
+            }
+        }
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(ifname in result.json['data']['updated'], True)
+        # Test invalid
+        data['interfaces'][ifname]['data']['tagged_vlan_list'] = ["thisshouldnetexist"]
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json['status'], 'error')
+
     def test_add_new_device(self):
         data = {
             "hostname": "unittestdevice",

@@ -55,6 +55,31 @@ def get_evpn_spines(session, settings: dict):
     return ret
 
 
+def resolve_vlanid(vlan_name: str, vxlans: dict) -> Optional[int]:
+    if type(vlan_name) == int:
+        return int(vlan_name)
+    if not isinstance(vlan_name, str):
+        return None
+    for vxlan_name, vxlan_data in vxlans.items():
+        try:
+            if vxlan_data['vlan_name'] == vlan_name:
+                return int(vxlan_data['vlan_id'])
+        except (KeyError, ValueError) as e:
+            logger.error("Could not resolve VLAN ID for VLAN name {}: {}".format(vlan_name, str(e)))
+            return None
+
+
+def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
+    if not isinstance(vlan_name_list, list):
+        return []
+    ret = []
+    for vlan_name in vlan_name_list:
+        vlan_id = resolve_vlanid(vlan_name, vxlans)
+        if vlan_id:
+            ret.append(vlan_id)
+    return ret
+
+
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                      job_id: Optional[str] = None):
     """
@@ -82,6 +107,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
         else:
             raise ValueError("Unknown platform: {}".format(dev.platform))
         settings, settings_origin = get_settings(hostname, devtype)
+        device_variables = {
+            'mgmt_ip': str(mgmt_ip)
+        }
 
         if devtype == DeviceType.ACCESS:
             neighbor_hostnames = dev.get_uplink_peers(session)
@@ -97,10 +125,32 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
             access_device_variables = {
                 'mgmt_vlan_id': mgmtdomain.vlan,
-                'mgmt_gw': mgmt_gw_ipif.ip,
-                'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
-                'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen)
+                'mgmt_gw': str(mgmt_gw_ipif.ip),
+                'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip,
+                                                              mgmt_gw_ipif.network.prefixlen))),
+                'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
+                'interfaces': []
             }
+            intfs = session.query(Interface).filter(Interface.device == dev).all()
+            intf: Interface
+            for intf in intfs:
+                untagged_vlan = None
+                tagged_vlan_list = []
+                if intf.data:
+                    if 'untagged_vlan' in intf.data:
+                        untagged_vlan = resolve_vlanid(intf.data['untagged_vlan'],
+                                                       settings['vxlans'])
+                    if 'tagged_vlan_list' in intf.data:
+                        tagged_vlan_list = resolve_vlanid_list(intf.data['tagged_vlan_list'],
+                                                               settings['vxlans'])
+                access_device_variables['interfaces'].append({
+                    'name': intf.name,
+                    'ifclass': intf.configtype.name,
+                    'untagged_vlan': untagged_vlan,
+                    'tagged_vlan_list': tagged_vlan_list
+                })
+
+            device_variables = {**access_device_variables, **device_variables}
         elif devtype == DeviceType.DIST:
             asn = generate_asn(infra_ip)
             dist_device_variables = {
@@ -173,24 +223,6 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     'peer_infra_lo': str(neighbor_d.infra_ip),
                     'peer_asn': generate_asn(neighbor_d.infra_ip)
                 })
-
-        intfs = session.query(Interface).filter(Interface.device == dev).all()
-        uplinks = []
-        access_auto = []
-        intf: Interface
-        for intf in intfs:
-            if intf.configtype == InterfaceConfigType.ACCESS_AUTO:
-                access_auto.append({'ifname': intf.name})
-            elif intf.configtype == InterfaceConfigType.ACCESS_UPLINK:
-                uplinks.append({'ifname': intf.name})
-        device_variables = {
-            'mgmt_ip': str(mgmt_ip),
-            'uplinks': uplinks,
-            'access_auto': access_auto
-        }
-        if 'access_device_variables' in locals() and access_device_variables:
-            device_variables = {**access_device_variables, **device_variables}
-        if 'dist_device_variables' in locals() and dist_device_variables:
             device_variables = {**dist_device_variables, **device_variables}
 
     # Merge device variables with settings before sending to template rendering
@@ -261,6 +293,7 @@ def generate_only(hostname: str) -> (str, dict):
     """
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
+    template_vars = {}
     if len(nr_filtered.inventory.hosts) != 1:
         raise ValueError("Invalid hostname: {}".format(hostname))
     try:
@@ -271,8 +304,6 @@ def generate_only(hostname: str) -> (str, dict):
             ))
         if "template_vars" in nrresult[hostname][1].host:
             template_vars = nrresult[hostname][1].host["template_vars"]
-        else:
-            template_vars = None
         if nrresult.failed:
             print_result(nrresult)
             raise Exception("Failed to generate config for {}".format(hostname))
@@ -280,7 +311,10 @@ def generate_only(hostname: str) -> (str, dict):
         return nrresult[hostname][1].result, template_vars
     except Exception as e:
         logger.exception("Exception while generating config: {}".format(str(e)))
-        return nrresult[hostname][1].result, template_vars
+        if len(nrresult[hostname]) >= 2:
+            return nrresult[hostname][1].result, template_vars
+        else:
+            return str(e), template_vars
 
 
 def sync_check_hash(task, force=False, dry_run=True):

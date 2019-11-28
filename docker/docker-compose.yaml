@@ -124,6 +124,10 @@ networks:
 
 volumes:
   cnaas-templates:
+    external: true
   cnaas-settings:
+    external: true
   cnaas-postgres-data:
+    external: true
   cnaas-mongo-data:
+    external: true

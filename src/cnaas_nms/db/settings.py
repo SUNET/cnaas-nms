@@ -124,9 +124,9 @@ def get_setting_filename(repo_root: str, path: List[str]) -> str:
         if not len(path) >= 3:
             raise ValueError("Invalid directory structure for devices settings")
         if not keys_exists(DIR_STRUCTURE_HOST, path[2:]):
-            raise ValueError("File not defined in DIR_STRUCTURE")
+            raise ValueError("File {} not defined in DIR_STRUCTURE".format(path[2:]))
     elif not keys_exists(DIR_STRUCTURE, path):
-        raise ValueError("File not defined in DIR_STRUCTURE")
+        raise ValueError("File {} not defined in DIR_STRUCTURE".format(path))
     return os.path.join(repo_root, *path)
 
 
@@ -412,6 +412,8 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             settings, settings_origin)
     # 4. Get settings repo device type settings
     if device_type:
+        if device_type == DeviceType.UNKNOWN:
+            raise ValueError("It's not possible to get settings for devices with type UNKNOWN")
         settings, settings_origin = read_settings(
             local_repo_path, [device_type.name.lower(), 'base_system.yml'], 'devicetype',
             settings, settings_origin)

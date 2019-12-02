@@ -7,7 +7,7 @@ mkdir coverage/
 
 export GITREPO_TEMPLATES="git://gitops.sunet.se/cnaas-lab-templates"
 export GITREPO_SETTINGS="git://gitops.sunet.se/cnaas-lab-settings"
-export GITREPO_ETC="git://gitops.sunet.se/cnaas-lab-etc"
+export GITREPO_ETC="https://github.com/indy-independence/cnaas-nms-lab-etc.git"
 export USERNAME_DHCP_BOOT="admin"
 export PASSWORD_DHCP_BOOT="abc123abc123"
 export USERNAME_DISCOVERED="admin"

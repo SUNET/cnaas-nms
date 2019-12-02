@@ -24,7 +24,6 @@ from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
 
-from cnaas_nms.scheduler.jobtracker import Jobtracker
 from cnaas_nms.scheduler.scheduler import Scheduler
 from nornir.plugins.tasks.networking import napalm_get
 

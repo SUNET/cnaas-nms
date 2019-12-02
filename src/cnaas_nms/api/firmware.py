@@ -118,7 +118,7 @@ class FirmwareApi(Resource):
     def get(self) -> dict:
         """ Get firmwares """
         try:
-            res = requests.get(httpd_url() + 'firmware',
+            res = requests.get(httpd_url(),
                                verify=verify_tls())
             json_data = json.loads(res.content)
         except Exception as e:

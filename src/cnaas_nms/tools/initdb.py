@@ -65,8 +65,3 @@ session.commit()
 
 
 
-# Mongodb create indexes?
-#with mongo_db() as db:
-#    col = db['Jobtracker']
-#    col.create_index("status")
-

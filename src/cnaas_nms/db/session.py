@@ -5,7 +5,6 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-from pymongo import MongoClient
 from redis import StrictRedis
 
 
@@ -59,16 +58,6 @@ def sqla_execute(**kwargs):
 
     with engine.connect() as connection:
         yield connection
-
-@contextmanager
-def mongo_db(**kwargs):
-    db_data = get_dbdata(**kwargs)
-    client = MongoClient(db_data['mongo_hostname'])
-    db = client[db_data['database']]
-    try:
-        yield db
-    finally:
-        client.close()
 
 @contextmanager
 def redis_session(**kwargs):

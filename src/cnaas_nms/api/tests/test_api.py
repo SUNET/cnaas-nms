@@ -21,11 +21,9 @@ class ApiTests(unittest.TestCase):
         self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
         self.client = self.app.test_client()
 #        self.tmp_postgres = PostgresTemporaryInstance()
-#        self.tmp_mongo = MongoTemporaryInstance()
 
     def tearDown(self):
 #        self.tmp_postgres.shutdown()
-#        self.tmp_mongo.shutdown()
         pass
 
     def test_get_single_device(self):

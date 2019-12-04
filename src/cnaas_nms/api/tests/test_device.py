@@ -7,7 +7,6 @@ import unittest
 
 from cnaas_nms.api import app
 from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
-from cnaas_nms.tools.testsetup import MongoTemporaryInstance
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 
@@ -23,11 +22,9 @@ class DeviceTests(unittest.TestCase):
         self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
         self.client = self.app.test_client()
         self.tmp_postgres = PostgresTemporaryInstance()
-        self.tmp_mongo = MongoTemporaryInstance()
 
     def tearDown(self):
         self.tmp_postgres.shutdown()
-        self.tmp_mongo.shutdown()
 
     def test_0_add_invalid_device(self):
         device_data = {

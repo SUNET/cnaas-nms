@@ -69,7 +69,6 @@ class Job(cnaas_nms.db.base.Base):
             elif issubclass(value.__class__, datetime.datetime):
                 value = json_dumper(value)
             elif type(col.type) == JSONB and value and type(value) == str:
-                print("DEBUG01: {}".format(type(value)))
                 value = json.loads(value)
             d[col.name] = value
         return d

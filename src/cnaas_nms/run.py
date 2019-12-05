@@ -28,7 +28,6 @@ def get_app():
     from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
     from cnaas_nms.db.session import sqla_session
     from cnaas_nms.db.joblock import Joblock
-    from cnaas_nms.db.job import Job
     # If running inside uwsgi, a separate "mule" will run the scheduler
     try:
         import uwsgi
@@ -46,11 +45,6 @@ def get_app():
     except Exception as e:
         print("Unable to clear old locks from database at startup: {}".format(str(e)))
 
-    try:
-        with sqla_session() as session:
-            Job.clear_jobs(session)
-    except Exception as e:
-        print("Unable to clear jobs with invalid states: {}".format(str(e)))
     return app.app
 
 

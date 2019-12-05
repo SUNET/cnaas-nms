@@ -360,7 +360,8 @@ def update_config_hash(task):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 dry_run: bool = True, force: bool = False, auto_push = False,
+                 group: Optional[str] = None, dry_run: bool = True,
+                 force: bool = False, auto_push=False,
                  job_id: Optional[str] = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
@@ -383,6 +384,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         nr_filtered = nr.filter(name=hostname).filter(managed=True)
     elif device_type:
         nr_filtered = nr.filter(F(groups__contains='T_'+device_type))  # device type
+    elif group:
+        nr_filtered = nr.filter(F(groups__contains=group))
     else:
         nr_filtered = nr.filter(synchronized=False).filter(managed=True)  # all unsynchronized devices
 

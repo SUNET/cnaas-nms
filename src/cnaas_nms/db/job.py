@@ -27,6 +27,7 @@ class JobStatus(enum.Enum):
     RUNNING = 2
     FINISHED = 3
     EXCEPTION = 4
+    ABORTED = 5
 
     @classmethod
     def has_value(cls, value):
@@ -43,14 +44,14 @@ class Job(cnaas_nms.db.base.Base):
         None,
     )
     id = Column(Integer, autoincrement=True, primary_key=True)
-    status = Column(Enum(JobStatus), default=JobStatus.SCHEDULED)
+    status = Column(Enum(JobStatus), index=True, default=JobStatus.SCHEDULED)
     scheduled_time = Column(DateTime, default=datetime.datetime.utcnow)
     start_time = Column(DateTime)
-    finish_time = Column(DateTime)
+    finish_time = Column(DateTime, index=True)
     function_name = Column(Unicode(255))
     scheduled_by = Column(Unicode(255))
     comment = Column(Unicode(255))
-    ticket_ref = Column(Unicode(32))
+    ticket_ref = Column(Unicode(32), index=True)
     next_job_id = Column(Integer, ForeignKey('job.id'))
     next_job = relationship("Job", remote_side=[id])
     result = Column(JSONB)
@@ -117,3 +118,20 @@ class Job(cnaas_nms.db.base.Base):
             errmsg = "Unable to serialize exception or traceback: {}".format(str(e))
             logger.exception(errmsg)
             self.exception = {"error": errmsg}
+
+    @classmethod
+    def clear_jobs(cls, session):
+        """Clear/release all locks in the database."""
+        running_jobs = session.query(Job).filter(Job.status == JobStatus.RUNNING).all()
+        job: Job
+        for job in running_jobs:
+            logger.info("Found job in unfinished RUNNING state at startup, id: {}".format(job.id))
+            job.status = JobStatus.ABORTED
+
+        scheduled_jobs = session.query(Job).filter(Job.status == JobStatus.SCHEDULED).all()
+        job: Job
+        for job in scheduled_jobs:
+            if job.scheduled_time < datetime.datetime.utcnow():
+                continue
+            logger.info("Found job in SCHEDULED state at startup, id: {}".format(job.id))
+            job.status = JobStatus.ABORTED

@@ -4,13 +4,16 @@ from typing import Optional
 from flask import request, make_response
 from flask_restplus import Resource, Namespace, fields
 from sqlalchemy import func
+from nornir.core.filter import F
 
+import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from flask_jwt_extended import jwt_required
@@ -270,6 +273,15 @@ class DeviceSyncApi(Resource):
             with sqla_session() as session:
                 total_count = session.query(Device). \
                     filter(Device.device_type == DeviceType[devtype_str]).count()
+        elif 'group' in json_data:
+            group_name = str(json_data['group'])
+            if group_name not in get_groups():
+                return empty_result(status='error', data='Could not find a group with name {}'.format(group_name))
+            kwargs['group'] = group_name
+            what = 'group {}'.format(group_name)
+            nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+            nr_filtered = nr.filter(F(groups__contains=group_name))
+            total_count = len(nr_filtered.inventory.hosts)
         elif 'all' in json_data and isinstance(json_data['all'], bool) and json_data['all']:
             what = "all devices"
             with sqla_session() as session:

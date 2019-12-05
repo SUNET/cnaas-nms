@@ -25,7 +25,6 @@ services:
       - PASSWORD_MANAGED
     depends_on:
       - "cnaas_postgres"
-      - "cnaas_mongo"
       - "cnaas_redis"
       - "cnaas_httpd"
     volumes:
@@ -83,21 +82,6 @@ services:
     networks:
       - cnaas
   
-  cnaas_mongo:
-    build: ./mongo/
-    volumes:
-      - cnaas-mongo-data:/data
-    ports:
-      - 27017:27017
-    environment:
-      - POSTGRES_USER=cnaas
-      - POSTGRES_PASSWD=cnaas
-      - POSTGRES_DB=cnaas
-    ports:
-      - 27017:27017
-    networks:
-      - cnaas
-
   cnaas_redis:
     build: ./redis/
     ports:
@@ -128,6 +112,4 @@ volumes:
   cnaas-settings:
     external: true
   cnaas-postgres-data:
-    external: true
-  cnaas-mongo-data:
     external: true

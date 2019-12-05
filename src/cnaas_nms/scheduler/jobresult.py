@@ -5,8 +5,8 @@ from typing import Optional
 
 @dataclass
 class JobResult(object):
-    job_id: Optional[str] = None
-    next_job_id: Optional[str] = None
+    job_id: Optional[int] = None
+    next_job_id: Optional[int] = None
 
 
 @dataclass

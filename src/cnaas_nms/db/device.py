@@ -86,7 +86,7 @@ class Device(cnaas_nms.db.base.Base):
     state = Column(Enum(DeviceState), nullable=False)  # type: ignore
     device_type = Column(Enum(DeviceType), nullable=False)
     confhash = Column(String(64))  # SHA256 = 64 characters
-    last_seen = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
+    last_seen = Column(DateTime, default=datetime.datetime.utcnow)  # onupdate=now
     port = Column(Integer)
 
     def as_dict(self) -> dict:

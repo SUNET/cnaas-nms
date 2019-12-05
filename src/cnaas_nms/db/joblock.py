@@ -1,9 +1,11 @@
 import datetime
 from typing import Optional, Dict
 
-from sqlalchemy import Column, String, DateTime, Boolean, Integer
+from sqlalchemy import Column, String, DateTime, Boolean, Integer, ForeignKey
+from sqlalchemy.orm import relationship
 
 import cnaas_nms.db.base
+from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import sqla_session
 
 
@@ -13,7 +15,8 @@ class JoblockError(Exception):
 
 class Joblock(cnaas_nms.db.base.Base):
     __tablename__ = 'joblock'
-    jobid = Column(String(24), unique=True, primary_key=True)  # mongodb ObjectId, 12-byte hex
+    job_id = Column(Integer, ForeignKey('job.id'), unique=True, primary_key=True)
+    job = relationship("Job", foreign_keys=[job_id])
     name = Column(String(32), unique=True, nullable=False)
     start_time = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
     abort = Column(Boolean, default=False)
@@ -31,24 +34,24 @@ class Joblock(cnaas_nms.db.base.Base):
         return d
 
     @classmethod
-    def acquire_lock(cls, session: sqla_session, name: str, job_id: str) -> bool:
+    def acquire_lock(cls, session: sqla_session, name: str, job_id: int) -> bool:
         curlock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
         if curlock:
             return False
-        newlock = Joblock(jobid=job_id, name=name, start_time=datetime.datetime.now())
+        newlock = Joblock(job_id=job_id, name=name, start_time=datetime.datetime.now())
         session.add(newlock)
         session.commit()
         return True
 
     @classmethod
     def release_lock(cls, session: sqla_session, name: Optional[str] = None,
-                     job_id: Optional[str] = None):
+                     job_id: Optional[int] = None):
         if job_id:
-            curlock = session.query(Joblock).filter(Joblock.jobid == job_id).one_or_none()
+            curlock = session.query(Joblock).filter(Joblock.job_id == job_id).one_or_none()
         elif name:
             curlock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
         else:
-            raise ValueError("Either name or jobid must be set to release lock")
+            raise ValueError("Either name or job_id must be set to release lock")
 
         if not curlock:
             raise JoblockError("Current lock could not be found")
@@ -59,21 +62,21 @@ class Joblock(cnaas_nms.db.base.Base):
 
     @classmethod
     def get_lock(cls, session: sqla_session, name: Optional[str] = None,
-                 job_id: Optional[str] = None) -> Optional[Dict[str, str]]:
+                 job_id: Optional[int] = None) -> Optional[Dict[str, str]]:
         """
 
         Args:
             session: SQLAlchemy session context manager
             name: name of job/lock
-            jobid: jobid
+            job_id: job_id
 
         Returns:
-            Dict example: {'name': 'syncto', 'jobid': '5d5aa92dba050d64aa2966dc',
+            Dict example: {'name': 'syncto', 'job_id': 3,
             'start_time': '2019-08-23 10:45:07.788892', 'abort': False}
 
         """
         if job_id:
-            curlock: Joblock = session.query(Joblock).filter(Joblock.jobid == job_id).one_or_none()
+            curlock: Joblock = session.query(Joblock).filter(Joblock.job_id == job_id).one_or_none()
         elif name:
             curlock: Joblock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
         else:

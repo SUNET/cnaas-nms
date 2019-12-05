@@ -32,6 +32,7 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.joblock import Joblock
+from cnaas_nms.db.job import Job
 from cnaas_nms.db.reservedip import ReservedIP
 
 

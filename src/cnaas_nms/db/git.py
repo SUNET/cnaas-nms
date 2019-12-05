@@ -14,7 +14,7 @@ from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTU
     check_settings_collisions, VlanConflictError
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.scheduler.jobtracker import Jobtracker, JobStatus
+from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 
 logger = get_logger()
@@ -70,46 +70,40 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         cnaas_nms.db.settings.SettingsSyntaxError
         cnaas_nms.db.joblock.JoblockError
     """
-    job = Jobtracker()
-    job_id = job.create({
-        'status': JobStatus.RUNNING,
-        'start_time': datetime.datetime.utcnow(),
-        'function_name': 'refresh_repo'
-    })
     # Acquire lock for devices to make sure no one refreshes the repository
     # while another task is building configuration for devices using repo data
     with sqla_session() as session:
+        job = Job()
+        job.start_job(function_name="refresh_repo")
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
         logger.info("Trying to acquire lock for devices to run refresh repo: {}".format(job_id))
         if not Joblock.acquire_lock(session, name='devices', job_id=job_id):
             raise JoblockError("Unable to acquire lock for configuring devices")
-    try:
-        result = _refresh_repo_task(repo_type)
-        job.update({
-            'finish_time': datetime.datetime.utcnow(),
-            'status': JobStatus.FINISHED,
-            'result': result
-        })
         try:
-            with sqla_session() as session:
+            result = _refresh_repo_task(repo_type)
+            job.finish_time = datetime.datetime.utcnow()
+            job.status = JobStatus.FINISHED
+            job.result = {"message": result, "repository": repo_type.name}
+            try:
                 logger.info("Releasing lock for devices from refresh repo job: {}".format(job_id))
                 Joblock.release_lock(session, job_id=job_id)
-        except Exception:
-            logger.error("Unable to release devices lock after refresh repo job")
-        return result
-    except Exception as e:
-        logger.exception("Exception while scheduling job for refresh repo: {}".format(str(e)))
-        job.update({
-            'finish_time': datetime.datetime.utcnow(),
-            'status': JobStatus.EXCEPTION,
-            'result': str(e)
-        })
-        try:
-            with sqla_session() as session:
+            except Exception:
+                logger.error("Unable to release devices lock after refresh repo job")
+            return result
+        except Exception as e:
+            logger.exception("Exception while scheduling job for refresh repo: {}".format(str(e)))
+            job.finish_time = datetime.datetime.utcnow()
+            job.status = JobStatus.EXCEPTION
+            job.result = {"error": str(e), "repository": repo_type.name}
+            try:
                 logger.info("Releasing lock for devices from refresh repo job: {}".format(job_id))
                 Joblock.release_lock(session, job_id=job_id)
-        except Exception:
-            logger.error("Unable to release devices lock after refresh repo job")
-        raise e
+            except Exception:
+                logger.error("Unable to release devices lock after refresh repo job")
+            raise e
 
 
 def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:

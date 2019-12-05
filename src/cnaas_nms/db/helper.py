@@ -1,6 +1,7 @@
-import netaddr
+import datetime
 from typing import List, Optional
 
+import netaddr
 from sqlalchemy.orm.exc import NoResultFound
 
 from cnaas_nms.db.device import Device
@@ -68,3 +69,8 @@ def get_all_mgmtdomains(session, hostname: str) -> List[Mgmtdomain]:
     mgmtdomains = session.query(Mgmtdomain). \
         filter((Mgmtdomain.device_a == dev) | (Mgmtdomain.device_b == dev)).all()
     return mgmtdomains
+
+
+def json_dumper(obj):
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()

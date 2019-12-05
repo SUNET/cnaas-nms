@@ -50,8 +50,8 @@ def push_base_management_access(task, device_variables):
         template = mapping['ACCESS']['entrypoint']
 
     settings, settings_origin = get_settings(task.host.name, DeviceType.ACCESS)
-    # Merge dicts
-    template_vars = {**device_variables, **settings}
+    # Merge dicts, this will overwrite interface list from settings
+    template_vars = {**settings, **device_variables}
 
     r = task.run(task=text.template_file,
                  name="Generate initial device config",
@@ -142,11 +142,15 @@ def init_access_device_step1(device_id: int, new_hostname: str, job_id: Optional
             'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
             'mgmt_ip': str(mgmt_ip),
             'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
-            'uplinks': uplinks,
-            'access_auto': [],
+            'interfaces': [],
             'mgmt_vlan_id': mgmtdomain.vlan,
             'mgmt_gw': mgmt_gw_ipif.ip
         }
+        for uplink in uplinks:
+            device_variables['interfaces'].append({
+                'name': uplink['ifname'],
+                'ifclass': 'ACCESS_UPLINK',
+            })
         # Update device state
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.INIT

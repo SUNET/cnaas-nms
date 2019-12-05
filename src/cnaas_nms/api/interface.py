@@ -105,6 +105,13 @@ class InterfaceApi(Resource):
                                 errors.append("tagged_vlan_list should be of type list, found {}".format(
                                     type(if_dict['data']['tagged_vlan_list'])
                                 ))
+                        if 'neighbor' in if_dict['data']:
+                            if isinstance(if_dict['data']['neighbor'], str) and \
+                                    Device.valid_hostname(if_dict['data']['neighbor']):
+                                intfdata['neighbor'] = if_dict['data']['neighbor']
+                            else:
+                                errors.append("Neighbor must be valid hostname, got: {}".format(
+                                    if_dict['data']['neighbor']))
 
                     if intfdata:
                         intf.data = intfdata

@@ -10,6 +10,7 @@ import cnaas_nms.confpush.underlay
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from flask_jwt_extended import jwt_required
@@ -263,6 +264,13 @@ class DeviceSyncApi(Resource):
                     data=f"Invalid device type '{json_data['device_type']}' specified"
                 ), 400
             what = f"{json_data['device_type']} devices"
+        elif 'group' in json_data:
+            group_name = str(json_data['group'])
+            if group_name not in get_groups():
+                return empty_result(status='error', data='Could not find a group with name {}'.format(group_name))
+            kwargs['group'] = group_name
+            what = 'group {}'.format(group_name)
+
         elif 'all' in json_data and isinstance(json_data['all'], bool) and json_data['all']:
             what = "all devices"
         else:

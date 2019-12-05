@@ -1,4 +1,6 @@
 import json
+from typing import Optional
+
 from flask import request, make_response
 from flask_restplus import Resource, Namespace, fields
 from sqlalchemy import func
@@ -6,7 +8,6 @@ from sqlalchemy import func
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
-
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
@@ -237,6 +238,7 @@ class DeviceSyncApi(Resource):
         """ Start sync of device(s) """
         json_data = request.get_json()
         kwargs: dict = {}
+        total_count: Optional[int] = None
         if 'hostname' in json_data:
             hostname = str(json_data['hostname'])
             if not Device.valid_hostname(hostname):
@@ -254,17 +256,26 @@ class DeviceSyncApi(Resource):
                     ), 400
             kwargs['hostname'] = hostname
             what = hostname
+            total_count = 1
         elif 'device_type' in json_data:
-            if DeviceType.has_name(str(json_data['device_type']).upper()):
-                kwargs['device_type'] = str(json_data['device_type']).upper()
+            devtype_str = str(json_data['device_type']).upper()
+            if DeviceType.has_name(devtype_str):
+                kwargs['device_type'] = devtype_str
             else:
                 return empty_result(
                     status='error',
                     data=f"Invalid device type '{json_data['device_type']}' specified"
                 ), 400
             what = f"{json_data['device_type']} devices"
+            with sqla_session() as session:
+                total_count = session.query(Device). \
+                    filter(Device.device_type == DeviceType[devtype_str]).count()
         elif 'all' in json_data and isinstance(json_data['all'], bool) and json_data['all']:
             what = "all devices"
+            with sqla_session() as session:
+                total_count = session.query(Device). \
+                    filter(Device.state == DeviceState.MANAGED). \
+                    filter(Device.synchronized == False).count()
         else:
             return empty_result(
                 status='error',
@@ -288,7 +299,11 @@ class DeviceSyncApi(Resource):
         res = empty_result(data=f"Scheduled job to synchronize {what}")
         res['job_id'] = job_id
 
-        return res
+        resp = make_response(json.dumps(res), 200)
+        if total_count:
+            resp.headers['X-Total-Count'] = total_count
+        resp.headers['Content-Type'] = "application/json"
+        return resp
 
 
 class DeviceConfigApi(Resource):

@@ -126,18 +126,21 @@ class Scheduler(object, metaclass=SingletonType):
         Returns:
             int: job_id
         """
-        with sqla_session() as session:
-            job = Job()
-            session.add(job)
-            session.flush()
-            job_id = job.id
-
         if when and isinstance(when, int):
             trigger = 'date'
             run_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=when)
         else:
             trigger = None
             run_date = None
+
+        with sqla_session() as session:
+            job = Job()
+            if run_date:
+                job.scheduled_time = run_date
+            session.add(job)
+            session.flush()
+            job_id = job.id
+
         kwargs['job_id'] = job_id
         if self.use_mule:
             try:

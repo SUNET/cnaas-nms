@@ -54,16 +54,16 @@ To add a new management domain we can to call the API with a few fields set in a
 
 ::
 
-   * ipv4_gw (mandatory): The IPv4 gateway to be used, should be expressed with a prefix
-   * device_a (mandatory): ID of the first device
-   * device_b (mandatory): ID of the second device
+   * ipv4_gw (mandatory): The IPv4 gateway to be used, should be expressed with a prefix (10.0.0.1/24)
+   * device_a (mandatory): Hostname of the first device
+   * device_b (mandatory): Hostname of the second device
    * vlan (mandatory): A VLAN
 
 Example using CURL:
 
 ::
 
-   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomains -H "Content-Type: application/json" -X POST -d '{"ipv4_gw": "1.2.3.4/32", "device_a": 9, "device_b": 12, "vlan": 100}'
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomains -H "Content-Type: application/json" -X POST -d '{"ipv4_gw": "10.0.6.1/24", "device_a": "dist1", "device_b": "dist2", "vlan": 600}'
 
 
 Update management domain
@@ -73,7 +73,7 @@ To update a doamin, we can send a PUT request and specify its ID. We will have t
 
 ::
 
-   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomain/4 -H "Content-Type: application/json" -X PUT -d '{"ipv4_gw": "1.2.3.4/32", "device_a": 9, "device_b": 12, "vlan": 100}'
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomain/4 -H "Content-Type: application/json" -X PUT -d '{"ipv4_gw": "10.0.6.1/24", "device_a": "dist1", "device_b": "dist2", "vlan": 600}'
 
 
 Remove management domain

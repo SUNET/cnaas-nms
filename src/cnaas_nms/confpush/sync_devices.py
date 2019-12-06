@@ -508,7 +508,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             next_job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.sync_devices:sync_devices',
                 when=0,
-                kwargs={'hostname': hostname, 'dry_run': False, 'force': force})
+                kwargs={'hostname': hostname, 'dry_run': False, 'force': force,
+                        'scheduled_by': scheduled_by})
             logger.info(f"Auto-push scheduled live-run of commit as job id {next_job_id}")
         else:
             logger.info(

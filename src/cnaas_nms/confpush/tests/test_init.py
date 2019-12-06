@@ -53,7 +53,8 @@ class InitTests(unittest.TestCase):
             cnaas_nms.confpush.init_device.init_access_device_step1,
             when=0,
             kwargs={'device_id': self.testdata['init_access_device_id'],
-                    'new_hostname': self.testdata['init_access_new_hostname']})
+                    'new_hostname': self.testdata['init_access_new_hostname'],
+                    'scheduled_by': 'test_user'})
         print(f"Step1 scheduled as ID { job_id }")
 
     def reset_access_device(self):

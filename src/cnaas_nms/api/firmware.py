@@ -172,6 +172,7 @@ class FirmwareUpgradeApi(Resource):
         """ Upgrade firmware on device """
         json_data = request.get_json()
 
+        kwargs = dict()
         seconds = 1
         date_format = "%Y-%m-%d %H:%M:%S"
         url = self.firmware_url()
@@ -180,8 +181,57 @@ class FirmwareUpgradeApi(Resource):
             return empty_result(status='error',
                                 data='No external address configured for '
                                 'HTTPD, please specify one with "url"')
+
         if 'url' not in json_data:
-            json_data['url'] = url
+            kwargs['url'] = url
+        else:
+            if isinstance(json_data['url'], str):
+                kwargs['url'] = json_data['url']
+            else:
+                return empty_result(status='error',
+                                    data='url should be a string')
+
+        if 'activate' in json_data:
+            if isinstance(json_data['activate'], bool):
+                kwargs['activate'] = json_data['activate']
+            else:
+                return empty_result(status='error',
+                                    data='activate should be a boolean')
+
+        if 'download' in json_data:
+            if isinstance(json_data['download'], bool):
+                kwargs['download'] = json_data['download']
+            else:
+                return empty_result(status='error',
+                                    data='download should be a boolean')
+
+        if 'reboot' in json_data:
+            if isinstance(json_data['reboot'], bool):
+                kwargs['reboot'] = json_data['reboot']
+            else:
+                return empty_result(status='error',
+                                    data='reboot should be a boolean')
+
+        if 'filename' in json_data:
+            if isinstance(json_data['filename'], str):
+                kwargs['filename'] = json_data['filename']
+            else:
+                return empty_result(status='error',
+                                    data='filename should be a string')
+
+        if 'group' in json_data:
+            if isinstance(json_data['group'], str):
+                kwargs['group'] = json_data['group']
+            else:
+                return empty_result(status='error',
+                                    data='group should be a string')
+
+        if 'hostname' in json_data:
+            if isinstance(json_data['hostname'], str):
+                kwargs['hostname'] = json_data['hostname']
+            else:
+                return empty_result(status='error',
+                                    data='hostname should be a string')
 
         if 'start_at' in json_data:
             try:
@@ -203,7 +253,7 @@ class FirmwareUpgradeApi(Resource):
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.firmware:device_upgrade',
             when=seconds,
-            kwargs=json_data)
+            kwargs=kwargs)
         res = empty_result(data='Scheduled job to upgrade devices')
         res['job_id'] = job_id
 

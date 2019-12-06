@@ -197,8 +197,9 @@ class DeviceInitApi(Resource):
             job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_access_device_step1',
                 when=1,
-                scheduled_by=get_jwt_identity(),
-                kwargs={'device_id': device_id, 'new_hostname': new_hostname})
+                kwargs={'scheduled_by': get_jwt_identity(),
+                        'device_id': device_id,
+                        'new_hostname': new_hostname})
 
         res = empty_result(data=f"Scheduled job to initialize device_id { device_id }")
         res['job_id'] = job_id

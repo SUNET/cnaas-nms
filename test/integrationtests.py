@@ -102,12 +102,12 @@ class GetTests(unittest.TestCase):
         step1_job_id = r.json()['job_id']
         step1_job_data = self.check_jobid(step1_job_id)
         result = step1_job_data['result']
-        self.assertTrue(result['eosaccess'][0]['failed'],
+        self.assertTrue(result['devices']['eosaccess']['failed'],
                         "Expected failed result since mgmt_ip changed")
         time.sleep(5)
         step2_job_data = self.check_jobid(step1_job_data['next_job_id'])
         result_step2 = step2_job_data['result']
-        self.assertFalse(result_step2['eosaccess'][0]['failed'],
+        self.assertFalse(result_step2['devices']['eosaccess']['failed'],
                          "Could not reach device after ZTP")
 
     def test_2_interfaces(self):

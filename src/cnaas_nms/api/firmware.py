@@ -7,7 +7,7 @@ from datetime import datetime
 
 from flask import request
 from flask_restplus import Resource, Namespace, fields
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.api.generic import empty_result
@@ -173,6 +173,8 @@ class FirmwareUpgradeApi(Resource):
         json_data = request.get_json()
 
         kwargs = dict()
+        kwargs['scheduled_by'] = get_jwt_identity()
+
         seconds = 1
         date_format = "%Y-%m-%d %H:%M:%S"
         url = self.firmware_url()

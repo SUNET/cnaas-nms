@@ -239,7 +239,8 @@ def device_upgrade(download: Optional[bool] = True,
                    url: Optional[str] = None,
                    job_id: Optional[str] = None,
                    pre_flight: Optional[bool] = True,
-                   reboot: Optional[bool] = False) -> NornirJobResult:
+                   reboot: Optional[bool] = False,
+                   scheduled_by: Optional[str] = None) -> NornirJobResult:
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     if hostname:

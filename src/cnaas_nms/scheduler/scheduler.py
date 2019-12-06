@@ -162,4 +162,3 @@ class Scheduler(object, metaclass=SingletonType):
             self._scheduler.add_job(
                 func, trigger=trigger, kwargs=kwargs, id=str(job_id), run_date=run_date)
             return job_id
-

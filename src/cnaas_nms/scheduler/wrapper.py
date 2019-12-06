@@ -25,19 +25,26 @@ def insert_job_id(result: JobResult, job_id: int) -> JobResult:
     return result
 
 
-def update_device_progress(stop_event: threading.Event, job_id: int):
-    with sqla_session() as session:
-        job = session.query(Job).filter(Job.id == job_id).one_or_none()
-        if not job:
-            raise ValueError("Could not find Job with ID {}".format(job_id))
-        while not stop_event.wait(2):
-            finished_devices = job.finished_devices
-            with redis_session() as db:
-                while(db.llen('finished_devices_' + str(job.id)) != 0):
-                    last_finished = db.lpop('finished_devices_' + str(job.id)).decode('utf-8')
-                    finished_devices.append(last_finished)
+def update_device_progress(job_id: int):
+    new_finished_devices = []
+    with redis_session() as db:
+        while db.llen('finished_devices_' + str(job_id)) != 0:
+            last_finished = db.lpop('finished_devices_' + str(job_id)).decode('utf-8')
+            new_finished_devices.append(last_finished)
+
+    if new_finished_devices:
+        with sqla_session() as session:
+            job = session.query(Job).filter(Job.id == job_id).one_or_none()
+            if not job:
+                raise ValueError("Could not find Job with ID {}".format(job_id))
+            finished_devices = job.finished_devices + new_finished_devices
             job.finished_devices = finished_devices
-            session.commit()
+
+
+def update_device_progress_thread(stop_event: threading.Event, job_id: int):
+    while not stop_event.wait(2):
+        update_device_progress(job_id)
+    update_device_progress(job_id)  # update one last time before exiting thread
 
 
 def job_wrapper(func):
@@ -59,7 +66,7 @@ def job_wrapper(func):
                           scheduled_by=kwargs['kwargs']['scheduled_by'])
             if func.__name__ in progress_funcitons:
                 stop_event = threading.Event()
-                device_thread = threading.Thread(target=update_device_progress,
+                device_thread = threading.Thread(target=update_device_progress_thread,
                                                  args=(stop_event, job_id))
                 device_thread.start()
         try:
@@ -82,14 +89,15 @@ def job_wrapper(func):
                 session.commit()
             raise e
         else:
+            if func.__name__ in progress_funcitons:
+                stop_event.set()
+                device_thread.join()
             with sqla_session() as session:
                 job = session.query(Job).filter(Job.id == job_id).one_or_none()
                 if not job:
                     errmsg = "Could not find job_id {} in database".format(job_id)
                     logger.error(errmsg)
                     raise ValueError(errmsg)
-                if func.__name__ in progress_funcitons:
-                    stop_event.set()
                 job.finish_success(res, find_nextjob(res))
                 session.commit()
             return res

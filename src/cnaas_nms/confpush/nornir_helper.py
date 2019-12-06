@@ -30,12 +30,14 @@ def nr_result_serialize(result: AggregatedResult):
 
     hosts = {}    
     for host, multires in result.items():
-        hosts[host] = []
+        hosts[host] = {'failed': False, 'job_tasks': []}
         for res in multires:
-            hosts[host].append({
-                'name': res.name,
+            hosts[host]['job_tasks'].append({
+                'task_name': res.name,
                 'result': res.result,
                 'diff': res.diff,
                 'failed': res.failed
             })
+            if res.failed:
+                hosts[host]['failed'] = True
     return hosts

@@ -3,7 +3,7 @@ import datetime
 import json
 from typing import Optional
 
-from sqlalchemy import Column, Integer, Unicode
+from sqlalchemy import Column, Integer, Unicode, SmallInteger
 from sqlalchemy import Enum, DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy.dialects.postgresql.json import JSONB
@@ -56,6 +56,7 @@ class Job(cnaas_nms.db.base.Base):
     result = Column(JSONB)
     exception = Column(JSONB)
     finished_devices = Column(JSONB)
+    change_score = Column(SmallInteger)  # should be in range 0-100
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -69,7 +70,6 @@ class Job(cnaas_nms.db.base.Base):
             elif issubclass(value.__class__, datetime.datetime):
                 value = json_dumper(value)
             elif type(col.type) == JSONB and value and type(value) == str:
-                print("DEBUG01: {}".format(type(value)))
                 value = json.loads(value)
             d[col.name] = value
         return d
@@ -84,17 +84,16 @@ class Job(cnaas_nms.db.base.Base):
     def finish_success(self, res: dict, next_job_id: Optional[int]):
         try:
             if isinstance(res, NornirJobResult) and isinstance(res.nrresult, AggregatedResult):
-                self.result = nr_result_serialize(res.nrresult)
-                self.result['_totals'] = {'selected_devices': len(res.nrresult)}
-                if res.change_score:
-                    self.result['_totals']['change_score'] = res.change_score
+                self.result = {'devices': nr_result_serialize(res.nrresult)}
+                if res.change_score and type(res.change_score) == int:
+                    self.change_score = res.change_score
             elif isinstance(res, (StrJobResult, DictJobResult)):
                 self.result = res.result
             else:
                 self.result = json.dumps(res, default=json_dumper)
         except Exception as e:
-            logger.warning("Job {} got unserializable result after finishing: {}". \
-                           format(self.id, self.result))
+            logger.exception("Job {} got unserializable ({}) result after finishing: {}". \
+                           format(self.id, str(e), self.result))
             self.result = {"error": "unserializable"}
 
         self.finish_time = datetime.datetime.utcnow()

@@ -386,6 +386,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         nr_filtered = nr.filter(name=hostname).filter(managed=True)
     elif device_type:
         nr_filtered = nr.filter(F(groups__contains='T_'+device_type))  # device type
+    elif group:
+        nr_filtered = nr.filter(F(groups__contains=group))
     else:
         nr_filtered = nr.filter(synchronized=False).filter(managed=True)  # all unsynchronized devices
 

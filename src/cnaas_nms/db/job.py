@@ -125,13 +125,19 @@ class Job(cnaas_nms.db.base.Base):
         running_jobs = session.query(Job).filter(Job.status == JobStatus.RUNNING).all()
         job: Job
         for job in running_jobs:
-            logger.info("Found job in unfinished RUNNING state at startup, id: {}".format(job.id))
+            logger.warning(
+                "Job found in unfinished RUNNING state at startup moved to ABORTED, id: {}".
+                format(job.id))
             job.status = JobStatus.ABORTED
 
         scheduled_jobs = session.query(Job).filter(Job.status == JobStatus.SCHEDULED).all()
         job: Job
         for job in scheduled_jobs:
-            if job.scheduled_time < datetime.datetime.utcnow():
-                continue
-            logger.info("Found job in SCHEDULED state at startup, id: {}".format(job.id))
-            job.status = JobStatus.ABORTED
+            # Clear jobs that should have been run in the past, timing might need tuning if
+            # APschedulers misfire_grace_time is modified
+            aps_misfire_grace_time = datetime.timedelta(seconds=1)
+            if job.scheduled_time < (datetime.datetime.utcnow() - aps_misfire_grace_time):
+                logger.warning(
+                    "Job found in past SCHEDULED state at startup moved to ABORTED, id: {}".
+                    format(job.id))
+                job.status = JobStatus.ABORTED

@@ -203,8 +203,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     next_job_id = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_access_device_step2',
         when=0,
-        kwargs={'device_id': device_id, 'iteration': 1,
-                'scheduled_by': scheduled_by})
+        scheduled_by=scheduled_by,
+        kwargs={'device_id': device_id, 'iteration': 1})
 
     logger.debug(f"Step 2 scheduled as ID {next_job_id}")
 
@@ -221,8 +221,8 @@ def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optiona
         next_job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.init_device:init_access_device_step2',
             when=(30*iteration),
-            kwargs={'device_id': device_id, 'iteration': iteration+1,
-                    'scheduled_by': scheduled_by})
+            scheduled_by=scheduled_by,
+            kwargs={'device_id': device_id, 'iteration': iteration+1})
         return next_job_id
     else:
         return None
@@ -310,9 +310,9 @@ def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int) -> Opti
         next_job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.init_device:discover_device',
             when=(60*iteration),
+            scheduled_by=scheduled_by,
             kwargs={'ztp_mac': ztp_mac, 'dhcp_ip': dhcp_ip,
-                    'iteration': iteration+1,
-                    'scheduled_by': scheduled_by})
+                    'iteration': iteration+1})
         return next_job_id
     else:
         return None

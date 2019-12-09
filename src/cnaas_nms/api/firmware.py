@@ -58,8 +58,6 @@ def verify_tls() -> bool:
 
 @job_wrapper
 def get_firmware(**kwargs: dict) -> str:
-    del kwargs['scheduled_by']
-
     try:
         res = requests.post(httpd_url(), json=kwargs,
                             verify=verify_tls())
@@ -88,8 +86,6 @@ def get_firmware_chksum(**kwargs: dict) -> str:
 
 @job_wrapper
 def remove_file(**kwargs: dict) -> str:
-    del kwargs['scheduled_by']
-
     try:
         url = httpd_url() + '/' + kwargs['filename']
         res = requests.delete(url, verify=verify_tls())
@@ -126,12 +122,12 @@ class FirmwareApi(Resource):
         kwargs['url'] = json_data['url']
         kwargs['sha1'] = json_data['sha1']
         kwargs['verify_tls'] = json_data['verify_tls']
-        kwargs['scheduled_by'] = get_jwt_identity()
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.api.firmware:get_firmware',
             when=1,
+            scheduled_by=get_jwt_identity(),
             kwargs=kwargs)
         res = empty_result(data='Scheduled job to download firmware')
         res['job_id'] = job_id
@@ -160,7 +156,8 @@ class FirmwareImageApi(Resource):
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.api.firmware:get_firmware_chksum',
             when=1,
-            kwargs={'filename': filename, 'scheduled_by': get_jwt_identity()})
+            scheduled_by=get_jwt_identity(),
+            kwargs={'filename': filename})
         res = empty_result(data='Scheduled job get firmware information')
         res['job_id'] = job_id
 
@@ -173,7 +170,8 @@ class FirmwareImageApi(Resource):
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.api.firmware:remove_file',
             when=1,
-            kwargs={'filename': filename, 'scheduled_by': get_jwt_identity()})
+            scheduled_by=get_jwt_identity(),
+            kwargs={'filename': filename})
         res = empty_result(data='Scheduled job to remove firmware')
         res['job_id'] = job_id
 
@@ -197,8 +195,6 @@ class FirmwareUpgradeApi(Resource):
         json_data = request.get_json()
 
         kwargs = dict()
-        kwargs['scheduled_by'] = get_jwt_identity()
-
         seconds = 1
         date_format = "%Y-%m-%d %H:%M:%S"
         url = self.firmware_url()
@@ -279,6 +275,7 @@ class FirmwareUpgradeApi(Resource):
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.firmware:device_upgrade',
             when=seconds,
+            scheduled_by=get_jwt_identity(),
             kwargs=kwargs)
         res = empty_result(data='Scheduled job to upgrade devices')
         res['job_id'] = job_id

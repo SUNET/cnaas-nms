@@ -116,7 +116,8 @@ class Scheduler(object, metaclass=SingletonType):
         return self._scheduler.add_job(func, **kwargs)
 
     def add_onetime_job(self, func: Union[str, FunctionType],
-                        when: Optional[int] = None, **kwargs) -> int:
+                        when: Optional[int] = None,
+                        scheduled_by: Optional[str] = None, **kwargs) -> int:
         """Schedule a job to run at a later time.
 
         Args:
@@ -142,6 +143,7 @@ class Scheduler(object, metaclass=SingletonType):
             job_id = job.id
 
         kwargs['job_id'] = job_id
+        kwargs['scheduled_by'] = scheduled_by
         if self.use_mule:
             try:
                 import uwsgi

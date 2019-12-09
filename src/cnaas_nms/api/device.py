@@ -190,7 +190,7 @@ class DeviceInitApi(Resource):
         else:
             try:
                 device_type = str(json_data['device_type']).upper()
-            except:
+            except Exception:
                 return empty_result(status='error', data="'device_type' must be a string"), 400
 
             if not DeviceType.has_name(device_type):
@@ -201,8 +201,8 @@ class DeviceInitApi(Resource):
             job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_access_device_step1',
                 when=1,
-                kwargs={'scheduled_by': get_jwt_identity(),
-                        'device_id': device_id,
+                scheduled_by=get_jwt_identity(),
+                kwargs={'device_id': device_id,
                         'new_hostname': new_hostname})
 
         res = empty_result(data=f"Scheduled job to initialize device_id { device_id }")
@@ -243,7 +243,6 @@ class DeviceSyncApi(Resource):
         """ Start sync of device(s) """
         json_data = request.get_json()
         kwargs: dict = {}
-        kwargs['scheduled_by'] = get_jwt_identity()
 
         total_count: Optional[int] = None
 
@@ -311,6 +310,7 @@ class DeviceSyncApi(Resource):
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.sync_devices:sync_devices',
             when=1,
+            scheduled_by=get_jwt_identity(),
             kwargs=kwargs)
 
         res = empty_result(data=f"Scheduled job to synchronize {what}")

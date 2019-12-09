@@ -81,7 +81,7 @@ def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
 
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                      job_id: Optional[str] = None,
-                     bscheduled_by: Optional[str] = None):
+                     scheduled_by: Optional[str] = None):
     """
     Nornir task to generate config and push to device
 
@@ -508,8 +508,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             next_job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.sync_devices:sync_devices',
                 when=0,
-                kwargs={'hostname': hostname, 'dry_run': False, 'force': force,
-                        'scheduled_by': scheduled_by})
+                scheduled_by=scheduled_by,
+                kwargs={'hostname': hostname, 'dry_run': False, 'force': force})
             logger.info(f"Auto-push scheduled live-run of commit as job id {next_job_id}")
         else:
             logger.info(

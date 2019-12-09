@@ -62,8 +62,13 @@ def job_wrapper(func):
                 logger.error(errmsg)
                 raise ValueError(errmsg)
             kwargs['kwargs']['job_id'] = job_id
+            if 'scheduled_by' in kwargs['kwargs']:
+                scheduled_by = kwargs['kwargs']['scheduled_by']
+            else:
+                scheduled_by = 'unknown'
+                kwargs['kwargs']['scheduled_by'] = 'unknown'
             job.start_job(function_name=func.__name__,
-                          scheduled_by=kwargs['kwargs']['scheduled_by'])
+                          scheduled_by=scheduled_by)
             if func.__name__ in progress_funcitons:
                 stop_event = threading.Event()
                 device_thread = threading.Thread(target=update_device_progress_thread,

@@ -16,7 +16,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from cnaas_nms.version import __api_version__
 
 
@@ -190,7 +190,7 @@ class DeviceInitApi(Resource):
         else:
             try:
                 device_type = str(json_data['device_type']).upper()
-            except:
+            except Exception:
                 return empty_result(status='error', data="'device_type' must be a string"), 400
 
             if not DeviceType.has_name(device_type):
@@ -201,7 +201,9 @@ class DeviceInitApi(Resource):
             job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_access_device_step1',
                 when=1,
-                kwargs={'device_id': device_id, 'new_hostname': new_hostname})
+                scheduled_by=get_jwt_identity(),
+                kwargs={'device_id': device_id,
+                        'new_hostname': new_hostname})
 
         res = empty_result(data=f"Scheduled job to initialize device_id { device_id }")
         res['job_id'] = job_id
@@ -241,7 +243,9 @@ class DeviceSyncApi(Resource):
         """ Start sync of device(s) """
         json_data = request.get_json()
         kwargs: dict = {}
+
         total_count: Optional[int] = None
+
         if 'hostname' in json_data:
             hostname = str(json_data['hostname'])
             if not Device.valid_hostname(hostname):
@@ -306,6 +310,7 @@ class DeviceSyncApi(Resource):
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.sync_devices:sync_devices',
             when=1,
+            scheduled_by=get_jwt_identity(),
             kwargs=kwargs)
 
         res = empty_result(data=f"Scheduled job to synchronize {what}")

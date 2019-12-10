@@ -30,7 +30,7 @@ class JobsApi(Resource):
         data = {'jobs': []}
         total_count = 0
         with sqla_session() as session:
-            query = session.query(Job, func.count(Job.id).over().label('total')).order_by(Job.id)
+            query = session.query(Job, func.count(Job.id).over().label('total'))
             query = build_filter(Job, query)
             for instance in query:
                 data['jobs'].append(instance.Job.as_dict())

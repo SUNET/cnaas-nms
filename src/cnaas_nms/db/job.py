@@ -75,11 +75,12 @@ class Job(cnaas_nms.db.base.Base):
             d[col.name] = value
         return d
 
-    def start_job(self, function_name: str):
+    def start_job(self, function_name: str, scheduled_by: str):
         self.function_name = function_name
         self.start_time = datetime.datetime.utcnow()
         self.status = JobStatus.RUNNING
         self.finished_devices = []
+        self.scheduled_by = scheduled_by
 
     def finish_success(self, res: dict, next_job_id: Optional[int]):
         try:

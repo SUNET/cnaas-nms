@@ -49,7 +49,7 @@ def update_device_progress_thread(stop_event: threading.Event, job_id: int):
 
 def job_wrapper(func):
     """Decorator to save job status in job tracker database."""
-    def wrapper(job_id: int, *args, **kwargs):
+    def wrapper(job_id: int, scheduled_by: str, *args, **kwargs):
         if not job_id or not type(job_id) == int:
             errmsg = "Missing job_id when starting job for {}".format(func.__name__)
             logger.error(errmsg)
@@ -62,7 +62,10 @@ def job_wrapper(func):
                 logger.error(errmsg)
                 raise ValueError(errmsg)
             kwargs['kwargs']['job_id'] = job_id
-            job.start_job(function_name=func.__name__)
+            if scheduled_by is None:
+                scheduled_by = 'unknown'
+            job.start_job(function_name=func.__name__,
+                          scheduled_by=scheduled_by)
             if func.__name__ in progress_funcitons:
                 stop_event = threading.Event()
                 device_thread = threading.Thread(target=update_device_progress_thread,

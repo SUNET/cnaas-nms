@@ -80,7 +80,8 @@ def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
 
 
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
-                     job_id: Optional[str] = None):
+                     job_id: Optional[str] = None,
+                     scheduled_by: Optional[str] = None):
     """
     Nornir task to generate config and push to device
 
@@ -360,9 +361,9 @@ def update_config_hash(task):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 group: Optional[str] = None, dry_run: bool = True,
-                 force: bool = False, auto_push=False,
-                 job_id: Optional[str] = None) -> NornirJobResult:
+                 dry_run: bool = True, force: bool = False, auto_push = False,
+                 job_id: Optional[str] = None,
+                 scheduled_by: Optional[str] = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -375,6 +376,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                overwritten
         auto_push: Automatically do live-run after dry-run if change score is low
         job_id: job_id provided by scheduler when adding a new job
+        scheduled_by: Username from JWT
 
     Returns:
         NornirJobResult
@@ -506,6 +508,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             next_job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.sync_devices:sync_devices',
                 when=0,
+                scheduled_by=scheduled_by,
                 kwargs={'hostname': hostname, 'dry_run': False, 'force': force})
             logger.info(f"Auto-push scheduled live-run of commit as job id {next_job_id}")
         else:

@@ -52,6 +52,7 @@ class InitTests(unittest.TestCase):
         job_id = scheduler.add_onetime_job(
             cnaas_nms.confpush.init_device.init_access_device_step1,
             when=0,
+            scheduled_by='test_user',
             kwargs={'device_id': self.testdata['init_access_device_id'],
                     'new_hostname': self.testdata['init_access_new_hostname']})
         print(f"Step1 scheduled as ID { job_id }")

@@ -74,13 +74,16 @@ def push_base_management_access(task, device_variables):
 
 
 @job_wrapper
-def init_access_device_step1(device_id: int, new_hostname: str, job_id: Optional[str] = None) -> NornirJobResult:
+def init_access_device_step1(device_id: int, new_hostname: str,
+                             job_id: Optional[str] = None,
+                             scheduled_by: Optional[str] = None) -> NornirJobResult:
     """Initialize access device for management by CNaaS-NMS
 
     Args:
         device_id: Device to select for initialization
         new_hostname: Hostname to configure for the new device
         job_id: job_id provided by scheduler when adding job
+        scheduled_by: Username from JWT.
 
     Returns:
         Nornir result object
@@ -200,6 +203,7 @@ def init_access_device_step1(device_id: int, new_hostname: str, job_id: Optional
     next_job_id = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_access_device_step2',
         when=0,
+        scheduled_by=scheduled_by,
         kwargs={'device_id': device_id, 'iteration': 1})
 
     logger.debug(f"Step 2 scheduled as ID {next_job_id}")
@@ -217,15 +221,18 @@ def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optiona
         next_job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.init_device:init_access_device_step2',
             when=(30*iteration),
-            kwargs={'device_id':device_id, 'iteration': iteration+1})
+            scheduled_by=scheduled_by,
+            kwargs={'device_id': device_id, 'iteration': iteration+1})
         return next_job_id
     else:
         return None
 
 
 @job_wrapper
-def init_access_device_step2(device_id: int, iteration: int = -1, job_id: Optional[str] = None) ->\
-        NornirJobResult:
+def init_access_device_step2(device_id: int, iteration: int = -1,
+                             job_id: Optional[str] = None,
+                             scheduled_by: Optional[str] = None) -> \
+                             NornirJobResult:
     # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
@@ -296,21 +303,26 @@ def init_access_device_step2(device_id: int, iteration: int = -1, job_id: Option
     )
 
 
-def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int) -> Optional[Job]:
+def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
+                             scheduled_by: str) -> Optional[Job]:
     max_iterations = 5
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
         next_job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.init_device:discover_device',
             when=(60*iteration),
-            kwargs={'ztp_mac': ztp_mac, 'dhcp_ip': dhcp_ip, 'iteration': iteration+1})
+            scheduled_by=scheduled_by,
+            kwargs={'ztp_mac': ztp_mac, 'dhcp_ip': dhcp_ip,
+                    'iteration': iteration+1})
         return next_job_id
     else:
         return None
 
 
 @job_wrapper
-def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1, job_id: Optional[str] = None):
+def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
+                    job_id: Optional[str] = None,
+                    scheduled_by: Optional[str] = None):
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.ztp_mac == ztp_mac).one_or_none()
         if not dev:
@@ -332,7 +344,8 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1, job_id: Optional[s
         logger.info("Could not contact device with ztp_mac {} (attempt {})".format(
             ztp_mac, iteration
         ))
-        next_job_id = schedule_discover_device(ztp_mac, dhcp_ip, iteration)
+        next_job_id = schedule_discover_device(ztp_mac, dhcp_ip, iteration,
+                                               scheduled_by)
         if next_job_id:
             return NornirJobResult(
                 nrresult = nrresult,

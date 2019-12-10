@@ -1,6 +1,6 @@
 from flask import request
 from flask_restplus import Resource, Namespace, fields
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from cnaas_nms.db.git import RepoType, refresh_repo, get_repo_status
 from cnaas_nms.db.settings import VerifyPathException, SettingsSyntaxError
@@ -41,7 +41,7 @@ class RepositoryApi(Resource):
             if str(json_data['action']).upper() == 'REFRESH':
                 # TODO: consider doing as scheduled job?
                 try:
-                    res = refresh_repo(repo_type)
+                    res = refresh_repo(repo_type, get_jwt_identity())
                     return empty_result('success', res)
                 except VerifyPathException as e:
                     return empty_result(

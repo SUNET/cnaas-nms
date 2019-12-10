@@ -303,7 +303,8 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
     )
 
 
-def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int) -> Optional[Job]:
+def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
+                             scheduled_by: str) -> Optional[Job]:
     max_iterations = 5
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
@@ -343,7 +344,8 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
         logger.info("Could not contact device with ztp_mac {} (attempt {})".format(
             ztp_mac, iteration
         ))
-        next_job_id = schedule_discover_device(ztp_mac, dhcp_ip, iteration)
+        next_job_id = schedule_discover_device(ztp_mac, dhcp_ip, iteration,
+                                               scheduled_by)
         if next_job_id:
             return NornirJobResult(
                 nrresult = nrresult,

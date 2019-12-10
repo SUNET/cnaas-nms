@@ -57,7 +57,8 @@ def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         return 'Repository is not yet cloned from remote'
 
 
-def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
+def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES,
+                 scheduled_by: str = None) -> str:
     """Refresh the repository for repo_type
 
     Args:
@@ -74,7 +75,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
     # while another task is building configuration for devices using repo data
     with sqla_session() as session:
         job = Job()
-        job.start_job(function_name="refresh_repo")
+        job.start_job(function_name="refresh_repo", scheduled_by=scheduled_by)
         session.add(job)
         session.flush()
         job_id = job.id

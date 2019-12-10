@@ -226,7 +226,8 @@ class DeviceDiscoverApi(Resource):
         dhcp_ip = json_data['dhcp_ip']
 
         job_id = cnaas_nms.confpush.init_device.schedule_discover_device(
-            ztp_mac=ztp_mac, dhcp_ip=dhcp_ip, iteration=1)
+            ztp_mac=ztp_mac, dhcp_ip=dhcp_ip, iteration=1,
+            scheduled_by=get_jwt_identity())
 
         logger.debug(f"Discover device for ztp_mac {ztp_mac} scheduled as ID {job_id}")
 

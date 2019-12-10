@@ -6,13 +6,30 @@ from pydantic import BaseModel, Schema
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
 IPV4_REGEX = (r'(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}'
               r'(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)')
+# IPv6 regex from https://stackoverflow.com/questions/53497/regular-expression-that-matches-valid-ipv6-addresses
+#  minus IPv4 mapped etc since we probably can't handle them anyway
+IPV6_REGEX = (
+    r'(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|'         # 1:2:3:4:5:6:7:8
+    r'([0-9a-fA-F]{1,4}:){1,7}:|'                         # 1::                              1:2:3:4:5:6:7::
+    r'([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|'         # 1::8             1:2:3:4:5:6::8  1:2:3:4:5:6::8
+    r'([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|'  # 1::7:8           1:2:3:4:5::7:8  1:2:3:4:5::8
+    r'([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|'  # 1::6:7:8         1:2:3:4::6:7:8  1:2:3:4::8
+    r'([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|'  # 1::5:6:7:8       1:2:3::5:6:7:8  1:2:3::8
+    r'([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|'  # 1::4:5:6:7:8     1:2::4:5:6:7:8  1:2::8
+    r'[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|'       # 1::3:4:5:6:7:8   1::3:4:5:6:7:8  1::8  
+    r':((:[0-9a-fA-F]{1,4}){1,7}|:))'
+)
 FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z0-9-]{1,63}\.?)+'
 HOST_REGEX = f"^({IPV4_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
 host_schema = Schema(..., regex=HOST_REGEX, max_length=253)
 hostname_schema = Schema(..., regex=HOSTNAME_REGEX, max_length=253)
+ipv4_schema = Schema(..., regex=f"^{IPV4_REGEX}$")
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
-ipv4_if_schema = Schema(..., regex=IPV4_IF_REGEX)
+ipv4_if_schema = Schema(..., regex=f"^{IPV4_IF_REGEX}$")
+ipv6_schema = Schema(..., regex=f"^{IPV6_REGEX}$")
+IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
+ipv6_if_schema = Schema(..., regex=f"^{IPV6_IF_REGEX}$")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
@@ -63,6 +80,32 @@ class f_vrf(BaseModel):
     groups: List[str] = []
 
 
+class f_ipv4_static_route(BaseModel):
+    destination: str = ipv4_if_schema
+    nexthop: str = ipv4_schema
+    interface: Optional[str] = None
+    name: str = "undefined"
+    cli_append_str: str = ""
+
+
+class f_ipv6_static_route(BaseModel):
+    destination: str = ipv6_if_schema
+    nexthop: str = ipv6_schema
+    interface: Optional[str] = None
+    name: str = "undefined"
+    cli_append_str: str = ""
+
+
+class f_extroute_static_vrf(BaseModel):
+    name: str
+    ipv4: List[f_ipv4_static_route]
+    ipv6: List[f_ipv6_static_route]
+
+
+class f_extroute_static(BaseModel):
+    vrfs: List[f_extroute_static_vrf]
+
+
 class f_vxlan(BaseModel):
     description: str = None
     vni: int = vxlan_vni_schema
@@ -89,6 +132,7 @@ class f_root(BaseModel):
     vxlans: Dict[str, f_vxlan] = {}
     underlay: f_underlay = None
     evpn_spines: List[f_evpn_spine] = []
+    extroute_static: Optional[f_extroute_static]
 
 
 class f_group_item(BaseModel):

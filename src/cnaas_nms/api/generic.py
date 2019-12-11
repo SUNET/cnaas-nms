@@ -98,6 +98,11 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
 
     if f_class_order_by_field:
         query = query.order_by(order(f_class_order_by_field))
+    else:
+        if 'id' in f_class.__table__._columns.keys():
+            order = sqlalchemy.asc
+            f_class_order_by_field = getattr(f_class, 'id')
+            query = query.order_by(order(f_class_order_by_field))
     query = query.limit(limit_results())
     query = query.offset(offset_results())
     return query

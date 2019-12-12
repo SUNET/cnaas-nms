@@ -130,7 +130,13 @@ def get_interfaces_names(hostname: str) -> List[str]:
     the specified device.
     """
     nrresult = get_interfaces(hostname)
-    return list(nrresult[hostname][0].result['interfaces'].keys())
+    getfacts_task = nrresult[hostname][0]
+    if getfacts_task.failed:
+        raise Exception("Could not get facts from device {}: {}".format(
+            hostname, getfacts_task.result
+        ))
+    else:
+        return list(getfacts_task.result['interfaces'].keys())
 
 
 def filter_interfaces(iflist, platform=None, include=None):

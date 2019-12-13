@@ -106,6 +106,16 @@ class f_extroute_static(BaseModel):
     vrfs: List[f_extroute_static_vrf]
 
 
+class f_extroute_ospfv3_vrf(BaseModel):
+    name: str
+    ipv4_redist_routemap: Optional[str] = None
+    ipv6_redist_routemap: Optional[str] = None
+
+
+class f_extroute_ospfv3(BaseModel):
+    vrfs: List[f_extroute_ospfv3_vrf]
+
+
 class f_vxlan(BaseModel):
     description: str = None
     vni: int = vxlan_vni_schema
@@ -133,6 +143,7 @@ class f_root(BaseModel):
     underlay: f_underlay = None
     evpn_spines: List[f_evpn_spine] = []
     extroute_static: Optional[f_extroute_static]
+    extroute_ospfv3: Optional[f_extroute_ospfv3]
 
 
 class f_group_item(BaseModel):

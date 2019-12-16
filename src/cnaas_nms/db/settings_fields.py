@@ -108,8 +108,8 @@ class f_extroute_static(BaseModel):
 
 class f_extroute_ospfv3_vrf(BaseModel):
     name: str
-    ipv4_redist_routemap: Optional[str] = None
-    ipv6_redist_routemap: Optional[str] = None
+    ipv4_redist_routefilter: Optional[str] = None
+    ipv6_redist_routefilter: Optional[str] = None
 
 
 class f_extroute_ospfv3(BaseModel):

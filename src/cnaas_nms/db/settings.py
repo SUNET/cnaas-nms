@@ -30,7 +30,8 @@ class VlanConflictError(Exception):
 
 DIR_STRUCTURE_HOST = {
     'base_system.yml': 'file',
-    'interfaces.yml': 'file'
+    'interfaces.yml': 'file',
+    'routing.yml': 'file'
 }
 
 DIR_STRUCTURE = {
@@ -282,16 +283,18 @@ def read_settings(local_repo_path: str, path: List[str], origin: str,
     Returns:
         merged_settings, merged_settings_origin
     """
-    with open(get_setting_filename(local_repo_path, path), 'r') as f:
-        settings: Union[List, dict] = yaml.safe_load(f)
+    filename = get_setting_filename(local_repo_path, path)
+    with open(filename, 'r') as f:
+        yamldata = yaml.safe_load(f)
+        if not yamldata or not isinstance(yamldata, dict):
+            logger.info("Empty/invalid yaml file ignored: {}".format(filename))
+            return merged_settings, merged_settings_origin
+        settings: dict = yamldata
         if groups or hostname:
             syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings, {}, origin)
             check_settings_syntax(syntax_dict, syntax_dict_origin)
             settings = filter_yamldata(settings, groups, hostname)
-        if settings and isinstance(settings, dict):
-            return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
-        else:
-            return merged_settings, merged_settings_origin
+        return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
 
 
 def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, recdepth=100) -> \
@@ -419,13 +422,6 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             settings, settings_origin)
     # 5. Get settings repo device specific settings
     if hostname:
-        if os.path.isdir(os.path.join(local_repo_path, 'devices', hostname)):
-            settings, settings_origin = read_settings(
-                local_repo_path, ['devices', hostname, 'base_system.yml'], 'device',
-                settings, settings_origin)
-            settings, settings_origin = read_settings(
-                local_repo_path, ['devices', hostname, 'interfaces.yml'], 'device',
-                settings, settings_origin)
         # Some settings parsing require knowledge of group memberships
         groups = get_groups(hostname)
         settings, settings_origin = read_settings(
@@ -435,6 +431,16 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             local_repo_path, ['global', 'vxlans.yml'], 'global',
             settings, settings_origin, groups, hostname)
         settings = get_downstream_dependencies(hostname, settings)
+        if os.path.isdir(os.path.join(local_repo_path, 'devices', hostname)):
+            settings, settings_origin = read_settings(
+                local_repo_path, ['devices', hostname, 'base_system.yml'], 'device',
+                settings, settings_origin)
+            settings, settings_origin = read_settings(
+                local_repo_path, ['devices', hostname, 'interfaces.yml'], 'device',
+                settings, settings_origin)
+            settings, settings_origin = read_settings(
+                local_repo_path, ['devices', hostname, 'routing.yml'], 'device',
+                settings, settings_origin, groups)
     else:
         # Some settings parsing require knowledge of group memberships
         groups = []

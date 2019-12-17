@@ -119,6 +119,16 @@ routing.yml:
     The other DIST switches participating in the VXLAN/EVPN fabric will establish
     eBGP connections to these devices.
 
+- vrfs:
+
+  * name: The name of the VRF. Should be one word (no spaces).
+  * vrf_vni: An integer between 1-65535. This is the VNI for the EVPN type-5 / IP routes.
+    The value is capped at 65535 (16 bit) so it can fit in the latter part of an
+    IP type RD/RT value.
+  * groups: A list of groups this VRF should be provisioned on.
+
+
+
 etc
 ---
 

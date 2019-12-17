@@ -39,6 +39,7 @@ vlan_name_schema = Schema(..., regex=VLAN_NAME_REGEX,
                                       "beginning with a non-numeric character")
 vlan_id_schema = Schema(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
 vxlan_vni_schema = Schema(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
+vxlan_vni_16b_schema = Schema(..., gt=0, lt=65535, description="VXLAN Network Identifier 16 bit")
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Schema(..., regex=GROUP_NAME, max_length=253)
@@ -76,7 +77,7 @@ class f_interface(BaseModel):
 
 class f_vrf(BaseModel):
     name: str = None
-    rd: str = None
+    vrf_vni: int = vxlan_vni_16b_schema
     groups: List[str] = []
 
 

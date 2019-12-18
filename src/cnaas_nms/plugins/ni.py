@@ -54,11 +54,21 @@ class Plugin(CnaasBasePlugin):
         for device in res.json()['objects']:
             if device['node_name'] != hostname:
                 continue
+
+            if management_ip:
+                if 'ip_addresses' in device['node']:
+                    addresses = device['node']['ip_addresses']
+                    data['node']['ip_addresses'] = addresses
+                    data['node']['ip_addresses'].insert(0, management_ip)
+                else:
+                    data['node']['ip_addresses'] = [management_ip]
+
             handle_id = device['handle_id']
             res = requests.put(self.urlbase + str(handle_id) + '/',
                                headers=headers,
                                json=data,
                                verify=False)
+
             if res.status_code != 204:
                 logger.warn('Could not change device {} with ID {}.'.format(
                     hostname,

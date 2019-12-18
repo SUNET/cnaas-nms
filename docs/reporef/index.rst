@@ -119,6 +119,15 @@ routing.yml:
     The other DIST switches participating in the VXLAN/EVPN fabric will establish
     eBGP connections to these devices.
 
+- vrfs:
+
+  * name: The name of the VRF. Should be one word (no spaces).
+  * vrf_id: An integer between 1-65535. This ID can be used to generate unique VNI, RD and RT
+    values for this VRF.
+  * groups: A list of groups this VRF should be provisioned on.
+
+
+
 etc
 ---
 

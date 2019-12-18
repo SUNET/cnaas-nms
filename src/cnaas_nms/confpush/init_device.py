@@ -51,7 +51,7 @@ def push_base_management_access(task, device_variables):
 
     settings, settings_origin = get_settings(task.host.name, DeviceType.ACCESS)
 
-    # Addd all environment variables starting with TEMPLATE_SECRET_ to
+    # Add all environment variables starting with TEMPLATE_SECRET_ to
     # the list of configuration variables. The idea is to store secret
     # configuration outside of the templates repository.
     template_secrets = {}

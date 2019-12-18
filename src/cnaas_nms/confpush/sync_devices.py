@@ -225,7 +225,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                 })
             device_variables = {**dist_device_variables, **device_variables}
 
-    # Addd all environment variables starting with TEMPLATE_SECRET_ to
+    # Add all environment variables starting with TEMPLATE_SECRET_ to
     # the list of configuration variables. The idea is to store secret
     # configuration outside of the templates repository.
     template_secrets = {}

@@ -50,8 +50,17 @@ def push_base_management_access(task, device_variables):
         template = mapping['ACCESS']['entrypoint']
 
     settings, settings_origin = get_settings(task.host.name, DeviceType.ACCESS)
+
+    # Add all environment variables starting with TEMPLATE_SECRET_ to
+    # the list of configuration variables. The idea is to store secret
+    # configuration outside of the templates repository.
+    template_secrets = {}
+    for env in os.environ:
+        if env.startswith('TEMPLATE_SECRET_'):
+            template_secrets[env] = os.environ[env]
+
     # Merge dicts, this will overwrite interface list from settings
-    template_vars = {**settings, **device_variables}
+    template_vars = {**settings, **device_variables, **template_secrets}
 
     r = task.run(task=text.template_file,
                  name="Generate initial device config",

@@ -225,11 +225,19 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                 })
             device_variables = {**dist_device_variables, **device_variables}
 
+    # Addd all environment variables starting with TEMPLATE_SECRET_ to
+    # the list of configuration variables. The idea is to store secret
+    # configuration outside of the templates repository.
+    template_secrets = {}
+    for env in os.environ:
+        if env.startswith('TEMPLATE_SECRET_'):
+            template_secrets[env] = os.environ[env]
+
     # Merge device variables with settings before sending to template rendering
     # Device variables override any names from settings, for example the
     # interfaces list from settings are replaced with an interface list from
     # device variables that contains more information
-    template_vars = {**settings, **device_variables}
+    template_vars = {**settings, **device_variables, **template_secrets}
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)

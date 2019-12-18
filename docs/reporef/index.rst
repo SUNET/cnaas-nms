@@ -122,9 +122,8 @@ routing.yml:
 - vrfs:
 
   * name: The name of the VRF. Should be one word (no spaces).
-  * vrf_vni: An integer between 1-65535. This is the VNI for the EVPN type-5 / IP routes.
-    The value is capped at 65535 (16 bit) so it can fit in the latter part of an
-    IP type RD/RT value.
+  * vrf_id: An integer between 1-65535. This ID can be used to generate unique VNI, RD and RT
+    values for this VRF.
   * groups: A list of groups this VRF should be provisioned on.
 
 

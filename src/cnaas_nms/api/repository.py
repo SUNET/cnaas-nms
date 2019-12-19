@@ -58,6 +58,11 @@ class RepositoryApi(Resource):
                         'error',
                         "Syntax error in repository: {}".format(str(e))
                     )
+                except Exception as e:
+                    return empty_result(
+                        'error',
+                        "Error in repository: {}".format(str(e))
+                    )
             else:
                 return empty_result('error', "Invalid action"), 400
         else:

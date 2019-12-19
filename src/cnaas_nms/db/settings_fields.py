@@ -111,6 +111,7 @@ class f_extroute_ospfv3_vrf(BaseModel):
     name: str
     ipv4_redist_routefilter: Optional[str] = None
     ipv6_redist_routefilter: Optional[str] = None
+    cli_append_str: str = ""
 
 
 class f_extroute_ospfv3(BaseModel):

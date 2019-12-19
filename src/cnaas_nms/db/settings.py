@@ -215,6 +215,12 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
     global_vnis: dict[int, str] = {}
     device_vlan_ids: dict[str, Set[int]] = {}  # save used VLAN IDs per device
     device_vlan_names: dict[str, Set[str]] = {}  # save used VLAN names per device
+    access_hostnames: List[str] = []
+    with sqla_session() as session:
+        access_devs = session.query(Device).filter(Device.device_type == DeviceType.ACCESS).all()
+        for dev in access_devs:
+            access_hostnames.append(dev.hostname)
+
     for hostname, settings in devices_dict.items():
         if 'vxlans' not in settings:
             continue
@@ -256,7 +262,8 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
                 logger.error("VXLAN {} is missing vlan_name".format(vxlan_name))
                 continue
             if hostname in device_vlan_names and \
-                    vxlan_data['vlan_name'] in device_vlan_names[hostname]:
+                    vxlan_data['vlan_name'] in device_vlan_names[hostname] and \
+                    hostname in access_hostnames:  # only trigger for access switches
                 raise VlanConflictError("VLAN name {} used multiple times in device {}".format(
                     vxlan_data['vlan_name'], hostname
                 ))

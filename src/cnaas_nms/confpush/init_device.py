@@ -223,7 +223,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     )
 
 
-def schedule_init_access_device_step2(device_id: int, iteration: int) -> Optional[Job]:
+def schedule_init_access_device_step2(device_id: int, iteration: int,
+                                      scheduled_by: str) -> Optional[Job]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
@@ -256,14 +257,15 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
     nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
 
     if nrresult.failed:
-        next_job_id = schedule_init_access_device_step2(device_id, iteration)
+        next_job_id = schedule_init_access_device_step2(device_id, iteration,
+                                                        scheduled_by)
         if next_job_id:
             return NornirJobResult(
-                nrresult = nrresult,
-                next_job_id = next_job_id
+                nrresult=nrresult,
+                next_job_id=next_job_id
             )
         else:
-            return NornirJobResult(nrresult = nrresult)
+            return NornirJobResult(nrresult=nrresult)
     try:
         facts = nrresult[hostname][0].result['facts']
         found_hostname = facts['hostname']

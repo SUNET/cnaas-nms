@@ -21,6 +21,18 @@ from cnaas_nms.db.interface import Interface
 logger = get_logger()
 
 
+def get_optics(hostname: str) -> AggregatedResult:
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    if hostname:
+        nr_filtered = nr.filter(name=hostname)
+    else:
+        nr_filtered = nr
+
+    result = nr_filtered.run(task=networking.napalm_get, getters=['optics'])
+    print_result(result)
+
+    return result[hostname][0]
+
 def get_inventory():
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     return Inventory.serialize(nr.inventory).dict()

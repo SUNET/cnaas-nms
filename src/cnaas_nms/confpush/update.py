@@ -4,7 +4,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.confpush.get import get_interfaces_names, get_uplinks, \
-    filter_interfaces, get_interfacedb_ifs
+    filter_interfaces, get_interfacedb_ifs, get_optics
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -34,6 +34,7 @@ def update_interfacedb(hostname: str, replace: bool = False, delete: bool = Fals
         uplinks, neighbor_hostnames = get_uplinks(session, hostname)
         uplinks_ifnames = [x['ifname'] for x in uplinks]
         phy_interfaces = filter_interfaces(iflist, platform=dev.platform, include='physical')
+        optics = get_optics(hostname).result['optics']
 #        existing_ifs = get_interfacedb_ifs(session, hostname)
 
         updated = False
@@ -58,8 +59,13 @@ def update_interfacedb(hostname: str, replace: bool = False, delete: bool = Fals
                 dev.hostname, intf_name
             ))
             if intf_name in uplinks_ifnames:
+                if_optics = optics[intf_name]['physical_channels']['channel'][0]['state']
+                tx_power = optics['input_power']['instant']
+                rx_power = optics['output_power']['instant']
                 intf.configtype = InterfaceConfigType.ACCESS_UPLINK
-                intf.data = {'neighbor': neighbor_hostnames[uplinks_ifnames.index(intf_name)]}
+                intf.data = {'neighbor': neighbor_hostnames[uplinks_ifnames.index(intf_name)],
+                             'tx_power': tx_power,
+                             'rx_power': rx_power}
             else:
                 intf.configtype = InterfaceConfigType.ACCESS_AUTO
             intf.name = intf_name

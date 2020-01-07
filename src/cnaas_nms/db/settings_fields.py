@@ -146,6 +146,8 @@ class f_root(BaseModel):
     evpn_spines: List[f_evpn_spine] = []
     extroute_static: Optional[f_extroute_static]
     extroute_ospfv3: Optional[f_extroute_ospfv3]
+    cli_prepend_str: str = ""
+    cli_append_str: str = ""
 
 
 class f_group_item(BaseModel):

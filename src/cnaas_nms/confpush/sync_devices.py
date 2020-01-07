@@ -369,8 +369,8 @@ def update_config_hash(task):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 dry_run: bool = True, force: bool = False, auto_push = False,
-                 job_id: Optional[str] = None,
+                 group: Optional[str] = None, dry_run: bool = True, force: bool = False,
+                 auto_push: bool = False, job_id: Optional[str] = None,
                  scheduled_by: Optional[str] = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
@@ -379,6 +379,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     Args:
         hostname: Specify a single host by hostname to synchronize
         device_type: Specify a device type to synchronize
+        group: Specify a group of devices to synchronize
         dry_run: Don't commit generated config to device
         force: Commit config even if changes made outside CNaaS will get
                overwritten

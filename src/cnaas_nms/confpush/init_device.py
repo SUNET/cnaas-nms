@@ -8,6 +8,7 @@ from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
 import yaml
 import os
+import time
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
@@ -23,6 +24,8 @@ from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.joblock import Joblock, JoblockError
+
 
 logger = get_logger()
 
@@ -123,6 +126,16 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     uplinks = []
     neighbor_hostnames = []
     with sqla_session() as session:
+        for i in range(0, 5):
+            logger.info("Trying to acquire lock for init job: {}".format(job_id))
+            if not Joblock.acquire_lock(session, name='init_device', job_id=job_id):
+                time.sleep(10)
+            else:
+                logger.info("Acquired lock for init job: {}".format(job_id))
+                break
+        else:
+            raise JoblockError("Unable to acquire lock for init device")
+
         # Find management domain to use for this access switch
         dev = session.query(Device).filter(Device.hostname == old_hostname).one()
         for neighbor_d in dev.get_neighbors(session):
@@ -144,6 +157,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         session.commit()
         mgmt_ip = mgmtdomain.find_free_mgmt_ip(session)
         if not mgmt_ip:
+            logger.info("Got exception, releasing lock for init job: {}".format(job_id))
+            Joblock.release_lock(session, job_id=job_id)
             raise Exception("Could not find free management IP for management domain {}/{}".format(
                 mgmtdomain.id, mgmtdomain.description))
         reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
@@ -196,6 +211,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:
             session.delete(reserved_ip)
+        logger.info("Releasing lock for init device job: {}".format(job_id))
+        Joblock.release_lock(session, job_id=job_id)
 
     # Plugin hook, allocated IP
     try:

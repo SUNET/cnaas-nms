@@ -330,7 +330,7 @@ def generate_only(hostname: str) -> (str, dict):
             return str(e), template_vars
 
 
-def sync_check_hash(task, force=False, dry_run=True):
+def sync_check_hash(task, force=False, job_id=None):
     """
     Start the task which will compare device configuration hashes.
 
@@ -338,6 +338,8 @@ def sync_check_hash(task, force=False, dry_run=True):
         task: Nornir task
         force: Ignore device hash
     """
+    set_thread_data(job_id)
+    logger = get_logger()
     if force is True:
         return
     with sqla_session() as session:
@@ -376,7 +378,7 @@ def update_config_hash(task):
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
                  group: Optional[str] = None, dry_run: bool = True, force: bool = False,
-                 auto_push: bool = False, job_id: Optional[str] = None,
+                 auto_push: bool = False, job_id: Optional[int] = None,
                  scheduled_by: Optional[str] = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
@@ -415,7 +417,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     try:
         nrresult = nr_filtered.run(task=sync_check_hash,
                                    force=force,
-                                   dry_run=dry_run)
+                                   job_id=job_id)
         print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while checking config hash: {}".format(str(e)))

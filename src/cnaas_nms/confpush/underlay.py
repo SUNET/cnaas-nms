@@ -15,7 +15,6 @@ def find_free_infra_ip(session) -> Optional[IPv4Address]:
         filter(Device.infra_ip != None).options(load_only("infra_ip"))
     for device in device_query:
         used_ips.append(device.infra_ip)
-
     settings, settings_origin = get_settings(device_type=DeviceType.CORE)
     infra_ip_net = IPv4Network(settings['underlay']['infra_lo_net'])
     for num, net in enumerate(infra_ip_net.subnets(new_prefix=32)):
@@ -53,7 +52,7 @@ def find_free_infra_linknet(session) -> Optional[IPv4Network]:
         filter(Linknet.device_a_ip != None)
     ln: Linknet
     for ln in linknet_query:
-        used_linknets.append(IPv4Interface(ln.device_a_ip).network)
+        used_linknets.append(IPv4Interface(ln.ipv4_network).network)
 
     settings, settings_origin = get_settings(device_type=DeviceType.CORE)
     infra_ip_net = IPv4Network(settings['underlay']['infra_link_net'])

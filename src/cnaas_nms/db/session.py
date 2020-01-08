@@ -26,21 +26,20 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
     if 'CNAAS_DB_DATABASE' in os.environ:
         db_data['database'] = os.environ['CNAAS_DB_DATABSE']
 
-    conn_str = (
+    return (
         f"{db_data['type']}://{db_data['username']}:{db_data['password']}@"
         f"{db_data['hostname']}:{db_data['port']}/{db_data['database']}"
     )
 
-    return conn_str
+
+conn_str = get_sqlalchemy_conn_str()
+engine = create_engine(conn_str, pool_size=50, max_overflow=0)
+connection = engine.connect()
+Session = sessionmaker(bind=engine)
 
 
 @contextmanager
 def sqla_session(**kwargs):
-    conn_str = get_sqlalchemy_conn_str(**kwargs)
-
-    engine = create_engine(conn_str, poolclass=NullPool)
-    connection = engine.connect()
-    Session = sessionmaker(bind=engine)
     session = Session()
     try:
         yield session

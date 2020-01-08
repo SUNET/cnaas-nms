@@ -23,8 +23,7 @@ from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.tools.log import get_logger
-
-logger = get_logger()
+from cnaas_nms.scheduler.thread_data import set_thread_data
 
 
 class ConnectionCheckError(Exception):
@@ -35,7 +34,9 @@ class InitError(Exception):
     pass
 
 
-def push_base_management_access(task, device_variables):
+def push_base_management_access(task, device_variables, job_id):
+    set_thread_data(job_id)
+    logger = get_logger()
     logger.debug("Push basetemplate for host: {}".format(task.host.name))
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
@@ -100,6 +101,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     Raises:
         DeviceStateException
     """
+    logger = get_logger()
     # Check that we can find device and that it's in the correct state to start init
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
@@ -176,7 +178,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     # step2. push management config
     try:
         nrresult = nr_filtered.run(task=push_base_management_access,
-                                   device_variables=device_variables)
+                                   device_variables=device_variables,
+                                   job_id=job_id)
     except SessionLockedException as e:
         # TODO: Handle this somehow?
         pass
@@ -243,6 +246,7 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
                              job_id: Optional[str] = None,
                              scheduled_by: Optional[str] = None) -> \
                              NornirJobResult:
+    logger = get_logger()
     # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
@@ -334,6 +338,7 @@ def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
 def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
                     job_id: Optional[str] = None,
                     scheduled_by: Optional[str] = None):
+    logger = get_logger()
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.ztp_mac == ztp_mac).one_or_none()
         if not dev:

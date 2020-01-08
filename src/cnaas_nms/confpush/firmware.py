@@ -169,8 +169,8 @@ def arista_device_reboot(task) -> None:
 
 def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
                         url: str,
-                        download: Optional[bool] = True,
-                        pre_flight: Optional[bool] = True,
+                        download: Optional[bool] = False,
+                        pre_flight: Optional[bool] = False,
                         activate: Optional[bool] = False) -> NornirJobResult:
 
     # If pre-flight is selected, execute the pre-flight task which

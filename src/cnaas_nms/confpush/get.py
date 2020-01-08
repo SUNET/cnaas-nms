@@ -18,8 +18,6 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.interface import Interface
 
-logger = get_logger()
-
 
 def get_inventory():
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
@@ -96,6 +94,7 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
 
 
 def get_uplinks(session, hostname: str) -> Tuple[List, List]:
+    logger = get_logger()
     # TODO: check if uplinks are already saved in database?
     uplinks = []
     neighbor_hostnames = []
@@ -210,6 +209,7 @@ def update_inventory(hostname: str, site='default') -> dict:
 def update_linknets(hostname):
     """Update linknet data for specified device using LLDP neighbor data.
     """
+    logger = get_logger()
     result = get_neighbors(hostname=hostname)[hostname][0]
     if result.failed:
         raise Exception

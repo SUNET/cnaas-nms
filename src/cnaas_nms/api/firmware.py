@@ -239,7 +239,7 @@ class FirmwareUpgradeApi(Resource):
                 kwargs['pre_flight'] = json_data['pre_flight']
             else:
                 return empty_result(status='error',
-                                    data='reboot should be a boolean')
+                                    data='pre_flight should be a boolean')
 
         if 'filename' in json_data:
             if isinstance(json_data['filename'], str):

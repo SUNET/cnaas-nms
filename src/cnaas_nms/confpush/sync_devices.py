@@ -339,7 +339,11 @@ def sync_check_hash(task, force=False, dry_run=True):
         stored_hash = Device.get_config_hash(session, task.host.name)
     if stored_hash is None:
         return
+
+    task.host.open_connection("napalm", configuration=task.nornir.config)
     res = task.run(task=napalm_get, getters=["config"])
+    task.host.close_connection("napalm")
+
     running_config = dict(res.result)['config']['running'].encode()
     if running_config is None:
         raise Exception('Failed to get running configuration')

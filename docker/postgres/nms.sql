@@ -355,11 +355,6 @@ COPY public.apscheduler_jobs (id, next_run_time, job_state) FROM stdin;
 --
 
 COPY public.device (id, hostname, site_id, description, management_ip, dhcp_ip, serial, ztp_mac, platform, vendor, model, os_version, synchronized, state, device_type, last_seen, confhash, infra_ip, oob_ip, port) FROM stdin;
-1	testdevice	1	Test device!	1.2.3.4	\N	\N	\N	eos	\N	\N	\N	f	UNKNOWN	UNKNOWN	2019-02-13 11:17:32.038118	\N	\N	\N	\N
-6	mac-080027F60C55	\N	\N	\N	\N	\N	080027F60C55	eos	\N	\N	\N	f	DHCP_BOOT	UNKNOWN	2019-02-27 07:41:18.026646	\N	\N	\N	\N
-13	eosaccess	\N	\N	10.0.6.6	192.168.0.241	\N	0800275C091F	eos	\N	\N	\N	f	INIT	UNKNOWN	2019-04-09 08:43:50.268572	\N	\N	\N	\N
-9	eosdist	\N	\N	10.100.3.101	\N	\N	08002708a8be	eos	\N	\N	\N	t	MANAGED	DIST	2019-02-27 10:30:23.338681	\N	10.199.0.0	\N	\N
-12	eosdist2	\N	\N	10.0.1.23	\N	\N	08002708a8b0	eos	\N	\N	\N	t	MANAGED	DIST	2019-03-13 09:43:13.439735	\N	10.199.0.1	\N	\N
 \.
 
 
@@ -368,9 +363,6 @@ COPY public.device (id, hostname, site_id, description, management_ip, dhcp_ip, 
 --
 
 COPY public.interface (device_id, name, configtype, data) FROM stdin;
-13	Ethernet3	ACCESS_UPLINK	\N
-13	Ethernet2	ACCESS_UPLINK	\N
-13	Ethernet1	ACCESS_AUTO	\N
 \.
 
 
@@ -387,8 +379,6 @@ COPY public.joblock (jobid, name, start_time, abort) FROM stdin;
 --
 
 COPY public.linknet (id, ipv4_network, device_a_id, device_a_ip, device_a_port, device_b_id, device_b_ip, device_b_port, site_id, description) FROM stdin;
-6	\N	13	\N	Ethernet2	9	\N	Ethernet2	\N	\N
-7	\N	13	\N	Ethernet3	12	\N	Ethernet2	\N	\N
 \.
 
 
@@ -397,7 +387,6 @@ COPY public.linknet (id, ipv4_network, device_a_id, device_a_ip, device_a_port, 
 --
 
 COPY public.mgmtdomain (id, ipv4_gw, device_a_id, device_a_ip, device_b_id, device_b_ip, site_id, vlan, description, esi_mac) FROM stdin;
-4	10.0.6.1/24	9	\N	12	\N	\N	600	\N	\N
 \.
 
 
@@ -415,43 +404,14 @@ COPY public.reservedip (device_id, ip, last_seen) FROM stdin;
 
 COPY public.site (id, description) FROM stdin;
 1	default
-2	default
-3	default
-4	default
-5	default
-6	default
-7	default
-8	default
-9	default
 \.
-
-
---
--- Name: device_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.device_id_seq', 19, true);
-
-
---
--- Name: linknet_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.linknet_id_seq', 7, true);
-
-
---
--- Name: mgmtdomain_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.mgmtdomain_id_seq', 4, true);
 
 
 --
 -- Name: site_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
 --
 
-SELECT pg_catalog.setval('public.site_id_seq', 9, true);
+SELECT pg_catalog.setval('public.site_id_seq', 2, true);
 
 
 --

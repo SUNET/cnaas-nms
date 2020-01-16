@@ -31,7 +31,7 @@ class DeviceTests(unittest.TestCase):
             #TODO: get params from testdata.yml
             new_device = Device()
             new_device.ztp_mac = '08002708a8be'
-            new_device.hostname = 'eosdist'
+            new_device.hostname = 'unittest'
             new_device.platform = 'eos'
             new_device.management_ip = IPv4Address('10.0.1.22')
             new_device.state = DeviceState.MANAGED
@@ -50,7 +50,7 @@ class DeviceTests(unittest.TestCase):
 
     def test_delete_dist_device(self):
         with sqla_session() as session:
-            instance = session.query(Device).filter(Device.hostname == 'eosdist').first()
+            instance = session.query(Device).filter(Device.hostname == 'unittest').first()
             if instance:
                 session.delete(instance)
                 session.commit()

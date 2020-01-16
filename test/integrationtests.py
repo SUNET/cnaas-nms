@@ -126,7 +126,7 @@ class GetTests(unittest.TestCase):
             json=new_mgmtdom_data,
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to add dist2")
+        self.assertEqual(r.status_code, 200, "Failed to add mgmtdomain")
 
     def test_1_ztp(self):
         hostname, device_id = self.wait_for_discovered_device()

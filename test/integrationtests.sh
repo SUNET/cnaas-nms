@@ -36,7 +36,7 @@ read
 # workaround to trigger coverage save
 cd ../docker/
 # Sleep very long to make sure all napalm jobs are finished?
-sleep 300
+sleep 120
 echo "Gathering coverage reports from integration tests:"
 docker exec docker_cnaas_api_1 pkill uwsgi
 sleep 3

@@ -1,7 +1,6 @@
 import os
 import json
 import requests
-import yaml
 
 from datetime import datetime
 

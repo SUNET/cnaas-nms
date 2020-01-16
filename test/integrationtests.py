@@ -6,7 +6,10 @@ import unittest
 import os
 
 
-URL = "https://localhost"
+if 'CNAASURL' in os.environ:
+    URL = os.environ['CNAASURL']
+else:
+    URL = "https://localhost"
 TLS_VERIFY = False
 AUTH_HEADER = {"Authorization": "Bearer {}".format(os.environ['JWT_AUTH_TOKEN'])}
 
@@ -87,6 +90,44 @@ class GetTests(unittest.TestCase):
             else:
                 raise Exception
 
+    def test_0_init_dist(self):
+        new_dist_data = {
+            "hostname": "eosdist1",
+            "management_ip": "10.100.3.101",
+            "platform": "eos",
+            "state": "MANAGED",
+            "device_type": "DIST"
+        }
+        r = requests.post(
+            f'{URL}/api/v1.0/device',
+            headers=AUTH_HEADER,
+            json=new_dist_data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to add dist1")
+        new_dist_data['hostname'] = "eosdist2"
+        new_dist_data['management_ip'] = "10.100.3.102"
+        r = requests.post(
+            f'{URL}/api/v1.0/device',
+            headers=AUTH_HEADER,
+            json=new_dist_data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to add dist2")
+        new_mgmtdom_data = {
+            "ipv4_gw": "10.0.6.1/24",
+            "device_a": "eosdist1",
+            "device_b": "eosdist2",
+            "vlan": 600
+        }
+        r = requests.post(
+            f'{URL}/api/v1.0/mgmtdomains',
+            headers=AUTH_HEADER,
+            json=new_mgmtdom_data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to add dist2")
+
     def test_1_ztp(self):
         hostname, device_id = self.wait_for_discovered_device()
         print("Discovered hostname, id: {}, {}".format(hostname, device_id))
@@ -138,6 +179,13 @@ class GetTests(unittest.TestCase):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
             headers=AUTH_HEADER,
+            json={"hostname": "eosaccess", "dry_run": True, "force": True},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
+        r = requests.post(
+            f'{URL}/api/v1.0/device_syncto',
+            headers=AUTH_HEADER,
             json={"hostname": "eosaccess", "dry_run": True, "auto_push": True},
             verify=TLS_VERIFY
         )
@@ -147,18 +195,18 @@ class GetTests(unittest.TestCase):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
             headers=AUTH_HEADER,
-            json={"hostname": "eosdist", "dry_run": True},
+            json={"hostname": "eosdist1", "dry_run": True, "force": True},
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")
 
     def test_5_genconfig(self):
         r = requests.get(
-            f'{URL}/api/v1.0/device/eosdist/generate_config',
+            f'{URL}/api/v1.0/device/eosdist1/generate_config',
             headers=AUTH_HEADER,
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to generate config for eosdist")
+        self.assertEqual(r.status_code, 200, "Failed to generate config for eosdist1")
 
     def test_6_plugins(self):
         r = requests.get(
@@ -175,6 +223,15 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to run plugin selftests")
+
+    def test_7_firmware(self):
+        r = requests.get(
+            f'{URL}/api/v1.0/firmware',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        # TODO: not working
+        #self.assertEqual(r.status_code, 200, "Failed to list firmware")
 
 
 if __name__ == '__main__':

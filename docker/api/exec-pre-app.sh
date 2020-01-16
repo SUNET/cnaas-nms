@@ -22,8 +22,6 @@ sed -e "s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|" \
 #fi
 #git clone $GITREPO_SETTINGS /opt/cnaas/settings
 #git clone $GITREPO_TEMPLATES /opt/cnaas/templates
-chown -R www-data:www-data /opt/cnaas/settings
-chown -R www-data:www-data /opt/cnaas/templates
 
 # Wait for postgres to start
 echo ">> Waiting for postgres to start"

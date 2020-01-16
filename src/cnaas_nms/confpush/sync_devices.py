@@ -23,12 +23,12 @@ from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.scheduler.thread_data import set_thread_data
 
 from cnaas_nms.scheduler.scheduler import Scheduler
 from nornir.plugins.tasks.networking import napalm_get
 
 
-logger = get_logger()
 AUTOPUSH_MAX_SCORE = 10
 PRIVATE_ASN_START = 4200000000
 
@@ -40,6 +40,7 @@ def generate_asn(ipv4_address: IPv4Address) -> Optional[int]:
 
 
 def get_evpn_spines(session, settings: dict):
+    logger = get_logger()
     device_hostnames = []
     for entry in settings['evpn_spines']:
         if 'hostname' in entry and Device.valid_hostname(entry['hostname']):
@@ -55,6 +56,7 @@ def get_evpn_spines(session, settings: dict):
 
 
 def resolve_vlanid(vlan_name: str, vxlans: dict) -> Optional[int]:
+    logger = get_logger()
     if type(vlan_name) == int:
         return int(vlan_name)
     if not isinstance(vlan_name, str):
@@ -94,6 +96,8 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
     Returns:
 
     """
+    set_thread_data(job_id)
+    logger = get_logger()
     hostname = task.host.name
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
@@ -299,6 +303,7 @@ def generate_only(hostname: str) -> (str, dict):
     Returns:
         (string with config, dict with available template variables)
     """
+    logger = get_logger()
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     template_vars = {}
@@ -325,7 +330,7 @@ def generate_only(hostname: str) -> (str, dict):
             return str(e), template_vars
 
 
-def sync_check_hash(task, force=False, dry_run=True):
+def sync_check_hash(task, force=False, job_id=None):
     """
     Start the task which will compare device configuration hashes.
 
@@ -333,6 +338,8 @@ def sync_check_hash(task, force=False, dry_run=True):
         task: Nornir task
         force: Ignore device hash
     """
+    set_thread_data(job_id)
+    logger = get_logger()
     if force is True:
         return
     with sqla_session() as session:
@@ -354,6 +361,7 @@ def sync_check_hash(task, force=False, dry_run=True):
 
 
 def update_config_hash(task):
+    logger = get_logger()
     try:
         res = task.run(task=napalm_get, getters=["config"])
         if not isinstance(res, MultiResult) or len(res) != 1 or not isinstance(res[0].result, dict) \
@@ -373,8 +381,8 @@ def update_config_hash(task):
 
 @job_wrapper
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
-                 dry_run: bool = True, force: bool = False, auto_push = False,
-                 job_id: Optional[str] = None,
+                 group: Optional[str] = None, dry_run: bool = True, force: bool = False,
+                 auto_push: bool = False, job_id: Optional[int] = None,
                  scheduled_by: Optional[str] = None) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
@@ -383,6 +391,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     Args:
         hostname: Specify a single host by hostname to synchronize
         device_type: Specify a device type to synchronize
+        group: Specify a group of devices to synchronize
         dry_run: Don't commit generated config to device
         force: Commit config even if changes made outside CNaaS will get
                overwritten
@@ -393,6 +402,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     Returns:
         NornirJobResult
     """
+    logger = get_logger()
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     if hostname:
         nr_filtered = nr.filter(name=hostname).filter(managed=True)
@@ -411,7 +421,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     try:
         nrresult = nr_filtered.run(task=sync_check_hash,
                                    force=force,
-                                   dry_run=dry_run)
+                                   job_id=job_id)
         print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while checking config hash: {}".format(str(e)))

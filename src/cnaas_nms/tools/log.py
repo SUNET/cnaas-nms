@@ -1,6 +1,9 @@
 import logging
+import threading
 
 from flask import current_app
+
+from cnaas_nms.scheduler.thread_data import thread_data
 
 
 class WebsocketHandler(logging.StreamHandler):
@@ -29,7 +32,20 @@ class WebsocketHandler(logging.StreamHandler):
 
 
 def get_logger():
-    if current_app:
+    if hasattr(thread_data, 'job_id') and type(thread_data.job_id) == int:
+        logger = logging.getLogger('cnaas-nms-{}'.format(thread_data.job_id))
+        if not logger.handlers:
+            formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s job #{}: %(message)s'.
+                                          format(thread_data.job_id))
+            # stdout logging
+            handler = logging.StreamHandler()
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+            # websocket logging
+            handler = WebsocketHandler()
+            handler.setFormatter(formatter)
+            logger.addHandler(handler)
+    elif current_app:
         logger = current_app.logger
     else:
         logger = logging.getLogger('cnaas-nms')

@@ -13,8 +13,6 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.tools.log import get_logger
 
-logger = get_logger()
-
 
 class VerifyPathException(Exception):
     pass
@@ -149,6 +147,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
     Raises:
         SettingsSyntaxError
     """
+    logger = get_logger()
     try:
         f_root(**settings_dict)
     except ValidationError as e:
@@ -210,6 +209,7 @@ def check_settings_collisions(unique_vlans: bool = True):
 
 def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
                           unique_vlans: bool = True):
+    logger = get_logger()
     # save global VLAN IDs and their unique vxlan name
     global_vlans: dict[int, str] = dict.fromkeys(mgmt_vlans, 'management')
     global_vnis: dict[int, str] = {}
@@ -290,6 +290,7 @@ def read_settings(local_repo_path: str, path: List[str], origin: str,
     Returns:
         merged_settings, merged_settings_origin
     """
+    logger = get_logger()
     filename = get_setting_filename(local_repo_path, path)
     with open(filename, 'r') as f:
         yamldata = yaml.safe_load(f)
@@ -393,6 +394,7 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
         Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
+    logger = get_logger()
     with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
         repo_config = yaml.safe_load(repo_file)
 
@@ -463,6 +465,7 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
 
 
 def get_group_settings():
+    logger = get_logger()
     settings: dict = {}
     settings_origin: dict = {}
 

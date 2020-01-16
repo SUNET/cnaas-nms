@@ -8,6 +8,7 @@ from cnaas_nms.scheduler.jobresult import JobResult
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.session import redis_session
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.scheduler.thread_data import thread_data, set_thread_data
 
 
 logger = get_logger()
@@ -72,10 +73,12 @@ def job_wrapper(func):
                                                  args=(stop_event, job_id))
                 device_thread.start()
         try:
+            set_thread_data(job_id)
             # kwargs is contained in an item called kwargs because of the apscheduler.add_job call
             res = func(*args, **kwargs['kwargs'])
             if job_id:
                 res = insert_job_id(res, job_id)
+            del thread_data.job_id
         except Exception as e:
             tb = traceback.format_exc()
             logger.debug("Exception traceback in job_wrapper: {}".format(tb))

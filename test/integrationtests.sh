@@ -44,7 +44,7 @@ sleep 3
 if ls -lh coverage/.coverage-* 2> /dev/null
 then
 	cp coverage/.coverage-* ../src/
-	docker exec docker_cnaas_api_1 /opt/cnaas/nosetests.sh
+	docker exec docker_cnaas_api_1 su -s /bin/bash -c /opt/cnaas/nosetests.sh - www-data
 	echo "Gathering coverage reports from unit tests:"
 	ls -lh coverage/.coverage-* 2> /dev/null
 	cp coverage/.coverage-nosetests ../src/

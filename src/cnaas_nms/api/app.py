@@ -23,6 +23,7 @@ from cnaas_nms.api.groups import api as groups_api
 from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.plugins import api as plugins_api
+from cnaas_nms.api.system import api as system_api
 
 from jwt.exceptions import DecodeError, InvalidSignatureError, \
     InvalidTokenError
@@ -94,6 +95,7 @@ api.add_namespace(groups_api)
 api.add_namespace(repository_api)
 api.add_namespace(settings_api)
 api.add_namespace(plugins_api)
+api.add_namespace(system_api)
 
 
 # SocketIO listen for new log messages

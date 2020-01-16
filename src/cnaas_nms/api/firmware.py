@@ -40,7 +40,7 @@ firmware_upgrade_model = api.model('firmware_upgrade', {
     'reboot': fields.Boolean(required=False)})
 
 
-def httpd_url() -> str:
+def get_httpd_url() -> str:
     apidata = get_apidata()
     httpd_url = 'https://cnaas_httpd/api/v1.0/firmware'
     if isinstance(apidata, dict) and 'httpd_url' in apidata:
@@ -59,7 +59,7 @@ def verify_tls() -> bool:
 @job_wrapper
 def get_firmware(**kwargs: dict) -> str:
     try:
-        res = requests.post(httpd_url(), json=kwargs,
+        res = requests.post(get_httpd_url(), json=kwargs,
                             verify=verify_tls())
         json_data = json.loads(res.content)
     except Exception as e:
@@ -73,7 +73,7 @@ def get_firmware(**kwargs: dict) -> str:
 @job_wrapper
 def get_firmware_chksum(**kwargs: dict) -> str:
     try:
-        url = httpd_url() + '/' + kwargs['filename']
+        url = get_httpd_url() + '/' + kwargs['filename']
         res = requests.get(url, verify=verify_tls())
         json_data = json.loads(res.content)
     except Exception as e:
@@ -87,7 +87,7 @@ def get_firmware_chksum(**kwargs: dict) -> str:
 @job_wrapper
 def remove_file(**kwargs: dict) -> str:
     try:
-        url = httpd_url() + '/' + kwargs['filename']
+        url = get_httpd_url() + '/' + kwargs['filename']
         res = requests.delete(url, verify=verify_tls())
         json_data = json.loads(res.content)
     except Exception as e:
@@ -101,7 +101,7 @@ def remove_file(**kwargs: dict) -> str:
 class FirmwareApi(Resource):
     @jwt_required
     @api.expect(firmware_model)
-    def post(self) -> dict:
+    def post(self) -> tuple:
         """ Download new firmware """
         json_data = request.get_json()
 
@@ -109,7 +109,7 @@ class FirmwareApi(Resource):
 
         if 'url' not in json_data:
             return empty_result(status='error',
-                                data='Missing parameter urö')
+                                data='Missing parameter url')
 
         if 'sha1' not in json_data:
             return empty_result(status='error',
@@ -135,10 +135,10 @@ class FirmwareApi(Resource):
         return res
 
     @jwt_required
-    def get(self) -> dict:
+    def get(self) -> tuple:
         """ Get firmwares """
         try:
-            res = requests.get(httpd_url(),
+            res = requests.get(get_httpd_url(),
                                verify=verify_tls())
             json_data = json.loads(res.content)
         except Exception as e:

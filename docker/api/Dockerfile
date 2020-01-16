@@ -37,10 +37,14 @@ RUN chown www-data:www-data /etc/cnaas-nms/repository.yml
 RUN chown -R  www-data:www-data /var/log/nginx/
 RUN chown -R www-data:www-data /var/lib/nginx
 RUN chown www-data:www-data /var/lib/nginx/
+# Give permission for API to clone/sync repos
 RUN chown www-data:www-data /opt/cnaas
 RUN chown -R www-data:www-data /opt/cnaas/templates
 RUN chown -R www-data:www-data /opt/cnaas/settings
-
+# Give permission for unittests
+RUN chown root:www-data /opt/cnaas/nosetests.sh
+RUN chmod g+rx /opt/cnaas/nosetests.sh
+RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src
 
 
 # Expose HTTPS

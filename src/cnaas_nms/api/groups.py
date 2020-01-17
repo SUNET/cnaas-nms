@@ -35,9 +35,8 @@ class GroupsApi(Resource):
     @jwt_required
     def get(self):
         """ Get all groups """
-        result = empty_result()
         tmpgroups = groups_populate()
-        result['data'] = {'groups': tmpgroups}
+        result = {'groups': tmpgroups}
         return empty_result(status='success', data=result)
 
 
@@ -45,9 +44,8 @@ class GroupsApiById(Resource):
     @jwt_required
     def get(self, group_name):
         """ Get a single group by ID """
-        result = empty_result()
         tmpgroups = groups_populate(group_name)
-        result['data'] = {'groups': tmpgroups}
+        result = {'groups': tmpgroups}
         return empty_result(status='success', data=result)
 
 

@@ -65,6 +65,10 @@ class f_syslog_server(BaseModel):
     host: str = host_schema
 
 
+class f_snmp_server(BaseModel):
+    host: str = host_schema
+
+
 class f_evpn_spine(BaseModel):
     hostname: str = hostname_schema
 
@@ -139,6 +143,7 @@ class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
     syslog_servers: List[f_syslog_server] = []
+    snmp_servers: List[f_snmp_server] = []
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
     vxlans: Dict[str, f_vxlan] = {}
@@ -146,6 +151,8 @@ class f_root(BaseModel):
     evpn_spines: List[f_evpn_spine] = []
     extroute_static: Optional[f_extroute_static]
     extroute_ospfv3: Optional[f_extroute_ospfv3]
+    cli_prepend_str: str = ""
+    cli_append_str: str = ""
 
 
 class f_group_item(BaseModel):

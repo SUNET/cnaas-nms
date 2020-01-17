@@ -78,13 +78,14 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
 
         res = task.run(netmiko_send_command,
                        command_string=firmware_download_cmd.replace("//", "/"),
-                       delay_factor=10,
-                       max_loops=3600)
+                       delay_factor=30,
+                       max_loops=200,
+                       expect_string='.*Copy completed successfully.*')
         print_result(res)
     except Exception as e:
         logger.info('{} failed to download firmware: {}'.format(
             task.host.name, e))
-        raise e
+        raise Exception('Failed to download firmware')
 
     return "Firmware download done."
 
@@ -131,7 +132,7 @@ def arista_firmware_activate(task, filename: str) -> None:
 
     except Exception as e:
         logger.exception('Failed to activate firmware: {}'.format(str(e)))
-        raise e
+        raise Exception('Failed to activate firmware')
 
     return "Firmware activate done."
 
@@ -169,8 +170,8 @@ def arista_device_reboot(task) -> None:
 
 def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
                         url: str,
-                        download: Optional[bool] = True,
-                        pre_flight: Optional[bool] = True,
+                        download: Optional[bool] = False,
+                        pre_flight: Optional[bool] = False,
                         activate: Optional[bool] = False) -> NornirJobResult:
 
     # If pre-flight is selected, execute the pre-flight task which
@@ -183,7 +184,7 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
         except Exception as e:
             logger.exception("Exception while doing pre-flight check: {}".
                              format(str(e)))
-            raise e
+            raise Exception('Pre-flight check failed')
         else:
             if res.failed:
                 logger.exception('Pre-flight check failed for: {}'.format(

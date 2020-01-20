@@ -27,24 +27,23 @@ class ApiTests(unittest.TestCase):
         pass
 
     def test_get_single_device(self):
-        device_id = 1
-        result = self.client.get(f'/api/v1.0/device/{device_id}')
+        hostname = "eosdist1"
+        result = self.client.get(
+            f'/api/v1.0/devices',
+            params={"filter[hostname]": hostname}
+        )
 
-        pprint.pprint(result.json)
-
-         # 200 OK
+        # 200 OK
         self.assertEqual(result.status_code, 200)
         # Succes in json
         self.assertEqual(result.json['status'], 'success')
         # Exactly one result
         self.assertEqual(len(result.json['data']['devices']), 1)
         # The one result should have the same ID we asked for
-        self.assertEqual(result.json['data']['devices'][0]['id'], device_id)
+        self.assertEqual(result.json['data']['devices'][0]['hostname'], hostname)
 
     def test_get_last_job(self):
-        result = self.client.get('/api/v1.0/jobs?limit=1')
-
-        pprint.pprint(result.json)
+        result = self.client.get('/api/v1.0/jobs?per_page=1')
 
         # 200 OK
         self.assertEqual(result.status_code, 200)
@@ -54,7 +53,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(result.json['data']['jobs']), 1)
 
     def test_get_managementdomain(self):
-        result = self.client.get('/api/v1.0/mgmtdomains?limit=1')
+        result = self.client.get('/api/v1.0/mgmtdomains?per_page=1')
         # 200 OK
         self.assertEqual(result.status_code, 200)
         # Succes in json

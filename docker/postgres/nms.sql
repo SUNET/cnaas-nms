@@ -334,31 +334,84 @@ ALTER TABLE ONLY public.site ALTER COLUMN id SET DEFAULT nextval('public.site_id
 
 
 --
--- Name: device_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
+-- Data for Name: alembic_version; Type: TABLE DATA; Schema: public; Owner: cnaas
 --
 
-SELECT pg_catalog.setval('public.device_id_seq', 19, true);
-
-
---
--- Name: linknet_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.linknet_id_seq', 7, true);
+COPY public.alembic_version (version_num) FROM stdin;
+9478bbaf8010
+\.
 
 
 --
--- Name: mgmtdomain_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
+-- Data for Name: apscheduler_jobs; Type: TABLE DATA; Schema: public; Owner: cnaas
 --
 
-SELECT pg_catalog.setval('public.mgmtdomain_id_seq', 4, true);
+COPY public.apscheduler_jobs (id, next_run_time, job_state) FROM stdin;
+\.
+
+
+--
+-- Data for Name: device; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.device (id, hostname, site_id, description, management_ip, dhcp_ip, serial, ztp_mac, platform, vendor, model, os_version, synchronized, state, device_type, last_seen, confhash, infra_ip, oob_ip, port) FROM stdin;
+\.
+
+
+--
+-- Data for Name: interface; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.interface (device_id, name, configtype, data) FROM stdin;
+\.
+
+
+--
+-- Data for Name: joblock; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.joblock (jobid, name, start_time, abort) FROM stdin;
+\.
+
+
+--
+-- Data for Name: linknet; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.linknet (id, ipv4_network, device_a_id, device_a_ip, device_a_port, device_b_id, device_b_ip, device_b_port, site_id, description) FROM stdin;
+\.
+
+
+--
+-- Data for Name: mgmtdomain; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.mgmtdomain (id, ipv4_gw, device_a_id, device_a_ip, device_b_id, device_b_ip, site_id, vlan, description, esi_mac) FROM stdin;
+\.
+
+
+--
+-- Data for Name: reservedip; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.reservedip (device_id, ip, last_seen) FROM stdin;
+\.
+
+
+--
+-- Data for Name: site; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.site (id, description) FROM stdin;
+1	default
+\.
 
 
 --
 -- Name: site_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
 --
 
-SELECT pg_catalog.setval('public.site_id_seq', 9, true);
+SELECT pg_catalog.setval('public.site_id_seq', 2, true);
 
 
 --

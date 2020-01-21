@@ -2,6 +2,7 @@ import os
 import re
 import pkg_resources
 from typing import List, Optional, Union, Tuple, Set, Dict
+from functools import lru_cache
 
 import yaml
 from pydantic.error_wrappers import ValidationError
@@ -141,7 +142,7 @@ def get_pydantic_error_value(data: dict, loc: tuple):
         return obj
 
 
-def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
+def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> dict:
     """Verify settings syntax and return a somewhat helpful error message.
 
     Raises:
@@ -149,7 +150,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
     """
     logger = get_logger()
     try:
-        f_root(**settings_dict)
+        ret_dict = f_root(**settings_dict).dict()
     except ValidationError as e:
         msg = ''
         for num, error in enumerate(e.errors()):
@@ -174,6 +175,8 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict):
             msg += error_msg
         logger.error(msg)
         raise SettingsSyntaxError(msg)
+    else:
+        return ret_dict
 
 
 def check_settings_collisions(unique_vlans: bool = True):
@@ -294,8 +297,10 @@ def read_settings(local_repo_path: str, path: List[str], origin: str,
     filename = get_setting_filename(local_repo_path, path)
     with open(filename, 'r') as f:
         yamldata = yaml.safe_load(f)
-        if not yamldata or not isinstance(yamldata, dict):
-            logger.info("Empty/invalid yaml file ignored: {}".format(filename))
+        if not yamldata:
+            return merged_settings, merged_settings_origin
+        elif not isinstance(yamldata, dict):
+            logger.info("Invalid yaml file ignored: {}".format(filename))
             return merged_settings, merged_settings_origin
         settings: dict = yamldata
         if groups or hostname:
@@ -335,6 +340,9 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
             do_filter = False
             group_match = False
             hostname_match = False
+            if not v:
+                ret_d[k] = v
+                continue
             if k == 'groups':
                 if not v:
                     continue
@@ -390,6 +398,7 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
     return settings
 
 
+@lru_cache(1024)
 def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None) -> \
         Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
@@ -460,10 +469,17 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             local_repo_path, ['global', 'vxlans.yml'], 'global',
             settings, settings_origin, groups, hostname)
     # Verify syntax
-    check_settings_syntax(settings, settings_origin)
-    return f_root(**settings).dict(), settings_origin
+    verified_settings = check_settings_syntax(settings, settings_origin)
+    set_everything = set(settings)
+    set_model = set(verified_settings)
+    diff_model = set_everything - set_model
+    if diff_model:
+        logger.warn("Some configured settings are undefined in model: {}".format(
+            set_everything - set_model))
+    return verified_settings, settings_origin
 
 
+@lru_cache(2)
 def get_group_settings():
     logger = get_logger()
     settings: dict = {}
@@ -486,6 +502,7 @@ def get_group_settings():
     return f_groups(**settings).dict(), settings_origin
 
 
+@lru_cache(1024)
 def get_groups(hostname=''):
     groups = []
     settings, origin = get_group_settings()

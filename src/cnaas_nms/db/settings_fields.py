@@ -69,6 +69,10 @@ class f_snmp_server(BaseModel):
     host: str = host_schema
 
 
+class f_dhcp_relay(BaseModel):
+    host: str = host_schema
+
+
 class f_evpn_spine(BaseModel):
     hostname: str = hostname_schema
 
@@ -129,6 +133,7 @@ class f_vxlan(BaseModel):
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
     ipv4_gw: str = ipv4_if_schema
+    dhcp_relays: Optional[List[f_dhcp_relay]]
     groups: List[str] = []
     devices: List[str] = []
 
@@ -144,6 +149,7 @@ class f_root(BaseModel):
     radius_servers: List[f_radius_server] = []
     syslog_servers: List[f_syslog_server] = []
     snmp_servers: List[f_snmp_server] = []
+    dhcp_relays: Optional[List[f_dhcp_relay]]
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
     vxlans: Dict[str, f_vxlan] = {}

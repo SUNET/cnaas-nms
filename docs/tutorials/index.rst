@@ -3,8 +3,6 @@ Tutorials
 
 Tutorials to help you get started with using and understanding CNaaS
 
-Contents
-========
 .. toctree::
    :maxdepth: 1
 

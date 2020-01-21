@@ -1,8 +1,6 @@
 API Reference
 =============
 
-Contents
-========
 .. toctree::
    :maxdepth: 1
 
@@ -18,10 +16,5 @@ Contents
    syncto
    interfaces
    firmware
+   system
    
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

@@ -27,7 +27,6 @@ class VersionApi(Resource):
         version_str = cnaas_nms.version.__version__
         try:
             src_repo_path = dirname(dirname(dirname(cnaas_nms.version.__file__)))
-            print(src_repo_path)
             local_repo = Repo(src_repo_path)
             git_version_str = 'Git commit {} ({})'.format(
                 local_repo.head.commit.name_rev,

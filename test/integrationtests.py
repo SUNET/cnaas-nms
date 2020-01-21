@@ -233,6 +233,14 @@ class GetTests(unittest.TestCase):
         # TODO: not working
         #self.assertEqual(r.status_code, 200, "Failed to list firmware")
 
+    def test_8_sysversion(self):
+        r = requests.get(
+            f'{URL}/api/v1.0/system/version',
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to get CNaaS-NMS version")
+
+
 
 if __name__ == '__main__':
     unittest.main()

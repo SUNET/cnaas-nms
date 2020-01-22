@@ -11,7 +11,8 @@ import yaml
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings, get_group_settings, get_groups, \
-    SettingsSyntaxError, DIR_STRUCTURE, check_settings_collisions, VlanConflictError
+    read_settings_file, SettingsSyntaxError, DIR_STRUCTURE, check_settings_collisions, \
+    VlanConflictError
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.job import Job, JobStatus
@@ -162,14 +163,17 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
 
     if repo_type == RepoType.SETTINGS:
         try:
-            logger.debug("Settings LRU cache stats: settings: {} group_settings: {} groups: {}".format(
+            logger.debug(("Settings LRU cache stats: settings: {} group_settings: {}"
+                          " groups: {} read_files: {}").format(
                 get_settings.cache_info(),
                 get_group_settings.cache_info(),
-                get_groups.cache_info()
+                get_groups.cache_info(),
+                read_settings_file.cache_info()
             ))
             get_settings.cache_clear()
             get_group_settings.cache_clear()
             get_groups.cache_clear()
+            read_settings_file.cache_clear()
             get_settings()
             test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
             for devtype in test_devtypes:

@@ -276,6 +276,13 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
                 device_vlan_names[hostname] = {vxlan_data['vlan_name']}
 
 
+@lru_cache(1024)
+def read_settings_file(filename):
+    with open(filename, 'r') as f:
+        return yaml.safe_load(f)
+
+
+
 def read_settings(local_repo_path: str, path: List[str], origin: str,
                   merged_settings, merged_settings_origin,
                   groups: List[str] = None, hostname: str = None) -> Tuple[dict, dict]:
@@ -295,19 +302,18 @@ def read_settings(local_repo_path: str, path: List[str], origin: str,
     """
     logger = get_logger()
     filename = get_setting_filename(local_repo_path, path)
-    with open(filename, 'r') as f:
-        yamldata = yaml.safe_load(f)
-        if not yamldata:
-            return merged_settings, merged_settings_origin
-        elif not isinstance(yamldata, dict):
-            logger.info("Invalid yaml file ignored: {}".format(filename))
-            return merged_settings, merged_settings_origin
-        settings: dict = yamldata
-        if groups or hostname:
-            syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings, {}, origin)
-            check_settings_syntax(syntax_dict, syntax_dict_origin)
-            settings = filter_yamldata(settings, groups, hostname)
-        return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
+    yamldata = read_settings_file(filename)
+    if not yamldata:
+        return merged_settings, merged_settings_origin
+    elif not isinstance(yamldata, dict):
+        logger.info("Invalid yaml file ignored: {}".format(filename))
+        return merged_settings, merged_settings_origin
+    settings: dict = yamldata
+    if groups or hostname:
+        syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings, {}, origin)
+        check_settings_syntax(syntax_dict, syntax_dict_origin)
+        settings = filter_yamldata(settings, groups, hostname)
+    return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
 
 
 def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, recdepth=100) -> \

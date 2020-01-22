@@ -1,4 +1,4 @@
-from os.path import dirname
+from os.path import dirname, abspath
 from flask_restplus import Resource, Namespace
 from flask_jwt_extended import jwt_required
 from git import Repo
@@ -26,7 +26,7 @@ class VersionApi(Resource):
     def get(self):
         version_str = cnaas_nms.version.__version__
         try:
-            src_repo_path = dirname(dirname(dirname(cnaas_nms.version.__file__)))
+            src_repo_path = dirname(dirname(dirname(abspath(cnaas_nms.version.__file__))))
             local_repo = Repo(src_repo_path)
             git_version_str = 'Git commit {} ({})'.format(
                 local_repo.head.commit.name_rev,

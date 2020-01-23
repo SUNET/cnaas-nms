@@ -431,48 +431,53 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
 
     # 2. Get settings repo global settings
     settings, settings_origin = read_settings(
-        local_repo_path, ['global', 'base_system.yml'], 'global', settings, settings_origin)
+        local_repo_path, ['global', 'base_system.yml'], 'global->base_system.yml',
+        settings, settings_origin)
     # 3. Get settings from special fabric classification (dist + core)
     if device_type and (device_type == DeviceType.DIST or device_type == DeviceType.CORE):
         settings, settings_origin = read_settings(
-            local_repo_path, ['fabric', 'base_system.yml'], 'fabric',
+            local_repo_path, ['fabric', 'base_system.yml'], 'fabric->base_system.yml',
             settings, settings_origin)
     # 4. Get settings repo device type settings
     if device_type:
         if device_type == DeviceType.UNKNOWN:
             raise ValueError("It's not possible to get settings for devices with type UNKNOWN")
         settings, settings_origin = read_settings(
-            local_repo_path, [device_type.name.lower(), 'base_system.yml'], 'devicetype',
+            local_repo_path, [device_type.name.lower(), 'base_system.yml'],
+            'devicetype->base_system.yml',
             settings, settings_origin)
     # 5. Get settings repo device specific settings
     if hostname:
         # Some settings parsing require knowledge of group memberships
         groups = get_groups(hostname)
         settings, settings_origin = read_settings(
-            local_repo_path, ['global', 'routing.yml'], 'global',
+            local_repo_path, ['global', 'routing.yml'], 'global->routing.yml',
             settings, settings_origin, groups)
         settings, settings_origin = read_settings(
-            local_repo_path, ['global', 'vxlans.yml'], 'global',
+            local_repo_path, ['global', 'vxlans.yml'], 'global->vxlans.yml',
             settings, settings_origin, groups, hostname)
         settings = get_downstream_dependencies(hostname, settings)
         if os.path.isdir(os.path.join(local_repo_path, 'devices', hostname)):
             settings, settings_origin = read_settings(
-                local_repo_path, ['devices', hostname, 'base_system.yml'], 'device',
+                local_repo_path, ['devices', hostname, 'base_system.yml'],
+                'device->{}->base_system.yml'.format(hostname),
                 settings, settings_origin)
             settings, settings_origin = read_settings(
-                local_repo_path, ['devices', hostname, 'interfaces.yml'], 'device',
+                local_repo_path, ['devices', hostname, 'interfaces.yml'],
+                'device->{}->interfaces.yml'.format(hostname),
                 settings, settings_origin)
             settings, settings_origin = read_settings(
-                local_repo_path, ['devices', hostname, 'routing.yml'], 'device',
+                local_repo_path, ['devices', hostname, 'routing.yml'],
+                'device->{}->routing.yml'.format(hostname),
                 settings, settings_origin, groups)
     else:
         # Some settings parsing require knowledge of group memberships
         groups = []
         settings, settings_origin = read_settings(
-            local_repo_path, ['global', 'routing.yml'], 'global',
+            local_repo_path, ['global', 'routing.yml'], 'global->routing.yml',
             settings, settings_origin, groups)
         settings, settings_origin = read_settings(
-            local_repo_path, ['global', 'vxlans.yml'], 'global',
+            local_repo_path, ['global', 'vxlans.yml'], 'global->vxlans.yml',
             settings, settings_origin, groups, hostname)
     # Verify syntax
     verified_settings = check_settings_syntax(settings, settings_origin)

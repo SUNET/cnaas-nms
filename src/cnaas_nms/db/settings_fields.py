@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict
 
-from pydantic import BaseModel, Schema
+from pydantic import BaseModel, Field
 
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
@@ -22,27 +22,29 @@ IPV6_REGEX = (
 FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z0-9-]{1,63}\.?)+'
 HOST_REGEX = f"^({IPV4_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
-host_schema = Schema(..., regex=HOST_REGEX, max_length=253)
-hostname_schema = Schema(..., regex=HOSTNAME_REGEX, max_length=253)
-ipv4_schema = Schema(..., regex=f"^{IPV4_REGEX}$")
+host_schema = Field(..., regex=HOST_REGEX, max_length=253)
+hostname_schema = Field(..., regex=HOSTNAME_REGEX, max_length=253)
+ipv4_schema = Field(..., regex=f"^{IPV4_REGEX}$")
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
-ipv4_if_schema = Schema(..., regex=f"^{IPV4_IF_REGEX}$")
-ipv6_schema = Schema(..., regex=f"^{IPV6_REGEX}$")
+ipv4_if_schema = Field(..., regex=f"^{IPV4_IF_REGEX}$")
+ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
-ipv6_if_schema = Schema(..., regex=f"^{IPV6_IF_REGEX}$")
+ipv6_if_schema = Field(..., regex=f"^{IPV6_IF_REGEX}$")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
 VLAN_NAME_REGEX = r'^[a-zA-Z][a-zA-Z0-9-_]{0,31}$'
-vlan_name_schema = Schema(..., regex=VLAN_NAME_REGEX,
+vlan_name_schema = Field(..., regex=VLAN_NAME_REGEX,
                           description="Max 32 alphanumeric chars, " +
                                       "beginning with a non-numeric character")
-vlan_id_schema = Schema(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
-vxlan_vni_schema = Schema(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
-vrf_id_schema = Schema(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
+vlan_id_schema = Field(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
+vxlan_vni_schema = Field(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
+vrf_id_schema = Field(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
+mtu_schema = Field(None, ge=68, le=9214,
+                    description="MTU (Maximum transmission unit) value between 68-9214")
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
-group_name = Schema(..., regex=GROUP_NAME, max_length=253)
+group_name = Field(..., regex=GROUP_NAME, max_length=253)
 
 
 # Note: If specifying a list of a BaseModel derived class anywhere else except
@@ -134,6 +136,7 @@ class f_vxlan(BaseModel):
     vlan_name: str = vlan_name_schema
     ipv4_gw: str = ipv4_if_schema
     dhcp_relays: Optional[List[f_dhcp_relay]]
+    mtu: Optional[int] = mtu_schema
     groups: List[str] = []
     devices: List[str] = []
 

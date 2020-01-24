@@ -11,12 +11,13 @@ from redis_lru import RedisLRU
 from cnaas_nms.db.settings_fields import f_root, f_groups
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, get_dbdata
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.tools.log import get_logger
 
 
-redis_client = redis.StrictRedis()
+db_data = get_dbdata()
+redis_client = redis.StrictRedis(host=db_data['redis_hostname'], port=6379)
 redis_lru_cache = RedisLRU(redis_client)
 
 

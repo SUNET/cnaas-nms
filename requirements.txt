@@ -2,9 +2,9 @@ alembic==1.0.10
 APScheduler==3.5.3
 coverage==4.5.3
 Flask-Cors==3.0.8
-Flask-RESTPlus==0.13.0
-Flask-SocketIO==4.2.1
 Flask-JWT-Extended==3.24.0
+flask-restplus==0.13.0
+Flask-SocketIO==4.2.1
 gevent==1.4.0
 GitPython==2.1.11
 mypy==0.670
@@ -15,6 +15,7 @@ pluggy==0.12.0
 psycopg2==2.7.7
 psycopg2-binary==2.7.7
 redis==3.3.8
+redis-lru==0.1.0
 Sphinx==2.0.1
 SQLAlchemy==1.3.0b2
 sqlalchemy-stubs==0.1

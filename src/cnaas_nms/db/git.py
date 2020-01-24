@@ -7,14 +7,14 @@ from git import Repo
 from git import InvalidGitRepositoryError, NoSuchPathError
 from git.exc import NoSuchPathError, GitCommandError
 import yaml
+from redis_lru import RedisLRU
 
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.settings import get_settings, get_group_settings, get_groups, \
-    read_settings_file, SettingsSyntaxError, DIR_STRUCTURE, check_settings_collisions, \
-    VlanConflictError
+from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
+    check_settings_collisions, VlanConflictError
 from cnaas_nms.db.device import Device, DeviceType
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 
@@ -163,17 +163,10 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
 
     if repo_type == RepoType.SETTINGS:
         try:
-            logger.debug(("Settings LRU cache stats: settings: {} group_settings: {}"
-                          " groups: {} read_files: {}").format(
-                get_settings.cache_info(),
-                get_group_settings.cache_info(),
-                get_groups.cache_info(),
-                read_settings_file.cache_info()
-            ))
-            get_settings.cache_clear()
-            get_group_settings.cache_clear()
-            get_groups.cache_clear()
-            read_settings_file.cache_clear()
+            logger.debug("Clearing redis-lru cache for settings")
+            with redis_session() as redis_db:
+                cache = RedisLRU(redis_db)
+                cache.clear_all_cache()
             get_settings()
             test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
             for devtype in test_devtypes:

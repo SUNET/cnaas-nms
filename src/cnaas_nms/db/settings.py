@@ -142,6 +142,27 @@ def get_pydantic_error_value(data: dict, loc: tuple):
         return obj
 
 
+def get_pydantic_field_descr(schema: dict, loc: tuple):
+    """Get the description from a pydantic Field definition based on a model
+    schema and a "loc" tuple from pydantic ValidatorError.errors() """
+    next_schema = None
+    for loc_part in loc:
+        if next_schema and '$ref' in next_schema:
+            ref_to = next_schema['$ref'].split('/')[2]
+            next_schema = schema['definitions'][ref_to]['properties'][loc_part]
+        elif next_schema:
+            if type(loc_part) == int:
+                next_schema = next_schema['items']
+            else:
+                next_schema = schema['definitions'][next_schema]['properties'][loc_part]
+        else:
+            next_schema = schema['properties'][loc_part]
+    if 'description' in next_schema:
+        return next_schema['description']
+    else:
+        return None
+
+
 def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> dict:
     """Verify settings syntax and return a somewhat helpful error message.
 
@@ -171,9 +192,17 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
                 get_pydantic_error_value(settings_dict, loc),
                 origin
             )
-            error_msg += "Message: {}\n".format(error['msg'])
+            try:
+                pydantic_descr = get_pydantic_field_descr(f_root.schema(), loc)
+                if pydantic_descr:
+                    pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
+                else:
+                    pydantic_descr_msg = ""
+            except Exception as e:
+                logger.exception(e)
+                pydantic_descr_msg = ", exception while getting pydantic description"
+            error_msg += "Message: {}{}\n".format(error['msg'], pydantic_descr_msg)
             msg += error_msg
-        logger.error(msg)
         raise SettingsSyntaxError(msg)
     else:
         return ret_dict
@@ -280,7 +309,6 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
 def read_settings_file(filename):
     with open(filename, 'r') as f:
         return yaml.safe_load(f)
-
 
 
 def read_settings(local_repo_path: str, path: List[str], origin: str,

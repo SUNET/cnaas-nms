@@ -19,17 +19,23 @@ IPV6_REGEX = (
     r'[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|'       # 1::3:4:5:6:7:8   1::3:4:5:6:7:8  1::8  
     r':((:[0-9a-fA-F]{1,4}){1,7}|:))'
 )
-FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z0-9-]{1,63}\.?)+'
+FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+'
 HOST_REGEX = f"^({IPV4_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
-host_schema = Field(..., regex=HOST_REGEX, max_length=253)
-hostname_schema = Field(..., regex=HOSTNAME_REGEX, max_length=253)
-ipv4_schema = Field(..., regex=f"^{IPV4_REGEX}$")
+host_schema = Field(..., regex=HOST_REGEX, max_length=253,
+                    description="Hostname, FQDN or IP address")
+hostname_schema = Field(..., regex=HOSTNAME_REGEX, max_length=253,
+                        description="Hostname or FQDN")
+ipv4_schema = Field(..., regex=f"^{IPV4_REGEX}$",
+                    description="IPv4 address")
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
-ipv4_if_schema = Field(..., regex=f"^{IPV4_IF_REGEX}$")
-ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$")
+ipv4_if_schema = Field(..., regex=f"^{IPV4_IF_REGEX}$",
+                       description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)")
+ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$",
+                    description="IPv6 address")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
-ipv6_if_schema = Field(..., regex=f"^{IPV6_IF_REGEX}$")
+ipv6_if_schema = Field(..., regex=f"^{IPV6_IF_REGEX}$",
+                       description="IPv6 address in CIDR/prefix notation (::/0)")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
@@ -42,6 +48,13 @@ vxlan_vni_schema = Field(..., gt=0, lt=16777215, description="VXLAN Network Iden
 vrf_id_schema = Field(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
 mtu_schema = Field(None, ge=68, le=9214,
                     description="MTU (Maximum transmission unit) value between 68-9214")
+IFNAME_REGEX = r'([a-zA-Z0-9\/\.:-])+'
+ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$",
+                      description="Interface name")
+IFCLASS_REGEX = r'(custom|downlink|uplink)'
+ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$",
+                       description="Interface class: custom, downlink or uplink")
+tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
@@ -61,10 +74,12 @@ class f_ntp_server(BaseModel):
 
 class f_radius_server(BaseModel):
     host: str = host_schema
+    port: Optional[int] = tcpudp_port_schema
 
 
 class f_syslog_server(BaseModel):
     host: str = host_schema
+    port: Optional[int] = tcpudp_port_schema
 
 
 class f_snmp_server(BaseModel):
@@ -80,8 +95,8 @@ class f_evpn_spine(BaseModel):
 
 
 class f_interface(BaseModel):
-    name: str
-    ifclass: str
+    name: str = ifname_schema
+    ifclass: str = ifclass_schema
     config: Optional[str] = None
 
 
@@ -94,7 +109,7 @@ class f_vrf(BaseModel):
 class f_ipv4_static_route(BaseModel):
     destination: str = ipv4_if_schema
     nexthop: str = ipv4_schema
-    interface: Optional[str] = None
+    interface: Optional[str] = ifname_schema
     name: str = "undefined"
     cli_append_str: str = ""
 
@@ -102,15 +117,15 @@ class f_ipv4_static_route(BaseModel):
 class f_ipv6_static_route(BaseModel):
     destination: str = ipv6_if_schema
     nexthop: str = ipv6_schema
-    interface: Optional[str] = None
+    interface: Optional[str] = ifname_schema
     name: str = "undefined"
     cli_append_str: str = ""
 
 
 class f_extroute_static_vrf(BaseModel):
     name: str
-    ipv4: List[f_ipv4_static_route]
-    ipv6: List[f_ipv6_static_route]
+    ipv4: Optional[List[f_ipv4_static_route]]
+    ipv6: Optional[List[f_ipv6_static_route]]
 
 
 class f_extroute_static(BaseModel):

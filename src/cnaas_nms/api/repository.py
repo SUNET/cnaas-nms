@@ -47,22 +47,22 @@ class RepositoryApi(Resource):
                     return empty_result(
                         'error',
                         "Repository structure is invalid ({}): {}".format(type(e).__name__, str(e))
-                    )
+                    ), 400
                 except JoblockError as e:
                     return empty_result(
                         'error',
                         "Another job is locking configuration of devices, try again later ({})".format(str(e))
-                    )
+                    ), 503
                 except SettingsSyntaxError as e:
                     return empty_result(
                         'error',
                         "Syntax error in repository: {}".format(str(e))
-                    )
+                    ), 400
                 except Exception as e:
                     return empty_result(
                         'error',
                         "Error in repository: {}".format(str(e))
-                    )
+                    ), 500
             else:
                 return empty_result('error', "Invalid action"), 400
         else:

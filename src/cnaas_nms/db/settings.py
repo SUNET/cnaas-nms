@@ -17,7 +17,10 @@ from cnaas_nms.tools.log import get_logger
 
 
 db_data = get_dbdata()
-redis_client = redis.StrictRedis(host=db_data['redis_hostname'], port=6379)
+redis_client = redis.StrictRedis(
+    host=db_data['redis_hostname'], port=6379,
+    retry_on_timeout=True, socket_keepalive=True
+)
 redis_lru_cache = RedisLRU(redis_client)
 
 

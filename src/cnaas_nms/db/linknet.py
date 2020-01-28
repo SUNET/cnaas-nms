@@ -89,5 +89,3 @@ class Linknet(cnaas_nms.db.base.Base):
         new_linknet.device_b_port = interface_b
         new_linknet.device_b_ip = ip_b
         return new_linknet
-
-

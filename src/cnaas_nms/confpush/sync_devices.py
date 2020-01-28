@@ -168,6 +168,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                 'mgmtdomains': [],
                 'asn': asn
             }
+            ifname_peer_map = dev.get_linknet_localif_mapping(session)
             if 'interfaces' in settings and settings['interfaces']:
                 for intf in settings['interfaces']:
                     ifindexnum = 0
@@ -176,10 +177,14 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     except ValueError as e:
                         pass
                     if 'ifclass' in intf and intf['ifclass'] == 'downlink':
+                        data = {}
+                        if intf['name'] in ifname_peer_map:
+                            data['description'] = ifname_peer_map[intf['name']]
                         dist_device_variables['interfaces'].append({
                             'name': intf['name'],
                             'ifclass': intf['ifclass'],
-                            'indexnum': ifindexnum
+                            'indexnum': ifindexnum,
+                            'data': data
                         })
                     elif 'ifclass' in intf and intf['ifclass'] == 'custom':
                         dist_device_variables['interfaces'].append({

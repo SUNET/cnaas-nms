@@ -26,14 +26,6 @@ script:
 #   room: "cnaas"
 
 extra_jobs:
-  - name: cnaas-httpd
-    git:
-      branch: develop
-    builders:
-      - docker
-    docker_name: cnaas/httpd
-    docker_context_dir: docker/httpd
-
   - name: cnaas-dhcpd
     git:
       branch: develop

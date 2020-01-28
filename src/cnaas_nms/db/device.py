@@ -116,7 +116,7 @@ class Device(cnaas_nms.db.base.Base):
                 ret.append(session.query(Device).filter(Device.id == linknet.device_a_id).one())
         return ret
 
-    def get_linknets(self, session):
+    def get_linknets(self, session) -> List[cnaas_nms.db.linknet.Linknet]:
         """Look up linknets and return a list of Linknet objects."""
         ret = []
         linknets = session.query(cnaas_nms.db.linknet.Linknet).\
@@ -127,6 +127,22 @@ class Device(cnaas_nms.db.base.Base):
             )
         for linknet in linknets:
             ret.append(linknet)
+        return ret
+
+    def get_linknet_localif_mapping(self, session) -> dict[str, str]:
+        """Return a mapping with local interface name and what peer device hostname
+        that interface is connected to."""
+        linknets: List[cnaas_nms.db.linknet.Linknet] = self.get_linknets(session)
+        ret = {}
+        for linknet in linknets:
+            if linknet.device_a == self:
+                ret[linknet.device_a_port] = linknet.device_b.hostname
+            elif linknet.device_b == self:
+                ret[linknet.device_b_port] = linknet.device_a.hostname
+            else:
+                raise Exception("Got invalid linknets for device {}: {}".format(
+                    self.hostname, linknets
+                ))
         return ret
 
     def get_link_to(self, session, peer_device: Device) -> Optional[cnaas_nms.db.linknet.Linknet]:

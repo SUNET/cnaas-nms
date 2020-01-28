@@ -45,7 +45,7 @@ python3 -m pip install -r requirements.txt
 #cd /opt/cnaas/venv/cnaas-nms/
 #git remote update
 #git fetch
-#git checkout --track origin/bugfix.lru_cache_multiprocess
+#git checkout --track feature.dist_downlink_description
 #python3 -m pip install -r requirements.txt
 
 chown -R www-data:www-data /opt/cnaas/settings

@@ -2,17 +2,26 @@ import os
 import re
 import pkg_resources
 from typing import List, Optional, Union, Tuple, Set, Dict
-from functools import lru_cache
 
 import yaml
 from pydantic.error_wrappers import ValidationError
+import redis
+from redis_lru import RedisLRU
 
 from cnaas_nms.db.settings_fields import f_root, f_groups
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, get_dbdata
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.tools.log import get_logger
+
+
+db_data = get_dbdata()
+redis_client = redis.StrictRedis(
+    host=db_data['redis_hostname'], port=6379,
+    retry_on_timeout=True, socket_keepalive=True
+)
+redis_lru_cache = RedisLRU(redis_client)
 
 
 class VerifyPathException(Exception):
@@ -305,7 +314,7 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
                 device_vlan_names[hostname] = {vxlan_data['vlan_name']}
 
 
-@lru_cache(1024)
+@redis_lru_cache
 def read_settings_file(filename):
     with open(filename, 'r') as f:
         return yaml.safe_load(f)
@@ -432,7 +441,7 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
     return settings
 
 
-@lru_cache(1024)
+@redis_lru_cache
 def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None) -> \
         Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
@@ -518,7 +527,7 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
     return verified_settings, settings_origin
 
 
-@lru_cache(2)
+@redis_lru_cache
 def get_group_settings():
     logger = get_logger()
     settings: dict = {}
@@ -541,7 +550,7 @@ def get_group_settings():
     return f_groups(**settings).dict(), settings_origin
 
 
-@lru_cache(1024)
+@redis_lru_cache
 def get_groups(hostname=''):
     groups = []
     settings, origin = get_group_settings()

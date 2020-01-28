@@ -41,6 +41,6 @@ python3 -m cnaas_nms.confpush.tests.test_get
 
 ## License
 
-Copyright (c) 2019, SUNET (BSD 2-clause license)
+Copyright (c) 2019 - 2020, SUNET (BSD 2-clause license)
 
 See LICENSE.txt for more info.

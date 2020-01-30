@@ -56,12 +56,16 @@ class InterfaceApi(Resource):
                     if not isinstance(if_dict, dict):
                         errors.append("Each interface must have a dict with data to update")
                         continue
-                    intfdata = {}
                     intf: Interface = session.query(Interface).filter(Interface.device == dev).\
                         filter(Interface.name == if_name).one_or_none()
                     if not intf:
                         errors.append(f"Interface {if_name} not found")
                         continue
+                    if intf.data and isinstance(intf.data, dict):
+                        intfdata_original = dict(intf.data)
+                        intfdata = dict(intf.data)
+                    else:
+                        intfdata = {}
 
                     if 'configtype' in if_dict:
                         configtype = if_dict['configtype'].upper()
@@ -113,7 +117,7 @@ class InterfaceApi(Resource):
                                 errors.append("Neighbor must be valid hostname, got: {}".format(
                                     if_dict['data']['neighbor']))
 
-                    if intfdata:
+                    if intfdata != intfdata_original:
                         intf.data = intfdata
                         updated = True
                         if if_name in data:

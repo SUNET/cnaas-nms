@@ -78,6 +78,8 @@ class InterfaceApi(Resource):
                             errors.append(f"Invalid configtype received: {configtype}")
 
                     if 'data' in if_dict:
+                        # TODO: maybe this validation should be done via
+                        #  pydantic if it gets more complex
                         if not device_settings:
                             device_settings, _ = get_settings(hostname, dev.device_type)
                         if 'vxlan' in if_dict['data']:
@@ -116,6 +118,27 @@ class InterfaceApi(Resource):
                             else:
                                 errors.append("Neighbor must be valid hostname, got: {}".format(
                                     if_dict['data']['neighbor']))
+                        if 'description' in if_dict['data']:
+                            if isinstance(if_dict['data']['description'], str) and \
+                                    len(if_dict['data']['description']) <= 64:
+                                if if_dict['data']['description']:
+                                    intfdata['description'] = if_dict['data']['description']
+                                elif 'description' in intfdata:
+                                    del intfdata['description']
+                            elif if_dict['data']['description'] is None:
+                                if 'description' in intfdata:
+                                    del intfdata['description']
+                            else:
+                                errors.append(
+                                    "Description must be a string of 0-64 characters for: {}".
+                                    format(if_dict['data']['description']))
+                        if 'enabled' in if_dict['data']:
+                            if type(if_dict['data']['enabled']) == bool:
+                                intfdata['enabled'] = if_dict['data']['enabled']
+                            else:
+                                errors.append(
+                                    "Enabled must be a bool, true or false, got: {}".
+                                    format(if_dict['data']['enabled']))
 
                     if intfdata != intfdata_original:
                         intf.data = intfdata

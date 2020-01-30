@@ -302,7 +302,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             logger.debug('Diff the configuration again, to make sure it is applied.')
             task.host.open_connection("napalm", configuration=task.nornir.config)
             task.run(task=networking.napalm_configure,
-                     name="Sync device config",
+                     name="Sync device compare diff after configuration",
                      replace=True,
                      configuration=task.host["config"],
                      dry_run=True)

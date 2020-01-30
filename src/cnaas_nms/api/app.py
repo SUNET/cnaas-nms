@@ -68,7 +68,6 @@ cors = CORS(app,
             expose_headers=["Content-Type", "Authorization", "X-Total-Count"])
 socketio = SocketIO(app, cors_allowed_origins='*')
 app.config['SECRET_KEY'] = os.urandom(128)
-app.config['JWT_PRIVATE_KEY'] = open('certs/private.pem').read()
 app.config['JWT_PUBLIC_KEY'] = open('certs/public.pem').read()
 app.config['JWT_IDENTITY_CLAIM'] = 'sub'
 app.config['JWT_ALGORITHM'] = 'ES256'

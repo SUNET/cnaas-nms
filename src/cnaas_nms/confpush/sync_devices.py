@@ -293,6 +293,27 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             task.host["change_score"] = calculate_score(config, diff)
         else:
             task.host["change_score"] = 0
+
+        # Since EOS can roll-back jobs _after_ NAPALM finishes, we
+        # must find a way to check if our configuration really was
+        # applied. Let's fetch the configuration again and see if we
+        # still have a diff, if we do we'll raise an exception.
+        if dry_run is False:
+            logger.debug('Diff the configuration again, to make sure it is applied.')
+            task.host.open_connection("napalm", configuration=task.nornir.config)
+            task.run(task=networking.napalm_configure,
+                     name="Sync device config",
+                     replace=True,
+                     configuration=task.host["config"],
+                     dry_run=True)
+            task.host.close_connection("napalm")
+
+            # If we have a new diff, our configuration was not applied.
+            if task.results[2].diff:
+                raise Exception('Configuration was not appöied on ' + task.host.hostname)
+            else:
+                logger.debug('Configuration applied on ' + task.host.hostname)
+
     if job_id:
         with redis_session() as db:
             db.lpush('finished_devices_' + str(job_id), task.host.name)

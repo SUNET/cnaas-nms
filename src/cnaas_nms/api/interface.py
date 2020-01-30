@@ -65,6 +65,7 @@ class InterfaceApi(Resource):
                         intfdata_original = dict(intf.data)
                         intfdata = dict(intf.data)
                     else:
+                        intfdata_original = {}
                         intfdata = {}
 
                     if 'configtype' in if_dict:

@@ -13,7 +13,7 @@ List all interfaces on device eosaccess
 
 ::
 
-   curl http://hostname/api/v1.0/interfaces/eosaccess
+   curl http://hostname/api/v1.0/device/eosaccess/interfaces
 
 The result will look something like this:
 
@@ -65,7 +65,7 @@ Set device eosaccess to use statically configured untagged VLAN with name "STUDE
 
 ::
 
-   curl https://hostname/api/v1.0/interfaces/eosaccess -d '{"interfaces": {"Ethernet1": {"configtype": "access_untagged", "data": {"untagged_vlan": "STUDENT"}}}}' -X PUT -H "Content-Type: application/json"
+   curl https://hostname/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"configtype": "access_untagged", "data": {"untagged_vlan": "STUDENT"}}}}' -X PUT -H "Content-Type: application/json"
 
 Response:
 

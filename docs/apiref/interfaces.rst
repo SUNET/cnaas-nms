@@ -13,7 +13,7 @@ List all interfaces on device eosaccess
 
 ::
 
-   curl http://hostname/api/v1.0/interfaces/eosaccess
+   curl http://hostname/api/v1.0/device/eosaccess/interfaces
 
 The result will look something like this:
 
@@ -65,7 +65,7 @@ Set device eosaccess to use statically configured untagged VLAN with name "STUDE
 
 ::
 
-   curl https://hostname/api/v1.0/interfaces/eosaccess -d '{"interfaces": {"Ethernet1": {"configtype": "access_untagged", "data": {"untagged_vlan": "STUDENT"}}}}' -X PUT -H "Content-Type: application/json"
+   curl https://hostname/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"configtype": "access_untagged", "data": {"untagged_vlan": "STUDENT"}}}}' -X PUT -H "Content-Type: application/json"
 
 Response:
 
@@ -137,3 +137,22 @@ was not present on this switch and therefore the VLAN list was not updated.
 You can check what VLAN names exist on a specific switch by using the /settings
 API call and specifying the hostname and then look for the vlan_name field
 under a specific vxlan.
+
+Data can also optionally contain a key called "description" to set a
+description for the interface, this should be a string 0-64 characters.
+
+Data can also optionally contain a key called "enabled" to set the
+administrative state of the interface. Defaults to enabled: true if not set.
+
+To disable a port:
+
+::
+
+  curl ${CNAASURL}/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"data": {"enabled": false, "description": "Disabled becasue of abuse 2020-01-30 by kosmoskatten"}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+
+To re-enable and unset description:
+
+::
+
+  curl ${CNAASURL}/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"data": {"enabled": true, "description": null}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+

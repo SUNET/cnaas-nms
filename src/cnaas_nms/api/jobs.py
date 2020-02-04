@@ -38,6 +38,7 @@ class JobsApi(Resource):
 
         resp = make_response(json.dumps(empty_result(status='success', data=data)), 200)
         resp.headers['X-Total-Count'] = total_count
+        resp.headers['Content-Type'] = 'application/json'
         return resp
 
 

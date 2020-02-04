@@ -151,7 +151,8 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     'name': intf.name,
                     'ifclass': intf.configtype.name,
                     'untagged_vlan': untagged_vlan,
-                    'tagged_vlan_list': tagged_vlan_list
+                    'tagged_vlan_list': tagged_vlan_list,
+                    'data': dict(intf.data)
                 })
 
             device_variables = {**access_device_variables, **device_variables}

@@ -140,6 +140,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             for intf in intfs:
                 untagged_vlan = None
                 tagged_vlan_list = []
+                intfdata = None
                 if intf.data:
                     if 'untagged_vlan' in intf.data:
                         untagged_vlan = resolve_vlanid(intf.data['untagged_vlan'],
@@ -147,12 +148,13 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     if 'tagged_vlan_list' in intf.data:
                         tagged_vlan_list = resolve_vlanid_list(intf.data['tagged_vlan_list'],
                                                                settings['vxlans'])
+                    intfdata = dict(intf.data)
                 access_device_variables['interfaces'].append({
                     'name': intf.name,
                     'ifclass': intf.configtype.name,
                     'untagged_vlan': untagged_vlan,
                     'tagged_vlan_list': tagged_vlan_list,
-                    'data': dict(intf.data)
+                    'data': intfdata
                 })
 
             device_variables = {**access_device_variables, **device_variables}

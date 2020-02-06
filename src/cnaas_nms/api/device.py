@@ -67,7 +67,9 @@ device_syncto_model = device_syncto_api.model('device_sync', {
     'all': fields.String(required=False),
     'dry_run': fields.String(required=False),
     'force': fields.String(required=False),
-    'auto_push': fields.String(required=False)})
+    'auto_push': fields.String(required=False),
+    'resync': fields.String(required=False)
+})
 
 
 class DeviceByIdApi(Resource):
@@ -307,6 +309,8 @@ class DeviceSyncApi(Resource):
             kwargs['force'] = json_data['force']
         if 'auto_push' in json_data and isinstance(json_data['auto_push'], bool):
             kwargs['auto_push'] = json_data['auto_push']
+        if 'resync' in json_data and isinstance(json_data['resync'], bool):
+            kwargs['resync'] = json_data['resync']
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(

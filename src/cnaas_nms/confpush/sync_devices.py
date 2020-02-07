@@ -521,7 +521,10 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     # set devices as synchronized if needed
     with sqla_session() as session:
         for hostname in changed_hosts:
-            if not dry_run:
+            if dry_run:
+                dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+                dev.synchronized = False
+            else:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
         for hostname in unchanged_hosts:

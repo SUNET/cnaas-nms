@@ -64,10 +64,13 @@ device_discover_model = device_discover_api.model('device_discover', {
 device_syncto_model = device_syncto_api.model('device_sync', {
     'hostname': fields.String(required=False),
     'device_type': fields.String(required=False),
-    'all': fields.String(required=False),
-    'dry_run': fields.String(required=False),
-    'force': fields.String(required=False),
-    'auto_push': fields.String(required=False)})
+    'group': fields.String(required=False),
+    'all': fields.Boolean(required=False),
+    'dry_run': fields.Boolean(required=False),
+    'force': fields.Boolean(required=False),
+    'auto_push': fields.Boolean(required=False),
+    'resync': fields.Boolean(required=False)
+})
 
 
 class DeviceByIdApi(Resource):
@@ -307,6 +310,8 @@ class DeviceSyncApi(Resource):
             kwargs['force'] = json_data['force']
         if 'auto_push' in json_data and isinstance(json_data['auto_push'], bool):
             kwargs['auto_push'] = json_data['auto_push']
+        if 'resync' in json_data and isinstance(json_data['resync'], bool):
+            kwargs['resync'] = json_data['resync']
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(

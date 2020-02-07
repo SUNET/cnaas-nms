@@ -391,7 +391,7 @@ def update_config_hash(task):
 def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
                  group: Optional[str] = None, dry_run: bool = True, force: bool = False,
                  auto_push: bool = False, job_id: Optional[int] = None,
-                 scheduled_by: Optional[str] = None) -> NornirJobResult:
+                 scheduled_by: Optional[str] = None, resync: bool = False) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
     of sync.
@@ -406,6 +406,8 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         auto_push: Automatically do live-run after dry-run if change score is low
         job_id: job_id provided by scheduler when adding a new job
         scheduled_by: Username from JWT
+        resync: Re-synchronize a device even if it's marked as synced in the
+                database, a device selected by hostname is always re-synced
 
     Returns:
         NornirJobResult
@@ -414,12 +416,23 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     if hostname:
         nr_filtered = nr.filter(name=hostname).filter(managed=True)
-    elif device_type:
-        nr_filtered = nr.filter(F(groups__contains='T_'+device_type))  # device type
-    elif group:
-        nr_filtered = nr.filter(F(groups__contains=group))
     else:
-        nr_filtered = nr.filter(synchronized=False).filter(managed=True)  # all unsynchronized devices
+        if device_type:
+            nr_filtered = nr.filter(F(groups__contains='T_'+device_type)).filter(managed=True)
+        elif group:
+            nr_filtered = nr.filter(F(groups__contains=group)).filter(managed=True)
+        else:
+            # all devices
+            nr_filtered = nr.filter(managed=True)
+        if not resync:
+            pre_device_list = list(nr_filtered.inventory.hosts.keys())
+            nr_filtered = nr_filtered.filter(synchronized=False)
+            post_device_list = list(nr_filtered.inventory.hosts.keys())
+            already_synced_device_list = [x for x in pre_device_list if x not in post_device_list]
+            if already_synced_device_list:
+                logger.info("Device(s) already synchronized, skipping: {}".format(
+                    already_synced_device_list
+                ))
 
     device_list = list(nr_filtered.inventory.hosts.keys())
     logger.info("Device(s) selected for synchronization: {}".format(
@@ -508,7 +521,10 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     # set devices as synchronized if needed
     with sqla_session() as session:
         for hostname in changed_hosts:
-            if not dry_run:
+            if dry_run:
+                dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+                dev.synchronized = False
+            else:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
         for hostname in unchanged_hosts:

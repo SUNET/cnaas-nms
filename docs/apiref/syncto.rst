@@ -50,6 +50,10 @@ Arguments:
  - auto_push: If you specify a single device by hostname and do a dry_run, setting this option
    will cause CNaaS to automatically push the configuration to committed/live state after
    doing the dry run if the change impact score (see :ref:`change_impact_score`) is very low.
+ - resync: By default devices that are marked as synchronized in the database will not be
+   re-synchronized, if you specify this option as true then all devices will be checked.
+   This option does not affect syncto jobs with a specified hostname, when you select only
+   a single device via hostname it's always re-synchronized. Defaults to false.
 
 If neither hostname or device_type is specified all devices that needs to be sycnhronized
 will be selected.

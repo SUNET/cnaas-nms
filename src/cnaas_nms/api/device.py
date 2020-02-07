@@ -64,11 +64,12 @@ device_discover_model = device_discover_api.model('device_discover', {
 device_syncto_model = device_syncto_api.model('device_sync', {
     'hostname': fields.String(required=False),
     'device_type': fields.String(required=False),
-    'all': fields.String(required=False),
-    'dry_run': fields.String(required=False),
-    'force': fields.String(required=False),
-    'auto_push': fields.String(required=False),
-    'resync': fields.String(required=False)
+    'group': fields.String(required=False),
+    'all': fields.Boolean(required=False),
+    'dry_run': fields.Boolean(required=False),
+    'force': fields.Boolean(required=False),
+    'auto_push': fields.Boolean(required=False),
+    'resync': fields.Boolean(required=False)
 })
 
 

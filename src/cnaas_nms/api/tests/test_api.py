@@ -117,7 +117,7 @@ class ApiTests(unittest.TestCase):
         result = self.client.post('/api/v1.0/device_syncto', json=data)
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
-        self.assertEqual(type(result.json['job_id']), str)
+        self.assertEqual(type(result.json['job_id']), int)
 
     def test_get_interfaces(self):
         result = self.client.get("/api/v1.0/device/{}/interfaces".format(
@@ -293,6 +293,40 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
         # Exactly one result
         #self.assertEqual(len(result.json['data']['jobs']), 1)
+
+    def test_get_interface_status(self):
+        result = self.client.get(
+            "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device'])
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual('interface_status' in result.json['data'], True)
+
+    def test_bounce_interface(self):
+        # Bounce of uplink should give error 400
+        data = {'bounce_interfaces': [self.testdata['interface_uplink']]}
+        result = self.client.put(
+            "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json['status'], 'error')
+        # Bounce of non-existing interface should give error 400
+        data = {'bounce_interfaces': ['Ethernet999']}
+        result = self.client.put(
+            "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json['status'], 'error')
+        # Try to bounce client interface
+        data = {'bounce_interfaces': [self.testdata['interface_update']]}
+        result = self.client.put(
+            "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
 
 
 if __name__ == '__main__':

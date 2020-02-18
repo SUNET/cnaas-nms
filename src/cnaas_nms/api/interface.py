@@ -11,6 +11,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.version import __api_version__
 from cnaas_nms.confpush.sync_devices import resolve_vlanid, resolve_vlanid_list
+from cnaas_nms.confpush.interface_state import bounce_interfaces, get_interface_states
 
 
 api = Namespace('device', description='API for handling interfaces',
@@ -162,4 +163,53 @@ class InterfaceApi(Resource):
             return empty_result(status='success', data={'updated': data})
 
 
+class InterfaceStatusApi(Resource):
+    @jwt_required
+    def get(self, hostname):
+        """List all interfaces status"""
+        result = empty_result()
+        try:
+            result['data'] = {'interface_status': get_interface_states(hostname)}
+        except ValueError as e:
+            return empty_result(
+                'error',
+                "Could not get interface states, invalid input: {}".format(e)
+            ), 400
+        except Exception as e:
+            return empty_result(
+                'error',
+                "Could not get interface states, unknon exception: {}".format(e)
+            ), 400
+        return result
+
+    @jwt_required
+    def put(self, hostname):
+        """Bounce selected interfaces by appling bounce-down/bounce-up template"""
+        json_data = request.get_json()
+
+        if 'bounce_interfaces' in json_data and isinstance(json_data['bounce_interfaces'], list):
+            interfaces: List[str] = json_data['bounce_interfaces']
+            try:
+                bounce_success = bounce_interfaces(hostname, interfaces)
+            except ValueError as e:
+                return empty_result(status='error', data=str(e)), 400
+            except Exception as e:
+                return empty_result(status='error', data=str(e)), 500
+
+            if bounce_success:
+                return empty_result(
+                    status='success',
+                    data="Bounced interfaces: {}".format(', '.join(interfaces))
+                )
+            else:
+                return empty_result(
+                    status='success',
+                    data="No error, but no interfaces changed state: {}".
+                         format(', '.join(interfaces))
+                )
+        else:
+            return empty_result(status='error', data="Unknown action"), 400
+
+
 api.add_resource(InterfaceApi, '/<string:hostname>/interfaces')
+api.add_resource(InterfaceStatusApi, '/<string:hostname>/interface_status')

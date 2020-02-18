@@ -13,7 +13,7 @@ List all interfaces on device eosaccess
 
 ::
 
-   curl http://hostname/api/v1.0/device/eosaccess/interfaces
+   curl https://hostname/api/v1.0/device/eosaccess/interfaces
 
 The result will look something like this:
 
@@ -111,7 +111,7 @@ If you want to specify a statically configured port with tagged VLANs (trunk por
 
 ::
 
-  curl ${CNAASURL}/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"configtype": "access_tagged", "data": {"tagged_vlan_list": ["STUDENTT"]}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+  curl https://hostname/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"configtype": "access_tagged", "data": {"tagged_vlan_list": ["STUDENTT"]}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
 
 Response:
 
@@ -148,11 +148,64 @@ To disable a port:
 
 ::
 
-  curl ${CNAASURL}/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"data": {"enabled": false, "description": "Disabled becasue of abuse 2020-01-30 by kosmoskatten"}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+  curl https://hostname/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"data": {"enabled": false, "description": "Disabled becasue of abuse 2020-01-30 by kosmoskatten"}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
 
 To re-enable and unset description:
 
 ::
 
-  curl ${CNAASURL}/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"data": {"enabled": true, "description": null}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+  curl https://hostname/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"data": {"enabled": true, "description": null}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
 
+
+Show interface states
+---------------------
+
+To get the currently active state of interfaces on a device like admin state (is_up) etc, use:
+
+::
+
+   curl https://hostname/api/v1.0/device/eosaccess/interface_status
+
+Response:
+
+::
+
+   {
+       "status": "success",
+       "data": {
+           "interface_status": {
+               "Management1": {
+                   "is_up": true,
+                   "is_enabled": true,
+                   "description": "",
+                   "last_flapped": 1581950162.341227,
+                   "speed": 1000,
+                   "mac_address": "08:00:27:F5:D6:58"
+               }
+           }
+       }
+   }
+
+Bounce interfaces
+-----------------
+
+If you want to quickly disale and then re-enable an interface to reboot a PoE
+connected access point for example, you can use the "bounce interfaces" API.
+Send a list of interfaces to the specified device like this:
+
+::
+
+  curl https://hostname/api/v1.0/device/eosaccess/interface_status -d '{"bounce_interfaces": ["Ethernet1"]}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+
+Response:
+
+::
+
+   {
+       "status": "success",
+       "data": "Bounced interfaces: Ethernet1"
+   }
+
+
+You can only bounce non-uplink interfaces of ACCESS type switches. This is to prevent
+accidentally losing connectivity to the device.

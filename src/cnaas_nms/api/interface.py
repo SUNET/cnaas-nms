@@ -11,7 +11,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.version import __api_version__
 from cnaas_nms.confpush.sync_devices import resolve_vlanid, resolve_vlanid_list
-from cnaas_nms.confpush.interface_state import bounce_interfaces
+from cnaas_nms.confpush.interface_state import bounce_interfaces, get_interface_states
 
 
 api = Namespace('device', description='API for handling interfaces',
@@ -162,29 +162,29 @@ class InterfaceApi(Resource):
         else:
             return empty_result(status='success', data={'updated': data})
 
+
 class InterfaceStatusApi(Resource):
     @jwt_required
     def get(self, hostname):
         """List all interfaces status"""
         result = empty_result()
-        result['data'] = {'interface_status': []}
-        with sqla_session() as session:
-            dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
-            if not dev:
-                return empty_result('error', "Device not found"), 404
-            result['data']['hostname'] = dev.hostname
-            intfs = session.query(Interface).filter(Interface.device == dev).all()
-            intf: Interface
-            for intf in intfs:
-                result['data']['interfaces'].append(intf.as_dict())
+        try:
+            result['data'] = {'interface_status': get_interface_states(hostname)}
+        except ValueError as e:
+            return empty_result(
+                'error',
+                "Could not get interface states, invalid input: {}".format(e)
+            ), 400
+        except Exception as e:
+            return empty_result(
+                'error',
+                "Could not get interface states, unknon exception: {}".format(e)
+            ), 400
         return result
 
     @jwt_required
     def put(self, hostname):
-        """Take a map of interfaces and associated values to update.
-        Example:
-            {"interfaces": {"Ethernet1": {"configtype": "ACCESS_AUTO"}}}
-        """
+        """Bounce selected interfaces by appling bounce-down/bounce-up template"""
         json_data = request.get_json()
 
         if 'bounce_interfaces' in json_data and isinstance(json_data['bounce_interfaces'], list):

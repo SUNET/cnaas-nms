@@ -11,6 +11,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.version import __api_version__
 from cnaas_nms.confpush.sync_devices import resolve_vlanid, resolve_vlanid_list
+from cnaas_nms.confpush.interface_state import bounce_interfaces, get_interface_states
 
 
 api = Namespace('device', description='API for handling interfaces',
@@ -56,12 +57,17 @@ class InterfaceApi(Resource):
                     if not isinstance(if_dict, dict):
                         errors.append("Each interface must have a dict with data to update")
                         continue
-                    intfdata = {}
                     intf: Interface = session.query(Interface).filter(Interface.device == dev).\
                         filter(Interface.name == if_name).one_or_none()
                     if not intf:
                         errors.append(f"Interface {if_name} not found")
                         continue
+                    if intf.data and isinstance(intf.data, dict):
+                        intfdata_original = dict(intf.data)
+                        intfdata = dict(intf.data)
+                    else:
+                        intfdata_original = {}
+                        intfdata = {}
 
                     if 'configtype' in if_dict:
                         configtype = if_dict['configtype'].upper()
@@ -74,6 +80,8 @@ class InterfaceApi(Resource):
                             errors.append(f"Invalid configtype received: {configtype}")
 
                     if 'data' in if_dict:
+                        # TODO: maybe this validation should be done via
+                        #  pydantic if it gets more complex
                         if not device_settings:
                             device_settings, _ = get_settings(hostname, dev.device_type)
                         if 'vxlan' in if_dict['data']:
@@ -112,8 +120,29 @@ class InterfaceApi(Resource):
                             else:
                                 errors.append("Neighbor must be valid hostname, got: {}".format(
                                     if_dict['data']['neighbor']))
+                        if 'description' in if_dict['data']:
+                            if isinstance(if_dict['data']['description'], str) and \
+                                    len(if_dict['data']['description']) <= 64:
+                                if if_dict['data']['description']:
+                                    intfdata['description'] = if_dict['data']['description']
+                                elif 'description' in intfdata:
+                                    del intfdata['description']
+                            elif if_dict['data']['description'] is None:
+                                if 'description' in intfdata:
+                                    del intfdata['description']
+                            else:
+                                errors.append(
+                                    "Description must be a string of 0-64 characters for: {}".
+                                    format(if_dict['data']['description']))
+                        if 'enabled' in if_dict['data']:
+                            if type(if_dict['data']['enabled']) == bool:
+                                intfdata['enabled'] = if_dict['data']['enabled']
+                            else:
+                                errors.append(
+                                    "Enabled must be a bool, true or false, got: {}".
+                                    format(if_dict['data']['enabled']))
 
-                    if intfdata:
+                    if intfdata != intfdata_original:
                         intf.data = intfdata
                         updated = True
                         if if_name in data:
@@ -134,4 +163,53 @@ class InterfaceApi(Resource):
             return empty_result(status='success', data={'updated': data})
 
 
+class InterfaceStatusApi(Resource):
+    @jwt_required
+    def get(self, hostname):
+        """List all interfaces status"""
+        result = empty_result()
+        try:
+            result['data'] = {'interface_status': get_interface_states(hostname)}
+        except ValueError as e:
+            return empty_result(
+                'error',
+                "Could not get interface states, invalid input: {}".format(e)
+            ), 400
+        except Exception as e:
+            return empty_result(
+                'error',
+                "Could not get interface states, unknon exception: {}".format(e)
+            ), 400
+        return result
+
+    @jwt_required
+    def put(self, hostname):
+        """Bounce selected interfaces by appling bounce-down/bounce-up template"""
+        json_data = request.get_json()
+
+        if 'bounce_interfaces' in json_data and isinstance(json_data['bounce_interfaces'], list):
+            interfaces: List[str] = json_data['bounce_interfaces']
+            try:
+                bounce_success = bounce_interfaces(hostname, interfaces)
+            except ValueError as e:
+                return empty_result(status='error', data=str(e)), 400
+            except Exception as e:
+                return empty_result(status='error', data=str(e)), 500
+
+            if bounce_success:
+                return empty_result(
+                    status='success',
+                    data="Bounced interfaces: {}".format(', '.join(interfaces))
+                )
+            else:
+                return empty_result(
+                    status='success',
+                    data="No error, but no interfaces changed state: {}".
+                         format(', '.join(interfaces))
+                )
+        else:
+            return empty_result(status='error', data="Unknown action"), 400
+
+
 api.add_resource(InterfaceApi, '/<string:hostname>/interfaces')
+api.add_resource(InterfaceStatusApi, '/<string:hostname>/interface_status')

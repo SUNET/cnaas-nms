@@ -158,9 +158,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                 })
 
             device_variables = {**access_device_variables, **device_variables}
-        elif devtype == DeviceType.DIST:
+        elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
             asn = generate_asn(infra_ip)
-            dist_device_variables = {
+            fabric_device_variables = {
                 'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
                 'mgmt_prefixlen': 32,
                 'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
@@ -174,35 +174,36 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             ifname_peer_map = dev.get_linknet_localif_mapping(session)
             if 'interfaces' in settings and settings['interfaces']:
                 for intf in settings['interfaces']:
-                    ifindexnum = 0
                     try:
-                        ifindexnum = Interface.interface_index_num(intf['name'])
+                        ifindexnum: int = Interface.interface_index_num(intf['name'])
                     except ValueError as e:
-                        pass
+                        ifindexnum: int = 0
                     if 'ifclass' in intf and intf['ifclass'] == 'downlink':
                         data = {}
                         if intf['name'] in ifname_peer_map:
                             data['description'] = ifname_peer_map[intf['name']]
-                        dist_device_variables['interfaces'].append({
+                        fabric_device_variables['interfaces'].append({
                             'name': intf['name'],
                             'ifclass': intf['ifclass'],
                             'indexnum': ifindexnum,
                             'data': data
                         })
                     elif 'ifclass' in intf and intf['ifclass'] == 'custom':
-                        dist_device_variables['interfaces'].append({
+                        fabric_device_variables['interfaces'].append({
                             'name': intf['name'],
                             'ifclass': intf['ifclass'],
                             'config': intf['config'],
                             'indexnum': ifindexnum
                         })
-            for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
-                dist_device_variables['mgmtdomains'].append({
-                    'ipv4_gw': mgmtdom.ipv4_gw,
-                    'vlan': mgmtdom.vlan,
-                    'description': mgmtdom.description,
-                    'esi_mac': mgmtdom.esi_mac
-                })
+            if devtype == DeviceType.DIST:
+                for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
+                    fabric_device_variables['mgmtdomains'].append({
+                        'id': mgmtdom.id,
+                        'ipv4_gw': mgmtdom.ipv4_gw,
+                        'vlan': mgmtdom.vlan,
+                        'description': mgmtdom.description,
+                        'esi_mac': mgmtdom.esi_mac
+                    })
             # find fabric neighbors
             fabric_links = []
             for neighbor_d in dev.get_neighbors(session):
@@ -211,7 +212,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
                     neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
                     if local_if:
-                        dist_device_variables['interfaces'].append({
+                        fabric_device_variables['interfaces'].append({
                             'name': local_if,
                             'ifclass': 'fabric',
                             'ipv4if': local_ipif,
@@ -220,7 +221,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                             'peer_ip': str(neighbor_ip),
                             'peer_asn': generate_asn(neighbor_d.infra_ip)
                         })
-                        dist_device_variables['bgp_ipv4_peers'].append({
+                        fabric_device_variables['bgp_ipv4_peers'].append({
                             'peer_hostname': neighbor_d.hostname,
                             'peer_infra_lo': str(neighbor_d.infra_ip),
                             'peer_ip': str(neighbor_ip),
@@ -230,12 +231,12 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             for neighbor_d in get_evpn_spines(session, settings):
                 if neighbor_d.hostname == dev.hostname:
                     continue
-                dist_device_variables['bgp_evpn_peers'].append({
+                fabric_device_variables['bgp_evpn_peers'].append({
                     'peer_hostname': neighbor_d.hostname,
                     'peer_infra_lo': str(neighbor_d.infra_ip),
                     'peer_asn': generate_asn(neighbor_d.infra_ip)
                 })
-            device_variables = {**dist_device_variables, **device_variables}
+            device_variables = {**fabric_device_variables, **device_variables}
 
     # Add all environment variables starting with TEMPLATE_SECRET_ to
     # the list of configuration variables. The idea is to store secret

@@ -37,6 +37,9 @@ services:
       - type: volume
         source: cnaas-settings
         target: /opt/cnaas/settings
+      - type: volume
+        source: cnaas-jwtcert
+        target: /opt/cnaas/jwtcert
 
   cnaas_httpd:
     image:
@@ -112,4 +115,6 @@ volumes:
   cnaas-settings:
     external: true
   cnaas-postgres-data:
+    external: true
+  cnaas-jwtcert:
     external: true

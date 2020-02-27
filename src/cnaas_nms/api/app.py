@@ -1,4 +1,5 @@
 import os
+import sys
 
 from flask import Flask, render_template, request, g
 from flask_restplus import Api
@@ -24,6 +25,7 @@ from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.system import api as system_api
+from cnaas_nms.tools.get_apidata import get_apidata
 
 from jwt.exceptions import DecodeError, InvalidSignatureError, \
     InvalidTokenError
@@ -61,6 +63,12 @@ class CnaasApi(Api):
         return jsonify(data)
 
 
+try:
+    jwt_pubkey = open(get_apidata()['jwtcert']).read()
+except Exception as e:
+    print("Could not load public JWT cert from api.yml config: {}".format(e))
+    sys.exit(1)
+
 app = Flask(__name__)
 # TODO: make origins configurable
 cors = CORS(app,
@@ -68,7 +76,7 @@ cors = CORS(app,
             expose_headers=["Content-Type", "Authorization", "X-Total-Count"])
 socketio = SocketIO(app, cors_allowed_origins='*')
 app.config['SECRET_KEY'] = os.urandom(128)
-app.config['JWT_PUBLIC_KEY'] = open('certs/public.pem').read()
+app.config['JWT_PUBLIC_KEY'] = jwt_pubkey
 app.config['JWT_IDENTITY_CLAIM'] = 'sub'
 app.config['JWT_ALGORITHM'] = 'ES256'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False

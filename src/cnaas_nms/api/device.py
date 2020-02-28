@@ -117,6 +117,21 @@ class DeviceByIdApi(Resource):
             return empty_result(status='success', data={"updated_device": dev.as_dict()}), 200
 
 
+class DeviceByHostnameApi(Resource):
+    @jwt_required
+    def get(self, hostname):
+        """ Get a device from hostname """
+        result = empty_result()
+        result['data'] = {'devices': []}
+        with sqla_session() as session:
+            instance = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if instance:
+                result['data']['devices'].append(instance.as_dict())
+            else:
+                return empty_result('error', "Device not found"), 404
+        return result
+
+
 class DeviceApi(Resource):
     @jwt_required
     @device_api.expect(device_model)
@@ -361,6 +376,7 @@ class DeviceConfigApi(Resource):
 
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
+device_api.add_resource(DeviceByHostnameApi, '/<string:hostname>')
 device_api.add_resource(DeviceConfigApi, '/<string:hostname>/generate_config')
 device_api.add_resource(DeviceApi, '')
 devices_api.add_resource(DevicesApi, '')

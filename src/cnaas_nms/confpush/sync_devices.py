@@ -42,11 +42,11 @@ def generate_asn(ipv4_address: IPv4Address) -> Optional[int]:
 def get_evpn_spines(session, settings: dict):
     logger = get_logger()
     device_hostnames = []
-    for entry in settings['evpn_spines']:
+    for entry in settings['evpn_peers']:
         if 'hostname' in entry and Device.valid_hostname(entry['hostname']):
             device_hostnames.append(entry['hostname'])
         else:
-            logger.error("Invalid entry specified in settings->evpn_spine, ignoring: {}".format(entry))
+            logger.error("Invalid entry specified in settings->evpn_peers, ignoring: {}".format(entry))
     ret = []
     for hostname in device_hostnames:
         dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
@@ -227,7 +227,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                             'peer_ip': str(neighbor_ip),
                             'peer_asn': generate_asn(neighbor_d.infra_ip)
                         })
-            # populate evpn spines data
+            # populate evpn peers data
             for neighbor_d in get_evpn_spines(session, settings):
                 if neighbor_d.hostname == dev.hostname:
                     continue

@@ -103,8 +103,11 @@ The directory structure looks like this:
 
     + base_system.yml
     + interfaces.yml
+    + routing.yml
 
 routing.yml:
+
+Can contain the following dictionaries with specified keys:
 
 - underlay:
 
@@ -112,8 +115,9 @@ routing.yml:
     addresses for infrastructure links from (ex /31 between dist-core).
   * infra_lo_net: A /16 of IPv4 addresses that CNaaS-NMS can use to automatically assign
     addresses for infrastructure loopback interfaces from.
+  * mgmt_lo_net: A subnet for management loopbacks for dist/core devices.
 
-- evpn_spines:
+- evpn_peers:
 
   * hostname: A hostname of a CORE (or DIST) device from the device database.
     The other DIST switches participating in the VXLAN/EVPN fabric will establish
@@ -126,6 +130,18 @@ routing.yml:
     values for this VRF.
   * groups: A list of groups this VRF should be provisioned on.
 
+vxlans.yml:
+
+Contains a dictinary called "vxlans", which in turn has one dictinoary per vxlan, vxlan
+name is the dictionary key and dictionaly values are:
+
+  * vni: VXLAN ID, 1-16777215
+  * vrf: VRF name
+  * vlan_id: VLAN ID, 1-4095
+  * vlan_name: VLAN name, single word/no spaces, max 31 characters
+  * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24
+  * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
+    access switch the parent dist switch should be automatically provisioned.
 
 
 etc

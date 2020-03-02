@@ -35,7 +35,7 @@ def arista_pre_flight_check(task):
     logger.info("Pre-flight check for {}".format(task.host.name))
 
     flash_diskspace = 'bash timeout 5 df /mnt/flash | awk \'{print $4}\''
-    flash_cleanup = 'bash timeout 30 ls -t /mnt/flash/*.swi | tail -n +2 | xargs rm -f'
+    flash_cleanup = 'bash timeout 5 ls -t /mnt/flash/*.swi | tail -n +2 | grep -v `cut -d"/" -f2 /mnt/flash/boot-config` | xargs rm -f'
 
     # Get amount of free disk space
     res = task.run(napalm_cli, commands=[flash_diskspace])

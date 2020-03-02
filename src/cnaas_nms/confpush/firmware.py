@@ -67,15 +67,25 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
         Nothing.
 
     """
-    logger.info('Downloading firmware for {}'.format(task.host.name))
+    url = '{}/{}'.format(httpd_url, filename)
 
-    firmware_download_cmd = 'copy {}/{} flash:'.format(httpd_url, filename)
+    firmware_http_check_cmd = 'bash timeout 5 curl -Is --head {} | head -1'.format(url)
+    firmware_download_cmd = 'copy {} flash:'.format(url)
 
     try:
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#')
         print_result(res)
 
+        logger.info('Checking HTTP connectivity: ' + firmware_http_check_cmd)
+        res = task.run(netmiko_send_command,
+                       command_string=firmware_http_check_cmd,
+                       expect_string='.*OK.*',
+                       delay_factor=1,
+                       max_loops=2)
+        print_result(res)
+
+        logger.info('Downloading the firmware image')
         res = task.run(netmiko_send_command,
                        command_string=firmware_download_cmd.replace("//", "/"),
                        delay_factor=30,
@@ -232,14 +242,14 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
 
 
 @job_wrapper
-def device_upgrade(download: Optional[bool] = True,
-                   activate: Optional[bool] = True,
+def device_upgrade(download: Optional[bool] = False,
+                   activate: Optional[bool] = False,
                    filename: Optional[bool] = None,
                    group: Optional[str] = None,
                    hostname: Optional[str] = None,
                    url: Optional[str] = None,
                    job_id: Optional[str] = None,
-                   pre_flight: Optional[bool] = True,
+                   pre_flight: Optional[bool] = False,
                    reboot: Optional[bool] = False,
                    scheduled_by: Optional[str] = None) -> NornirJobResult:
 

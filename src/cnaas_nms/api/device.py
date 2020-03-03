@@ -173,7 +173,11 @@ class DevicesApi(Resource):
         total_count = 0
         with sqla_session() as session:
             query = session.query(Device, func.count(Device.id).over().label('total'))
-            query = build_filter(Device, query)
+            try:
+                query = build_filter(Device, query)
+            except Exception as e:
+                return empty_result(status='error',
+                                    data="Unable to filter devices: {}".format(e)), 400
             for instance in query:
                 data['devices'].append(instance.Device.as_dict())
                 total_count = instance.total

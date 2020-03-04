@@ -313,9 +313,11 @@ class DeviceSyncApi(Resource):
         elif 'all' in json_data and isinstance(json_data['all'], bool) and json_data['all']:
             what = "all devices"
             with sqla_session() as session:
-                total_count = session.query(Device). \
-                    filter(Device.state == DeviceState.MANAGED). \
-                    filter(Device.synchronized == False).count()
+                total_count_q = session.query(Device).filter(Device.state == DeviceState.MANAGED)
+                if 'resync' in json_data and isinstance(json_data['resync'], bool) and json_data['resync']:
+                    total_count = total_count_q.count()
+                else:
+                    total_count = total_count_q.filter(Device.synchronized == False).count()
         else:
             return empty_result(
                 status='error',

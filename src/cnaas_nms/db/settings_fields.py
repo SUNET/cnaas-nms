@@ -41,13 +41,14 @@ ipv6_if_schema = Field(..., regex=f"^{IPV6_IF_REGEX}$",
 # should not start with number according to some Juniper doc
 VLAN_NAME_REGEX = r'^[a-zA-Z][a-zA-Z0-9-_]{0,31}$'
 vlan_name_schema = Field(..., regex=VLAN_NAME_REGEX,
-                          description="Max 32 alphanumeric chars, " +
-                                      "beginning with a non-numeric character")
+                         description="Max 32 alphanumeric chars, " +
+                                     "beginning with a non-numeric character")
 vlan_id_schema = Field(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
 vxlan_vni_schema = Field(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
 vrf_id_schema = Field(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
 mtu_schema = Field(None, ge=68, le=9214,
-                    description="MTU (Maximum transmission unit) value between 68-9214")
+                   description="MTU (Maximum transmission unit) value between 68-9214")
+as_num_schema = Field(..., gt=0, lt=4294967296, description="BGP Autonomous System number, 1-4294967295")
 IFNAME_REGEX = r'([a-zA-Z0-9\/\.:-])+'
 ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$",
                       description="Interface name")
@@ -143,6 +144,35 @@ class f_extroute_ospfv3(BaseModel):
     vrfs: List[f_extroute_ospfv3_vrf]
 
 
+class f_extroute_bgp_neighbor_v4(BaseModel):
+    peer_ipv4: str = ipv4_schema
+    peer_as: int = as_num_schema
+    route_map_in: str = vlan_name_schema
+    route_map_out: str = vlan_name_schema
+    description: str = "undefined"
+    cli_append_str: str = ""
+
+
+class f_extroute_bgp_neighbor_v6(BaseModel):
+    peer_ipv6: str = ipv6_schema
+    peer_as: int = as_num_schema
+    route_map_in: str = vlan_name_schema
+    route_map_out: str = vlan_name_schema
+    description: str = "undefined"
+    cli_append_str: str = ""
+
+
+class f_extroute_bgp_vrf(BaseModel):
+    name: str
+    local_as: int = as_num_schema
+    neighbor_v4: Optional[List[f_extroute_bgp_neighbor_v4]]
+    neighbor_v6: Optional[List[f_extroute_bgp_neighbor_v6]]
+
+
+class f_extroute_bgp(BaseModel):
+    vrfs: List[f_extroute_bgp_vrf]
+
+
 class f_vxlan(BaseModel):
     description: str = None
     vni: int = vxlan_vni_schema
@@ -175,6 +205,7 @@ class f_root(BaseModel):
     evpn_spines: List[f_evpn_spine] = []
     extroute_static: Optional[f_extroute_static]
     extroute_ospfv3: Optional[f_extroute_ospfv3]
+    extroute_bgp: Optional[f_extroute_bgp]
     cli_prepend_str: str = ""
     cli_append_str: str = ""
 

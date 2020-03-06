@@ -130,6 +130,51 @@ Can contain the following dictionaries with specified keys:
     values for this VRF.
   * groups: A list of groups this VRF should be provisioned on.
 
+* extroute_static:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * ipv4:
+
+      * destination: IPv4 prefix
+      * nexthop: IPv4 nexthop address
+      * interface: Exiting interface (optional)
+      * name: Name/description of route (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this route (optional)
+
+* extroute_ospfv3:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * ipv4_redist_routefilter: Name of a route filter (route-map) that filters what should be redistributed into OSPF
+    * ipv6_redist_routefilter: Name of a route filter (route-map) that filters what should be redistributed into OSPF
+    * cli_append_str: Custom configuration to add for this VRF (optional)
+
+* extroute_bgp:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * local_as: AS number that CNaaS NMS devices will present themselves as
+    * neighbor_v4:
+
+      * peer_as: AS number the remote peer
+      * peer_ipv4: IPv4 address of peer
+      * route_map_in: Route-map to filter incoming routes
+      * route_map_out: Route-map to filter outgoing routes
+      * description: Description of remote peer (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this peer (optional)
+    * neighbor_v6:
+
+      * peer_as: AS number the remote peer
+      * peer_ipv6: IPv6 address of peer
+      * route_map_in: Route-map to filter incoming routes
+      * route_map_out: Route-map to filter outgoing routes
+      * description: Description of remote peer (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this peer (optional)
+
 vxlans.yml:
 
 Contains a dictinary called "vxlans", which in turn has one dictinoary per vxlan, vxlan

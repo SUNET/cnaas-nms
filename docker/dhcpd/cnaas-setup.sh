@@ -34,5 +34,7 @@ source bin/activate
 git clone https://github.com/SUNET/cnaas-nms.git
 cd cnaas-nms/
 git checkout develop
-python3 -m pip install -r requirements.txt
+#python3 -m pip install -r requirements.txt
+#minimal requirements for just dhcp-hook:
+python3 -m pip install requests pyyaml netaddr
 

@@ -19,7 +19,7 @@ with dry_run to preview changes::
 
     curl https://localhost/api/v1.0/repository/settings -d '{"action": "refresh"}' -X PUT -H "Content-Type: application/json"
     curl https://localhost/api/v1.0/device_syncto -d '{"hostname": "ex2300-top", "dry_run": true}' -X POST -H "Content-Type: application/json"
-    curl https://localhost/api/v1.0/jobs?limit=1
+    curl https://localhost/api/v1.0/jobs?per_page=1&sort=-id
 
 The API call to device_syncto will start a job running in the background on the API server. To
 show the progress/output of the job run the last command (/job) until you get a finished result.
@@ -90,7 +90,7 @@ initialize the device with a specified hostname and device type::
 
 Check job status to see progress, there should be two jobs running after each other, step1 and step2::
 
-    curl https://localhost/api/v1.0/jobs?limit=2
+    curl https://localhost/api/v1.0/jobs?per_page=1&sort=-id
 
 The first job will send a new base configuration to the device, this will move
 the device management to a tagged VLAN and set a static IP address amongst

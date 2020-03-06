@@ -6,7 +6,7 @@ The API is used to manage devices, interfaces and other objects used by the CNaa
 Show devices
 ------------
 
-A single device entry can be listed by device_id:
+A single device entry can be listed by device_id or hostname:
 
 ::
 

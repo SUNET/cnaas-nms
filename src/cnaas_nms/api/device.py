@@ -117,6 +117,21 @@ class DeviceByIdApi(Resource):
             return empty_result(status='success', data={"updated_device": dev.as_dict()}), 200
 
 
+class DeviceByHostnameApi(Resource):
+    @jwt_required
+    def get(self, hostname):
+        """ Get a device from hostname """
+        result = empty_result()
+        result['data'] = {'devices': []}
+        with sqla_session() as session:
+            instance = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if instance:
+                result['data']['devices'].append(instance.as_dict())
+            else:
+                return empty_result('error', "Device not found"), 404
+        return result
+
+
 class DeviceApi(Resource):
     @jwt_required
     @device_api.expect(device_model)
@@ -158,7 +173,11 @@ class DevicesApi(Resource):
         total_count = 0
         with sqla_session() as session:
             query = session.query(Device, func.count(Device.id).over().label('total'))
-            query = build_filter(Device, query)
+            try:
+                query = build_filter(Device, query)
+            except Exception as e:
+                return empty_result(status='error',
+                                    data="Unable to filter devices: {}".format(e)), 400
             for instance in query:
                 data['devices'].append(instance.Device.as_dict())
                 total_count = instance.total
@@ -294,9 +313,11 @@ class DeviceSyncApi(Resource):
         elif 'all' in json_data and isinstance(json_data['all'], bool) and json_data['all']:
             what = "all devices"
             with sqla_session() as session:
-                total_count = session.query(Device). \
-                    filter(Device.state == DeviceState.MANAGED). \
-                    filter(Device.synchronized == False).count()
+                total_count_q = session.query(Device).filter(Device.state == DeviceState.MANAGED)
+                if 'resync' in json_data and isinstance(json_data['resync'], bool) and json_data['resync']:
+                    total_count = total_count_q.count()
+                else:
+                    total_count = total_count_q.filter(Device.synchronized == False).count()
         else:
             return empty_result(
                 status='error',
@@ -361,6 +382,7 @@ class DeviceConfigApi(Resource):
 
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
+device_api.add_resource(DeviceByHostnameApi, '/<string:hostname>')
 device_api.add_resource(DeviceConfigApi, '/<string:hostname>/generate_config')
 device_api.add_resource(DeviceApi, '')
 devices_api.add_resource(DevicesApi, '')

@@ -95,7 +95,11 @@ class MgmtdomainsApi(Resource):
         filter_exp = None
         with sqla_session() as session:
             query = session.query(Mgmtdomain)
-            query = build_filter(Mgmtdomain, query).limit(limit_results())
+            try:
+                query = build_filter(Mgmtdomain, query).limit(limit_results())
+            except Exception as e:
+                return empty_result(status='error',
+                                    data="Unable to filter mgmtdomains: {}".format(e)), 400
             for instance in query:
                 result['data']['mgmtdomains'].append(instance.as_dict())
         return result

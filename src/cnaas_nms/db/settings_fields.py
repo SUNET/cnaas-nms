@@ -91,7 +91,7 @@ class f_dhcp_relay(BaseModel):
     host: str = host_schema
 
 
-class f_evpn_spine(BaseModel):
+class f_evpn_peer(BaseModel):
     hostname: str = hostname_schema
 
 
@@ -202,7 +202,7 @@ class f_root(BaseModel):
     vrfs: List[f_vrf] = []
     vxlans: Dict[str, f_vxlan] = {}
     underlay: f_underlay = None
-    evpn_spines: List[f_evpn_spine] = []
+    evpn_peers: List[f_evpn_peer] = []
     extroute_static: Optional[f_extroute_static]
     extroute_ospfv3: Optional[f_extroute_ospfv3]
     extroute_bgp: Optional[f_extroute_bgp]

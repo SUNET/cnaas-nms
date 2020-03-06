@@ -103,8 +103,11 @@ The directory structure looks like this:
 
     + base_system.yml
     + interfaces.yml
+    + routing.yml
 
 routing.yml:
+
+Can contain the following dictionaries with specified keys:
 
 - underlay:
 
@@ -112,8 +115,9 @@ routing.yml:
     addresses for infrastructure links from (ex /31 between dist-core).
   * infra_lo_net: A /16 of IPv4 addresses that CNaaS-NMS can use to automatically assign
     addresses for infrastructure loopback interfaces from.
+  * mgmt_lo_net: A subnet for management loopbacks for dist/core devices.
 
-- evpn_spines:
+- evpn_peers:
 
   * hostname: A hostname of a CORE (or DIST) device from the device database.
     The other DIST switches participating in the VXLAN/EVPN fabric will establish
@@ -126,6 +130,63 @@ routing.yml:
     values for this VRF.
   * groups: A list of groups this VRF should be provisioned on.
 
+* extroute_static:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * ipv4:
+
+      * destination: IPv4 prefix
+      * nexthop: IPv4 nexthop address
+      * interface: Exiting interface (optional)
+      * name: Name/description of route (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this route (optional)
+
+* extroute_ospfv3:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * ipv4_redist_routefilter: Name of a route filter (route-map) that filters what should be redistributed into OSPF
+    * ipv6_redist_routefilter: Name of a route filter (route-map) that filters what should be redistributed into OSPF
+    * cli_append_str: Custom configuration to add for this VRF (optional)
+
+* extroute_bgp:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * local_as: AS number that CNaaS NMS devices will present themselves as
+    * neighbor_v4:
+
+      * peer_as: AS number the remote peer
+      * peer_ipv4: IPv4 address of peer
+      * route_map_in: Route-map to filter incoming routes
+      * route_map_out: Route-map to filter outgoing routes
+      * description: Description of remote peer (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this peer (optional)
+    * neighbor_v6:
+
+      * peer_as: AS number the remote peer
+      * peer_ipv6: IPv6 address of peer
+      * route_map_in: Route-map to filter incoming routes
+      * route_map_out: Route-map to filter outgoing routes
+      * description: Description of remote peer (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this peer (optional)
+
+vxlans.yml:
+
+Contains a dictinary called "vxlans", which in turn has one dictinoary per vxlan, vxlan
+name is the dictionary key and dictionaly values are:
+
+  * vni: VXLAN ID, 1-16777215
+  * vrf: VRF name
+  * vlan_id: VLAN ID, 1-4095
+  * vlan_name: VLAN name, single word/no spaces, max 31 characters
+  * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24
+  * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
+    access switch the parent dist switch should be automatically provisioned.
 
 
 etc

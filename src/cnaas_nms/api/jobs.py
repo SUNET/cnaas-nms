@@ -31,7 +31,11 @@ class JobsApi(Resource):
         total_count = 0
         with sqla_session() as session:
             query = session.query(Job, func.count(Job.id).over().label('total'))
-            query = build_filter(Job, query)
+            try:
+                query = build_filter(Job, query)
+            except Exception as e:
+                return empty_result(status='error',
+                                    data="Unable to filter jobs: {}".format(e)), 400
             for instance in query:
                 data['jobs'].append(instance.Job.as_dict())
                 total_count = instance.total

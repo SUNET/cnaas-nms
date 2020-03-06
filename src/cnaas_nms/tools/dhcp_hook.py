@@ -2,15 +2,21 @@
 
 import os
 import sys
+import logging
 
 import requests
 import yaml
-
-import cnaas_nms.db.helper
-from cnaas_nms.tools.log import get_logger
+import netaddr
 
 
-logger = get_logger()
+logger = logging.getLogger('dhcp-hook')
+if not logger.handlers:
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
+    # stdout logging
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 
 def get_apidata(configfile='/etc/cnaas-nms/apiclient.yml'):
@@ -26,13 +32,21 @@ def get_jwt_token():
     return token
 
 
+def canonical_mac(mac):
+    """Return a standardized format of MAC-addresses for CNaaS to
+    store in databases etc."""
+    na_mac = netaddr.EUI(mac)
+    na_mac.dialect = netaddr.mac_bare
+    return str(na_mac)
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         return 1
 
     if sys.argv[1] == "commit":
         try:
-            ztp_mac = cnaas_nms.db.helper.canonical_mac(sys.argv[2])
+            ztp_mac = canonical_mac(sys.argv[2])
             dhcp_ip = sys.argv[3]
             platform = sys.argv[4]
         except Exception as e:

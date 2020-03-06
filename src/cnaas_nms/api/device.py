@@ -90,14 +90,26 @@ class DeviceByIdApi(Resource):
     @jwt_required
     def delete(self, device_id):
         """ Delete device from ID """
-        with sqla_session() as session:
-            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
-            if dev:
-                session.delete(dev)
-                session.commit()
-                return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
-            else:
-                return empty_result('error', "Device not found"), 404
+        json_data = request.get_json()
+
+        if 'factory_default' in json_data:
+            if isinstance(json_data['factory_default'], bool) and json_data['factory_default'] is True:
+                scheduler = Scheduler()
+                job_id = scheduler.add_onetime_job(
+                    'cnaas_nms.confpush.erase:device_erase',
+                    when=1,
+                    scheduled_by=get_jwt_identity(),
+                    kwargs={'device_id': device_id})
+                return empty_result(data='Scheduled job {} to factory default device'.format(job_id))
+        else:
+            with sqla_session() as session:
+                dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+                if dev:
+                    session.delete(dev)
+                    session.commit()
+                    return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
+                else:
+                    return empty_result('error', "Device not found"), 404
 
     @jwt_required
     @device_api.expect(device_model)

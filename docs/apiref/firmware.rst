@@ -151,9 +151,9 @@ The API method will accept a few parameters:
 * hostname: Optional. If a hostname is specified, this single device will be upgraded.
 * filename: Mandatory. Name of the new firmware, for example "test.swi".
 * url: Optional, can also be configured as an environment variable, FIRMQRE_URL. URL to the firmware storage, for example "http://hostname/firmware/". This should typically point to the CNaaS NMS server and files will be downloaded from the CNaaS HTTP server.
-* download: Optional, default is true. Only download the firmware.
-* pre_flight: Optional, default is true. If true, check disk-space etc before downloading the firmware.
-* activate: Optional, default is true. Control whether we should install the new firmware or not.
+* download: Optional, default is false. Only download the firmware.
+* pre_flight: Optional, default is false. If false, check disk-space etc before downloading the firmware.
+* activate: Optional, default is false. Control whether we should install the new firmware or not.
 * reboot: Optional, default is false. When the firmware is downloaded, reboot the switch.
 * start_at: Schedule a firmware upgrade to be started sometime in the future.
 

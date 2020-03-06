@@ -35,7 +35,7 @@ def arista_pre_flight_check(task):
     logger.info("Pre-flight check for {}".format(task.host.name))
 
     flash_diskspace = 'bash timeout 5 df /mnt/flash | awk \'{print $4}\''
-    flash_cleanup = 'bash timeout 30 ls -t /mnt/flash/*.swi | tail -n +2 | xargs rm -f'
+    flash_cleanup = 'bash timeout 30 ls -t /mnt/flash/*.swi | tail -n +2 | grep -v `cut -d"/" -f2 /mnt/flash/boot-config` | xargs rm -f'
 
     # Get amount of free disk space
     res = task.run(napalm_cli, commands=[flash_diskspace])
@@ -69,9 +69,17 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
     """
     logger.info('Downloading firmware for {}'.format(task.host.name))
 
-    firmware_download_cmd = 'copy {}/{} flash:'.format(httpd_url, filename)
-
     try:
+        with sqla_session() as session:
+            dev: Device = session.query(Device).\
+                filter(Device.hostname == task.host.name).one_or_none()
+            device_type = dev.device_type
+
+        if device_type == 'ACCESS':
+            firmware_download_cmd = 'copy {} flash:'.format(url)
+        else:
+            firmware_download_cmd = 'copy {} vrf MGMT flash:'.format(url)
+
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#')
         print_result(res)
@@ -232,14 +240,14 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
 
 
 @job_wrapper
-def device_upgrade(download: Optional[bool] = True,
-                   activate: Optional[bool] = True,
+def device_upgrade(download: Optional[bool] = False,
+                   activate: Optional[bool] = False,
                    filename: Optional[bool] = None,
                    group: Optional[str] = None,
                    hostname: Optional[str] = None,
                    url: Optional[str] = None,
                    job_id: Optional[str] = None,
-                   pre_flight: Optional[bool] = True,
+                   pre_flight: Optional[bool] = False,
                    reboot: Optional[bool] = False,
                    scheduled_by: Optional[str] = None) -> NornirJobResult:
 

@@ -1,6 +1,6 @@
 import json
 from flask import request, make_response
-from flask_restplus import Resource, Namespace, fields
+from flask_restx import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required
 from sqlalchemy import func
 

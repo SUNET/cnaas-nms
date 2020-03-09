@@ -3,7 +3,7 @@ APScheduler==3.6.3
 coverage==5.0.3
 Flask-Cors==3.0.8
 Flask-JWT-Extended==3.24.1
-flask-restplus==0.13.0
+flask-restx==0.1.1
 Flask-SocketIO==4.2.1
 gevent==1.4.0
 GitPython==3.1.0

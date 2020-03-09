@@ -2,7 +2,7 @@ import json
 from typing import Optional
 
 from flask import request, make_response
-from flask_restplus import Resource, Namespace, fields
+from flask_restx import Resource, Namespace, fields
 from sqlalchemy import func
 from nornir.core.filter import F
 

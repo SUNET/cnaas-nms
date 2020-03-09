@@ -9,11 +9,11 @@ disabled: false
 #   - cnaas-dhcpd
 #   - cnaas-api
 #   - cnaas-postgres
-  
-# git:
-#   branch: master
-#   extensions:
-#     shallow_clone: true
+
+git:
+  branch: develop
+  extensions:
+    shallow_clone: true
 
 script:
   - "ssh root@puckly.sunet.se /root/starttests.sh ${GIT_BRANCH}"
@@ -28,6 +28,8 @@ slack:
 
 extra_jobs:
   - name: cnaas-dhcpd
+    git:
+      branch: develop
     builders:
       - docker
     docker_name: cnaas/dhcpd
@@ -36,6 +38,8 @@ extra_jobs:
       - "v0.1.0"
 
   - name: cnaas-api
+    git:
+      branch: develop
     builders:
       - docker
     docker_name: cnaas/api
@@ -44,6 +48,8 @@ extra_jobs:
       - "v0.1.0"
 
   - name: cnaas-postgres
+    git:
+      branch: develop
     builders:
       - docker
     docker_name: cnaas/postgres

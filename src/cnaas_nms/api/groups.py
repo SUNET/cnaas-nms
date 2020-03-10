@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from flask_restplus import Resource, Namespace
+from flask_restx import Resource, Namespace
 from flask_jwt_extended import jwt_required
 
 from cnaas_nms.db.device import Device

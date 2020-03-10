@@ -2,7 +2,7 @@ import os
 import sys
 
 from flask import Flask, render_template, request, g
-from flask_restplus import Api
+from flask_restx import Api
 from flask_socketio import SocketIO, join_room
 from flask_jwt_extended import JWTManager, decode_token
 from flask_jwt_extended.exceptions import NoAuthorizationError

@@ -1,7 +1,7 @@
 from typing import List
 
 from flask import request
-from flask_restplus import Resource, Namespace, fields
+from flask_restx import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required
 
 from cnaas_nms.api.generic import empty_result

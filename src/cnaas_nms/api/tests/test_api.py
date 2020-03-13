@@ -5,56 +5,45 @@ import pkg_resources
 import os
 
 import unittest
-import cnaas_nms.api
-
-from flask import request
-from flask_restful import Resource
-
-from cnaas_nms.db.session import sqla_session, sqla_execute
-from cnaas_nms.db.groups import Groups, DeviceGroups
-
-from cnaas_nms.tools.testsetup import DockerTemporaryInstance
-from cnaas_nms.tools.testsetup import MongoTemporaryInstance
-
-from flask import request
-from flask_restful import Resource
-
-from cnaas_nms.db.session import sqla_session, sqla_execute
-from cnaas_nms.db.groups import Groups, DeviceGroups
+import cnaas_nms.api.app
+from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 
 class ApiTests(unittest.TestCase):
     def setUp(self):
-        self.client = cnaas_nms.api.app.test_client()
-        self.tmp_postgres = DockerTemporaryInstance()
-        self.tmp_mongo = MongoTemporaryInstance()
+        self.jwt_auth_token = None
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
+            if 'jwt_auth_token' in self.testdata:
+                self.jwt_auth_token = self.testdata['jwt_auth_token']
+        self.app = cnaas_nms.api.app.app
+        self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
+        self.client = self.app.test_client()
+#        self.tmp_postgres = PostgresTemporaryInstance()
 
     def tearDown(self):
-        self.tmp_postgres.shutdown()
-        self.tmp_mongo.shutdown()
+#        self.tmp_postgres.shutdown()
+        pass
 
     def test_get_single_device(self):
-        device_id = 1
-        result = self.client.get(f'/api/v1.0/device/{device_id}')
+        hostname = "eosdist1"
+        result = self.client.get(
+            f'/api/v1.0/devices',
+            params={"filter[hostname]": hostname}
+        )
 
-        pprint.pprint(result.json)
-
-         # 200 OK
+        # 200 OK
         self.assertEqual(result.status_code, 200)
         # Succes in json
         self.assertEqual(result.json['status'], 'success')
         # Exactly one result
         self.assertEqual(len(result.json['data']['devices']), 1)
         # The one result should have the same ID we asked for
-        self.assertEqual(result.json['data']['devices'][0]['id'], device_id)
+        self.assertEqual(result.json['data']['devices'][0]['hostname'], hostname)
 
     def test_get_last_job(self):
-        result = self.client.get('/api/v1.0/job?limit=1')
-
-        pprint.pprint(result.json)
+        result = self.client.get('/api/v1.0/jobs?per_page=1')
 
         # 200 OK
         self.assertEqual(result.status_code, 200)
@@ -64,7 +53,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(result.json['data']['jobs']), 1)
 
     def test_get_managementdomain(self):
-        result = self.client.get('/api/v1.0/mgmtdomain?limit=1')
+        result = self.client.get('/api/v1.0/mgmtdomains?per_page=1')
         # 200 OK
         self.assertEqual(result.status_code, 200)
         # Succes in json
@@ -114,21 +103,21 @@ class ApiTests(unittest.TestCase):
     def test_sync_devices_invalid_input(self):
         # Test invalid hostname
         data = {"hostname": "...", "dry_run": True}
-        result = self.client.post('/api/v1.0/device_sync', json=data)
+        result = self.client.post('/api/v1.0/device_syncto', json=data)
         self.assertEqual(result.status_code, 400)
 
         # Test invalid device_type
         data = {"device_type": "nonexistent", "dry_run": True}
-        result = self.client.post('/api/v1.0/device_sync', json=data)
+        result = self.client.post('/api/v1.0/device_syncto', json=data)
         self.assertEqual(result.status_code, 400)
 
     def test_sync_devices(self):
         # Test dry run sync of all devices
         data = {"all": True, "dry_run": True}
-        result = self.client.post('/api/v1.0/device_sync', json=data)
+        result = self.client.post('/api/v1.0/device_syncto', json=data)
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
-        self.assertEqual(type(result.json['job_id']), str)
+        self.assertEqual(type(result.json['job_id']), int)
 
     def test_get_interfaces(self):
         result = self.client.get("/api/v1.0/device/{}/interfaces".format(
@@ -137,7 +126,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
 
-    def test_update_interface(self):
+    def test_update_interface_configtype(self):
         ifname = self.testdata['interface_update']
         data = {
             "interfaces": {
@@ -152,7 +141,7 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
-        self.assertEqual(ifname in result.json['data']['updated'], True)
+#        self.assertEqual(ifname in result.json['data']['updated'], True)
         # Change back
         data['interfaces'][ifname]['configtype'] = "ACCESS_AUTO"
         result = self.client.put(
@@ -162,7 +151,119 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
         self.assertEqual(ifname in result.json['data']['updated'], True)
-        
+
+    def test_update_interface_data_untagged(self):
+        # Test untagged_vlan
+        ifname = self.testdata['interface_update']
+        data = {
+            "interfaces": {
+                ifname: {
+                    "data": {
+                        "untagged_vlan": self.testdata['untagged_vlan']
+                    }
+                }
+            }
+        }
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+#        self.assertEqual(ifname in result.json['data']['updated'], True)
+        # Test invalid
+        data['interfaces'][ifname]['data']['untagged_vlan'] = "thisshouldnetexist"
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json['status'], 'error')
+
+    def test_update_interface_data_tagged(self):
+        # Test tagged
+        ifname = self.testdata['interface_update']
+        data = {
+            "interfaces": {
+                ifname: {
+                    "data": {
+                        "tagged_vlan_list": self.testdata['tagged_vlan_list']
+                    }
+                }
+            }
+        }
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+#        self.assertEqual(ifname in result.json['data']['updated'], True)
+        # Test invalid
+        data['interfaces'][ifname]['data']['tagged_vlan_list'] = ["thisshouldnetexist"]
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json['status'], 'error')
+
+    def test_update_interface_data_description(self):
+        # Reset descr
+        ifname = self.testdata['interface_update']
+        data = {
+            "interfaces": {
+                ifname: {
+                    "data": {
+                        "description": None
+                    }
+                }
+            }
+        }
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        # Update descr
+        data['interfaces'][ifname]['data']['description'] = "Test update description"
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(ifname in result.json['data']['updated'], True)
+
+    def test_update_interface_data_enabled(self):
+        # Disable interface
+        ifname = self.testdata['interface_update']
+        data = {
+            "interfaces": {
+                ifname: {
+                    "data": {
+                        "enabled": False
+                    }
+                }
+            }
+        }
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        # Enable interface
+        data['interfaces'][ifname]['data']['enabled'] = True
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(ifname in result.json['data']['updated'], True)
+
     def test_add_new_device(self):
         data = {
             "hostname": "unittestdevice",
@@ -180,6 +281,50 @@ class ApiTests(unittest.TestCase):
             "device_type": "ACCESS",
         }
         result = self.client.post('/api/v1.0/device', json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+
+    def test_get_joblocks(self):
+        result = self.client.get('/api/v1.0/joblocks')
+
+        # 200 OK
+        self.assertEqual(result.status_code, 200)
+        # Success in json
+        self.assertEqual(result.json['status'], 'success')
+        # Exactly one result
+        #self.assertEqual(len(result.json['data']['jobs']), 1)
+
+    def test_get_interface_status(self):
+        result = self.client.get(
+            "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device'])
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual('interface_status' in result.json['data'], True)
+
+    def test_bounce_interface(self):
+        # Bounce of uplink should give error 400
+        data = {'bounce_interfaces': [self.testdata['interface_uplink']]}
+        result = self.client.put(
+            "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json['status'], 'error')
+        # Bounce of non-existing interface should give error 400
+        data = {'bounce_interfaces': ['Ethernet999']}
+        result = self.client.put(
+            "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.json['status'], 'error')
+        # Try to bounce client interface
+        data = {'bounce_interfaces': [self.testdata['interface_update']]}
+        result = self.client.put(
+            "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device']),
+            json=data
+        )
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
 

@@ -4,3 +4,4 @@ port: 5432
 username: cnaas
 password: cnaas
 database: cnaas
+redis_hostname: 127.0.0.1

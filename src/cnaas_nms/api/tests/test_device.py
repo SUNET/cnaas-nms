@@ -7,21 +7,24 @@ import unittest
 
 from cnaas_nms.api import app
 from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
-from cnaas_nms.tools.testsetup import MongoTemporaryInstance
+from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 
 class DeviceTests(unittest.TestCase):
     def setUp(self):
-        self.client = app.app.test_client()
-        self.tmp_postgres = PostgresTemporaryInstance()
-        self.tmp_mongo = MongoTemporaryInstance()
+        self.jwt_auth_token = None
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
+            if 'jwt_auth_token' in self.testdata:
+                self.jwt_auth_token = self.testdata['jwt_auth_token']
+        self.app = app.app
+        self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
+        self.client = self.app.test_client()
+        self.tmp_postgres = PostgresTemporaryInstance()
 
     def tearDown(self):
         self.tmp_postgres.shutdown()
-        self.tmp_mongo.shutdown()
 
     def test_0_add_invalid_device(self):
         device_data = {
@@ -40,7 +43,7 @@ class DeviceTests(unittest.TestCase):
             "device_type": "ACCESS",
         }
         result = self.client.post('/api/v1.0/device', json=device_data)
-        self.assertEqual(result.status_code, 404)
+        self.assertEqual(result.status_code, 400)
 
     def test_1_add_new_device(self):
         device_data = {
@@ -56,14 +59,14 @@ class DeviceTests(unittest.TestCase):
             "model": '',
             "os_version": '',
             "state": "MANAGED",
-            "device_type": "ACCESS",
+            "device_type": "DIST",
         }
         result = self.client.post('/api/v1.0/device', json=device_data)
         self.assertEqual(result.status_code, 200)
 
     def test_2_get_device(self):
         device_id = 0
-        result = self.client.get('/api/v1.0/device')
+        result = self.client.get('/api/v1.0/devices')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
         for _ in json_data['data']['devices']:
@@ -91,7 +94,7 @@ class DeviceTests(unittest.TestCase):
             "device_type": "ACCESS",
         }
         device_id = 0
-        result = self.client.get('/api/v1.0/device')
+        result = self.client.get('/api/v1.0/devices')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
         for _ in json_data['data']['devices']:
@@ -117,7 +120,7 @@ class DeviceTests(unittest.TestCase):
 
     def test_4_delete_device(self):
         device_id = 0
-        result = self.client.get('/api/v1.0/device')
+        result = self.client.get('/api/v1.0/devices')
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
         for _ in json_data['data']['devices']:
@@ -127,3 +130,7 @@ class DeviceTests(unittest.TestCase):
         self.assertIsNot(device_id, 0)
         result = self.client.delete(f'/api/v1.0/device/{device_id}')
         self.assertEqual(result.status_code, 200)
+
+
+if __name__ == '__main__':
+    unittest.main()

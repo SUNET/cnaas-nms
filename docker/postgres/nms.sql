@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 10.7
--- Dumped by pg_dump version 10.7
+-- Dumped from database version 11.5 (Debian 11.5-3.pgdg90+1)
+-- Dumped by pg_dump version 11.5 (Debian 11.5-3.pgdg90+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -12,22 +12,9 @@ SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 SELECT pg_catalog.set_config('search_path', '', false);
 SET check_function_bodies = false;
+SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
-
---
--- Name: plpgsql; Type: EXTENSION; Schema: -; Owner:
---
-
-CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
-
-
---
--- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner:
---
-
-COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
-
 
 --
 -- Name: devicestate; Type: TYPE; Schema: public; Owner: cnaas
@@ -127,7 +114,11 @@ CREATE TABLE public.device (
     synchronized boolean,
     state public.devicestate NOT NULL,
     device_type public.devicetype NOT NULL,
-    last_seen timestamp without time zone
+    last_seen timestamp without time zone,
+    confhash character varying(64),
+    infra_ip character varying(50),
+    oob_ip character varying(50),
+    port integer
 );
 
 
@@ -168,6 +159,20 @@ CREATE TABLE public.interface (
 
 
 ALTER TABLE public.interface OWNER TO cnaas;
+
+--
+-- Name: joblock; Type: TABLE; Schema: public; Owner: cnaas
+--
+
+CREATE TABLE public.joblock (
+    jobid character varying(24) NOT NULL,
+    name character varying(32) NOT NULL,
+    start_time timestamp without time zone,
+    abort boolean
+);
+
+
+ALTER TABLE public.joblock OWNER TO cnaas;
 
 --
 -- Name: linknet; Type: TABLE; Schema: public; Owner: cnaas
@@ -224,7 +229,8 @@ CREATE TABLE public.mgmtdomain (
     device_b_ip character varying(50),
     site_id integer,
     vlan integer,
-    description character varying(255)
+    description character varying(255),
+    esi_mac character varying(12)
 );
 
 
@@ -251,6 +257,19 @@ ALTER TABLE public.mgmtdomain_id_seq OWNER TO cnaas;
 
 ALTER SEQUENCE public.mgmtdomain_id_seq OWNED BY public.mgmtdomain.id;
 
+
+--
+-- Name: reservedip; Type: TABLE; Schema: public; Owner: cnaas
+--
+
+CREATE TABLE public.reservedip (
+    device_id integer NOT NULL,
+    ip character varying(50),
+    last_seen timestamp without time zone
+);
+
+
+ALTER TABLE public.reservedip OWNER TO cnaas;
 
 --
 -- Name: site; Type: TABLE; Schema: public; Owner: cnaas
@@ -319,6 +338,7 @@ ALTER TABLE ONLY public.site ALTER COLUMN id SET DEFAULT nextval('public.site_id
 --
 
 COPY public.alembic_version (version_num) FROM stdin;
+9478bbaf8010
 \.
 
 
@@ -334,12 +354,7 @@ COPY public.apscheduler_jobs (id, next_run_time, job_state) FROM stdin;
 -- Data for Name: device; Type: TABLE DATA; Schema: public; Owner: cnaas
 --
 
-COPY public.device (id, hostname, site_id, description, management_ip, dhcp_ip, serial, ztp_mac, platform, vendor, model, os_version, synchronized, state, device_type, last_seen) FROM stdin;
-1	testdevice	1	Test device!	1.2.3.4	\N	\N	\N	eos	\N	\N	\N	f	UNKNOWN	UNKNOWN	2019-02-13 11:17:32.038118
-6	mac-080027F60C55	\N	\N	\N	\N	\N	080027F60C55	eos	\N	\N	\N	f	DHCP_BOOT	UNKNOWN	2019-02-27 07:41:18.026646
-13	eosaccess	\N	\N	10.0.6.6	10.0.0.20	\N	0800275C091F	eos	\N	\N	\N	f	MANAGED	ACCESS	2019-04-09 08:43:50.268572
-9	eosdist	\N	\N	10.0.1.22	\N	\N	08002708a8be	eos	\N	\N	\N	t	MANAGED	DIST	2019-02-27 10:30:23.338681
-12	eosdist2	\N	\N	10.0.1.23	\N	\N	08002708a8b0	eos	\N	\N	\N	t	MANAGED	DIST	2019-03-13 09:43:13.439735
+COPY public.device (id, hostname, site_id, description, management_ip, dhcp_ip, serial, ztp_mac, platform, vendor, model, os_version, synchronized, state, device_type, last_seen, confhash, infra_ip, oob_ip, port) FROM stdin;
 \.
 
 
@@ -348,9 +363,14 @@ COPY public.device (id, hostname, site_id, description, management_ip, dhcp_ip, 
 --
 
 COPY public.interface (device_id, name, configtype, data) FROM stdin;
-13	Ethernet3	ACCESS_UPLINK	\N
-13	Ethernet2	ACCESS_UPLINK	\N
-13	Ethernet1	ACCESS_AUTO	\N
+\.
+
+
+--
+-- Data for Name: joblock; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.joblock (jobid, name, start_time, abort) FROM stdin;
 \.
 
 
@@ -359,8 +379,6 @@ COPY public.interface (device_id, name, configtype, data) FROM stdin;
 --
 
 COPY public.linknet (id, ipv4_network, device_a_id, device_a_ip, device_a_port, device_b_id, device_b_ip, device_b_port, site_id, description) FROM stdin;
-6	\N	13	\N	Ethernet2	9	\N	Ethernet2	\N	\N
-7	\N	13	\N	Ethernet3	12	\N	Ethernet2	\N	\N
 \.
 
 
@@ -368,8 +386,15 @@ COPY public.linknet (id, ipv4_network, device_a_id, device_a_ip, device_a_port, 
 -- Data for Name: mgmtdomain; Type: TABLE DATA; Schema: public; Owner: cnaas
 --
 
-COPY public.mgmtdomain (id, ipv4_gw, device_a_id, device_a_ip, device_b_id, device_b_ip, site_id, vlan, description) FROM stdin;
-4	10.0.6.1/24	9	\N	12	\N	\N	600	\N
+COPY public.mgmtdomain (id, ipv4_gw, device_a_id, device_a_ip, device_b_id, device_b_ip, site_id, vlan, description, esi_mac) FROM stdin;
+\.
+
+
+--
+-- Data for Name: reservedip; Type: TABLE DATA; Schema: public; Owner: cnaas
+--
+
+COPY public.reservedip (device_id, ip, last_seen) FROM stdin;
 \.
 
 
@@ -379,43 +404,14 @@ COPY public.mgmtdomain (id, ipv4_gw, device_a_id, device_a_ip, device_b_id, devi
 
 COPY public.site (id, description) FROM stdin;
 1	default
-2	default
-3	default
-4	default
-5	default
-6	default
-7	default
-8	default
-9	default
 \.
-
-
---
--- Name: device_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.device_id_seq', 19, true);
-
-
---
--- Name: linknet_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.linknet_id_seq', 7, true);
-
-
---
--- Name: mgmtdomain_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
---
-
-SELECT pg_catalog.setval('public.mgmtdomain_id_seq', 4, true);
 
 
 --
 -- Name: site_id_seq; Type: SEQUENCE SET; Schema: public; Owner: cnaas
 --
 
-SELECT pg_catalog.setval('public.site_id_seq', 9, true);
+SELECT pg_catalog.setval('public.site_id_seq', 2, true);
 
 
 --
@@ -459,6 +455,30 @@ ALTER TABLE ONLY public.interface
 
 
 --
+-- Name: joblock joblock_jobid_key; Type: CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.joblock
+    ADD CONSTRAINT joblock_jobid_key UNIQUE (jobid);
+
+
+--
+-- Name: joblock joblock_name_key; Type: CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.joblock
+    ADD CONSTRAINT joblock_name_key UNIQUE (name);
+
+
+--
+-- Name: joblock joblock_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.joblock
+    ADD CONSTRAINT joblock_pkey PRIMARY KEY (jobid);
+
+
+--
 -- Name: linknet linknet_device_a_id_device_a_port_key; Type: CONSTRAINT; Schema: public; Owner: cnaas
 --
 
@@ -499,6 +519,14 @@ ALTER TABLE ONLY public.mgmtdomain
 
 
 --
+-- Name: reservedip reservedip_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.reservedip
+    ADD CONSTRAINT reservedip_pkey PRIMARY KEY (device_id);
+
+
+--
 -- Name: site site_pkey; Type: CONSTRAINT; Schema: public; Owner: cnaas
 --
 
@@ -518,6 +546,13 @@ CREATE INDEX ix_apscheduler_jobs_next_run_time ON public.apscheduler_jobs USING 
 --
 
 CREATE INDEX ix_interface_device_id ON public.interface USING btree (device_id);
+
+
+--
+-- Name: ix_reservedip_device_id; Type: INDEX; Schema: public; Owner: cnaas
+--
+
+CREATE INDEX ix_reservedip_device_id ON public.reservedip USING btree (device_id);
 
 
 --
@@ -585,5 +620,14 @@ ALTER TABLE ONLY public.mgmtdomain
 
 
 --
+-- Name: reservedip reservedip_device_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: cnaas
+--
+
+ALTER TABLE ONLY public.reservedip
+    ADD CONSTRAINT reservedip_device_id_fkey FOREIGN KEY (device_id) REFERENCES public.device(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
+

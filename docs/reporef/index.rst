@@ -11,7 +11,9 @@ platform, like "eos", "junos" or "iosxr".
 
 In each of these directories there needs to be a file called "mapping.yml", this file defines
 what template files should be used for each device type. For example, in mapping.yml there
-might be a definition of templates for an access switch specified like this::
+might be a definition of templates for an access switch specified like this:
+
+::
 
     ACCESS:
         entrypoint: access.j2
@@ -41,6 +43,29 @@ that are exposed from CNaaS includes:
   * ifname: Name of the physical interface (ex Ethernet1)
 
 - access_auto: A list of access_auto interfacs. Using same keys as uplinks.
+
+Additional variables available for distribution switches:
+
+- infra_ip: IPv4 infrastructure VRF address (ex 10.199.0.0)
+
+- infra_ipif: IPv4 infrastructure VRF address inc prefix (ex 10.199.0.0/32)
+
+- vrfs: A list of dictionaries with two keys: "name" and "rd" (rd as in Route Distinguisher).
+  Populated from settings defined in routing.yml.
+
+- bgp_ipv4_peers: A list of dictionaries with the keys: "peer_hostname", "peer_infra_lo", "peer_ip" and "peer_asn".
+  Contains one entry per directly connected dist/core device, used to build an eBGP underlay for the fabric.
+  Populated from the links database table.
+
+- bgp_evpn_peers: A list of dictionaries with the keys: "peer_hostname", "peer_infra_lo", "peer_asn".
+  Contains one entry per hostname specified in settings->evpn_spines. Used to build
+  eBGP peering for EVPN between loopbacks.
+
+- mgmtdomains: A list of dictionaries with the keys: "ipv4_gw", "vlan", "description", "esi_mac".
+  Populated from the mgmtdomains database table.
+
+- asn: A private unique Autonomous System number generated from the last two octets
+  of the infra_lo IP address on the device.
  
 All settings configured in the settings repository are also exposed to the templates.
 
@@ -56,7 +81,8 @@ The directory structure looks like this:
 - global
 
   * groups.yml: Definition of custom device groups
-  * vxlan.yml: Definition of VXLAN/VLANs
+  * vxlans.yml: Definition of VXLAN/VLANs
+  * routing.yml: Definition of global routing settings like fabric underlay and VRFs
   * base_system.yml: Base system settings
 
 - core
@@ -76,6 +102,92 @@ The directory structure looks like this:
   * <hostname>
 
     + base_system.yml
+    + interfaces.yml
+    + routing.yml
+
+routing.yml:
+
+Can contain the following dictionaries with specified keys:
+
+- underlay:
+
+  * infra_link_net: A /16 of IPv4 addresses that CNaaS-NMS can use to automatically assign
+    addresses for infrastructure links from (ex /31 between dist-core).
+  * infra_lo_net: A /16 of IPv4 addresses that CNaaS-NMS can use to automatically assign
+    addresses for infrastructure loopback interfaces from.
+  * mgmt_lo_net: A subnet for management loopbacks for dist/core devices.
+
+- evpn_peers:
+
+  * hostname: A hostname of a CORE (or DIST) device from the device database.
+    The other DIST switches participating in the VXLAN/EVPN fabric will establish
+    eBGP connections to these devices.
+
+- vrfs:
+
+  * name: The name of the VRF. Should be one word (no spaces).
+  * vrf_id: An integer between 1-65535. This ID can be used to generate unique VNI, RD and RT
+    values for this VRF.
+  * groups: A list of groups this VRF should be provisioned on.
+
+* extroute_static:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * ipv4:
+
+      * destination: IPv4 prefix
+      * nexthop: IPv4 nexthop address
+      * interface: Exiting interface (optional)
+      * name: Name/description of route (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this route (optional)
+
+* extroute_ospfv3:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * ipv4_redist_routefilter: Name of a route filter (route-map) that filters what should be redistributed into OSPF
+    * ipv6_redist_routefilter: Name of a route filter (route-map) that filters what should be redistributed into OSPF
+    * cli_append_str: Custom configuration to add for this VRF (optional)
+
+* extroute_bgp:
+
+  * vrfs:
+
+    * name: Name of the VRF
+    * local_as: AS number that CNaaS NMS devices will present themselves as
+    * neighbor_v4:
+
+      * peer_as: AS number the remote peer
+      * peer_ipv4: IPv4 address of peer
+      * route_map_in: Route-map to filter incoming routes
+      * route_map_out: Route-map to filter outgoing routes
+      * description: Description of remote peer (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this peer (optional)
+    * neighbor_v6:
+
+      * peer_as: AS number the remote peer
+      * peer_ipv6: IPv6 address of peer
+      * route_map_in: Route-map to filter incoming routes
+      * route_map_out: Route-map to filter outgoing routes
+      * description: Description of remote peer (optional, defaults to "undefined")
+      * cli_append_str: Custom configuration to append to this peer (optional)
+
+vxlans.yml:
+
+Contains a dictinary called "vxlans", which in turn has one dictinoary per vxlan, vxlan
+name is the dictionary key and dictionaly values are:
+
+  * vni: VXLAN ID, 1-16777215
+  * vrf: VRF name
+  * vlan_id: VLAN ID, 1-4095
+  * vlan_name: VLAN name, single word/no spaces, max 31 characters
+  * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24
+  * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
+    access switch the parent dist switch should be automatically provisioned.
+
 
 etc
 ---

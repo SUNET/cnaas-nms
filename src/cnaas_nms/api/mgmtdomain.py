@@ -1,15 +1,31 @@
 from flask import request
-from flask_restful import Resource
+from flask_restx import Resource, Namespace, fields
+from flask_jwt_extended import jwt_required
+
 from ipaddress import IPv4Interface
 
 from cnaas_nms.api.generic import build_filter, empty_result, limit_results
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.version import __api_version__
+
+
+api = Namespace('mgmtdomains', description='API for handling managemeent domains',
+                prefix='/api/{}'.format(__api_version__))
+
+mgmtdomain_model = api.model('mgmtdomain', {
+    'device_a': fields.String(required=True),
+    'device_b': fields.String(required=True),
+    'vlan': fields.Integer(required=True),
+    'ipv4_gw': fields.String(required=True),
+})
 
 
 class MgmtdomainByIdApi(Resource):
+    @jwt_required
     def get(self, mgmtdomain_id):
+        """ Get management domain by ID """
         result = empty_result()
         result['data'] = {'mgmtdomains': []}
         with sqla_session() as session:
@@ -21,7 +37,9 @@ class MgmtdomainByIdApi(Resource):
                 return empty_result('error', "Management domain not found"), 404
         return result
 
+    @jwt_required
     def delete(self, mgmtdomain_id):
+        """ Remove management domain """
         with sqla_session() as session:
             instance = session.query(Mgmtdomain).\
                 filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
@@ -32,7 +50,10 @@ class MgmtdomainByIdApi(Resource):
             else:
                 return empty_result('error', "Management domain not found"), 404
 
+    @jwt_required
+    @api.expect(mgmtdomain_model)
     def put(self, mgmtdomain_id):
+        """ Modify management domain """
         json_data = request.get_json()
         data = {}
         errors = []
@@ -66,18 +87,27 @@ class MgmtdomainByIdApi(Resource):
 
 
 class MgmtdomainsApi(Resource):
+    @jwt_required
     def get(self):
+        """ Get all management domains """
         result = empty_result()
         result['data'] = {'mgmtdomains': []}
         filter_exp = None
         with sqla_session() as session:
             query = session.query(Mgmtdomain)
-            query = build_filter(Mgmtdomain, query).limit(limit_results())
+            try:
+                query = build_filter(Mgmtdomain, query).limit(limit_results())
+            except Exception as e:
+                return empty_result(status='error',
+                                    data="Unable to filter mgmtdomains: {}".format(e)), 400
             for instance in query:
                 result['data']['mgmtdomains'].append(instance.as_dict())
         return result
 
+    @jwt_required
+    @api.expect(mgmtdomain_model)
     def post(self):
+        """ Add management domain """
         json_data = request.get_json()
         data = {}
         errors = []
@@ -137,3 +167,7 @@ class MgmtdomainsApi(Resource):
                 errors.append("Not all required inputs were found: {}".\
                               format(', '.join(required_keys)))
                 return empty_result('error', errors), 400
+
+
+api.add_resource(MgmtdomainsApi, '')
+api.add_resource(MgmtdomainByIdApi, '/<int:mgmtdomain_id>')

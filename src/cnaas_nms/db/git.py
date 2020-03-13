@@ -1,17 +1,22 @@
 import enum
 import os
+import datetime
 from typing import Set, Tuple
 
 from git import Repo
 from git import InvalidGitRepositoryError, NoSuchPathError
 from git.exc import NoSuchPathError, GitCommandError
 import yaml
+from redis_lru import RedisLRU
 
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE
+from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
+    check_settings_collisions, VlanConflictError
 from cnaas_nms.db.device import Device, DeviceType
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, redis_session
+from cnaas_nms.db.job import Job, JobStatus
+from cnaas_nms.db.joblock import Joblock, JoblockError
 
 logger = get_logger()
 
@@ -53,7 +58,8 @@ def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         return 'Repository is not yet cloned from remote'
 
 
-def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
+def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES,
+                 scheduled_by: str = None) -> str:
     """Refresh the repository for repo_type
 
     Args:
@@ -64,8 +70,46 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
 
     Raises:
         cnaas_nms.db.settings.SettingsSyntaxError
+        cnaas_nms.db.joblock.JoblockError
     """
+    # Acquire lock for devices to make sure no one refreshes the repository
+    # while another task is building configuration for devices using repo data
+    with sqla_session() as session:
+        job = Job()
+        job.start_job(function_name="refresh_repo", scheduled_by=scheduled_by)
+        session.add(job)
+        session.flush()
+        job_id = job.id
 
+        logger.info("Trying to acquire lock for devices to run refresh repo: {}".format(job_id))
+        if not Joblock.acquire_lock(session, name='devices', job_id=job_id):
+            raise JoblockError("Unable to acquire lock for configuring devices")
+        try:
+            result = _refresh_repo_task(repo_type)
+            job.finish_time = datetime.datetime.utcnow()
+            job.status = JobStatus.FINISHED
+            job.result = {"message": result, "repository": repo_type.name}
+            try:
+                logger.info("Releasing lock for devices from refresh repo job: {}".format(job_id))
+                Joblock.release_lock(session, job_id=job_id)
+            except Exception:
+                logger.error("Unable to release devices lock after refresh repo job")
+            return result
+        except Exception as e:
+            logger.exception("Exception while scheduling job for refresh repo: {}".format(str(e)))
+            job.finish_time = datetime.datetime.utcnow()
+            job.status = JobStatus.EXCEPTION
+            job.result = {"error": str(e), "repository": repo_type.name}
+            try:
+                logger.info("Releasing lock for devices from refresh repo job: {}".format(job_id))
+                Joblock.release_lock(session, job_id=job_id)
+            except Exception:
+                logger.error("Unable to release devices lock after refresh repo job")
+            raise e
+
+
+def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
+    """Should only be called by refresh_repo function."""
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)
 
@@ -119,6 +163,10 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
 
     if repo_type == RepoType.SETTINGS:
         try:
+            logger.debug("Clearing redis-lru cache for settings")
+            with redis_session() as redis_db:
+                cache = RedisLRU(redis_db)
+                cache.clear_all_cache()
             get_settings()
             test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
             for devtype in test_devtypes:
@@ -130,8 +178,12 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES) -> str:
                 if not Device.valid_hostname(hostname):
                     continue
                 get_settings(hostname)
+            check_settings_collisions()
         except SettingsSyntaxError as e:
             logger.exception("Error in settings repo configuration: {}".format(str(e)))
+            raise e
+        except VlanConflictError as e:
+            logger.exception("VLAN conflict in repo configuration: {}".format(str(e)))
             raise e
         logger.debug("Files changed in settings repository: {}".format(changed_files))
         updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)

@@ -1,14 +1,27 @@
 from flask import request
-from flask_restful import Resource
+from flask_restx import Resource, Namespace, fields
+from flask import make_response
+from flask_jwt_extended import jwt_required
 
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import VerifyPathException, get_settings
+from cnaas_nms.db.settings import get_settings, check_settings_syntax, SettingsSyntaxError
 from cnaas_nms.api.generic import empty_result
+from cnaas_nms.version import __api_version__
+from cnaas_nms.db.settings_fields import f_root as settings_root_model
+from cnaas_nms.tools.mergedict import merge_dict_origin
+
+
+api = Namespace('settings', description='Settings',
+                prefix='/api/{}'.format(__api_version__))
 
 
 class SettingsApi(Resource):
+    @jwt_required
+    @api.param('hostname')
+    @api.param('device_type')
     def get(self):
+        """ Get settings """
         args = request.args
         hostname = None
         device_type = None
@@ -36,3 +49,25 @@ class SettingsApi(Resource):
             return empty_result('error', "Error getting settings: {}".format(str(e))), 400
 
         return empty_result(data={'settings': settings, 'settings_origin': settings_origin})
+
+
+class SettingsModelApi(Resource):
+    def get(self):
+        response = make_response(settings_root_model.schema_json())
+        response.headers['Content-Type'] = "application/json"
+        response.headers['Content-Type'] = 'application/json'
+        return response
+
+    def post(self):
+        json_data = request.get_json()
+        syntax_dict, syntax_dict_origin = merge_dict_origin({}, json_data, {}, 'API POST data')
+        try:
+            ret = check_settings_syntax(syntax_dict, syntax_dict_origin)
+        except SettingsSyntaxError as e:
+            return empty_result(status='error', data=str(e)), 400
+        else:
+            return empty_result(status='success', data=ret)
+
+
+api.add_resource(SettingsApi, '')
+api.add_resource(SettingsModelApi, '/model')

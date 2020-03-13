@@ -16,14 +16,15 @@ git:
     shallow_clone: true
 
 script:
-  - "python3.7 -m venv venv"
-  - ". venv/bin/activate"
-  - "pip install --upgrade setuptools pip wheel mypy"
-  - "pip install --index-url https://pypi.sunet.se -r requirements.txt"
-  - "nosetests --with-xunit"
+  - "ssh root@puckly.sunet.se /root/starttests.sh ${GIT_BRANCH}"
+  # - "python3.7 -m venv venv"
+  # - ". venv/bin/activate"
+  # - "pip install --upgrade setuptools pip wheel mypy"
+  # - "pip install --index-url https://pypi.sunet.se -r requirements.txt"
+  # - "nosetests --with-xunit"
 
-# slack:
-#   room: "cnaas"
+slack:
+  room: "cnaas-builds"
 
 extra_jobs:
   - name: cnaas-dhcpd
@@ -33,6 +34,8 @@ extra_jobs:
       - docker
     docker_name: cnaas/dhcpd
     docker_context_dir: docker/dhcpd
+    docker_tags:
+      - "v0.1.0"
 
   - name: cnaas-api
     git:
@@ -41,6 +44,8 @@ extra_jobs:
       - docker
     docker_name: cnaas/api
     docker_context_dir: docker/api
+    docker_tags:
+      - "v0.1.0"
 
   - name: cnaas-postgres
     git:
@@ -49,3 +54,5 @@ extra_jobs:
       - docker
     docker_name: cnaas/postgres
     docker_context_dir: docker/postgres
+    docker_tags:
+      - "v0.1.0"

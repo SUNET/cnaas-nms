@@ -18,8 +18,6 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.interface import Interface
 
-logger = get_logger()
-
 
 def get_inventory():
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
@@ -36,12 +34,9 @@ def get_running_config(hostname):
     return nr_result[hostname].result
 
 
-def get_running_config_hash(hostname):
+def calc_config_hash(hostname, config):
     try:
-        config = get_running_config(hostname)
-        if config is None:
-            return None
-        hash_object = hashlib.sha256(config['config']['running'].encode())
+        hash_object = hashlib.sha256(config.encode())
     except Exception:
         raise Exception(f'Failed to get running configuration from {hostname}')
     return hash_object.hexdigest()
@@ -99,6 +94,7 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
 
 
 def get_uplinks(session, hostname: str) -> Tuple[List, List]:
+    logger = get_logger()
     # TODO: check if uplinks are already saved in database?
     uplinks = []
     neighbor_hostnames = []
@@ -106,7 +102,7 @@ def get_uplinks(session, hostname: str) -> Tuple[List, List]:
     dev = session.query(Device).filter(Device.hostname == hostname).one()
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.device_type == DeviceType.DIST:
-            local_if = dev.get_link_to_local_ifname(session, neighbor_d)
+            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
             if local_if:
                 uplinks.append({'ifname': local_if})
                 neighbor_hostnames.append(neighbor_d.hostname)
@@ -133,7 +129,13 @@ def get_interfaces_names(hostname: str) -> List[str]:
     the specified device.
     """
     nrresult = get_interfaces(hostname)
-    return list(nrresult[hostname][0].result['interfaces'].keys())
+    getfacts_task = nrresult[hostname][0]
+    if getfacts_task.failed:
+        raise Exception("Could not get facts from device {}: {}".format(
+            hostname, getfacts_task.result
+        ))
+    else:
+        return list(getfacts_task.result['interfaces'].keys())
 
 
 def filter_interfaces(iflist, platform=None, include=None):
@@ -207,6 +209,7 @@ def update_inventory(hostname: str, site='default') -> dict:
 def update_linknets(hostname):
     """Update linknet data for specified device using LLDP neighbor data.
     """
+    logger = get_logger()
     result = get_neighbors(hostname=hostname)[hostname][0]
     if result.failed:
         raise Exception
@@ -221,9 +224,9 @@ def update_linknets(hostname):
         for local_if, data in neighbors.items():
             logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
             remote_device_inst = session.query(Device).\
-                filter(Device.hostname == data[0]['hostname']).one()
+                filter(Device.hostname == data[0]['hostname']).one_or_none()
             if not remote_device_inst:
-                logger.debug(f"Unknown connected device: {data[0]['hostname']}")
+                logger.info(f"Unknown connected device: {data[0]['hostname']}")
                 continue
             logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
@@ -270,3 +273,4 @@ def update_linknets(hostname):
             new_link.device_b_port = data[0]['port']
             session.add(new_link)
             ret.append(new_link.as_dict())
+    return ret

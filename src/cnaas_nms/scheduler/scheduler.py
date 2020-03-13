@@ -12,8 +12,8 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-import cnaas_nms.db.session
-from cnaas_nms.scheduler.jobtracker import Jobtracker, JobStatus
+from cnaas_nms.db.session import sqla_session, get_sqlalchemy_conn_str
+from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -37,12 +37,17 @@ class Scheduler(object, metaclass=SingletonType):
         try:
             fcntl.lockf(self.lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            self.use_mule = True
+            try:
+                import uwsgi
+            except Exception:
+                self.use_mule = False
+            else:
+                self.use_mule = True
         else:
             self.use_mule = False
         caller = self.get_caller(caller=inspect.currentframe())
         if caller == 'api':
-            sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
+            sqlalchemy_url = get_sqlalchemy_conn_str()
             self._scheduler = BackgroundScheduler(
                 executors={'default': ThreadPoolExecutor(threads)},
                 jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},
@@ -51,7 +56,7 @@ class Scheduler(object, metaclass=SingletonType):
             )
             logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
         elif caller == 'mule':
-            sqlalchemy_url = cnaas_nms.db.session.get_sqlalchemy_conn_str()
+            sqlalchemy_url = get_sqlalchemy_conn_str()
             self._scheduler = BackgroundScheduler(
                 executors={'default': ThreadPoolExecutor(threads)},
                 jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},
@@ -111,7 +116,8 @@ class Scheduler(object, metaclass=SingletonType):
         return self._scheduler.add_job(func, **kwargs)
 
     def add_onetime_job(self, func: Union[str, FunctionType],
-                        when: Optional[int] = None, **kwargs):
+                        when: Optional[int] = None,
+                        scheduled_by: Optional[str] = None, **kwargs) -> int:
         """Schedule a job to run at a later time.
 
         Args:
@@ -119,17 +125,25 @@ class Scheduler(object, metaclass=SingletonType):
             when: Optional number of seconds to wait before starting job
             **kwargs: Arguments to pass through to called function
         Returns:
-            str: job_id
+            int: job_id
         """
-        job = Jobtracker()
-        id = job.create({'status': JobStatus.SCHEDULED})
         if when and isinstance(when, int):
             trigger = 'date'
             run_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=when)
         else:
             trigger = None
             run_date = None
-        kwargs['job_id'] = id
+
+        with sqla_session() as session:
+            job = Job()
+            if run_date:
+                job.scheduled_time = run_date
+            session.add(job)
+            session.flush()
+            job_id = job.id
+
+        kwargs['job_id'] = job_id
+        kwargs['scheduled_by'] = scheduled_by
         if self.use_mule:
             try:
                 import uwsgi
@@ -143,11 +157,11 @@ class Scheduler(object, metaclass=SingletonType):
                 args['func'] = str(func)
             args['trigger'] = trigger
             args['when'] = when
-            args['id'] = id
+            args['id'] = str(job_id)
             uwsgi.mule_msg(json.dumps(args))
-            return id
+            return job_id
         else:
-            self._scheduler.add_job(
-                func, trigger=trigger, kwargs=kwargs, id=id, run_date=run_date)
-            return id
-
+            self._scheduler.add_job(func, trigger=trigger, kwargs=kwargs,
+                                    id=str(job_id),
+                                    run_date=run_date)
+            return job_id

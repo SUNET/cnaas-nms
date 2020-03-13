@@ -12,8 +12,8 @@ from nornir.core.inventory import ConnectionOptions
 import cnaas_nms.confpush.init_device
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.scheduler.jobtracker import Jobtracker
 from cnaas_nms.confpush.update import reset_interfacedb
 
 
@@ -32,7 +32,8 @@ class InitTests(unittest.TestCase):
         time.sleep(1)
         for i in range(1, 11):
             num_scheduled_jobs = len(ap_scheduler.get_jobs())
-            num_running_jobs = len(Jobtracker.get_running_jobs())
+            with sqla_session() as session:
+                num_running_jobs = session.query(Job).count()
             print("Number of jobs scheduled: {}, number of jobs running: {}".\
                   format(num_scheduled_jobs, num_running_jobs))
             if num_scheduled_jobs > 0 or num_running_jobs > 0:
@@ -51,6 +52,7 @@ class InitTests(unittest.TestCase):
         job_id = scheduler.add_onetime_job(
             cnaas_nms.confpush.init_device.init_access_device_step1,
             when=0,
+            scheduled_by='test_user',
             kwargs={'device_id': self.testdata['init_access_device_id'],
                     'new_hostname': self.testdata['init_access_new_hostname']})
         print(f"Step1 scheduled as ID { job_id }")

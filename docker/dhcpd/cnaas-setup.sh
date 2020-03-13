@@ -20,6 +20,7 @@ apt-get update && \
       netcat-openbsd \
       net-tools \
       curl \
+      supervisor \
     && apt-get clean
 
 #rm -rf /var/lib/apt/lists/*
@@ -32,5 +33,8 @@ cd /opt/cnaas/venv/
 source bin/activate
 git clone https://github.com/SUNET/cnaas-nms.git
 cd cnaas-nms/
-python3 -m pip install -r requirements.txt
+git checkout develop
+#python3 -m pip install -r requirements.txt
+#minimal requirements for just dhcp-hook:
+python3 -m pip install requests pyyaml netaddr
 

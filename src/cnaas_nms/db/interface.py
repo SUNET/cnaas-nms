@@ -1,4 +1,5 @@
 import enum
+import re
 
 from sqlalchemy import Column, Integer, Unicode
 from sqlalchemy import ForeignKey
@@ -53,3 +54,35 @@ class Interface(cnaas_nms.db.base.Base):
                 continue
             d[col.name] = value
         return d
+
+    @classmethod
+    def interface_index_num(cls, ifname: str):
+        """Calculate a unique numerical value for a physical interface name
+        Ethernet1 -> 2
+        Ethernet1/0 -> 201
+        Ethernet4/3/2/1 -> 5040302
+
+        Args:
+            ifname: interface name, ex Ethernet1 or GigabitEthernet1/0/1
+
+        Returns:
+            int or none
+        """
+        index_num = 0
+        # Match physical interface name and divide into "group" components
+        match = re.match(r"^[a-zA-Z-]*([0-9]+\/?)([0-9]+\/?)?([0-9]+\/?)?([0-9]+\/?)?$", ifname)
+        if not match:
+            raise ValueError(f"Unable to parse interface name {ifname}")
+        groups = match.groups()
+        if not len(groups) == 4:
+            raise ValueError(f"Unable to parse interface name {ifname}")
+        # Ethernet4/3/2/1 don't miss any groups, Ethernet1 misses 3 groups etc
+        missing_groups = 0
+        for index, item in reversed(list(enumerate(groups, start=1))):
+            if item:
+                item_num = int(item.rstrip('/'))
+                index_num += (100**(4-index-missing_groups)) * (item_num+1)
+            else:
+                missing_groups += 1
+        return index_num
+

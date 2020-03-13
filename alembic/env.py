@@ -6,6 +6,7 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
+import sqlalchemy_utils
 
 from alembic import context
 
@@ -30,6 +31,9 @@ from cnaas_nms.db.site import Site
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.interface import Interface
+from cnaas_nms.db.joblock import Joblock
+from cnaas_nms.db.job import Job
+from cnaas_nms.db.reservedip import ReservedIP
 
 
 target_metadata = Base.metadata

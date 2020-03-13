@@ -1,8 +1,6 @@
 API Reference
 =============
 
-Contents
-========
 .. toctree::
    :maxdepth: 1
 
@@ -14,10 +12,9 @@ Contents
    mgmtdomains
    repository
    settings
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   plugins
+   syncto
+   interfaces
+   firmware
+   system
+   

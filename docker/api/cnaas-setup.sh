@@ -23,6 +23,8 @@ apt-get update && \
       netcat \
       nginx \
       supervisor \
+      libssl-dev \
+      libpq-dev \
     && apt-get clean
 
 pip3 install uwsgi
@@ -37,14 +39,18 @@ source bin/activate
 # Fetch the code and install dependencies
 git clone https://github.com/SUNET/cnaas-nms.git
 cd cnaas-nms/
+git checkout develop
 python3 -m pip install -r requirements.txt
 
 # Temporary for testing new branch
 #cd /opt/cnaas/venv/cnaas-nms/
 #git remote update
 #git fetch
-#git checkout --track origin/feature.integrationtests
+#git checkout --track origin/release-1.0.0
+#python3 -m pip install -r requirements.txt
 
+chown -R www-data:www-data /opt/cnaas/settings
+chown -R www-data:www-data /opt/cnaas/templates
 #rm -rf /var/lib/apt/lists/*
 
 

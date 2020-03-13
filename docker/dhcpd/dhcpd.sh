@@ -19,8 +19,8 @@ then
 	fi
 fi
 
-cd /opt/cnaas/venv/cnaas-nms
-git pull
+#cd /opt/cnaas/venv/cnaas-nms
+#git pull
 
 touch /var/lib/dhcp/dhcpd.leases
 

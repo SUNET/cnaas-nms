@@ -18,18 +18,24 @@ Planned features:
 
 ## Requirements
 
+Docker and docker-compose or:
+
 1. python3.7 or later
 1. install requirements.txt
-1. SQL database and MongoDB
+1. SQL database, Redis
 
 ## Installation
 
-Create virtualenv and activate the environment
+Install docker and docker-compose and run: docker-compose build -f docker/docker-compose.yaml
+
+Or install locally by creating a virtualenv and activate the environment, then:
 
 ```
 python3 -m pip install -r requirements.txt
-cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.py
+cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
+
+Edit db_config.yml to point to your SQL and redis database.
 
 ## Test
 
@@ -41,6 +47,6 @@ python3 -m cnaas_nms.confpush.tests.test_get
 
 ## License
 
-Copyright (c) 2019, SUNET (BSD 2-clause license)
+Copyright (c) 2019 - 2020, SUNET (BSD 2-clause license)
 
 See LICENSE.txt for more info.

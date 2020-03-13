@@ -7,8 +7,6 @@ from cnaas_nms.confpush.get import get_interfaces_names, get_uplinks, \
     filter_interfaces, get_interfacedb_ifs
 from cnaas_nms.tools.log import get_logger
 
-logger = get_logger()
-
 
 def update_interfacedb(hostname: str, replace: bool = False, delete: bool = False) \
         -> Optional[List[dict]]:
@@ -19,6 +17,7 @@ def update_interfacedb(hostname: str, replace: bool = False, delete: bool = Fals
     Returns:
         List of interfaces that was added to DB
     """
+    logger = get_logger()
     ret = []
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
@@ -80,3 +79,5 @@ def reset_interfacedb(hostname: str):
 
         ret = session.query(Interface).filter(Interface.device == dev).delete()
         return ret
+
+

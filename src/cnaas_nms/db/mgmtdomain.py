@@ -4,7 +4,7 @@ import enum
 from ipaddress import IPv4Interface, IPv4Address
 from typing import Optional
 
-from sqlalchemy import Column, Integer, Unicode, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Unicode, UniqueConstraint
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship, load_only
 from sqlalchemy_utils import IPAddressType
@@ -13,6 +13,7 @@ import cnaas_nms.db.base
 import cnaas_nms.db.site
 import cnaas_nms.db.device
 from cnaas_nms.db.device import Device
+from cnaas_nms.db.reservedip import ReservedIP
 
 class Mgmtdomain(cnaas_nms.db.base.Base):
     __tablename__ = 'mgmtdomain'
@@ -32,6 +33,7 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
     site = relationship("Site")
     vlan = Column(Integer)
     description = Column(Unicode(255))
+    esi_mac = Column(String(12))
 
     def as_dict(self):
         """Return JSON serializable dict."""
@@ -47,21 +49,34 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
             elif issubclass(value.__class__, datetime.datetime):
                 value = str(value)
             d[col.name] = value
+        try:
+            d['device_a'] = str(self.device_a.hostname)
+            d['device_b'] = str(self.device_b.hostname)
+        except Exception:
+            pass
         return d
 
     def find_free_mgmt_ip(self, session) -> Optional[IPv4Address]:
         """Return first available IPv4 address from this Mgmtdomain's ipv4_gw network.""" 
         used_ips = []
-        device_query  = session.query(Device).\
+        reserved_ips = []
+        device_query = session.query(Device).\
             filter(Device.management_ip != None).options(load_only("management_ip"))
         for device in device_query:
             used_ips.append(device.management_ip)
+        reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
+        for reserved_ip in reserved_ip_query:
+            reserved_ips.append(reserved_ip.ip)
 
         mgmt_net = IPv4Interface(self.ipv4_gw).network
         for num, host in enumerate(mgmt_net.hosts()):
-            if num < 5: # reserve 5 first hosts
+            if num < 5:  # reserve 5 first hosts
                 continue
-            if not host in used_ips:
+            if host in reserved_ips:
+                continue
+            if host in used_ips:
+                continue
+            else:
                 return IPv4Address(host)
         return None
 

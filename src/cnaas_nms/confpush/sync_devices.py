@@ -116,7 +116,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
         }
 
         if devtype == DeviceType.ACCESS:
-            neighbor_hostnames = dev.get_uplink_peers(session)
+            neighbor_hostnames = dev.get_uplink_peer_hostnames(session)
             if not neighbor_hostnames:
                 raise Exception("Could not find any uplink neighbors for device {}".format(
                     hostname))

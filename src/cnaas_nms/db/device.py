@@ -187,7 +187,7 @@ class Device(cnaas_nms.db.base.Base):
         elif linknet.device_b_id == self.id:
             return linknet.device_a_ip
 
-    def get_uplink_peers(self, session):
+    def get_uplink_peer_hostnames(self, session) -> List[str]:
         intfs = session.query(Interface).filter(Interface.device == self).\
             filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK).all()
         peer_hostnames = []
@@ -196,6 +196,27 @@ class Device(cnaas_nms.db.base.Base):
             if intf.data:
                 peer_hostnames.append(intf.data['neighbor'])
         return peer_hostnames
+
+    def get_mlag_peers(self, session) -> List[Device]:
+        intfs = session.query(Interface).filter(Interface.device == self). \
+            filter(Interface.configtype == InterfaceConfigType.MLAG_PEER).all()
+        peers: List[Device] = []
+        linknets = self.get_linknets(session)
+        intf: Interface = Interface()
+        for intf in intfs:
+            for linknet in linknets:
+                if linknet.device_a == self and linknet.device_a_port == intf.name:
+                    peers.append(linknet.device_b)
+                elif linknet.device_b == self and linknet.device_b_port == intf.name:
+                    peers.append(linknet.device_a)
+        if len(peers) > 1:
+            raise DeviceException("More than one MLAG peer found: {}".format(
+                [x.hostname for x in peers]
+            ))
+        elif len(peers) == 1:
+            if self.device_type != peers[0].device_type:
+                raise DeviceException("MLAG peers are not the same device type")
+        return peers
 
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:

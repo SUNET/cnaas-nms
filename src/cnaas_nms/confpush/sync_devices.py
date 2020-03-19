@@ -13,7 +13,7 @@ from nornir.core.task import MultiResult
 import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session, redis_session
-from cnaas_nms.confpush.get import get_uplinks, calc_config_hash
+from cnaas_nms.confpush.get import calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings

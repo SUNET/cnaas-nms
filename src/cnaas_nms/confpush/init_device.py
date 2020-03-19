@@ -17,7 +17,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateExce
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
-from cnaas_nms.confpush.update import update_interfacedb
+from cnaas_nms.confpush.update import update_interfacedb_worker
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
@@ -106,14 +106,18 @@ def pre_init_checks(session, device_id) -> Device:
 @job_wrapper
 def init_access_device_step1(device_id: int, new_hostname: str,
                              mlag_peer_id: Optional[int],
-                             mlag_peer_hostname: Optional[str],
+                             mlag_peer_new_hostname: Optional[str],
                              job_id: Optional[str] = None,
                              scheduled_by: Optional[str] = None) -> NornirJobResult:
-    """Initialize access device for management by CNaaS-NMS
+    """Initialize access device for management by CNaaS-NMS.
+    If a MLAG/MC-LAG pair is to be configured both mlag_peer_id and
+    mlag_peer_new_hostname must be set.
 
     Args:
         device_id: Device to select for initialization
-        new_hostname: Hostname to configure for the new device
+        new_hostname: Hostname to configure on this device
+        mlag_peer_id: Device ID of MLAG peer device (optional)
+        mlag_peer_new_hostname: Hostname to configure on peer device (optional)
         job_id: job_id provided by scheduler when adding job
         scheduled_by: Username from JWT.
 
@@ -122,18 +126,28 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
     Raises:
         DeviceStateException
+        ValueError
     """
     logger = get_logger()
     with sqla_session() as session:
         dev = pre_init_checks(session, device_id)
-        old_hostname = dev.hostname
 
-        cnaas_nms.confpush.get.update_linknets(old_hostname)
+        cnaas_nms.confpush.get.update_linknets(session, dev.hostname)  # update linknets using LLDP data
         uplinks = []
         neighbor_hostnames = []
 
+        if mlag_peer_id and mlag_peer_new_hostname:
+            mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
+            cnaas_nms.confpush.get.update_linknets(session, mlag_peer_dev.hostname)
+            update_interfacedb_worker(session, dev, replace=True, delete=False,
+                                      mlag_peer_hostname=mlag_peer_dev.hostname)
+        elif mlag_peer_id or mlag_peer_new_hostname:
+            raise ValueError("mlag_peer_id and mlag_peer_new_hostname must be specified together")
+        else:
+            update_interfacedb_worker(session, dev, replace=True, delete=False)
+
+        # TODO: break out into separate function, don't populate uplink vars here
         # Find management domain to use for this access switch
-        dev = session.query(Device).filter(Device.hostname == old_hostname).one()
         for neighbor_d in dev.get_neighbors(session):
             if neighbor_d.device_type == DeviceType.DIST:
                 local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
@@ -312,13 +326,6 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
         )
     except Exception as e:
         logger.exception("Error while running plugin hooks for new_managed_device: ".format(str(e)))
-
-    try:
-        update_interfacedb(hostname, replace=True)
-    except Exception as e:
-        logger.exception(
-            "Exception while updating interface database for device {}: {}".\
-            format(hostname, str(e)))
 
     return NornirJobResult(
         nrresult = nrresult

@@ -236,7 +236,7 @@ class DeviceInitApi(Resource):
                     status='error',
                     data="Provided 'mlag_peer_hostname' is not valid"), 400
             job_kwargs['mlag_peer_id'] = json_data['mlag_peer_id']
-            job_kwargs['mlag_peer_hostname'] = json_data['mlag_peer_hostname']
+            job_kwargs['mlag_peer_new_hostname'] = json_data['mlag_peer_hostname']
 
         if device_type == DeviceType.ACCESS.name:
             scheduler = Scheduler()

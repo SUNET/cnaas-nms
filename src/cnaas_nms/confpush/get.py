@@ -93,23 +93,40 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
     return result
 
 
-def get_uplinks(session, hostname: str) -> Tuple[List, List]:
+def get_uplinks(session, hostname: str) -> dict[str, str]:
+    """Returns dict with mapping of interface -> neighbor hostname"""
     logger = get_logger()
     # TODO: check if uplinks are already saved in database?
-    uplinks = []
-    neighbor_hostnames = []
+    uplinks = {}
 
     dev = session.query(Device).filter(Device.hostname == hostname).one()
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.device_type == DeviceType.DIST:
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
             if local_if:
-                uplinks.append({'ifname': local_if})
-                neighbor_hostnames.append(neighbor_d.hostname)
-    logger.debug("Uplinks for device {} detected: {} neighbor_hostnames: {}". \
-                 format(hostname, uplinks, neighbor_hostnames))
+                uplinks[local_if] = neighbor_d.hostname
+    logger.debug("Uplinks for device {} detected: {}".
+                 format(hostname, ', '.join(["{}: {}".format(ifname, hostname)
+                                             for ifname, hostname in uplinks.items()])))
 
-    return (uplinks, neighbor_hostnames)
+    return uplinks
+
+
+def get_mlag_ifs(session, hostname, mlag_peer_hostname) -> dict[str, str]:
+    """Returns dict with mapping of interface -> neighbor hostname"""
+    logger = get_logger()
+    mlag_ifs = {}
+
+    dev = session.query(Device).filter(Device.hostname == hostname).one()
+    for neighbor_d in dev.get_neighbors(session):
+        if neighbor_d.hostname == mlag_peer_hostname:
+            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+            if local_if:
+                mlag_ifs[local_if] = neighbor_d.hostname
+    logger.debug("MLAG peer interfaces for device {} detected: {}".
+                 format(hostname, ', '.join(["{}: {}".format(ifname, hostname)
+                                             for ifname, hostname in mlag_ifs.items()])))
+    return mlag_ifs
 
 
 def get_interfaces(hostname: str) -> AggregatedResult:

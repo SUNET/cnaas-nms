@@ -83,8 +83,30 @@ def push_base_management_access(task, device_variables, job_id):
              )
 
 
+def pre_init_checks(session, device_id) -> Device:
+    # Check that we can find device and that it's in the correct state to start init
+    dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+    if not dev:
+        raise ValueError(f"No device with id {device_id} found")
+    if dev.state != DeviceState.DISCOVERED:
+        raise DeviceStateException("Device must be in state DISCOVERED to begin init")
+    old_hostname = dev.hostname
+    # Perform connectivity check
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_old_filtered = nr.filter(name=old_hostname)
+    try:
+        nrresult_old = nr_old_filtered.run(task=networking.napalm_get, getters=["facts"])
+    except Exception as e:
+        raise ConnectionCheckError(f"Failed to connect to device_id {device_id}: {str(e)}")
+    if nrresult_old.failed:
+        print_result(nrresult_old)
+        raise ConnectionCheckError(f"Failed to connect to device_id {device_id}")
+
+
 @job_wrapper
 def init_access_device_step1(device_id: int, new_hostname: str,
+                             mlag_peer_id: Optional[int],
+                             mlag_peer_hostname: Optional[str],
                              job_id: Optional[str] = None,
                              scheduled_by: Optional[str] = None) -> NornirJobResult:
     """Initialize access device for management by CNaaS-NMS
@@ -102,29 +124,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         DeviceStateException
     """
     logger = get_logger()
-    # Check that we can find device and that it's in the correct state to start init
     with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
-        if not dev:
-            raise ValueError(f"No device with id {device_id} found")
-        if dev.state != DeviceState.DISCOVERED:
-            raise DeviceStateException("Device must be in state DISCOVERED to begin init")
+        dev = pre_init_checks(session, device_id)
         old_hostname = dev.hostname
-    # Perform connectivity check
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    nr_old_filtered = nr.filter(name=old_hostname)
-    try:
-        nrresult_old = nr_old_filtered.run(task=networking.napalm_get, getters=["facts"])
-    except Exception as e:
-        raise ConnectionCheckError(f"Failed to connect to device_id {device_id}: {str(e)}")
-    if nrresult_old.failed:
-        print_result(nrresult_old)
-        raise ConnectionCheckError(f"Failed to connect to device_id {device_id}")
 
-    cnaas_nms.confpush.get.update_linknets(old_hostname)
-    uplinks = []
-    neighbor_hostnames = []
-    with sqla_session() as session:
+        cnaas_nms.confpush.get.update_linknets(old_hostname)
+        uplinks = []
+        neighbor_hostnames = []
+
         # Find management domain to use for this access switch
         dev = session.query(Device).filter(Device.hostname == old_hostname).one()
         for neighbor_d in dev.get_neighbors(session):

@@ -206,7 +206,7 @@ def update_inventory(hostname: str, site='default') -> dict:
         return diff
 
 
-def update_linknets(hostname):
+def update_linknets(session, hostname):
     """Update linknet data for specified device using LLDP neighbor data.
     """
     logger = get_logger()
@@ -217,60 +217,60 @@ def update_linknets(hostname):
 
     ret = []
 
-    with sqla_session() as session:
-        local_device_inst = session.query(Device).filter(Device.hostname == hostname).one()
-        logger.debug("Updating linknets for device {} ...".format(local_device_inst.id))
+    local_device_inst = session.query(Device).filter(Device.hostname == hostname).one()
+    logger.debug("Updating linknets for device {} ...".format(local_device_inst.id))
 
-        for local_if, data in neighbors.items():
-            logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
-            remote_device_inst = session.query(Device).\
-                filter(Device.hostname == data[0]['hostname']).one_or_none()
-            if not remote_device_inst:
-                logger.info(f"Unknown connected device: {data[0]['hostname']}")
+    for local_if, data in neighbors.items():
+        logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
+        remote_device_inst = session.query(Device).\
+            filter(Device.hostname == data[0]['hostname']).one_or_none()
+        if not remote_device_inst:
+            logger.info(f"Unknown connected device: {data[0]['hostname']}")
+            continue
+        logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
+
+        # Check if linknet object already exists in database
+        local_devid = local_device_inst.id
+        check_linknet = session.query(Linknet).\
+            filter(
+                ((Linknet.device_a_id == local_devid) & (Linknet.device_a_port == local_if))
+                |
+                ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
+                |
+                ((Linknet.device_a_id == remote_device_inst.id) &
+                 (Linknet.device_a_port == data[0]['port']))
+                |
+                ((Linknet.device_b_id == remote_device_inst.id) &
+                 (Linknet.device_b_port == data[0]['port']))
+            ).one_or_none()
+        if check_linknet:
+            logger.debug(f"Found entry: {check_linknet.id}")
+            if (
+                    (       check_linknet.device_a_id == local_devid
+                        and check_linknet.device_a_port == local_if
+                        and check_linknet.device_b_id == remote_device_inst.id
+                        and check_linknet.device_b_port == data[0]['port']
+                    )
+                    or
+                    (       check_linknet.device_a_id == local_devid
+                        and check_linknet.device_a_port == local_if
+                        and check_linknet.device_b_id == remote_device_inst.id
+                        and check_linknet.device_b_port == data[0]['port']
+                    )
+            ):
+                # All info is the same, no update required
                 continue
-            logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
+            else:
+                # TODO: update instead of delete+new insert?
+                session.delete(check_linknet)
+                session.commit()
 
-            # Check if linknet object already exists in database
-            local_devid = local_device_inst.id
-            check_linknet = session.query(Linknet).\
-                filter(
-                    ((Linknet.device_a_id == local_devid) & (Linknet.device_a_port == local_if))
-                    |
-                    ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
-                    |
-                    ((Linknet.device_a_id == remote_device_inst.id) &
-                     (Linknet.device_a_port == data[0]['port']))
-                    |
-                    ((Linknet.device_b_id == remote_device_inst.id) &
-                     (Linknet.device_b_port == data[0]['port']))
-                ).one_or_none()
-            if check_linknet:
-                logger.debug(f"Found entry: {check_linknet.id}")
-                if (
-                        (       check_linknet.device_a_id == local_devid
-                            and check_linknet.device_a_port == local_if
-                            and check_linknet.device_b_id == remote_device_inst.id
-                            and check_linknet.device_b_port == data[0]['port']
-                        )
-                        or
-                        (       check_linknet.device_a_id == local_devid
-                            and check_linknet.device_a_port == local_if
-                            and check_linknet.device_b_id == remote_device_inst.id
-                            and check_linknet.device_b_port == data[0]['port']
-                        )
-                ):
-                    # All info is the same, no update required
-                    continue
-                else:
-                    # TODO: update instead of delete+new insert?
-                    session.delete(check_linknet)
-                    session.commit()
-
-            new_link = Linknet()
-            new_link.device_a = local_device_inst
-            new_link.device_a_port = local_if
-            new_link.device_b = remote_device_inst
-            new_link.device_b_port = data[0]['port']
-            session.add(new_link)
-            ret.append(new_link.as_dict())
+        new_link = Linknet()
+        new_link.device_a = local_device_inst
+        new_link.device_a_port = local_if
+        new_link.device_b = remote_device_inst
+        new_link.device_b_port = data[0]['port']
+        session.add(new_link)
+        ret.append(new_link.as_dict())
+    session.commit()
     return ret

@@ -535,7 +535,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)
 
-    if not change_scores or total_change_score >= 100 or failed_hosts:
+    if len(device_list) == 0:
+        total_change_score = 0
+    elif not change_scores or total_change_score >= 100 or failed_hosts:
         total_change_score = 100
     elif max(change_scores) > 1000:
         # If some device has a score higher than this, disregard any averages
@@ -544,7 +546,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     else:
         # calculate median value and round up, use min value of 1 and max of 100
         total_change_score = max(min(int(median(change_scores) + 0.5), 100), 1)
-    logger.info("Change impact score: {}".format(total_change_score))
+    logger.info(
+        "Change impact score: {} (dry_run: {}, selected devices: {}, changed devices: {})".
+            format(total_change_score, dry_run, len(device_list), len(changed_hosts)))
 
     next_job_id = None
     if auto_push and len(device_list) == 1 and hostname and dry_run:

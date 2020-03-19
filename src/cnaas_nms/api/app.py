@@ -2,7 +2,7 @@ import os
 import sys
 
 from flask import Flask, render_template, request, g
-from flask_restplus import Api
+from flask_restx import Api
 from flask_socketio import SocketIO, join_room
 from flask_jwt_extended import JWTManager, decode_token
 from flask_jwt_extended.exceptions import NoAuthorizationError
@@ -29,6 +29,7 @@ from cnaas_nms.tools.get_apidata import get_apidata
 
 from jwt.exceptions import DecodeError, InvalidSignatureError, \
     InvalidTokenError
+from flask_jwt_extended.exceptions import InvalidHeaderError
 
 
 logger = get_logger()
@@ -58,9 +59,11 @@ class CnaasApi(Api):
             data = {'status': 'error', 'data': 'JWT token missing?'}
         elif isinstance(e, NoAuthorizationError):
             data = {'status': 'error', 'data': 'JWT token missing?'}
+        elif isinstance(e, InvalidHeaderError):
+            data = {'status': 'error', 'data': 'Invalid header, JWT token missing? {}'.format(e)}
         else:
             return super(CnaasApi, self).handle_error(e)
-        return jsonify(data)
+        return jsonify(data), 401
 
 
 try:

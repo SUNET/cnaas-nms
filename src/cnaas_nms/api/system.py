@@ -1,5 +1,5 @@
 from os.path import dirname, abspath
-from flask_restplus import Resource, Namespace
+from flask_restx import Resource, Namespace
 from flask_jwt_extended import jwt_required
 from git import Repo
 from git import InvalidGitRepositoryError, NoSuchPathError

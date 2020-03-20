@@ -27,7 +27,10 @@ def find_mgmtdomain(session, hostnames: List[str]) -> Optional[Mgmtdomain]:
         ValueError: On invalid hostnames etc
     """
     if not isinstance(hostnames, list) or not len(hostnames) == 2:
-        raise ValueError("hostnames argument must be a list with two device hostnames")
+        raise ValueError(
+            "hostnames argument must be a list with two device hostnames, got: {}".format(
+                hostnames
+            ))
     for hostname in hostnames:
         if not Device.valid_hostname(hostname):
             raise ValueError(f"Argument {hostname} is not a valid hostname")

@@ -102,6 +102,7 @@ def pre_init_checks(session, device_id) -> Device:
     if nrresult_old.failed:
         print_result(nrresult_old)
         raise ConnectionCheckError(f"Failed to connect to device_id {device_id}")
+    return dev
 
 
 def pre_init_check_mlag(session, dev, mlag_peer_dev):
@@ -119,8 +120,8 @@ def pre_init_check_mlag(session, dev, mlag_peer_dev):
 
 @job_wrapper
 def init_access_device_step1(device_id: int, new_hostname: str,
-                             mlag_peer_id: Optional[int],
-                             mlag_peer_new_hostname: Optional[str],
+                             mlag_peer_id: Optional[int] = None,
+                             mlag_peer_new_hostname: Optional[str] = None,
                              job_id: Optional[str] = None,
                              scheduled_by: Optional[str] = None) -> NornirJobResult:
     """Initialize access device for management by CNaaS-NMS.

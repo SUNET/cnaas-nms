@@ -9,14 +9,17 @@ from cnaas_nms.tools.log import get_logger
 
 
 def update_interfacedb_worker(session, dev: Device, replace: bool, delete: bool,
-                              mlag_peer_hostname: str) -> List[dict]:
+                              mlag_peer_hostname: Optional[str] = None) -> List[dict]:
     """Perform actual work of updating database for update_interfacedb"""
     logger = get_logger()
     ret = []
 
     iflist = get_interfaces_names(dev.hostname)
     uplinks = get_uplinks(session, dev.hostname)
-    mlag_ifs = get_mlag_ifs(session, dev.hostname)
+    if mlag_peer_hostname:
+        mlag_ifs = get_mlag_ifs(session, dev.hostname, mlag_peer_hostname)
+    else:
+        mlag_ifs = {}
     phy_interfaces = filter_interfaces(iflist, platform=dev.platform, include='physical')
 
     for intf_name in phy_interfaces:

@@ -22,6 +22,7 @@ class InterfaceConfigType(enum.Enum):
     ACCESS_UNTAGGED = 11
     ACCESS_TAGGED = 12
     ACCESS_UPLINK = 13
+    ACCESS_DOWNLINK = 14
 
     @classmethod
     def has_value(cls, value):

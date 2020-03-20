@@ -14,6 +14,7 @@ import cnaas_nms.confpush.get
 import cnaas_nms.db.helper
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
@@ -103,6 +104,19 @@ def pre_init_checks(session, device_id) -> Device:
         raise ConnectionCheckError(f"Failed to connect to device_id {device_id}")
 
 
+def pre_init_check_mlag(session, dev, mlag_peer_dev):
+    intfs: Interface = session.query(Interface).filter(Interface.device == dev).\
+        filter(InterfaceConfigType == InterfaceConfigType.MLAG_PEER).all()
+    intf: Interface
+    for intf in intfs:
+        if intf.data['neighbor_id'] == mlag_peer_dev.id:
+            continue
+        else:
+            raise Exception("Inconsistent MLAG peer {} detected for device {}".format(
+                intf.data['neighbor'], dev.hostname
+            ))
+
+
 @job_wrapper
 def init_access_device_step1(device_id: int, new_hostname: str,
                              mlag_peer_id: Optional[int],
@@ -133,14 +147,17 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         dev = pre_init_checks(session, device_id)
 
         cnaas_nms.confpush.get.update_linknets(session, dev.hostname)  # update linknets using LLDP data
-        uplinks = []
-        neighbor_hostnames = []
+        uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
             cnaas_nms.confpush.get.update_linknets(session, mlag_peer_dev.hostname)
             update_interfacedb_worker(session, dev, replace=True, delete=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
+            uplink_hostnames.append(mlag_peer_dev.get_uplink_peer_hostnames(session))
+            # check that both devices see the correct MLAG peer
+            pre_init_check_mlag(session, dev, mlag_peer_dev)
+            pre_init_check_mlag(session, mlag_peer_dev, dev)
         elif mlag_peer_id or mlag_peer_new_hostname:
             raise ValueError("mlag_peer_id and mlag_peer_new_hostname must be specified together")
         else:
@@ -157,11 +174,11 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         logger.debug("Uplinks for device {} detected: {} neighbor_hostnames: {}".\
                      format(device_id, uplinks, neighbor_hostnames))
         # TODO: check compatability, same dist pair and same ports on dists
-        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
+        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, uplink_hostnames)
         if not mgmtdomain:
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(
-                    neighbor_hostnames))
+                    uplink_hostnames))
         # Select a new management IP for the device
         ReservedIP.clean_reservations(session, device=dev)
         session.commit()
@@ -171,6 +188,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 mgmtdomain.id, mgmtdomain.description))
         reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
         session.add(reserved_ip)
+        # TODO: query interface db
+        uplinks = []
         # Populate variables for template rendering
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
         device_variables = {

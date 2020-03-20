@@ -112,8 +112,9 @@ def get_uplinks(session, hostname: str) -> dict[str, str]:
     return uplinks
 
 
-def get_mlag_ifs(session, hostname, mlag_peer_hostname) -> dict[str, str]:
-    """Returns dict with mapping of interface -> neighbor hostname"""
+def get_mlag_ifs(session, hostname, mlag_peer_hostname) -> dict[str, int]:
+    """Returns dict with mapping of interface -> neighbor id
+    Return id instead of hostname since mlag peer will change hostname during init"""
     logger = get_logger()
     mlag_ifs = {}
 
@@ -122,7 +123,7 @@ def get_mlag_ifs(session, hostname, mlag_peer_hostname) -> dict[str, str]:
         if neighbor_d.hostname == mlag_peer_hostname:
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
             if local_if:
-                mlag_ifs[local_if] = neighbor_d.hostname
+                mlag_ifs[local_if] = neighbor_d.id
     logger.debug("MLAG peer interfaces for device {} detected: {}".
                  format(hostname, ', '.join(["{}: {}".format(ifname, hostname)
                                              for ifname, hostname in mlag_ifs.items()])))

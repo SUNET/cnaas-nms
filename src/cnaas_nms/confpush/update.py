@@ -43,7 +43,7 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete: bool,
             intf.data = {'neighbor': uplinks[intf_name]}
         elif intf_name in mlag_ifs.keys():
             intf.configtype = InterfaceConfigType.MLAG_PEER
-            intf.data = {'neighbor': mlag_ifs[intf_name]}
+            intf.data = {'neighbor_id': mlag_ifs[intf_name]}
         else:
             intf.configtype = InterfaceConfigType.ACCESS_AUTO
         intf.name = intf_name
@@ -51,6 +51,7 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete: bool,
         if new_intf:
             session.add(intf)
         ret.append(intf.as_dict())
+    session.commit()
     return ret
 
 

@@ -2,7 +2,7 @@ import datetime
 import re
 import hashlib
 
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 
 from nornir.core.deserializer.inventory import Inventory
 from nornir.core.filter import F
@@ -93,7 +93,7 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
     return result
 
 
-def get_uplinks(session, hostname: str) -> dict[str, str]:
+def get_uplinks(session, hostname: str) -> Dict[str, str]:
     """Returns dict with mapping of interface -> neighbor hostname"""
     logger = get_logger()
     # TODO: check if uplinks are already saved in database?
@@ -112,7 +112,7 @@ def get_uplinks(session, hostname: str) -> dict[str, str]:
     return uplinks
 
 
-def get_mlag_ifs(session, hostname, mlag_peer_hostname) -> dict[str, int]:
+def get_mlag_ifs(session, hostname, mlag_peer_hostname) -> Dict[str, int]:
     """Returns dict with mapping of interface -> neighbor id
     Return id instead of hostname since mlag peer will change hostname during init"""
     logger = get_logger()

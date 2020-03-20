@@ -163,16 +163,6 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         else:
             update_interfacedb_worker(session, dev, replace=True, delete=False)
 
-        # TODO: break out into separate function, don't populate uplink vars here
-        # Find management domain to use for this access switch
-        for neighbor_d in dev.get_neighbors(session):
-            if neighbor_d.device_type == DeviceType.DIST:
-                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-                if local_if:
-                    uplinks.append({'ifname': local_if})
-                    neighbor_hostnames.append(neighbor_d.hostname)
-        logger.debug("Uplinks for device {} detected: {} neighbor_hostnames: {}".\
-                     format(device_id, uplinks, neighbor_hostnames))
         # TODO: check compatability, same dist pair and same ports on dists
         mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, uplink_hostnames)
         if not mgmtdomain:
@@ -188,8 +178,6 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 mgmtdomain.id, mgmtdomain.description))
         reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
         session.add(reserved_ip)
-        # TODO: query interface db
-        uplinks = []
         # Populate variables for template rendering
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
         device_variables = {
@@ -200,10 +188,16 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             'mgmt_vlan_id': mgmtdomain.vlan,
             'mgmt_gw': mgmt_gw_ipif.ip
         }
-        for uplink in uplinks:
+        intfs = session.query(Interface).filter(Interface.device == dev).all()
+        intf: Interface
+        for intf in intfs:
+            intfdata = None
+            if intf.data:
+                intfdata = dict(intf.data)
             device_variables['interfaces'].append({
-                'name': uplink['ifname'],
-                'ifclass': 'ACCESS_UPLINK',
+                'name': intf.name,
+                'ifclass': intf.configtype.name,
+                'data': intfdata
             })
         # Update device state
         dev = session.query(Device).filter(Device.id == device_id).one()

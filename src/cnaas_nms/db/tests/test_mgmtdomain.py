@@ -5,13 +5,12 @@ import pkg_resources
 import yaml
 import os
 import pprint
+from ipaddress import IPv4Address, IPv4Network, IPv4Interface
 
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
-
-from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
 
 
 class MgmtdomainTests(unittest.TestCase):
@@ -19,12 +18,8 @@ class MgmtdomainTests(unittest.TestCase):
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
-        self.tmp_postgres = PostgresTemporaryInstance()
 
-    def tearDown(self):
-        self.tmp_postgres.shutdown()
-
-    def add_mgmt_domain(self):
+    def add_mgmtdomain(self):
         with sqla_session() as session:
             d_a = session.query(Device).filter(Device.hostname == 'eosdist1').one()
             d_b = session.query(Device).filter(Device.hostname == 'eosdist2').one()
@@ -46,7 +41,7 @@ class MgmtdomainTests(unittest.TestCase):
         #    1,
         #    len(result['hosts'].items()))
 
-    def delete_mgmt_domain(self):
+    def delete_mgmtdomain(self):
         with sqla_session() as session:
             d_a = session.query(Device).filter(Device.hostname == 'eosdist1').one()
             instance = session.query(Mgmtdomain).filter(Mgmtdomain.device_a == d_a).first()
@@ -56,18 +51,23 @@ class MgmtdomainTests(unittest.TestCase):
             else:
                 print(f"Mgmtdomain for device {d_a.hostname} not found")
 
-    def test_find_mgmt_domain(self):
+    def test_find_mgmt_omain(self):
         with sqla_session() as session:
             mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ['eosdist1', 'eosdist2'])
             if mgmtdomain:
                 pprint.pprint(mgmtdomain.as_dict())
 
     def test_find_free_mgmt_ip(self):
-        mgmtdomain_id = 2
+        mgmtdomain_id = 1
         with sqla_session() as session:
             mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one()
             if mgmtdomain:
                 print(mgmtdomain.find_free_mgmt_ip(session))
+
+    def test_find_mgmtdomain_by_ip(self):
+        with sqla_session() as session:
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, IPv4Address('10.0.6.6'))
+            self.assertEqual(IPv4Interface(mgmtdomain.ipv4_gw).network, IPv4Network('10.0.6.0/24'))
 
 
 if __name__ == '__main__':

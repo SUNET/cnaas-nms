@@ -16,7 +16,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.interface import Interface
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 
 
 def get_inventory():
@@ -100,11 +100,24 @@ def get_uplinks(session, hostname: str) -> Dict[str, str]:
     uplinks = {}
 
     dev = session.query(Device).filter(Device.hostname == hostname).one()
+    neighbor_d: Device
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.device_type == DeviceType.DIST:
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+            # TODO: check that dist interface is configured as downlink
             if local_if:
                 uplinks[local_if] = neighbor_d.hostname
+        elif neighbor_d.device_type == DeviceType.ACCESS:
+            intfs: Interface = session.query(Interface).filter(Interface.device == neighbor_d). \
+                filter(InterfaceConfigType == InterfaceConfigType.ACCESS_DOWNLINK).all()
+            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+            remote_if = neighbor_d.get_neighbor_local_ifname(session, dev)
+
+            intf: Interface
+            for intf in intfs:
+                if intf.name == remote_if:
+                    uplinks[local_if] = neighbor_d.hostname
+
     logger.debug("Uplinks for device {} detected: {}".
                  format(hostname, ', '.join(["{}: {}".format(ifname, hostname)
                                              for ifname, hostname in uplinks.items()])))

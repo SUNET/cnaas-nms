@@ -116,15 +116,11 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
         }
 
         if devtype == DeviceType.ACCESS:
-            neighbor_hostnames = dev.get_uplink_peer_hostnames(session)
-            if not neighbor_hostnames:
-                raise Exception("Could not find any uplink neighbors for device {}".format(
-                    hostname))
-            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, dev.management_ip)
             if not mgmtdomain:
                 raise Exception(
-                    "Could not find appropriate management domain for uplink peer devices: {}".
-                    format(neighbor_hostnames))
+                    "Could not find appropriate management domain for management_ip: {}".
+                    format(dev.management_ip))
 
             mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
             access_device_variables = {

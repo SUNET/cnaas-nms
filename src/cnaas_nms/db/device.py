@@ -145,9 +145,8 @@ class Device(cnaas_nms.db.base.Base):
                 ))
         return ret
 
-    def get_link_to(self, session, peer_device: Device) -> Optional[cnaas_nms.db.linknet.Linknet]:
+    def get_links_to(self, session, peer_device: Device) -> List[cnaas_nms.db.linknet.Linknet]:
         """Return linknet connecting to device peer_device."""
-        # TODO: support multiple links to the same neighbor?
         return session.query(cnaas_nms.db.linknet.Linknet).\
             filter(
                 ((cnaas_nms.db.linknet.Linknet.device_a_id == self.id) &
@@ -155,23 +154,44 @@ class Device(cnaas_nms.db.base.Base):
                 |
                 ((cnaas_nms.db.linknet.Linknet.device_b_id == self.id) &
                  (cnaas_nms.db.linknet.Linknet.device_a_id == peer_device.id))
-            ).one_or_none()
+            ).all()
 
     def get_neighbor_local_ifname(self, session, peer_device: Device) -> Optional[str]:
         """Get the local interface name on this device that links to peer_device."""
-        linknet = self.get_link_to(session, peer_device)
-        if not linknet:
+        linknets = self.get_links_to(session, peer_device)
+        if not linknets:
             return None
+        elif len(linknets) > 1:
+            raise ValueError("Multiple linknets between devices not supported")
+        else:
+            linknet = linknets[0]
         if linknet.device_a_id == self.id:
             return linknet.device_a_port
         elif linknet.device_b_id == self.id:
             return linknet.device_b_port
 
+    def get_neighbor_local_ifnames(self, session, peer_device: Device) -> List[str]:
+        """Get the local interface name on this device that links to peer_device."""
+        linknets = self.get_links_to(session, peer_device)
+        ifnames = []
+        if not linknets:
+            return ifnames
+        for linknet in linknets:
+            if linknet.device_a_id == self.id:
+                ifnames.append(linknet.device_a_port)
+            elif linknet.device_b_id == self.id:
+                ifnames.append(linknet.device_b_port)
+        return ifnames
+
     def get_neighbor_local_ipif(self, session, peer_device: Device) -> Optional[str]:
         """Get the local interface IP on this device that links to peer_device."""
-        linknet = self.get_link_to(session, peer_device)
-        if not linknet:
+        linknets = self.get_links_to(session, peer_device)
+        if not linknets:
             return None
+        elif len(linknets) > 1:
+            raise ValueError("Multiple linknets between devices not supported")
+        else:
+            linknet = linknets[0]
         if linknet.device_a_id == self.id:
             return "{}/{}".format(linknet.device_a_ip, ipaddress.IPv4Network(linknet.ipv4_network).prefixlen)
         elif linknet.device_b_id == self.id:
@@ -179,9 +199,13 @@ class Device(cnaas_nms.db.base.Base):
 
     def get_neighbor_ip(self, session, peer_device: Device):
         """Get the remote peer IP address for the linknet going towards device."""
-        linknet = self.get_link_to(session, peer_device)
-        if not linknet:
+        linknets = self.get_links_to(session, peer_device)
+        if not linknets:
             return None
+        elif len(linknets) > 1:
+            raise ValueError("Multiple linknets between devices not supported")
+        else:
+            linknet = linknets[0]
         if linknet.device_a_id == self.id:
             return linknet.device_b_ip
         elif linknet.device_b_id == self.id:

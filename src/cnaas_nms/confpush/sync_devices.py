@@ -222,6 +222,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             fabric_links = []
             for neighbor_d in dev.get_neighbors(session):
                 if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
+                    # TODO: support multiple links to the same neighbor?
                     local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
                     local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
                     neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)

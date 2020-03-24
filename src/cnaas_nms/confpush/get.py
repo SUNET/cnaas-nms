@@ -134,8 +134,7 @@ def get_mlag_ifs(session, hostname, mlag_peer_hostname) -> Dict[str, int]:
     dev = session.query(Device).filter(Device.hostname == hostname).one()
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.hostname == mlag_peer_hostname:
-            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-            if local_if:
+            for local_if in dev.get_neighbor_local_ifnames(session, neighbor_d):
                 mlag_ifs[local_if] = neighbor_d.id
     logger.debug("MLAG peer interfaces for device {} detected: {}".
                  format(hostname, ', '.join(["{}: {}".format(ifname, hostname)

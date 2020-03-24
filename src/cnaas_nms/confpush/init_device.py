@@ -19,6 +19,7 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.confpush.update import update_interfacedb_worker
+from cnaas_nms.confpush.sync_devices import get_mlag_vars
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
@@ -200,6 +201,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 'ifclass': intf.configtype.name,
                 'data': intfdata
             })
+        mlag_vars = get_mlag_vars(session, dev)
+        device_variables = {**device_variables, **mlag_vars}
         # Update device state
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.INIT

@@ -4,7 +4,7 @@ import ipaddress
 import datetime
 import enum
 import re
-from typing import Optional, List
+from typing import Optional, List, Set
 
 from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
 from sqlalchemy import Enum, DateTime, Boolean
@@ -197,18 +197,18 @@ class Device(cnaas_nms.db.base.Base):
                 peer_hostnames.append(intf.data['neighbor'])
         return peer_hostnames
 
-    def get_mlag_peers(self, session) -> List[Device]:
+    def get_mlag_peer(self, session) -> Optional[Device]:
         intfs = session.query(Interface).filter(Interface.device == self). \
             filter(Interface.configtype == InterfaceConfigType.MLAG_PEER).all()
-        peers: List[Device] = []
+        peers: Set[Device] = set()
         linknets = self.get_linknets(session)
         intf: Interface = Interface()
         for intf in intfs:
             for linknet in linknets:
                 if linknet.device_a == self and linknet.device_a_port == intf.name:
-                    peers.append(linknet.device_b)
+                    peers.add(linknet.device_b)
                 elif linknet.device_b == self and linknet.device_b_port == intf.name:
-                    peers.append(linknet.device_a)
+                    peers.add(linknet.device_a)
         if len(peers) > 1:
             raise DeviceException("More than one MLAG peer found: {}".format(
                 [x.hostname for x in peers]
@@ -216,7 +216,9 @@ class Device(cnaas_nms.db.base.Base):
         elif len(peers) == 1:
             if self.device_type != peers[0].device_type:
                 raise DeviceException("MLAG peers are not the same device type")
-        return peers
+            return peers[0]
+        else:
+            return None
 
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:

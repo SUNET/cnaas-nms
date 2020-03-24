@@ -81,6 +81,24 @@ def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
     return ret
 
 
+def get_mlag_vars(session, dev: Device) -> dict:
+    ret = {
+        'mlag_peer': False,
+        'mlag_peer_hostname': None,
+        'mlag_peer_low': None
+    }
+    mlag_peer: Device = dev.get_mlag_peer(session)
+    if not mlag_peer:
+        return ret
+    ret['mlag_peer'] = True
+    ret['mlag_peer_hostname'] = mlag_peer.hostname
+    if dev.id < mlag_peer.id:
+        ret['mlag_peer_low'] = True
+    else:
+        ret['mlag_peer_low'] = False
+    return ret
+
+
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                      job_id: Optional[str] = None,
                      scheduled_by: Optional[str] = None):
@@ -152,8 +170,8 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     'tagged_vlan_list': tagged_vlan_list,
                     'data': intfdata
                 })
-
-            device_variables = {**access_device_variables, **device_variables}
+            mlag_vars = get_mlag_vars(session, dev)
+            device_variables = {**access_device_variables, **device_variables, **mlag_vars}
         elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
             asn = generate_asn(infra_ip)
             fabric_device_variables = {

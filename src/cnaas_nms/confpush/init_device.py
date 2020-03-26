@@ -365,6 +365,22 @@ def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
         return None
 
 
+def set_hostname_task(task, new_hostname: str):
+    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
+        repo_config = yaml.safe_load(db_file)
+        local_repo_path = repo_config['templates_local']
+    template_vars = {
+        'hostname': new_hostname
+    }
+    task.run(
+        task=text.template_file,
+        name="Configure hostname",
+        template="hostname.j2",
+        path=f"{local_repo_path}/{task.host.platform}",
+        **template_vars
+    )
+
+
 @job_wrapper
 def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
                     job_id: Optional[str] = None,
@@ -409,6 +425,7 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
             dev.model = facts['model']
             dev.os_version = facts['os_version']
             dev.state = DeviceState.DISCOVERED
+            new_hostname = dev.hostname
             logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned, " +
                         "moving to DISCOVERED state")
     except Exception as e:
@@ -417,5 +434,11 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
         ))
         logger.debug("nrresult for ztp_mac {}: {}".format(ztp_mac, nrresult))
         raise e
+
+    nrresult_hostname = nr_filtered.run(task=set_hostname_task, new_hostname=new_hostname)
+    if nrresult_hostname.failed:
+        logger.info("Could not set hostname for ztp_mac: {}".format(
+            ztp_mac
+        ))
 
     return NornirJobResult(nrresult=nrresult)

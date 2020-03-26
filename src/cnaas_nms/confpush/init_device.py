@@ -156,7 +156,9 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             cnaas_nms.confpush.get.update_linknets(session, mlag_peer_dev.hostname)
             update_interfacedb_worker(session, dev, replace=True, delete=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
-            uplink_hostnames.append(mlag_peer_dev.get_uplink_peer_hostnames(session))
+            update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete=False,
+                                      mlag_peer_hostname=dev.hostname)
+            uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
             # check that both devices see the correct MLAG peer
             pre_init_check_mlag(session, dev, mlag_peer_dev)
             pre_init_check_mlag(session, mlag_peer_dev, dev)

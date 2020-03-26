@@ -149,7 +149,6 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         dev = pre_init_checks(session, device_id)
 
         cnaas_nms.confpush.get.update_linknets(session, dev.hostname)  # update linknets using LLDP data
-        uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
@@ -158,6 +157,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete=False,
                                       mlag_peer_hostname=dev.hostname)
+            uplink_hostnames = dev.get_uplink_peer_hostnames(session)
             uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
             # check that both devices see the correct MLAG peer
             pre_init_check_mlag(session, dev, mlag_peer_dev)
@@ -166,6 +166,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             raise ValueError("mlag_peer_id and mlag_peer_new_hostname must be specified together")
         else:
             update_interfacedb_worker(session, dev, replace=True, delete=False)
+            uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         # TODO: check compatability, same dist pair and same ports on dists
         mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, uplink_hostnames)

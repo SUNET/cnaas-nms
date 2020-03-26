@@ -238,9 +238,9 @@ class Device(cnaas_nms.db.base.Base):
                 [x.hostname for x in peers]
             ))
         elif len(peers) == 1:
-            if self.device_type != peers[0].device_type:
+            if self.device_type != next(iter(peers)).device_type:
                 raise DeviceException("MLAG peers are not the same device type")
-            return peers[0]
+            return next(iter(peers))
         else:
             return None
 

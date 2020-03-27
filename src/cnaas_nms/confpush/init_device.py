@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from ipaddress import IPv4Interface
 
 from nornir.plugins.tasks import networking, text
@@ -123,6 +123,7 @@ def pre_init_check_mlag(session, dev, mlag_peer_dev):
 def init_access_device_step1(device_id: int, new_hostname: str,
                              mlag_peer_id: Optional[int] = None,
                              mlag_peer_new_hostname: Optional[str] = None,
+                             uplink_hostnames_arg: Optional[List[str]] = [],
                              job_id: Optional[str] = None,
                              scheduled_by: Optional[str] = None) -> NornirJobResult:
     """Initialize access device for management by CNaaS-NMS.
@@ -134,6 +135,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         new_hostname: Hostname to configure on this device
         mlag_peer_id: Device ID of MLAG peer device (optional)
         mlag_peer_new_hostname: Hostname to configure on peer device (optional)
+        uplink_hostnames_arg: List of hostnames of uplink peer devices (optional)
+                              Used when initializing MLAG peer device
         job_id: job_id provided by scheduler when adding job
         scheduled_by: Username from JWT.
 
@@ -150,6 +153,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
         cnaas_nms.confpush.get.update_linknets(session, dev.hostname)  # update linknets using LLDP data
 
+        # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
             cnaas_nms.confpush.get.update_linknets(session, mlag_peer_dev.hostname)
@@ -162,8 +166,12 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             # check that both devices see the correct MLAG peer
             pre_init_check_mlag(session, dev, mlag_peer_dev)
             pre_init_check_mlag(session, mlag_peer_dev, dev)
+        # If this is the second device in an MLAG pair
+        elif uplink_hostnames_arg:
+            uplink_hostnames = uplink_hostnames_arg
         elif mlag_peer_id or mlag_peer_new_hostname:
             raise ValueError("mlag_peer_id and mlag_peer_new_hostname must be specified together")
+        # If this device is not part of an MLAG pair
         else:
             update_interfacedb_worker(session, dev, replace=True, delete=False)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
@@ -259,7 +267,24 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         scheduled_by=scheduled_by,
         kwargs={'device_id': device_id, 'iteration': 1})
 
-    logger.debug(f"Step 2 scheduled as ID {next_job_id}")
+    logger.info("Init step 2 for {} scheduled as job # {}".format(
+        new_hostname, next_job_id
+    ))
+
+    if mlag_peer_id and mlag_peer_new_hostname:
+        mlag_peer_job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.init_device:init_access_device_step1',
+            when=60,
+            scheduled_by=scheduled_by,
+            kwargs={
+                'device_id': mlag_peer_id,
+                'new_hostname': mlag_peer_new_hostname,
+                'uplink_hostnames_arg': uplink_hostnames,
+                'scheduled_by': scheduled_by
+            })
+        logger.info("MLAG peer (id {}) init scheduled as job # {}".format(
+            mlag_peer_id, mlag_peer_job_id
+        ))
 
     return NornirJobResult(
         nrresult=nrresult,

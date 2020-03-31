@@ -81,7 +81,7 @@ def push_base_management_access(task, device_variables, job_id):
              name="Push base management config",
              replace=True,
              configuration=task.host["config"],
-             dry_run=False # TODO: temp for testing
+             dry_run=False
              )
 
 
@@ -400,12 +400,19 @@ def set_hostname_task(task, new_hostname: str):
     template_vars = {
         'hostname': new_hostname
     }
-    task.run(
+    r = task.run(
         task=text.template_file,
-        name="Configure hostname",
+        name="Generate hostname config",
         template="hostname.j2",
         path=f"{local_repo_path}/{task.host.platform}",
         **template_vars
+    )
+    task.host["config"] = r.result
+    task.run(
+        task=networking.napalm_configure,
+        name="Configure hostname",
+        replace=False,
+        configuration=task.host["config"],
     )
 
 

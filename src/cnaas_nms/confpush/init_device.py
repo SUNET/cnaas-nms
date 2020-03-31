@@ -397,9 +397,7 @@ def set_hostname_task(task, new_hostname: str):
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)
         local_repo_path = repo_config['templates_local']
-    template_vars = {
-        'host': new_hostname
-    }
+    template_vars = {}  # host is already set by nornir
     r = task.run(
         task=text.template_file,
         name="Generate hostname config",

@@ -398,7 +398,7 @@ def set_hostname_task(task, new_hostname: str):
         repo_config = yaml.safe_load(db_file)
         local_repo_path = repo_config['templates_local']
     template_vars = {
-        'hostname': new_hostname
+        'host': new_hostname
     }
     r = task.run(
         task=text.template_file,

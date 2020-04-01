@@ -263,7 +263,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     scheduler = Scheduler()
     next_job_id = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_access_device_step2',
-        when=0,
+        when=30,
         scheduled_by=scheduled_by,
         kwargs={'device_id': device_id, 'iteration': 1})
 
@@ -406,12 +406,14 @@ def set_hostname_task(task, new_hostname: str):
         **template_vars
     )
     task.host["config"] = r.result
+    task.host.open_connection("napalm", configuration=task.nornir.config)
     task.run(
         task=networking.napalm_configure,
         name="Configure hostname",
         replace=False,
         configuration=task.host["config"],
     )
+    task.host.close_connection("napalm")
 
 
 @job_wrapper

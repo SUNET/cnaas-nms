@@ -75,14 +75,21 @@ def push_base_management_access(task, device_variables, job_id):
 
     task.host["config"] = r.result
     # Use extra low timeout for this since we expect to loose connectivity after changing IP
-    task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 5})
+    task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 30})
 
-    task.run(task=networking.napalm_configure,
-             name="Push base management config",
-             replace=True,
-             configuration=task.host["config"],
-             dry_run=False
-             )
+    try:
+        task.run(task=networking.napalm_configure,
+                 name="Push base management config",
+                 replace=True,
+                 configuration=task.host["config"],
+                 dry_run=False
+                 )
+    except Exception:
+        task.run(task=networking.napalm_get, getters=["facts"])
+        if not task.results[-1].failed:
+            raise InitError("Device {} did not commit new base management config".format(
+                task.host.name
+            ))
 
 
 def pre_init_checks(session, device_id) -> Device:
@@ -225,21 +232,9 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     nr_filtered = nr.filter(name=hostname)
 
     # step2. push management config
-    try:
-        nrresult = nr_filtered.run(task=push_base_management_access,
-                                   device_variables=device_variables,
-                                   job_id=job_id)
-    except SessionLockedException as e:
-        # TODO: Handle this somehow?
-        pass
-    except Exception as e:
-        # Ignore exception, we expect to loose connectivity.
-        # Sometimes we get no exception here, but it's saved in result
-        # other times we get socket.timeout, pyeapi.eapilib.ConnectionError or
-        # napalm.base.exceptions.ConnectionException to handle here?
-        pass
-    if not nrresult.failed:
-        raise Exception  # we don't expect success here
+    nrresult = nr_filtered.run(task=push_base_management_access,
+                               device_variables=device_variables,
+                               job_id=job_id)
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
@@ -406,7 +401,6 @@ def set_hostname_task(task, new_hostname: str):
         **template_vars
     )
     task.host["config"] = r.result
-    task.host.open_connection("napalm", configuration=task.nornir.config)
     task.run(
         task=networking.napalm_configure,
         name="Configure hostname",

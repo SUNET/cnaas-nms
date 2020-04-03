@@ -9,6 +9,7 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.joblock import Joblock
+from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.tools.log import get_logger
 
 
@@ -29,6 +30,26 @@ if 'COVERAGE' in os.environ:
     atexit.register(save_coverage)
     signal.signal(signal.SIGTERM, save_coverage)
     signal.signal(signal.SIGINT, save_coverage)
+
+
+def pre_schedule_checks(scheduler, kwargs):
+    check_ok = True
+    message = ""
+    for job in scheduler.get_scheduler().get_jobs():
+        # Only allow scheduling of one discover_device job at the same time
+        if job.name == 'cnaas_nms.confpush.init_device:discover_device':
+            if job.kwargs['kwargs']['ztp_mac'] == kwargs['kwargs']['ztp_mac']:
+                message = ("There is already another scheduled job to discover device {}, skipping ".
+                           format(kwargs['kwargs']['ztp_mac']))
+                check_ok = False
+
+    if not check_ok:
+        logger.debug(message)
+        with sqla_session() as session:
+            job_entry: Job = session.query(Job).filter(Job.id == kwargs['job_id']).one_or_none()
+            job_entry.finish_abort(message)
+
+    return check_ok
 
 
 def main_loop():
@@ -64,13 +85,8 @@ def main_loop():
                 kwargs[k] = v
         # Perform pre-schedule job checks
         try:
-            for job in scheduler.get_scheduler().get_jobs():
-                # Only allow scheduling of one discover_device job at the same time
-                if job.name == 'cnaas_nms.confpush.init_device:discover_device':
-                    if job.kwargs['kwargs']['ztp_mac'] == kwargs['kwargs']['ztp_mac']:
-                        logger.debug("There is already another scheduled job to discover device {}, skipping ".
-                                     format(kwargs['kwargs']['ztp_mac']))
-                        continue
+            if not pre_schedule_checks(scheduler, kwargs):
+                continue
         except Exception as e:
             logger.exception("Unable to perform pre-schedule job checks: {}".format(e))
 

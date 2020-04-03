@@ -120,6 +120,13 @@ class Job(cnaas_nms.db.base.Base):
             logger.exception(errmsg)
             self.exception = {"error": errmsg}
 
+    def finish_abort(self, message: str):
+        logger.debug("Job {} aborted: {}".format(self.id, message))
+        self.finish_time = datetime.datetime.utcnow()
+        self.status = JobStatus.ABORTED
+        self.result = {"message": message}
+
+
     @classmethod
     def clear_jobs(cls, session):
         """Clear/release all locks in the database."""

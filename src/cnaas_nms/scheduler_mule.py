@@ -62,8 +62,20 @@ def main_loop():
         for k, v in data.items():
             if k not in ['func', 'trigger', 'id', 'run_date']:
                 kwargs[k] = v
+        # Perform pre-schedule job checks
+        try:
+            for job in scheduler.get_scheduler().get_jobs():
+                # Only allow scheduling of one discover_device job at the same time
+                if job.name == 'cnaas_nms.confpush.init_device:discover_device':
+                    if job.kwargs['kwargs']['ztp_mac'] == kwargs['kwargs']['ztp_mac']:
+                        logger.debug("There is already another scheduled job to discover device {}, skipping ".
+                                     format(kwargs['kwargs']['ztp_mac']))
+                        continue
+        except Exception as e:
+            logger.exception("Unable to perform pre-schedule job checks: {}".format(e))
+
         scheduler.add_job(data['func'], trigger=data['trigger'], kwargs=kwargs,
-                          id=data['id'], run_date=data['run_date'])
+                          id=data['id'], run_date=data['run_date'], name=data['func'])
 
 
 if __name__ == '__main__':

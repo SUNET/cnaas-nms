@@ -160,7 +160,7 @@ To remove a device, pass the device ID in a DELTE call:
    curl -X DELETE https://hostname/api/v1.0/device/10
 
 
-There is also the option to factory default and reboott the device
+There is also the option to factory default and reboot the device
 when removing it. This can be done like this:
 
 ::

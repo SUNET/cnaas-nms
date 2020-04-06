@@ -69,6 +69,8 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
     """
     logger.info('Downloading firmware for {}'.format(task.host.name))
 
+    url = httpd_url + '/' + filename
+
     try:
         with sqla_session() as session:
             dev: Device = session.query(Device).\

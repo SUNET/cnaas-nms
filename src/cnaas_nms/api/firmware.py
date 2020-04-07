@@ -139,7 +139,7 @@ class FirmwareApi(Resource):
         try:
             res = requests.get(get_httpd_url(),
                                verify=verify_tls())
-            json_data = json.loads(res.content)
+            json_data = json.loads(res.content)['data']
         except Exception as e:
             logger.exception(f"Exception when getting images: {e}")
             return empty_result(status='error',

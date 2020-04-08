@@ -182,3 +182,24 @@ touching the device use generate_config:
 This will return both the generated configuration based on the template for
 this device type, and also a list of available vaiables that could be used
 in the template.
+
+Initialize device
+-----------------
+
+For a more detailed explanation see documentation under Howto :ref:`ztp_intro`.
+
+To initialize a single ACCESS type device:
+
+::
+
+   curl https://localhost/api/v1.0/device_init/45 -d '{"hostname": "ex2300-top", "device_type": "ACCESS"}' -X POST -H "Content-Type: application/json"
+
+The device must be in state DISCOVERED to start initialization. The device must be able to detect compatible uplink devices via LLDP for initialization to finish.
+
+To initialize a pair of ACCESS devices as an MLAG pair:
+
+::
+
+   curl https://localhost/api/v1.0/device_init/45 -d '{"hostname": "a1", "device_type": "ACCESS", "mlag_peer_id": 46, "mlag_peer_hostname": "a2"}' -X POST -H "Content-Type: application/json"
+
+For MLAG pairs the devices must be able to dectect it's peer via LLDP neighbors and compatible uplink devices for initialization to finish.

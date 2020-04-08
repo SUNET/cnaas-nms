@@ -17,10 +17,12 @@ class InterfaceConfigType(enum.Enum):
     CONFIGFILE = 2
     CUSTOM = 3
     TEMPLATE = 4
+    MLAG_PEER = 5
     ACCESS_AUTO = 10
     ACCESS_UNTAGGED = 11
     ACCESS_TAGGED = 12
     ACCESS_UPLINK = 13
+    ACCESS_DOWNLINK = 14
 
     @classmethod
     def has_value(cls, value):

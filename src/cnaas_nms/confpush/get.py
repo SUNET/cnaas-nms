@@ -2,7 +2,7 @@ import datetime
 import re
 import hashlib
 
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 
 from nornir.core.deserializer.inventory import Inventory
 from nornir.core.filter import F
@@ -16,7 +16,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.interface import Interface
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 
 
 def get_inventory():
@@ -93,23 +93,53 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
     return result
 
 
-def get_uplinks(session, hostname: str) -> Tuple[List, List]:
+def get_uplinks(session, hostname: str) -> Dict[str, str]:
+    """Returns dict with mapping of interface -> neighbor hostname"""
     logger = get_logger()
     # TODO: check if uplinks are already saved in database?
-    uplinks = []
-    neighbor_hostnames = []
+    uplinks = {}
 
     dev = session.query(Device).filter(Device.hostname == hostname).one()
+    neighbor_d: Device
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.device_type == DeviceType.DIST:
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+            # TODO: check that dist interface is configured as downlink
             if local_if:
-                uplinks.append({'ifname': local_if})
-                neighbor_hostnames.append(neighbor_d.hostname)
-    logger.debug("Uplinks for device {} detected: {} neighbor_hostnames: {}". \
-                 format(hostname, uplinks, neighbor_hostnames))
+                uplinks[local_if] = neighbor_d.hostname
+        elif neighbor_d.device_type == DeviceType.ACCESS:
+            intfs: Interface = session.query(Interface).filter(Interface.device == neighbor_d). \
+                filter(InterfaceConfigType == InterfaceConfigType.ACCESS_DOWNLINK).all()
+            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+            remote_if = neighbor_d.get_neighbor_local_ifname(session, dev)
 
-    return (uplinks, neighbor_hostnames)
+            intf: Interface
+            for intf in intfs:
+                if intf.name == remote_if:
+                    uplinks[local_if] = neighbor_d.hostname
+
+    logger.debug("Uplinks for device {} detected: {}".
+                 format(hostname, ', '.join(["{}: {}".format(ifname, hostname)
+                                             for ifname, hostname in uplinks.items()])))
+
+    return uplinks
+
+
+def get_mlag_ifs(session, hostname, mlag_peer_hostname) -> Dict[str, int]:
+    """Returns dict with mapping of interface -> neighbor id
+    Return id instead of hostname since mlag peer will change hostname during init"""
+    logger = get_logger()
+    mlag_ifs = {}
+
+    dev = session.query(Device).filter(Device.hostname == hostname).one()
+    for neighbor_d in dev.get_neighbors(session):
+        if neighbor_d.hostname == mlag_peer_hostname:
+            for local_if in dev.get_neighbor_local_ifnames(session, neighbor_d):
+                mlag_ifs[local_if] = neighbor_d.id
+    logger.debug("MLAG peer interfaces for device {} detected: {}".
+                 format(hostname, ', '.join(["{}: {}".format(ifname, hostname)
+                                             for ifname, hostname in mlag_ifs.items()])))
+    return mlag_ifs
 
 
 def get_interfaces(hostname: str) -> AggregatedResult:
@@ -206,7 +236,7 @@ def update_inventory(hostname: str, site='default') -> dict:
         return diff
 
 
-def update_linknets(hostname):
+def update_linknets(session, hostname):
     """Update linknet data for specified device using LLDP neighbor data.
     """
     logger = get_logger()
@@ -217,60 +247,60 @@ def update_linknets(hostname):
 
     ret = []
 
-    with sqla_session() as session:
-        local_device_inst = session.query(Device).filter(Device.hostname == hostname).one()
-        logger.debug("Updating linknets for device {} ...".format(local_device_inst.id))
+    local_device_inst = session.query(Device).filter(Device.hostname == hostname).one()
+    logger.debug("Updating linknets for device {} ...".format(local_device_inst.id))
 
-        for local_if, data in neighbors.items():
-            logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
-            remote_device_inst = session.query(Device).\
-                filter(Device.hostname == data[0]['hostname']).one_or_none()
-            if not remote_device_inst:
-                logger.info(f"Unknown connected device: {data[0]['hostname']}")
+    for local_if, data in neighbors.items():
+        logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
+        remote_device_inst = session.query(Device).\
+            filter(Device.hostname == data[0]['hostname']).one_or_none()
+        if not remote_device_inst:
+            logger.info(f"Unknown connected device: {data[0]['hostname']}")
+            continue
+        logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
+
+        # Check if linknet object already exists in database
+        local_devid = local_device_inst.id
+        check_linknet = session.query(Linknet).\
+            filter(
+                ((Linknet.device_a_id == local_devid) & (Linknet.device_a_port == local_if))
+                |
+                ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
+                |
+                ((Linknet.device_a_id == remote_device_inst.id) &
+                 (Linknet.device_a_port == data[0]['port']))
+                |
+                ((Linknet.device_b_id == remote_device_inst.id) &
+                 (Linknet.device_b_port == data[0]['port']))
+            ).one_or_none()
+        if check_linknet:
+            logger.debug(f"Found entry: {check_linknet.id}")
+            if (
+                    (       check_linknet.device_a_id == local_devid
+                        and check_linknet.device_a_port == local_if
+                        and check_linknet.device_b_id == remote_device_inst.id
+                        and check_linknet.device_b_port == data[0]['port']
+                    )
+                    or
+                    (       check_linknet.device_a_id == local_devid
+                        and check_linknet.device_a_port == local_if
+                        and check_linknet.device_b_id == remote_device_inst.id
+                        and check_linknet.device_b_port == data[0]['port']
+                    )
+            ):
+                # All info is the same, no update required
                 continue
-            logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
+            else:
+                # TODO: update instead of delete+new insert?
+                session.delete(check_linknet)
+                session.commit()
 
-            # Check if linknet object already exists in database
-            local_devid = local_device_inst.id
-            check_linknet = session.query(Linknet).\
-                filter(
-                    ((Linknet.device_a_id == local_devid) & (Linknet.device_a_port == local_if))
-                    |
-                    ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
-                    |
-                    ((Linknet.device_a_id == remote_device_inst.id) &
-                     (Linknet.device_a_port == data[0]['port']))
-                    |
-                    ((Linknet.device_b_id == remote_device_inst.id) &
-                     (Linknet.device_b_port == data[0]['port']))
-                ).one_or_none()
-            if check_linknet:
-                logger.debug(f"Found entry: {check_linknet.id}")
-                if (
-                        (       check_linknet.device_a_id == local_devid
-                            and check_linknet.device_a_port == local_if
-                            and check_linknet.device_b_id == remote_device_inst.id
-                            and check_linknet.device_b_port == data[0]['port']
-                        )
-                        or
-                        (       check_linknet.device_a_id == local_devid
-                            and check_linknet.device_a_port == local_if
-                            and check_linknet.device_b_id == remote_device_inst.id
-                            and check_linknet.device_b_port == data[0]['port']
-                        )
-                ):
-                    # All info is the same, no update required
-                    continue
-                else:
-                    # TODO: update instead of delete+new insert?
-                    session.delete(check_linknet)
-                    session.commit()
-
-            new_link = Linknet()
-            new_link.device_a = local_device_inst
-            new_link.device_a_port = local_if
-            new_link.device_b = remote_device_inst
-            new_link.device_b_port = data[0]['port']
-            session.add(new_link)
-            ret.append(new_link.as_dict())
+        new_link = Linknet()
+        new_link.device_a = local_device_inst
+        new_link.device_a_port = local_if
+        new_link.device_b = remote_device_inst
+        new_link.device_b_port = data[0]['port']
+        session.add(new_link)
+        ret.append(new_link.as_dict())
+    session.commit()
     return ret

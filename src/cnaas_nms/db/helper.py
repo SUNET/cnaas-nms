@@ -1,10 +1,11 @@
 import datetime
 from typing import List, Optional
+from ipaddress import IPv4Interface, IPv4Address
 
 import netaddr
 from sqlalchemy.orm.exc import NoResultFound
 
-from cnaas_nms.db.device import Device
+from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 
 
@@ -27,25 +28,56 @@ def find_mgmtdomain(session, hostnames: List[str]) -> Optional[Mgmtdomain]:
         ValueError: On invalid hostnames etc
     """
     if not isinstance(hostnames, list) or not len(hostnames) == 2:
-        raise ValueError("hostnames argument must be a list with two device hostnames")
+        raise ValueError(
+            "hostnames argument must be a list with two device hostnames, got: {}".format(
+                hostnames
+            ))
     for hostname in hostnames:
         if not Device.valid_hostname(hostname):
             raise ValueError(f"Argument {hostname} is not a valid hostname")
     try:
-        device0 = session.query(Device).filter(Device.hostname == hostnames[0]).one()
+        device0: Device = session.query(Device).filter(Device.hostname == hostnames[0]).one()
     except NoResultFound:
         raise ValueError(f"hostname {hostnames[0]} not found in device database")
     try:
-        device1 = session.query(Device).filter(Device.hostname == hostnames[1]).one()
+        device1: Device = session.query(Device).filter(Device.hostname == hostnames[1]).one()
     except NoResultFound:
         raise ValueError(f"hostname {hostnames[1]} not found in device database")
-    mgmtdomain = session.query(Mgmtdomain).\
-        filter(
-            ((Mgmtdomain.device_a == device0) & (Mgmtdomain.device_b == device1))
-            |
-            ((Mgmtdomain.device_a == device1) & (Mgmtdomain.device_b == device0))
-        ).one_or_none()
+
+    if device0.device_type == DeviceType.DIST or device1.device_type == DeviceType.DIST:
+        if device0.device_type != DeviceType.DIST or device1.device_type != DeviceType.DIST:
+            raise ValueError("Both uplink devices must be of same device type: {}, {}".format(
+                device0.hostname, device1.hostname
+            ))
+        mgmtdomain: Mgmtdomain = session.query(Mgmtdomain).\
+            filter(
+                ((Mgmtdomain.device_a == device0) & (Mgmtdomain.device_b == device1))
+                |
+                ((Mgmtdomain.device_a == device1) & (Mgmtdomain.device_b == device0))
+            ).one_or_none()
+    elif device0.device_type == DeviceType.ACCESS or device1.device_type == DeviceType.ACCESS:
+        if device0.device_type != DeviceType.ACCESS or device1.device_type != DeviceType.ACCESS:
+            raise ValueError("Both uplink devices must be of same device type: {}, {}".format(
+                device0.hostname, device1.hostname
+            ))
+        mgmtdomain: Mgmtdomain = find_mgmtdomain_by_ip(session, device0.management_ip)
+        if mgmtdomain.id != find_mgmtdomain_by_ip(session, device1.management_ip).id:
+            raise Exception("Uplink access devices have different mgmtdomains: {}, {}".format(
+                device0.hostname, device1.hostname
+            ))
+    else:
+        raise Exception("Unknown uplink device type")
     return mgmtdomain
+
+
+def find_mgmtdomain_by_ip(session, ipv4_address: IPv4Address) -> Optional[Mgmtdomain]:
+    mgmtdomains = session.query(Mgmtdomain).all()
+    mgmtdom: Mgmtdomain
+    for mgmtdom in mgmtdomains:
+        mgmtdom_ipv4_network = IPv4Interface(mgmtdom.ipv4_gw).network
+        if ipv4_address in mgmtdom_ipv4_network:
+            return mgmtdom
+    return None
 
 
 def get_all_mgmtdomains(session, hostname: str) -> List[Mgmtdomain]:

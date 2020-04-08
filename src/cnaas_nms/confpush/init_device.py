@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from ipaddress import IPv4Interface
 
 from nornir.plugins.tasks import networking, text
@@ -14,10 +14,12 @@ import cnaas_nms.confpush.get
 import cnaas_nms.db.helper
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
-from cnaas_nms.confpush.update import update_interfacedb
+from cnaas_nms.confpush.update import update_interfacedb_worker
+from cnaas_nms.confpush.sync_devices import get_mlag_vars
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
@@ -73,43 +75,31 @@ def push_base_management_access(task, device_variables, job_id):
 
     task.host["config"] = r.result
     # Use extra low timeout for this since we expect to loose connectivity after changing IP
-    task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 5})
+    task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 30})
 
-    task.run(task=networking.napalm_configure,
-             name="Push base management config",
-             replace=True,
-             configuration=task.host["config"],
-             dry_run=False # TODO: temp for testing
-             )
+    try:
+        task.run(task=networking.napalm_configure,
+                 name="Push base management config",
+                 replace=True,
+                 configuration=task.host["config"],
+                 dry_run=False
+                 )
+    except Exception:
+        task.run(task=networking.napalm_get, getters=["facts"])
+        if not task.results[-1].failed:
+            raise InitError("Device {} did not commit new base management config".format(
+                task.host.name
+            ))
 
 
-@job_wrapper
-def init_access_device_step1(device_id: int, new_hostname: str,
-                             job_id: Optional[str] = None,
-                             scheduled_by: Optional[str] = None) -> NornirJobResult:
-    """Initialize access device for management by CNaaS-NMS
-
-    Args:
-        device_id: Device to select for initialization
-        new_hostname: Hostname to configure for the new device
-        job_id: job_id provided by scheduler when adding job
-        scheduled_by: Username from JWT.
-
-    Returns:
-        Nornir result object
-
-    Raises:
-        DeviceStateException
-    """
-    logger = get_logger()
+def pre_init_checks(session, device_id) -> Device:
     # Check that we can find device and that it's in the correct state to start init
-    with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
-        if not dev:
-            raise ValueError(f"No device with id {device_id} found")
-        if dev.state != DeviceState.DISCOVERED:
-            raise DeviceStateException("Device must be in state DISCOVERED to begin init")
-        old_hostname = dev.hostname
+    dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+    if not dev:
+        raise ValueError(f"No device with id {device_id} found")
+    if dev.state != DeviceState.DISCOVERED:
+        raise DeviceStateException("Device must be in state DISCOVERED to begin init")
+    old_hostname = dev.hostname
     # Perform connectivity check
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_old_filtered = nr.filter(name=old_hostname)
@@ -120,27 +110,85 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     if nrresult_old.failed:
         print_result(nrresult_old)
         raise ConnectionCheckError(f"Failed to connect to device_id {device_id}")
+    return dev
 
-    cnaas_nms.confpush.get.update_linknets(old_hostname)
-    uplinks = []
-    neighbor_hostnames = []
+
+def pre_init_check_mlag(session, dev, mlag_peer_dev):
+    intfs: Interface = session.query(Interface).filter(Interface.device == dev).\
+        filter(InterfaceConfigType == InterfaceConfigType.MLAG_PEER).all()
+    intf: Interface
+    for intf in intfs:
+        if intf.data['neighbor_id'] == mlag_peer_dev.id:
+            continue
+        else:
+            raise Exception("Inconsistent MLAG peer {} detected for device {}".format(
+                intf.data['neighbor'], dev.hostname
+            ))
+
+
+@job_wrapper
+def init_access_device_step1(device_id: int, new_hostname: str,
+                             mlag_peer_id: Optional[int] = None,
+                             mlag_peer_new_hostname: Optional[str] = None,
+                             uplink_hostnames_arg: Optional[List[str]] = [],
+                             job_id: Optional[str] = None,
+                             scheduled_by: Optional[str] = None) -> NornirJobResult:
+    """Initialize access device for management by CNaaS-NMS.
+    If a MLAG/MC-LAG pair is to be configured both mlag_peer_id and
+    mlag_peer_new_hostname must be set.
+
+    Args:
+        device_id: Device to select for initialization
+        new_hostname: Hostname to configure on this device
+        mlag_peer_id: Device ID of MLAG peer device (optional)
+        mlag_peer_new_hostname: Hostname to configure on peer device (optional)
+        uplink_hostnames_arg: List of hostnames of uplink peer devices (optional)
+                              Used when initializing MLAG peer device
+        job_id: job_id provided by scheduler when adding job
+        scheduled_by: Username from JWT.
+
+    Returns:
+        Nornir result object
+
+    Raises:
+        DeviceStateException
+        ValueError
+    """
+    logger = get_logger()
     with sqla_session() as session:
-        # Find management domain to use for this access switch
-        dev = session.query(Device).filter(Device.hostname == old_hostname).one()
-        for neighbor_d in dev.get_neighbors(session):
-            if neighbor_d.device_type == DeviceType.DIST:
-                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-                if local_if:
-                    uplinks.append({'ifname': local_if})
-                    neighbor_hostnames.append(neighbor_d.hostname)
-        logger.debug("Uplinks for device {} detected: {} neighbor_hostnames: {}".\
-                     format(device_id, uplinks, neighbor_hostnames))
+        dev = pre_init_checks(session, device_id)
+
+        cnaas_nms.confpush.get.update_linknets(session, dev.hostname)  # update linknets using LLDP data
+
+        # If this is the first device in an MLAG pair
+        if mlag_peer_id and mlag_peer_new_hostname:
+            mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
+            cnaas_nms.confpush.get.update_linknets(session, mlag_peer_dev.hostname)
+            update_interfacedb_worker(session, dev, replace=True, delete=False,
+                                      mlag_peer_hostname=mlag_peer_dev.hostname)
+            update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete=False,
+                                      mlag_peer_hostname=dev.hostname)
+            uplink_hostnames = dev.get_uplink_peer_hostnames(session)
+            uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
+            # check that both devices see the correct MLAG peer
+            pre_init_check_mlag(session, dev, mlag_peer_dev)
+            pre_init_check_mlag(session, mlag_peer_dev, dev)
+        # If this is the second device in an MLAG pair
+        elif uplink_hostnames_arg:
+            uplink_hostnames = uplink_hostnames_arg
+        elif mlag_peer_id or mlag_peer_new_hostname:
+            raise ValueError("mlag_peer_id and mlag_peer_new_hostname must be specified together")
+        # If this device is not part of an MLAG pair
+        else:
+            update_interfacedb_worker(session, dev, replace=True, delete=False)
+            uplink_hostnames = dev.get_uplink_peer_hostnames(session)
+
         # TODO: check compatability, same dist pair and same ports on dists
-        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
+        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, uplink_hostnames)
         if not mgmtdomain:
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(
-                    neighbor_hostnames))
+                    uplink_hostnames))
         # Select a new management IP for the device
         ReservedIP.clean_reservations(session, device=dev)
         session.commit()
@@ -160,11 +208,19 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             'mgmt_vlan_id': mgmtdomain.vlan,
             'mgmt_gw': mgmt_gw_ipif.ip
         }
-        for uplink in uplinks:
+        intfs = session.query(Interface).filter(Interface.device == dev).all()
+        intf: Interface
+        for intf in intfs:
+            intfdata = None
+            if intf.data:
+                intfdata = dict(intf.data)
             device_variables['interfaces'].append({
-                'name': uplink['ifname'],
-                'ifclass': 'ACCESS_UPLINK',
+                'name': intf.name,
+                'ifclass': intf.configtype.name,
+                'data': intfdata
             })
+        mlag_vars = get_mlag_vars(session, dev)
+        device_variables = {**device_variables, **mlag_vars}
         # Update device state
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.INIT
@@ -176,21 +232,9 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     nr_filtered = nr.filter(name=hostname)
 
     # step2. push management config
-    try:
-        nrresult = nr_filtered.run(task=push_base_management_access,
-                                   device_variables=device_variables,
-                                   job_id=job_id)
-    except SessionLockedException as e:
-        # TODO: Handle this somehow?
-        pass
-    except Exception as e:
-        # Ignore exception, we expect to loose connectivity.
-        # Sometimes we get no exception here, but it's saved in result
-        # other times we get socket.timeout, pyeapi.eapilib.ConnectionError or
-        # napalm.base.exceptions.ConnectionException to handle here?
-        pass
-    if not nrresult.failed:
-        raise Exception  # we don't expect success here
+    nrresult = nr_filtered.run(task=push_base_management_access,
+                               device_variables=device_variables,
+                               job_id=job_id)
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
@@ -214,11 +258,28 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     scheduler = Scheduler()
     next_job_id = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_access_device_step2',
-        when=0,
+        when=30,
         scheduled_by=scheduled_by,
         kwargs={'device_id': device_id, 'iteration': 1})
 
-    logger.debug(f"Step 2 scheduled as ID {next_job_id}")
+    logger.info("Init step 2 for {} scheduled as job # {}".format(
+        new_hostname, next_job_id
+    ))
+
+    if mlag_peer_id and mlag_peer_new_hostname:
+        mlag_peer_job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.init_device:init_access_device_step1',
+            when=60,
+            scheduled_by=scheduled_by,
+            kwargs={
+                'device_id': mlag_peer_id,
+                'new_hostname': mlag_peer_new_hostname,
+                'uplink_hostnames_arg': uplink_hostnames,
+                'scheduled_by': scheduled_by
+            })
+        logger.info("MLAG peer (id {}) init scheduled as job # {}".format(
+            mlag_peer_id, mlag_peer_job_id
+        ))
 
     return NornirJobResult(
         nrresult=nrresult,
@@ -306,13 +367,6 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
     except Exception as e:
         logger.exception("Error while running plugin hooks for new_managed_device: ".format(str(e)))
 
-    try:
-        update_interfacedb(hostname, replace=True)
-    except Exception as e:
-        logger.exception(
-            "Exception while updating interface database for device {}: {}".\
-            format(hostname, str(e)))
-
     return NornirJobResult(
         nrresult = nrresult
     )
@@ -332,6 +386,28 @@ def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
         return next_job_id
     else:
         return None
+
+
+def set_hostname_task(task, new_hostname: str):
+    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
+        repo_config = yaml.safe_load(db_file)
+        local_repo_path = repo_config['templates_local']
+    template_vars = {}  # host is already set by nornir
+    r = task.run(
+        task=text.template_file,
+        name="Generate hostname config",
+        template="hostname.j2",
+        path=f"{local_repo_path}/{task.host.platform}",
+        **template_vars
+    )
+    task.host["config"] = r.result
+    task.run(
+        task=networking.napalm_configure,
+        name="Configure hostname",
+        replace=False,
+        configuration=task.host["config"],
+    )
+    task.host.close_connection("napalm")
 
 
 @job_wrapper
@@ -378,6 +454,7 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
             dev.model = facts['model']
             dev.os_version = facts['os_version']
             dev.state = DeviceState.DISCOVERED
+            new_hostname = dev.hostname
             logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned, " +
                         "moving to DISCOVERED state")
     except Exception as e:
@@ -386,5 +463,11 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
         ))
         logger.debug("nrresult for ztp_mac {}: {}".format(ztp_mac, nrresult))
         raise e
+
+    nrresult_hostname = nr_filtered.run(task=set_hostname_task, new_hostname=new_hostname)
+    if nrresult_hostname.failed:
+        logger.info("Could not set hostname for ztp_mac: {}".format(
+            ztp_mac
+        ))
 
     return NornirJobResult(nrresult=nrresult)

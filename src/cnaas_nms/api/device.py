@@ -231,14 +231,34 @@ class DeviceInitApi(Resource):
             if not DeviceType.has_name(device_type):
                 return empty_result(status='error', data="Invalid 'device_type' provided"), 400
 
+        job_kwargs = {
+            'device_id': device_id,
+            'new_hostname': new_hostname
+        }
+
+        if 'mlag_peer_id' in json_data or 'mlag_peer_hostname' in json_data:
+            if 'mlag_peer_id' not in json_data or 'mlag_peer_hostname' not in json_data:
+                return empty_result(
+                    status='error',
+                    data="Both 'mlag_peer_id' and 'mlag_peer_hostname' must be specified"), 400
+            if not isinstance(json_data['mlag_peer_id'], int):
+                return empty_result(status='error', data="'mlag_peer_id' must be an integer"), 400
+            if not Device.valid_hostname(json_data['mlag_peer_hostname']):
+                return empty_result(
+                    status='error',
+                    data="Provided 'mlag_peer_hostname' is not valid"), 400
+            job_kwargs['mlag_peer_id'] = json_data['mlag_peer_id']
+            job_kwargs['mlag_peer_new_hostname'] = json_data['mlag_peer_hostname']
+
         if device_type == DeviceType.ACCESS.name:
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_access_device_step1',
                 when=1,
                 scheduled_by=get_jwt_identity(),
-                kwargs={'device_id': device_id,
-                        'new_hostname': new_hostname})
+                kwargs=job_kwargs)
+        else:
+            return empty_result(status='error', data="Unsupported 'device_type' provided"), 400
 
         res = empty_result(data=f"Scheduled job to initialize device_id { device_id }")
         res['job_id'] = job_id

@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
@@ -29,7 +29,7 @@ hostname_schema = Field(..., regex=HOSTNAME_REGEX, max_length=253,
 ipv4_schema = Field(..., regex=f"^{IPV4_REGEX}$",
                     description="IPv4 address")
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
-ipv4_if_schema = Field(..., regex=f"^{IPV4_IF_REGEX}$",
+ipv4_if_schema = Field(None, regex=f"^{IPV4_IF_REGEX}$",
                        description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)")
 ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$",
                     description="IPv6 address")
@@ -40,7 +40,7 @@ ipv6_if_schema = Field(..., regex=f"^{IPV6_IF_REGEX}$",
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
 VLAN_NAME_REGEX = r'^[a-zA-Z][a-zA-Z0-9-_]{0,31}$'
-vlan_name_schema = Field(..., regex=VLAN_NAME_REGEX,
+vlan_name_schema = Field(None, regex=VLAN_NAME_REGEX,
                          description="Max 32 alphanumeric chars, " +
                                      "beginning with a non-numeric character")
 vlan_id_schema = Field(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
@@ -176,14 +176,21 @@ class f_extroute_bgp(BaseModel):
 class f_vxlan(BaseModel):
     description: str = None
     vni: int = vxlan_vni_schema
-    vrf: str = vlan_name_schema
+    vrf: Optional[str] = vlan_name_schema
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
-    ipv4_gw: str = ipv4_if_schema
+    ipv4_gw: Optional[str] = ipv4_if_schema
     dhcp_relays: Optional[List[f_dhcp_relay]]
     mtu: Optional[int] = mtu_schema
     groups: List[str] = []
     devices: List[str] = []
+
+    @validator('ipv4_gw')
+    def vrf_required_if_ipv4_gw_set(cls, v, values, **kwargs):
+        if v:
+            if 'vrf' not in values or not values['vrf']:
+                raise ValueError('VRF is required when specifying ipv4_gw')
+        return v
 
 
 class f_underlay(BaseModel):

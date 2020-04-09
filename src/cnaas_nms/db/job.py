@@ -1,7 +1,7 @@
 import enum
 import datetime
 import json
-from typing import Optional
+from typing import Optional, Dict
 
 from sqlalchemy import Column, Integer, Unicode, SmallInteger
 from sqlalchemy import Enum, DateTime
@@ -19,6 +19,14 @@ from cnaas_nms.tools.log import get_logger
 
 
 logger = get_logger()
+
+
+class JobNotFoundError(Exception):
+    pass
+
+
+class InvalidJobError(Exception):
+    pass
 
 
 class JobStatus(enum.Enum):
@@ -149,3 +157,49 @@ class Job(cnaas_nms.db.base.Base):
                     "Job found in past SCHEDULED state at startup moved to ABORTED, id: {}".
                     format(job.id))
                 job.status = JobStatus.ABORTED
+
+    @classmethod
+    def get_previous_config(cls, session, hostname: str, previous: Optional[int] = None,
+                            job_id: Optional[int] = None,
+                            before: Optional[datetime.datetime] = None) -> Dict[str, str]:
+        """
+
+        Args:
+            session:
+            hostname:
+            previous:
+            job_id:
+            before:
+
+        Returns:
+            Returns a result dict with keys: config, job_id and finish_time
+
+        """
+        result = {}
+        query_part = session.query(Job).filter(Job.function_name == 'sync_devices'). \
+            filter(Job.result.has_key('devices')).filter(Job.result['devices'].has_key(hostname))
+
+        if job_id and type(job_id) == int:
+            query_part = query_part.filter(Job.id == job_id)
+        elif previous and type(previous) == int:
+            query_part = query_part.order_by(Job.id.desc()).offset(previous)
+        elif before and type(before) == datetime.datetime:
+            query_part = query_part.filter(Job.finish_time < before).order_by(Job.id.desc())
+        else:
+            query_part = query_part.order_by(Job.id.desc())
+
+        job: Job = query_part.first()
+        if not job:
+            raise JobNotFoundError("No matching job found")
+
+        result['job_id'] = job.id
+        result['finish_time'] = job.finish_time.isoformat()
+
+        if 'job_tasks' not in job.result['devices'][hostname]:
+            raise InvalidJobError("Invalid job data found in database: missing job_tasks")
+
+        for task in job.result['devices'][hostname]['job_tasks']:
+            if task['task_name'] == 'Generate device config':
+                result['config'] = task['result']
+
+        return result

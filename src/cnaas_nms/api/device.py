@@ -1,4 +1,5 @@
 import json
+import datetime
 from typing import Optional
 
 from flask import request, make_response
@@ -12,6 +13,7 @@ import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -412,10 +414,56 @@ class DeviceConfigApi(Resource):
         return result
 
 
+class DevicePreviousConfigApi(Resource):
+    @jwt_required
+    @device_api.param('job_id')
+    @device_api.param('previous')
+    @device_api.param('before')
+    def get(self, hostname: str):
+        args = request.args
+        result = empty_result()
+        result['data'] = {'config': None}
+        if not Device.valid_hostname(hostname):
+            return empty_result(
+                status='error',
+                data=f"Invalid hostname specified"
+            ), 400
+
+        kwargs = {}
+        if 'job_id' in args:
+            try:
+                kwargs['job_id'] = int(args['job_id'])
+            except Exception:
+                return empty_result('error', "job_id must be an integer"), 400
+        elif 'previous' in args:
+            try:
+                kwargs['previous'] = int(args['previous'])
+            except Exception:
+                return empty_result('error', "previous must be an integer"), 400
+        elif 'before' in args:
+            try:
+                kwargs['before'] = datetime.datetime.fromisoformat(args['before'])
+            except Exception:
+                return empty_result('error', "before must be a valid ISO format date time string"), 400
+
+        with sqla_session() as session:
+            try:
+                result['data'] = Job.get_previous_config(session, hostname, **kwargs)
+            except JobNotFoundError as e:
+                return empty_result('error', str(e)), 404
+            except InvalidJobError as e:
+                return empty_result('error', str(e)), 500
+            except Exception as e:
+                return empty_result('error', "Unhandled exception: {}".format(e)), 500
+
+        return result
+
+
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
 device_api.add_resource(DeviceByHostnameApi, '/<string:hostname>')
 device_api.add_resource(DeviceConfigApi, '/<string:hostname>/generate_config')
+device_api.add_resource(DevicePreviousConfigApi, '/<string:hostname>/previous_config')
 device_api.add_resource(DeviceApi, '')
 devices_api.add_resource(DevicesApi, '')
 device_init_api.add_resource(DeviceInitApi, '/<int:device_id>')

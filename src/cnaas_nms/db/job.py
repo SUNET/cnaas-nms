@@ -162,18 +162,17 @@ class Job(cnaas_nms.db.base.Base):
     def get_previous_config(cls, session, hostname: str, previous: Optional[int] = None,
                             job_id: Optional[int] = None,
                             before: Optional[datetime.datetime] = None) -> Dict[str, str]:
-        """
+        """Get full configuration for a device from a previous job.
 
         Args:
-            session:
-            hostname:
-            previous:
-            job_id:
-            before:
+            session: sqla_session
+            hostname: hostname of device to get config for
+            previous: number of revisions back to get config from
+            job_id: specific job to get config from
+            before: date to get config before
 
         Returns:
             Returns a result dict with keys: config, job_id and finish_time
-
         """
         result = {}
         query_part = session.query(Job).filter(Job.function_name == 'sync_devices'). \
@@ -193,7 +192,7 @@ class Job(cnaas_nms.db.base.Base):
             raise JobNotFoundError("No matching job found")
 
         result['job_id'] = job.id
-        result['finish_time'] = job.finish_time.isoformat()
+        result['finish_time'] = job.finish_time.isoformat(timespec='seconds')
 
         if 'job_tasks' not in job.result['devices'][hostname]:
             raise InvalidJobError("Invalid job data found in database: missing job_tasks")

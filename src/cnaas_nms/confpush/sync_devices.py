@@ -635,10 +635,11 @@ def apply_config(hostname: str, config: str, dry_run: bool,
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
-            raise Exception("Device {} not found, apply_config aborting".format(hostname))
+            raise Exception("Device {} not found".format(hostname))
         elif not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
             raise Exception("Device {} is in invalid state: {}".format(hostname, dev.state))
         dev.state = DeviceState.UNMANAGED
+        dev.synchronized = False
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=False)
@@ -650,6 +651,6 @@ def apply_config(hostname: str, config: str, dry_run: bool,
                                    job_id=job_id)
     except Exception as e:
         logger.exception("Exception in apply_config: {}".format(e))
-    
+
     return NornirJobResult(nrresult=nrresult)
 

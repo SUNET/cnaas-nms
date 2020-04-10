@@ -76,9 +76,7 @@ device_syncto_model = device_syncto_api.model('device_sync', {
 
 device_restore_model = device_api.model('device_restore', {
     'dry_run': fields.Boolean(required=False),
-    'job_id': fields.Integer(required=False),
-    'previous': fields.Integer(required=False),
-    'before': fields.DateTime(required=False)
+    'job_id': fields.Integer(required=True),
 })
 
 
@@ -476,26 +474,19 @@ class DevicePreviousConfigApi(Resource):
                 data=f"Invalid hostname specified"
             ), 400
 
-        kwargs = {}
         if 'job_id' in json_data:
             try:
-                kwargs['job_id'] = int(json_data['job_id'])
+                job_id = int(json_data['job_id'])
             except Exception:
                 return empty_result('error', "job_id must be an integer"), 400
-        elif 'previous' in json_data:
-            try:
-                kwargs['previous'] = int(json_data['previous'])
-            except Exception:
-                return empty_result('error', "previous must be an integer"), 400
-        elif 'before' in json_data:
-            try:
-                kwargs['before'] = datetime.datetime.fromisoformat(json_data['before'])
-            except Exception:
-                return empty_result('error', "before must be a valid ISO format date time string"), 400
+        else:
+            return empty_result('error', "job_id must be specified"), 400
 
         with sqla_session() as session:
             try:
-                config = Job.get_previous_config(session, hostname, **kwargs)['config']
+                prev_config_result = Job.get_previous_config(session, hostname, job_id=job_id)
+                config = prev_config_result['config']
+                failed = prev_config_result['failed']
             except JobNotFoundError as e:
                 return empty_result('error', str(e)), 404
             except InvalidJobError as e:
@@ -505,6 +496,9 @@ class DevicePreviousConfigApi(Resource):
 
         if not config:
             return empty_result('error', "No config found in this job"), 500
+
+        if failed:
+            return empty_result('error', "The specified job_id has a failed status"), 400
 
         if 'dry_run' in json_data and isinstance(json_data['dry_run'], bool) \
                 and not json_data['dry_run']:

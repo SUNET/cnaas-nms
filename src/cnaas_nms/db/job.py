@@ -194,11 +194,14 @@ class Job(cnaas_nms.db.base.Base):
         result['job_id'] = job.id
         result['finish_time'] = job.finish_time.isoformat(timespec='seconds')
 
-        if 'job_tasks' not in job.result['devices'][hostname]:
+        if 'job_tasks' not in job.result['devices'][hostname] or \
+                'failed' not in job.result['devices'][hostname]:
             raise InvalidJobError("Invalid job data found in database: missing job_tasks")
 
         for task in job.result['devices'][hostname]['job_tasks']:
             if task['task_name'] == 'Generate device config':
                 result['config'] = task['result']
+
+        result['failed'] = job.result['devices'][hostname]['failed']
 
         return result

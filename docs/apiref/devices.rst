@@ -183,6 +183,34 @@ This will return both the generated configuration based on the template for
 this device type, and also a list of available vaiables that could be used
 in the template.
 
+View previous config
+--------------------
+
+You can also view previous versions of the configuration for a device. All
+previous configurations are saved in the job database and can be found using
+either a specific Job ID (using job_id=), a number of steps to walk backward
+to find a previous configuration (previous=), or using a date to find the last
+configuration applied to the device before that date.
+
+::
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/previous_config?before=2020-04-07T12:03:05"
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/previous_config?previous=1"
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/previous_config?job_id=12"
+
+If you want to restore a device to a previous configuration you can send a POST:
+
+::
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/previous_config" -X POST -d '{"job_id": 12, "dry_run": true}' -H "Content-Type: application/json"
+
+When sending a POST you must specify an exact job_id to restore. The job must
+have finished with a successful status for the specified device. The device
+will change to UNMANAGED state since it's no longer in sync with current
+templates and settings.
+
 Initialize device
 -----------------
 

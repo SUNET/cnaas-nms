@@ -468,6 +468,7 @@ class DevicePreviousConfigApi(Resource):
     def post(self, hostname: str):
         """Restore configuration to previous version"""
         json_data = request.get_json()
+        apply_kwargs = {'hostname': hostname}
         if not Device.valid_hostname(hostname):
             return empty_result(
                 status='error',
@@ -502,18 +503,18 @@ class DevicePreviousConfigApi(Resource):
 
         if 'dry_run' in json_data and isinstance(json_data['dry_run'], bool) \
                 and not json_data['dry_run']:
-            dry_run = False
+            apply_kwargs['dry_run'] = False
         else:
-            dry_run = True
+            apply_kwargs['dry_run'] = True
+
+        apply_kwargs['config'] = config
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.sync_devices:apply_config',
             when=1,
             scheduled_by=get_jwt_identity(),
-            hostname=hostname,
-            config=config,
-            dry_run=dry_run
+            kwargs=apply_kwargs,
         )
 
         res = empty_result(data=f"Scheduled job to restore {hostname}")

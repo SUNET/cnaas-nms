@@ -623,7 +623,7 @@ def apply_config(hostname: str, config: str, dry_run: bool,
     Args:
         hostname: Specify a single host by hostname to synchronize
         config: Static configuration to apply
-        dry_run: Don't commit config to device
+        dry_run: Set to false to actually apply config to device
         job_id: Job ID number
         scheduled_by: Username from JWT
 

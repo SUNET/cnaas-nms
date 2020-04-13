@@ -643,7 +643,7 @@ def apply_config(hostname: str, config: str, dry_run: bool,
             dev.synchronized = False
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    nr_filtered = nr.filter(name=hostname).filter(managed=False)
+    nr_filtered = nr.filter(name=hostname)
 
     try:
         nrresult = nr_filtered.run(task=push_static_config,

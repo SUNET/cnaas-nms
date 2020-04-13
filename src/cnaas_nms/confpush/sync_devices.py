@@ -638,8 +638,9 @@ def apply_config(hostname: str, config: str, dry_run: bool,
             raise Exception("Device {} not found".format(hostname))
         elif not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
             raise Exception("Device {} is in invalid state: {}".format(hostname, dev.state))
-        dev.state = DeviceState.UNMANAGED
-        dev.synchronized = False
+        if not dry_run:
+            dev.state = DeviceState.UNMANAGED
+            dev.synchronized = False
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=False)

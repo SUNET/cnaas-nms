@@ -183,6 +183,7 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
+        self.check_jobid(r.json()['job_id'])
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
             headers=AUTH_HEADER,
@@ -190,6 +191,7 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
+        self.check_jobid(r.json()['job_id'])
 
     def test_4_syncto_dist(self):
         r = requests.post(
@@ -199,6 +201,7 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")
+        self.check_jobid(r.json()['job_id'])
 
     def test_5_genconfig(self):
         r = requests.get(

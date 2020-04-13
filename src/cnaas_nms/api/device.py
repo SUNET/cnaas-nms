@@ -469,6 +469,7 @@ class DevicePreviousConfigApi(Resource):
         """Restore configuration to previous version"""
         json_data = request.get_json()
         apply_kwargs = {'hostname': hostname}
+        config = None
         if not Device.valid_hostname(hostname):
             return empty_result(
                 status='error',
@@ -486,8 +487,9 @@ class DevicePreviousConfigApi(Resource):
         with sqla_session() as session:
             try:
                 prev_config_result = Job.get_previous_config(session, hostname, job_id=job_id)
-                config = prev_config_result['config']
                 failed = prev_config_result['failed']
+                if not failed and 'config' in prev_config_result:
+                    config = prev_config_result['config']
             except JobNotFoundError as e:
                 return empty_result('error', str(e)), 404
             except InvalidJobError as e:
@@ -495,11 +497,11 @@ class DevicePreviousConfigApi(Resource):
             except Exception as e:
                 return empty_result('error', "Unhandled exception: {}".format(e)), 500
 
-        if not config:
-            return empty_result('error', "No config found in this job"), 500
-
         if failed:
             return empty_result('error', "The specified job_id has a failed status"), 400
+
+        if not config:
+            return empty_result('error', "No config found in this job"), 500
 
         if 'dry_run' in json_data and isinstance(json_data['dry_run'], bool) \
                 and not json_data['dry_run']:

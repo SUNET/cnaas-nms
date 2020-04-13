@@ -243,7 +243,9 @@ class GetTests(unittest.TestCase):
     def test_9_get_prev_config(self):
         hostname = "eosaccess"
         r = requests.get(
-            f"{URL}/api/v1.0/device/{hostname}/previous_config?previous=1"
+            f"{URL}/api/v1.0/device/{hostname}/previous_config?previous=1",
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200)
         prev_job_id = r.json()['data']['job_id']
@@ -254,7 +256,7 @@ class GetTests(unittest.TestCase):
             "dry_run": True
         }
         r = requests.post(
-            "/api/v1.0/device/{}/previous_config".format(hostname),
+            f"{URL}/api/v1.0/device/{hostname}/previous_config",
             headers=AUTH_HEADER,
             verify=TLS_VERIFY,
             json=data

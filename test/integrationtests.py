@@ -20,8 +20,9 @@ if not TLS_VERIFY:
 
 
 class GetTests(unittest.TestCase):
-    def setUp(self):
-        self.assertTrue(self.wait_connect(), "Connection to API failed")
+    @classmethod
+    def setUpClass(cls):
+        cls.assertTrue(cls.wait_connect(), "Connection to API failed")
 
         r = requests.put(
             f'{URL}/api/v1.0/repository/templates',
@@ -30,7 +31,7 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         print("Template refresh status: {}".format(r.status_code))
-        self.assertEqual(r.status_code, 200, "Failed to refresh templates")
+        cls.assertEqual(r.status_code, 200, "Failed to refresh templates")
         r = requests.put(
             f'{URL}/api/v1.0/repository/settings',
             headers=AUTH_HEADER,
@@ -38,9 +39,9 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         print("Settings refresh status: {}".format(r.status_code))
-        self.assertEqual(r.status_code, 200, "Failed to refresh settings")
+        cls.assertEqual(r.status_code, 200, "Failed to refresh settings")
 
-    def wait_connect(self):
+    def wait_connect(self) -> bool:
         for i in range(100):
             try:
                 r = requests.get(

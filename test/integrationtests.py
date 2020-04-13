@@ -22,26 +22,6 @@ if not TLS_VERIFY:
 class GetTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.assertTrue(cls.wait_connect(), "Connection to API failed")
-
-        r = requests.put(
-            f'{URL}/api/v1.0/repository/templates',
-            headers=AUTH_HEADER,
-            json={"action": "refresh"},
-            verify=TLS_VERIFY
-        )
-        print("Template refresh status: {}".format(r.status_code))
-        cls.assertEqual(r.status_code, 200, "Failed to refresh templates")
-        r = requests.put(
-            f'{URL}/api/v1.0/repository/settings',
-            headers=AUTH_HEADER,
-            json={"action": "refresh"},
-            verify=TLS_VERIFY
-        )
-        print("Settings refresh status: {}".format(r.status_code))
-        cls.assertEqual(r.status_code, 200, "Failed to refresh settings")
-
-    def wait_connect(self) -> bool:
         for i in range(100):
             try:
                 r = requests.get(
@@ -58,7 +38,7 @@ class GetTests(unittest.TestCase):
                 else:
                     print("Bad status code {}, retrying in 1 second...".format(r.status_code))
                     time.sleep(1)
-        return False
+        assert False, "Failed to test connection to API"
 
     def wait_for_discovered_device(self):
         for i in range(100):
@@ -91,7 +71,25 @@ class GetTests(unittest.TestCase):
             else:
                 raise Exception
 
-    def test_0_init_dist(self):
+    def test_00_sync(self):
+        r = requests.put(
+            f'{URL}/api/v1.0/repository/templates',
+            headers=AUTH_HEADER,
+            json={"action": "refresh"},
+            verify=TLS_VERIFY
+        )
+        print("Template refresh status: {}".format(r.status_code))
+        self.assertEqual(r.status_code, 200, "Failed to refresh templates")
+        r = requests.put(
+            f'{URL}/api/v1.0/repository/settings',
+            headers=AUTH_HEADER,
+            json={"action": "refresh"},
+            verify=TLS_VERIFY
+        )
+        print("Settings refresh status: {}".format(r.status_code))
+        self.assertEqual(r.status_code, 200, "Failed to refresh settings")
+
+    def test_01_init_dist(self):
         new_dist_data = {
             "hostname": "eosdist1",
             "management_ip": "10.100.3.101",
@@ -129,7 +127,7 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to add mgmtdomain")
 
-    def test_1_ztp(self):
+    def test_02_ztp(self):
         hostname, device_id = self.wait_for_discovered_device()
         print("Discovered hostname, id: {}, {}".format(hostname, device_id))
         self.assertTrue(hostname, "No device in state discovered found for ZTP")
@@ -152,7 +150,7 @@ class GetTests(unittest.TestCase):
         self.assertFalse(result_step2['devices']['eosaccess']['failed'],
                          "Could not reach device after ZTP")
 
-    def test_2_interfaces(self):
+    def test_03_interfaces(self):
         r = requests.get(
             f'{URL}/api/v1.0/device/eosaccess/interfaces',
             headers=AUTH_HEADER,
@@ -176,7 +174,7 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to update interface")
 
-    def test_3_syncto_access(self):
+    def test_04_syncto_access(self):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
             headers=AUTH_HEADER,
@@ -194,7 +192,7 @@ class GetTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
         self.check_jobid(r.json()['job_id'])
 
-    def test_4_syncto_dist(self):
+    def test_05_syncto_dist(self):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
             headers=AUTH_HEADER,
@@ -204,7 +202,7 @@ class GetTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")
         self.check_jobid(r.json()['job_id'])
 
-    def test_5_genconfig(self):
+    def test_06_genconfig(self):
         r = requests.get(
             f'{URL}/api/v1.0/device/eosdist1/generate_config',
             headers=AUTH_HEADER,
@@ -212,7 +210,7 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to generate config for eosdist1")
 
-    def test_6_plugins(self):
+    def test_07_plugins(self):
         r = requests.get(
             f'{URL}/api/v1.0/plugins',
             headers=AUTH_HEADER,
@@ -228,7 +226,7 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to run plugin selftests")
 
-    def test_7_firmware(self):
+    def test_08_firmware(self):
         r = requests.get(
             f'{URL}/api/v1.0/firmware',
             headers=AUTH_HEADER,
@@ -237,14 +235,14 @@ class GetTests(unittest.TestCase):
         # TODO: not working
         #self.assertEqual(r.status_code, 200, "Failed to list firmware")
 
-    def test_8_sysversion(self):
+    def test_09_sysversion(self):
         r = requests.get(
             f'{URL}/api/v1.0/system/version',
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to get CNaaS-NMS version")
 
-    def test_9_get_prev_config(self):
+    def test_10_get_prev_config(self):
         hostname = "eosaccess"
         r = requests.get(
             f"{URL}/api/v1.0/device/{hostname}/previous_config?previous=1",

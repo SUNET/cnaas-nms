@@ -240,6 +240,29 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to get CNaaS-NMS version")
 
+    def test_9_get_prev_config(self):
+        hostname = "eosaccess"
+        r = requests.get(
+            f"{URL}/api/v1.0/device/{hostname}/previous_config?previous=1"
+        )
+        self.assertEqual(r.status_code, 200)
+        prev_job_id = r.json()['data']['job_id']
+        if r.json()['data']['failed']:
+            return
+        data = {
+            "job_id": prev_job_id,
+            "dry_run": True
+        }
+        r = requests.post(
+            "/api/v1.0/device/{}/previous_config".format(hostname),
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY,
+            json=data
+        )
+        self.assertEqual(r.status_code, 200)
+        restore_job_id = r.json()['job_id']
+        job = self.check_jobid(restore_job_id)
+        self.assertFalse(job['result']['devices'][hostname]['failed'])
 
 
 if __name__ == '__main__':

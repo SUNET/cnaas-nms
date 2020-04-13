@@ -1,8 +1,8 @@
-import pprint
 import shutil
 import yaml
 import pkg_resources
 import os
+import time
 
 import unittest
 import cnaas_nms.api.app
@@ -20,11 +20,6 @@ class ApiTests(unittest.TestCase):
         self.app = cnaas_nms.api.app.app
         self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
         self.client = self.app.test_client()
-#        self.tmp_postgres = PostgresTemporaryInstance()
-
-    def tearDown(self):
-#        self.tmp_postgres.shutdown()
-        pass
 
     def test_get_single_device(self):
         hostname = "eosdist1"

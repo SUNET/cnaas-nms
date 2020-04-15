@@ -1,4 +1,5 @@
 import json
+import datetime
 from typing import Optional
 
 from flask import request, make_response
@@ -12,6 +13,7 @@ import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -70,6 +72,11 @@ device_syncto_model = device_syncto_api.model('device_sync', {
     'force': fields.Boolean(required=False),
     'auto_push': fields.Boolean(required=False),
     'resync': fields.Boolean(required=False)
+})
+
+device_restore_model = device_api.model('device_restore', {
+    'dry_run': fields.Boolean(required=False),
+    'job_id': fields.Integer(required=True),
 })
 
 
@@ -412,10 +419,117 @@ class DeviceConfigApi(Resource):
         return result
 
 
+class DevicePreviousConfigApi(Resource):
+    @jwt_required
+    @device_api.param('job_id')
+    @device_api.param('previous')
+    @device_api.param('before')
+    def get(self, hostname: str):
+        args = request.args
+        result = empty_result()
+        result['data'] = {'config': None}
+        if not Device.valid_hostname(hostname):
+            return empty_result(
+                status='error',
+                data=f"Invalid hostname specified"
+            ), 400
+
+        kwargs = {}
+        if 'job_id' in args:
+            try:
+                kwargs['job_id'] = int(args['job_id'])
+            except Exception:
+                return empty_result('error', "job_id must be an integer"), 400
+        elif 'previous' in args:
+            try:
+                kwargs['previous'] = int(args['previous'])
+            except Exception:
+                return empty_result('error', "previous must be an integer"), 400
+        elif 'before' in args:
+            try:
+                kwargs['before'] = datetime.datetime.fromisoformat(args['before'])
+            except Exception:
+                return empty_result('error', "before must be a valid ISO format date time string"), 400
+
+        with sqla_session() as session:
+            try:
+                result['data'] = Job.get_previous_config(session, hostname, **kwargs)
+            except JobNotFoundError as e:
+                return empty_result('error', str(e)), 404
+            except InvalidJobError as e:
+                return empty_result('error', str(e)), 500
+            except Exception as e:
+                return empty_result('error', "Unhandled exception: {}".format(e)), 500
+
+        return result
+
+    @jwt_required
+    @device_api.expect(device_restore_model)
+    def post(self, hostname: str):
+        """Restore configuration to previous version"""
+        json_data = request.get_json()
+        apply_kwargs = {'hostname': hostname}
+        config = None
+        if not Device.valid_hostname(hostname):
+            return empty_result(
+                status='error',
+                data=f"Invalid hostname specified"
+            ), 400
+
+        if 'job_id' in json_data:
+            try:
+                job_id = int(json_data['job_id'])
+            except Exception:
+                return empty_result('error', "job_id must be an integer"), 400
+        else:
+            return empty_result('error', "job_id must be specified"), 400
+
+        with sqla_session() as session:
+            try:
+                prev_config_result = Job.get_previous_config(session, hostname, job_id=job_id)
+                failed = prev_config_result['failed']
+                if not failed and 'config' in prev_config_result:
+                    config = prev_config_result['config']
+            except JobNotFoundError as e:
+                return empty_result('error', str(e)), 404
+            except InvalidJobError as e:
+                return empty_result('error', str(e)), 500
+            except Exception as e:
+                return empty_result('error', "Unhandled exception: {}".format(e)), 500
+
+        if failed:
+            return empty_result('error', "The specified job_id has a failed status"), 400
+
+        if not config:
+            return empty_result('error', "No config found in this job"), 500
+
+        if 'dry_run' in json_data and isinstance(json_data['dry_run'], bool) \
+                and not json_data['dry_run']:
+            apply_kwargs['dry_run'] = False
+        else:
+            apply_kwargs['dry_run'] = True
+
+        apply_kwargs['config'] = config
+
+        scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.sync_devices:apply_config',
+            when=1,
+            scheduled_by=get_jwt_identity(),
+            kwargs=apply_kwargs,
+        )
+
+        res = empty_result(data=f"Scheduled job to restore {hostname}")
+        res['job_id'] = job_id
+
+        return res, 200
+
+
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
 device_api.add_resource(DeviceByHostnameApi, '/<string:hostname>')
 device_api.add_resource(DeviceConfigApi, '/<string:hostname>/generate_config')
+device_api.add_resource(DevicePreviousConfigApi, '/<string:hostname>/previous_config')
 device_api.add_resource(DeviceApi, '')
 devices_api.add_resource(DevicesApi, '')
 device_init_api.add_resource(DeviceInitApi, '/<int:device_id>')

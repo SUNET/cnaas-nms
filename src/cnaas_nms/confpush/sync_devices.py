@@ -9,6 +9,7 @@ from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
 from nornir.core.filter import F
 from nornir.core.task import MultiResult
+from sqlalchemy import or_
 
 import cnaas_nms.db.helper
 import cnaas_nms.confpush.nornir_helper
@@ -584,3 +585,73 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             )
 
     return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id, change_score=total_change_score)
+
+
+def push_static_config(task, config: str, dry_run: bool = True,
+                       job_id: Optional[str] = None,
+                       scheduled_by: Optional[str] = None):
+    """
+    Nornir task to push static config to device
+
+    Args:
+        task: nornir task, sent by nornir when doing .run()
+        config: static config to apply
+        dry_run: Don't commit config to device, just do compare/diff
+        scheduled_by: username that triggered job
+
+    Returns:
+    """
+    set_thread_data(job_id)
+    logger = get_logger()
+
+    logger.debug("Push static config to device: {}".format(task.host.name))
+
+    task.run(task=networking.napalm_configure,
+             name="Push static config",
+             replace=True,
+             configuration=config,
+             dry_run=dry_run
+             )
+
+
+@job_wrapper
+def apply_config(hostname: str, config: str, dry_run: bool,
+                 job_id: Optional[int] = None,
+                 scheduled_by: Optional[str] = None) -> NornirJobResult:
+    """Apply a static configuration (from backup etc) to a device.
+
+    Args:
+        hostname: Specify a single host by hostname to synchronize
+        config: Static configuration to apply
+        dry_run: Set to false to actually apply config to device
+        job_id: Job ID number
+        scheduled_by: Username from JWT
+
+    Returns:
+        NornirJobResult
+    """
+    logger = get_logger()
+
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not dev:
+            raise Exception("Device {} not found".format(hostname))
+        elif not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
+            raise Exception("Device {} is in invalid state: {}".format(hostname, dev.state))
+        if not dry_run:
+            dev.state = DeviceState.UNMANAGED
+            dev.synchronized = False
+
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname)
+
+    try:
+        nrresult = nr_filtered.run(task=push_static_config,
+                                   config=config,
+                                   dry_run=dry_run,
+                                   job_id=job_id)
+    except Exception as e:
+        logger.exception("Exception in apply_config: {}".format(e))
+
+    return NornirJobResult(nrresult=nrresult)
+

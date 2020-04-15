@@ -82,6 +82,8 @@ class CnaasInventory(Inventory):
         username, password = self._get_credentials('MANAGED')
         groups['S_MANAGED']['username'] = username
         groups['S_MANAGED']['password'] = password
+        groups['S_UNMANAGED']['username'] = username
+        groups['S_UNMANAGED']['password'] = password
 
         defaults = {'data': {'k': 'v'}}
         super().__init__(hosts=hosts, groups=groups, defaults=defaults,

@@ -20,15 +20,15 @@ class WebsocketHandler(logging.StreamHandler):
     def emit(self, record):
         msg = self.format(record)
         if record.levelname == 'DEBUG':
-            self.socketio_emit(msg, rooms=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+            self.socketio_emit(msg, rooms=['DEBUG'])
         elif record.levelname == 'INFO':
-            self.socketio_emit(msg, rooms=['INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+            self.socketio_emit(msg, rooms=['DEBUG', 'INFO'])
         elif record.levelname == 'WARNING':
-            self.socketio_emit(msg, rooms=['WARNING', 'ERROR', 'CRITICAL'])
+            self.socketio_emit(msg, rooms=['DEBUG', 'INFO', 'WARNING'])
         elif record.levelname == 'ERROR':
-            self.socketio_emit(msg, rooms=['ERROR', 'CRITICAL'])
+            self.socketio_emit(msg, rooms=['DEBUG', 'INFO', 'WARNING', 'ERROR'])
         elif record.levelname == 'CRITICAL':
-            self.socketio_emit(msg, rooms=['CRITICAL'])
+            self.socketio_emit(msg, rooms=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
 
 
 def get_logger():

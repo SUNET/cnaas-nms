@@ -1,11 +1,16 @@
 from typing import Optional, List
 
+from nornir.plugins.tasks import networking
+
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.confpush.get import get_interfaces_names, get_uplinks, \
     filter_interfaces, get_mlag_ifs
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.confpush.nornir_helper import NornirJobResult
+import cnaas_nms.confpush.nornir_helper
 
 
 def update_interfacedb_worker(session, dev: Device, replace: bool, delete: bool,
@@ -93,3 +98,42 @@ def reset_interfacedb(hostname: str):
         return ret
 
 
+@job_wrapper
+def update_facts(hostname: str,
+                 job_id: Optional[str] = None,
+                 scheduled_by: Optional[str] = None):
+    logger = get_logger()
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not dev:
+            raise ValueError("Device with hostname {} not found".format(hostname))
+        if not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
+            raise ValueError("Device with ztp_mac {} is in incorrect state: {}".format(
+                hostname, str(dev.state)
+            ))
+        hostname = dev.hostname
+
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname)
+
+    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
+
+    if nrresult.failed:
+        logger.info("Could not contact device with hostname {}".format(hostname))
+        return NornirJobResult(nrresult=nrresult)
+    try:
+        facts = nrresult[hostname][0].result['facts']
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+            dev.serial = facts['serial_number']
+            dev.vendor = facts['vendor']
+            dev.model = facts['model']
+            dev.os_version = facts['os_version']
+    except Exception as e:
+        logger.exception("Could not update device with hostname {} with new facts: {}".format(
+            hostname, str(e)
+        ))
+        logger.debug("nrresult for hostname {}: {}".format(hostname, nrresult))
+        raise e
+
+    return NornirJobResult(nrresult=nrresult)

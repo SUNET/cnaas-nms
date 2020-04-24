@@ -107,6 +107,7 @@ def thread_websocket_events():
 
 
 if __name__ == '__main__':
+    # Starting via python run.py
     # gevent monkey patching required if you start flask with the auto-reloader (debug mode)
     monkey.patch_all()
     from cnaas_nms.api import app
@@ -120,9 +121,18 @@ if __name__ == '__main__':
         app.socketio.run(get_app(), debug=True, host=apidata['host'])
     else:
         app.socketio.run(get_app(), debug=True)
+
     if 'COVERAGE' in os.environ:
         save_coverage()
 else:
+    # Starting via uwsgi
     from cnaas_nms.api import app
+    from cnaas_nms.db.session import redis_session
+
+    t_websocket_events = threading.Thread(target=thread_websocket_events)
+    t_websocket_events.start()
 
     cnaas_app = get_app()
+
+    if 'COVERAGE' in os.environ:
+        save_coverage()

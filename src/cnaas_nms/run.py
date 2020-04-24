@@ -100,8 +100,6 @@ def thread_websocket_events():
             for item in result:
                 item = parse_redis_log_item(item)
                 if item:
-                    print("DEBUG01: {}".format(item))
-                    print(threading.get_ident())
                     socketio_emit(
                         'cnaas_log', item['message'], loglevel_to_rooms(item['level']))
 

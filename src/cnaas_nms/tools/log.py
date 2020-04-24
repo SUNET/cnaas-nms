@@ -14,7 +14,7 @@ class WebsocketHandler(logging.StreamHandler):
         msg = self.format(record)
         with redis_session() as redis:
             try:
-                redis.xadd("log", {"message": msg, "level": record.levelname})
+                redis.xadd("log", {"message": msg, "level": record.levelname}, maxlen=100)
             except Exception as e:
                 pass
 

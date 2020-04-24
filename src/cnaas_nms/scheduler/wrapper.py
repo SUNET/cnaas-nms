@@ -30,7 +30,7 @@ def update_device_progress(job_id: int):
     new_finished_devices = []
     with redis_session() as db:
         while db.llen('finished_devices_' + str(job_id)) != 0:
-            last_finished = db.lpop('finished_devices_' + str(job_id)).decode('utf-8')
+            last_finished = db.lpop('finished_devices_' + str(job_id))
             new_finished_devices.append(last_finished)
 
     if new_finished_devices:

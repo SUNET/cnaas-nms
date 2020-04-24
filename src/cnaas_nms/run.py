@@ -2,7 +2,11 @@ import os
 import coverage
 import atexit
 import signal
+import threading
+import time
+from typing import List
 from gevent import monkey, signal as gevent_signal
+from redis import StrictRedis
 
 from cnaas_nms.tools.get_apidata import get_apidata
 # Do late imports for anything cnaas/flask related so we can do gevent monkey patch, see below
@@ -59,10 +63,57 @@ def get_app():
     return app.app
 
 
+def socketio_emit(event_name: str, msg: str, rooms: List[str]):
+    if not app.socketio:
+        return
+    for room in rooms:
+        app.socketio.emit(event_name, msg, room=room)
+
+
+def loglevel_to_rooms(levelname: str) -> List[str]:
+    if levelname == 'DEBUG':
+        return ['DEBUG']
+    elif levelname == 'INFO':
+        return ['DEBUG', 'INFO']
+    elif levelname == 'WARNING':
+        return ['DEBUG', 'INFO', 'WARNING']
+    elif levelname == 'ERROR':
+        return ['DEBUG', 'INFO', 'WARNING', 'ERROR']
+    elif levelname == 'CRITICAL':
+        return ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+
+
+def parse_redis_log_item(item):
+    try:
+        # [stream, [(messageid, {datadict})]
+        if item[0] == "log":
+            return item[1][0][1]
+    except Exception as e:
+        return None
+
+
+def thread_websocket_events():
+    redis: StrictRedis
+    with redis_session() as redis:
+        while True:
+            result = redis.xread({"log": b"$"}, count=1, block=200)
+            for item in result:
+                item = parse_redis_log_item(item)
+                if item:
+                    print("DEBUG01: {}".format(item))
+                    print(threading.get_ident())
+                    socketio_emit(
+                        'cnaas_log', item['message'], loglevel_to_rooms(item['level']))
+
+
 if __name__ == '__main__':
     # gevent monkey patching required if you start flask with the auto-reloader (debug mode)
     monkey.patch_all()
     from cnaas_nms.api import app
+    from cnaas_nms.db.session import redis_session
+
+    t_websocket_events = threading.Thread(target=thread_websocket_events)
+    t_websocket_events.start()
 
     apidata = get_apidata()
     if isinstance(apidata, dict) and 'host' in apidata:

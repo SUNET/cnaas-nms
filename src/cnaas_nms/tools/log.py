@@ -3,7 +3,7 @@ import logging
 from flask import current_app
 
 from cnaas_nms.scheduler.thread_data import thread_data
-from cnaas_nms.db.session import redis_session
+from cnaas_nms.tools.event import add_event
 
 
 class WebsocketHandler(logging.StreamHandler):
@@ -12,11 +12,7 @@ class WebsocketHandler(logging.StreamHandler):
 
     def emit(self, record):
         msg = self.format(record)
-        with redis_session() as redis:
-            try:
-                redis.xadd("log", {"message": msg, "level": record.levelname}, maxlen=100)
-            except Exception as e:
-                pass
+        add_event(msg, level=record.levelname)
 
 
 def get_logger():

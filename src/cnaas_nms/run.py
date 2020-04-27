@@ -63,11 +63,11 @@ def get_app():
     return app.app
 
 
-def socketio_emit(event_name: str, msg: str, rooms: List[str]):
+def socketio_emit(message: str, rooms: List[str]):
     if not app.socketio:
         return
     for room in rooms:
-        app.socketio.emit(event_name, msg, room=room)
+        app.socketio.emit("events", message, room=room)
 
 
 def loglevel_to_rooms(levelname: str) -> List[str]:
@@ -83,10 +83,10 @@ def loglevel_to_rooms(levelname: str) -> List[str]:
         return ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 
 
-def parse_redis_log_item(item):
+def parse_redis_event(item):
     try:
         # [stream, [(messageid, {datadict})]
-        if item[0] == "log":
+        if item[0] == "events":
             return item[1][0][1]
     except Exception as e:
         return None
@@ -96,12 +96,19 @@ def thread_websocket_events():
     redis: StrictRedis
     with redis_session() as redis:
         while True:
-            result = redis.xread({"log": b"$"}, count=1, block=200)
+            result = redis.xread({"events": b"$"}, count=10, block=200)
             for item in result:
-                item = parse_redis_log_item(item)
-                if item:
-                    socketio_emit(
-                        'cnaas_log', item['message'], loglevel_to_rooms(item['level']))
+                item = parse_redis_event(item)
+                if not item:
+                    continue
+                if item['type'] == "log":
+                    socketio_emit(item['message'], loglevel_to_rooms(item['level']))
+                elif item['type'] == "job_id":
+                    socketio_emit(item['message'], ["job_id_{}".format(item['job_id'])])
+                elif item['type'] == "device_id":
+                    socketio_emit(item['message'], ["device_id_{}".format(item['device_id'])])
+                elif item['type'] == "update":
+                    socketio_emit(item['message'], ["update_{}".format(item['update_type'])])
 
 
 if __name__ == '__main__':

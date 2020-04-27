@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import Optional
 
 from flask import Flask, render_template, request, g
 from flask_restx import Api
@@ -109,13 +110,17 @@ api.add_namespace(system_api)
 
 
 # SocketIO listen for new log messages
-@socketio.on('logs')
+@socketio.on('events')
 def ws_logs(data):
-    room: str = None
-    if 'level' in data and data['level'] in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
-        room = data['level']
-    elif 'jobid' in data and isinstance(data['jobid'], str):
-        room = data['jobid']
+    room: Optional[str] = None
+    if 'loglevel' in data and data['loglevel'] in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
+        room = data['loglevel']
+    elif 'job_id' in data and isinstance(data['job_id'], int):
+        room = "job_id_{}".format(data['job_id'])
+    elif 'device_id' in data and isinstance(data['device_id'], int):
+        room = "device_id_{}".format(data['device_id'])
+    elif 'update' in data and data['update'] in ['device', 'job']:
+        room = "update_{}".format(data['update'])
     else:
         return False  # TODO: how to send error message to client?
 

@@ -99,7 +99,7 @@ class DeviceByIdApi(Resource):
         """ Delete device from ID """
         json_data = request.get_json()
 
-        if 'factory_default' in json_data:
+        if json_data and 'factory_default' in json_data:
             if isinstance(json_data['factory_default'], bool) and json_data['factory_default'] is True:
                 scheduler = Scheduler()
                 job_id = scheduler.add_onetime_job(
@@ -131,7 +131,7 @@ class DeviceByIdApi(Resource):
                 return empty_result(status='error', data=f"No device with id {device_id}")
 
             errors = dev.device_update(**json_data)
-            if errors is not None:
+            if errors:
                 return empty_result(status='error', data=errors), 404
             return empty_result(status='success', data={"updated_device": dev.as_dict()}), 200
 
@@ -166,7 +166,7 @@ class DeviceApi(Resource):
         with sqla_session() as session:
             instance: Device = session.query(Device).filter(Device.hostname ==
                                                             data['hostname']).one_or_none()
-            if instance is not None:
+            if instance:
                 errors.append('Device already exists')
                 return empty_result(status='error', data=errors), 400
             if 'platform' not in data or data['platform'] not in supported_platforms:

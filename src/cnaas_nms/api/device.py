@@ -99,7 +99,7 @@ class DeviceByIdApi(Resource):
         """ Delete device from ID """
         json_data = request.get_json()
 
-        if 'factory_default' in json_data:
+        if json_data is not None and 'factory_default' in json_data:
             if isinstance(json_data['factory_default'], bool) and json_data['factory_default'] is True:
                 scheduler = Scheduler()
                 job_id = scheduler.add_onetime_job(

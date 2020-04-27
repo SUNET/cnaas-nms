@@ -77,7 +77,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
                 filter(Device.hostname == task.host.name).one_or_none()
             device_type = dev.device_type
 
-        if device_type == 'ACCESS':
+        if device_type == DeviceType.ACCESS:
             firmware_download_cmd = 'copy {} flash:'.format(url)
         else:
             firmware_download_cmd = 'copy {} vrf MGMT flash:'.format(url)

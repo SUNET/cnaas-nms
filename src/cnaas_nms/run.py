@@ -83,13 +83,23 @@ def loglevel_to_rooms(levelname: str) -> List[str]:
         return ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 
 
-def parse_redis_event(item):
+def parse_redis_event(event):
     try:
         # [stream, [(messageid, {datadict})]
-        if item[0] == "events":
-            return item[1][0][1]
+        if event[0] == "events":
+            return event[1][0][1]
     except Exception as e:
         return None
+
+
+def emit_redis_event(event):
+    try:
+        if event['type'] == "log":
+            socketio_emit(event['message'], loglevel_to_rooms(event['level']))
+        elif event['type'] == "update":
+            socketio_emit(json.loads(event['json']), ["update_{}".format(event['update_type'])])
+    except Exception as e:
+        pass
 
 
 def thread_websocket_events():
@@ -98,17 +108,10 @@ def thread_websocket_events():
         while True:
             result = redis.xread({"events": b"$"}, count=10, block=200)
             for item in result:
-                item = parse_redis_event(item)
-                if not item:
+                event = parse_redis_event(item)
+                if not event:
                     continue
-                if item['type'] == "log":
-                    socketio_emit(item['message'], loglevel_to_rooms(item['level']))
-                elif item['type'] == "job_id":
-                    socketio_emit(item['message'], ["job_id_{}".format(item['job_id'])])
-                elif item['type'] == "device_id":
-                    socketio_emit(item['message'], ["device_id_{}".format(item['device_id'])])
-                elif item['type'] == "update":
-                    socketio_emit(item['message'], ["update_{}".format(item['update_type'])])
+                emit_redis_event(event)
 
 
 if __name__ == '__main__':
@@ -117,6 +120,7 @@ if __name__ == '__main__':
     monkey.patch_all()
     from cnaas_nms.api import app
     from cnaas_nms.db.session import redis_session
+    import json
 
     t_websocket_events = threading.Thread(target=thread_websocket_events)
     t_websocket_events.start()
@@ -133,6 +137,7 @@ else:
     # Starting via uwsgi
     from cnaas_nms.api import app
     from cnaas_nms.db.session import redis_session
+    import json
 
     t_websocket_events = threading.Thread(target=thread_websocket_events)
     t_websocket_events.start()

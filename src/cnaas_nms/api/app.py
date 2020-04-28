@@ -115,10 +115,6 @@ def ws_logs(data):
     room: Optional[str] = None
     if 'loglevel' in data and data['loglevel'] in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
         room = data['loglevel']
-    elif 'job_id' in data and isinstance(data['job_id'], int):
-        room = "job_id_{}".format(data['job_id'])
-    elif 'device_id' in data and isinstance(data['device_id'], int):
-        room = "device_id_{}".format(data['device_id'])
     elif 'update' in data and data['update'] in ['device', 'job']:
         room = "update_{}".format(data['update'])
     else:

@@ -91,9 +91,9 @@ class Job(cnaas_nms.db.base.Base):
         self.finished_devices = []
         self.scheduled_by = scheduled_by
         try:
-            event_msg = "Job #{} started".format(self.id)
+            event_msg = "Job #{} started (function_name: {}, scheduled_by: {})".format(
+                self.id, function_name, scheduled_by)
             add_event(event_msg, event_type="update", update_type="job")
-            add_event(event_msg, event_type="job_id", job_id=self.id)
         except Exception as e:
             pass
 
@@ -122,7 +122,6 @@ class Job(cnaas_nms.db.base.Base):
             if next_job_id:
                 event_msg += " (next job_id: {})".format(next_job_id)
             add_event(event_msg, event_type="update", update_type="job")
-            add_event(event_msg, event_type="job_id", job_id=self.id)
         except Exception as e:
             pass
 
@@ -145,7 +144,6 @@ class Job(cnaas_nms.db.base.Base):
         try:
             event_msg = "Job #{} encountered an exception: {}".format(self.id, str(e))
             add_event(event_msg, event_type="update", update_type="job")
-            add_event(event_msg, event_type="job_id", job_id=self.id)
         except Exception as e:
             pass
 
@@ -157,7 +155,6 @@ class Job(cnaas_nms.db.base.Base):
         try:
             event_msg = "Job #{} was aborted: {}".format(self.id, message)
             add_event(event_msg, event_type="update", update_type="job")
-            add_event(event_msg, event_type="job_id", job_id=self.id)
         except Exception as e:
             pass
 

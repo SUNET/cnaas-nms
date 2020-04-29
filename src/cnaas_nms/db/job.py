@@ -91,9 +91,13 @@ class Job(cnaas_nms.db.base.Base):
         self.finished_devices = []
         self.scheduled_by = scheduled_by
         try:
-            event_msg = "Job #{} started (function_name: {}, scheduled_by: {})".format(
-                self.id, function_name, scheduled_by)
-            add_event(event_msg, event_type="update", update_type="job")
+            json_data = json.dumps({
+                "job_id": self.id,
+                "status": "RUNNING",
+                "function_name": function_name,
+                "scheduled_by": scheduled_by
+            })
+            add_event(json_data=json_data, event_type="update", update_type="job")
         except Exception as e:
             pass
 
@@ -118,10 +122,14 @@ class Job(cnaas_nms.db.base.Base):
             # TODO: check if this exists in the db?
             self.next_job_id = next_job_id
         try:
-            event_msg = "Job #{} finished".format(self.id)
+            event_data = {
+                "job_id": self.id,
+                "status": "FINISHED"
+            }
             if next_job_id:
-                event_msg += " (next job_id: {})".format(next_job_id)
-            add_event(event_msg, event_type="update", update_type="job")
+                event_data['next_job_id'] = next_job_id
+            json_data = json.dumps(event_data)
+            add_event(json_data=json_data, event_type="update", update_type="job")
         except Exception as e:
             pass
 
@@ -142,8 +150,12 @@ class Job(cnaas_nms.db.base.Base):
             logger.exception(errmsg)
             self.exception = {"error": errmsg}
         try:
-            event_msg = "Job #{} encountered an exception: {}".format(self.id, str(e))
-            add_event(event_msg, event_type="update", update_type="job")
+            json_data = json.dumps({
+                "job_id": self.id,
+                "status": "EXCEPTION",
+                "exception": str(e),
+            })
+            add_event(json_data=json_data, event_type="update", update_type="job")
         except Exception as e:
             pass
 
@@ -153,8 +165,12 @@ class Job(cnaas_nms.db.base.Base):
         self.status = JobStatus.ABORTED
         self.result = {"message": message}
         try:
-            event_msg = "Job #{} was aborted: {}".format(self.id, message)
-            add_event(event_msg, event_type="update", update_type="job")
+            json_data = json.dumps({
+                "job_id": self.id,
+                "status": "ABORTED",
+                "message": message,
+            })
+            add_event(json_data=json_data, event_type="update", update_type="job")
         except Exception as e:
             pass
 

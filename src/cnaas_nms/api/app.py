@@ -1,11 +1,12 @@
 import os
 import sys
+import re
 from typing import Optional
 
 from flask import Flask, render_template, request, g
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
-from flask_jwt_extended import JWTManager, decode_token, jwt_required
+from flask_jwt_extended import JWTManager, decode_token, jwt_required, get_jwt_identity
 from flask_jwt_extended.exceptions import NoAuthorizationError
 
 from flask import jsonify
@@ -44,6 +45,8 @@ authorizations = {
         'description': "Type in 'Bearer: <your JWT token here' to autheticate."
     }
 }
+
+jwt_query_r = re.compile(r'jwt=[^ &]+')
 
 
 class CnaasApi(Api):
@@ -113,7 +116,12 @@ api.add_namespace(system_api)
 @socketio.on('connect')
 @jwt_required
 def socketio_on_connect():
-    return True
+    user = get_jwt_identity()
+    if user:
+        logger.info('User: {} connected via socketio'.format(user))
+        return True
+    else:
+        return False
 
 # SocketIO join event rooms
 @socketio.on('events')
@@ -137,5 +145,10 @@ def log_request(response):
         user = decode_token(token).get('sub')
     except Exception:
         user = 'unknown'
-    logger.info('User: {}, Method: {}, Status: {}, URL: {}, JSON: {}'.format(user, request.method, response.status_code, request.url, request.json))
+    try:
+        url = re.sub(jwt_query_r, '', request.url)
+        logger.info('User: {}, Method: {}, Status: {}, URL: {}, JSON: {}'.format(
+            user, request.method, response.status_code, url, request.json))
+    except Exception:
+        pass
     return response

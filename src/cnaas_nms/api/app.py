@@ -5,7 +5,7 @@ from typing import Optional
 from flask import Flask, render_template, request, g
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
-from flask_jwt_extended import JWTManager, decode_token
+from flask_jwt_extended import JWTManager, decode_token, jwt_required
 from flask_jwt_extended.exceptions import NoAuthorizationError
 
 from flask import jsonify
@@ -84,6 +84,7 @@ app.config['JWT_PUBLIC_KEY'] = jwt_pubkey
 app.config['JWT_IDENTITY_CLAIM'] = 'sub'
 app.config['JWT_ALGORITHM'] = 'ES256'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
+app.config['JWT_TOKEN_LOCATION'] = ('headers', 'query_string')
 
 jwt = JWTManager(app)
 api = CnaasApi(app, prefix='/api/{}'.format(__api_version__),
@@ -108,10 +109,15 @@ api.add_namespace(settings_api)
 api.add_namespace(plugins_api)
 api.add_namespace(system_api)
 
+# SocketIO on connect
+@socketio.on('connect')
+@jwt_required
+def socketio_on_connect():
+    return True
 
-# SocketIO listen for new log messages
+# SocketIO join event rooms
 @socketio.on('events')
-def ws_logs(data):
+def socketio_on_events(data):
     room: Optional[str] = None
     if 'loglevel' in data and data['loglevel'] in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
         room = data['loglevel']

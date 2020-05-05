@@ -25,9 +25,11 @@ apt-get update && \
       supervisor \
       libssl-dev \
       libpq-dev \
+      uwsgi \
+      uwsgi-plugin-python3 \
     && apt-get clean
 
-pip3 install uwsgi
+#pip3 install uwsgi
 
 # Start venv
 python3 -m venv /opt/cnaas/venv
@@ -46,7 +48,7 @@ python3 -m pip install -r requirements.txt
 #cd /opt/cnaas/venv/cnaas-nms/
 #git remote update
 #git fetch
-#git checkout --track origin/release-1.0.0
+#git checkout --track origin/feature.websocket_events_redis
 #python3 -m pip install -r requirements.txt
 
 chown -R www-data:www-data /opt/cnaas/settings

@@ -61,5 +61,5 @@ def sqla_execute(**kwargs):
 @contextmanager
 def redis_session(**kwargs):
     db_data = get_dbdata(**kwargs)
-    with StrictRedis(host=db_data['redis_hostname'], port=6379) as conn:
+    with StrictRedis(host=db_data['redis_hostname'], port=6379, charset="utf-8", decode_responses=True) as conn:
         yield conn

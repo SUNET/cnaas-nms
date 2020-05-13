@@ -16,6 +16,7 @@ from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResul
 from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
 from cnaas_nms.db.helper import json_dumper
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.event import add_event
 
 
 logger = get_logger()
@@ -89,6 +90,16 @@ class Job(cnaas_nms.db.base.Base):
         self.status = JobStatus.RUNNING
         self.finished_devices = []
         self.scheduled_by = scheduled_by
+        try:
+            json_data = json.dumps({
+                "job_id": self.id,
+                "status": "RUNNING",
+                "function_name": function_name,
+                "scheduled_by": scheduled_by
+            })
+            add_event(json_data=json_data, event_type="update", update_type="job")
+        except Exception as e:
+            pass
 
     def finish_success(self, res: dict, next_job_id: Optional[int]):
         try:
@@ -110,6 +121,17 @@ class Job(cnaas_nms.db.base.Base):
         if next_job_id:
             # TODO: check if this exists in the db?
             self.next_job_id = next_job_id
+        try:
+            event_data = {
+                "job_id": self.id,
+                "status": "FINISHED"
+            }
+            if next_job_id:
+                event_data['next_job_id'] = next_job_id
+            json_data = json.dumps(event_data)
+            add_event(json_data=json_data, event_type="update", update_type="job")
+        except Exception as e:
+            pass
 
     def finish_exception(self, e: Exception, traceback: str):
         logger.warning("Job {} finished with exception: {}".format(self.id, str(e)))
@@ -127,13 +149,30 @@ class Job(cnaas_nms.db.base.Base):
             errmsg = "Unable to serialize exception or traceback: {}".format(str(e))
             logger.exception(errmsg)
             self.exception = {"error": errmsg}
+        try:
+            json_data = json.dumps({
+                "job_id": self.id,
+                "status": "EXCEPTION",
+                "exception": str(e),
+            })
+            add_event(json_data=json_data, event_type="update", update_type="job")
+        except Exception as e:
+            pass
 
     def finish_abort(self, message: str):
         logger.debug("Job {} aborted: {}".format(self.id, message))
         self.finish_time = datetime.datetime.utcnow()
         self.status = JobStatus.ABORTED
         self.result = {"message": message}
-
+        try:
+            json_data = json.dumps({
+                "job_id": self.id,
+                "status": "ABORTED",
+                "message": message,
+            })
+            add_event(json_data=json_data, event_type="update", update_type="job")
+        except Exception as e:
+            pass
 
     @classmethod
     def clear_jobs(cls, session):

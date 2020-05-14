@@ -5,6 +5,7 @@ from typing import Optional
 from flask import request, make_response
 from flask_restx import Resource, Namespace, fields
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from nornir.core.filter import F
 
 import cnaas_nms.confpush.nornir_helper
@@ -111,12 +112,22 @@ class DeviceByIdApi(Resource):
         else:
             with sqla_session() as session:
                 dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
-                if dev:
+                if not dev:
+                    return empty_result('error', "Device not found"), 404
+                try:
                     session.delete(dev)
                     session.commit()
-                    return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
-                else:
-                    return empty_result('error', "Device not found"), 404
+                except IntegrityError as e:
+                    session.rollback()
+                    return empty_result(
+                        status='error',
+                        data="Could not remove device because existing references: {}".format(e))
+                except Exception as e:
+                    session.rollback()
+                    return empty_result(
+                        status='error',
+                        data="Could not remove device: {}".format(e))
+                return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
 
     @jwt_required
     @device_api.expect(device_model)

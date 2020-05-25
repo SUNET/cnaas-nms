@@ -305,7 +305,13 @@ class DeviceSyncApi(Resource):
     def post(self):
         """ Start sync of device(s) """
         json_data = request.get_json()
-        kwargs: dict = {}
+        # default args
+        kwargs: dict = {
+            'dry_run': True,
+            'auto_push': False,
+            'force': False,
+            'resync': False
+        }
 
         total_count: Optional[int] = None
 
@@ -372,6 +378,10 @@ class DeviceSyncApi(Resource):
             kwargs['auto_push'] = json_data['auto_push']
         if 'resync' in json_data and isinstance(json_data['resync'], bool):
             kwargs['resync'] = json_data['resync']
+        if 'comment' in json_data and isinstance(json_data['comment'], str):
+            kwargs['job_comment'] = json_data['comment']
+        if 'ticket_ref' in json_data and isinstance(json_data['ticket_ref'], str):
+            kwargs['job_ticket_ref'] = json_data['ticket_ref']
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(

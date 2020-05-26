@@ -245,7 +245,7 @@ class GetTests(unittest.TestCase):
     def test_10_get_prev_config(self):
         hostname = "eosaccess"
         r = requests.get(
-            f"{URL}/api/v1.0/device/{hostname}/previous_config?previous=1",
+            f"{URL}/api/v1.0/device/{hostname}/previous_config?previous=0",
             headers=AUTH_HEADER,
             verify=TLS_VERIFY
         )

@@ -7,12 +7,10 @@ from hashlib import sha256
 
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
-from nornir.core.filter import F
 from nornir.core.task import MultiResult
-from sqlalchemy import or_
 
 import cnaas_nms.db.helper
-import cnaas_nms.confpush.nornir_helper
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.confpush.get import calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
@@ -329,8 +327,8 @@ def generate_only(hostname: str) -> (str, dict):
         (string with config, dict with available template variables)
     """
     logger = get_logger()
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    nr_filtered = nr.filter(name=hostname).filter(managed=True)
+    nr = cnaas_init()
+    nr_filtered, _, _ = inventory_selector(nr, hostname=hostname)
     template_vars = {}
     if len(nr_filtered.inventory.hosts) != 1:
         raise ValueError("Invalid hostname: {}".format(hostname))
@@ -430,30 +428,32 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         NornirJobResult
     """
     logger = get_logger()
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_init()
+    dev_count = 0
+    skipped_hostnames = []
     if hostname:
-        nr_filtered = nr.filter(name=hostname).filter(managed=True)
+        nr_filtered, dev_count, skipped_hostnames = \
+            inventory_selector(nr, hostname=hostname)
     else:
         if device_type:
-            nr_filtered = nr.filter(F(groups__contains='T_'+device_type)).filter(managed=True)
+            nr_filtered, dev_count, skipped_hostnames = \
+                inventory_selector(nr, resync=resync, device_type=device_type)
         elif group:
-            nr_filtered = nr.filter(F(groups__contains=group)).filter(managed=True)
+            nr_filtered, dev_count, skipped_hostnames = \
+                inventory_selector(nr, resync=resync, group=group)
         else:
             # all devices
-            nr_filtered = nr.filter(managed=True)
-        if not resync:
-            pre_device_list = list(nr_filtered.inventory.hosts.keys())
-            nr_filtered = nr_filtered.filter(synchronized=False)
-            post_device_list = list(nr_filtered.inventory.hosts.keys())
-            already_synced_device_list = [x for x in pre_device_list if x not in post_device_list]
-            if already_synced_device_list:
-                logger.info("Device(s) already synchronized, skipping: {}".format(
-                    already_synced_device_list
-                ))
+            nr_filtered, dev_count, skipped_hostnames = \
+                inventory_selector(nr, resync=resync)
+
+    if skipped_hostnames:
+        logger.info("Device(s) already synchronized, skipping ({}): {}".format(
+            len(skipped_hostnames), ", ".join(skipped_hostnames)
+        ))
 
     device_list = list(nr_filtered.inventory.hosts.keys())
-    logger.info("Device(s) selected for synchronization: {}".format(
-        device_list
+    logger.info("Device(s) selected for synchronization ({}): {}".format(
+        dev_count, ", ".join(device_list)
     ))
 
     try:
@@ -642,8 +642,8 @@ def apply_config(hostname: str, config: str, dry_run: bool,
             dev.state = DeviceState.UNMANAGED
             dev.synchronized = False
 
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    nr_filtered = nr.filter(name=hostname)
+    nr = cnaas_init()
+    nr_filtered, _, _ = inventory_selector(nr, hostname=hostname)
 
     try:
         nrresult = nr_filtered.run(task=push_static_config,

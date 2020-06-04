@@ -240,6 +240,14 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to get CNaaS-NMS version")
 
+    def test_9_update_facts_dist(self):
+        r = requests.post(
+            f'{URL}/api/v1.0/device_update_facts',
+            headers=AUTH_HEADER,
+            json={"hostname": "eosdist1"},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do update facts for dist")
 
 
 if __name__ == '__main__':

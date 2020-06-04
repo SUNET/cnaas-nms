@@ -203,3 +203,18 @@ To initialize a pair of ACCESS devices as an MLAG pair:
    curl https://localhost/api/v1.0/device_init/45 -d '{"hostname": "a1", "device_type": "ACCESS", "mlag_peer_id": 46, "mlag_peer_hostname": "a2"}' -X POST -H "Content-Type: application/json"
 
 For MLAG pairs the devices must be able to dectect it's peer via LLDP neighbors and compatible uplink devices for initialization to finish.
+
+Update facts
+------------
+
+To update the facts about a device (serial number, vendor, model and OS version)
+use this API call:
+
+::
+
+   curl https://localhost/api/v1.0/device_update_facts -d '{"hostname": "eosdist1"}' -X POST -H "Content-Type: application/json"
+
+This will schedule a job to log in to the device, get the facts and update the
+database. You can perform this action on both MANAGED and UNMANAGED devices.
+UNMANAGED devices might not be reachable so this could be a good test-call
+before moving the device back to the MANAGED state.

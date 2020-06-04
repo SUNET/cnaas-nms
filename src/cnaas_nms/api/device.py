@@ -444,7 +444,7 @@ class DeviceUpdateFactsApi(Resource):
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.update:update_facts',
-            when=0,
+            when=1,
             scheduled_by=get_jwt_identity(),
             kwargs=kwargs)
 

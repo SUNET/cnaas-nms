@@ -1,16 +1,13 @@
-import cnaas_nms.confpush.nornir_helper
-
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
 
 from nornir.plugins.functions.text import print_result
-from nornir.plugins.tasks.networking import napalm_cli, napalm_configure, napalm_get
+from nornir.plugins.tasks.networking import napalm_cli
 from nornir.plugins.tasks.networking import netmiko_send_command
-from nornir.core.filter import F
 from nornir.core.task import MultiResult
 
 from napalm.base.exceptions import CommandErrorException
@@ -77,7 +74,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
                 filter(Device.hostname == task.host.name).one_or_none()
             device_type = dev.device_type
 
-        if device_type == 'ACCESS':
+        if device_type == DeviceType.ACCESS:
             firmware_download_cmd = 'copy {} flash:'.format(url)
         else:
             firmware_download_cmd = 'copy {} vrf MGMT flash:'.format(url)
@@ -253,17 +250,17 @@ def device_upgrade(download: Optional[bool] = False,
                    reboot: Optional[bool] = False,
                    scheduled_by: Optional[str] = None) -> NornirJobResult:
 
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_init()
     if hostname:
-        nr_filtered = nr.filter(name=hostname).filter(managed=True)
+        nr_filtered, dev_count, _ = inventory_selector(nr, hostname=hostname)
     elif group:
-        nr_filtered = nr.filter(F(groups__contains=group))
+        nr_filtered, dev_count, _ = inventory_selector(nr, group=group)
     else:
-        nr_filtered = nr.filter(synchronized=False).filter(managed=True)
+        raise ValueError("Neither hostname nor group specified for device_upgrade")
 
     device_list = list(nr_filtered.inventory.hosts.keys())
-    logger.info("Device(s) selected for firmware upgrade: {}".format(
-        device_list
+    logger.info("Device(s) selected for firmware upgrade ({}): {}".format(
+        dev_count, ", ".join(device_list)
     ))
 
     # Make sure we only upgrade Arista access switches

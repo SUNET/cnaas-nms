@@ -4,11 +4,13 @@ import ipaddress
 import datetime
 import enum
 import re
+import json
 from typing import Optional, List, Set
 
 from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
 from sqlalchemy import Enum, DateTime, Boolean
 from sqlalchemy import ForeignKey
+from sqlalchemy import event
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import IPAddressType
 
@@ -17,6 +19,7 @@ import cnaas_nms.db.site
 import cnaas_nms.db.linknet
 
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.tools.event import add_event
 
 
 class DeviceException(Exception):
@@ -441,3 +444,13 @@ class Device(cnaas_nms.db.base.Base):
         return data, errors
 
 
+@event.listens_for(Device, 'after_update')
+def after_update_device(mapper, connection, target: Device):
+    update_data = {
+        "action": "UPDATED",
+        "device_id": target.id,
+        "hostname": target.hostname,
+        "object": target.as_dict()
+    }
+    json_data = json.dumps(update_data)
+    add_event(json_data=json_data, event_type="update", update_type="device")

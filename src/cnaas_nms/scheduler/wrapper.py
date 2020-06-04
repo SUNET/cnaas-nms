@@ -30,7 +30,7 @@ def update_device_progress(job_id: int):
     new_finished_devices = []
     with redis_session() as db:
         while db.llen('finished_devices_' + str(job_id)) != 0:
-            last_finished = db.lpop('finished_devices_' + str(job_id)).decode('utf-8')
+            last_finished = db.lpop('finished_devices_' + str(job_id))
             new_finished_devices.append(last_finished)
 
     if new_finished_devices:
@@ -65,7 +65,21 @@ def job_wrapper(func):
             kwargs['kwargs']['job_id'] = job_id
             if scheduled_by is None:
                 scheduled_by = 'unknown'
-            job.start_job(function_name=func.__name__,
+            # Append (dry_run) to function name if set, so we can distinguish dry_run jobs
+            try:
+                if kwargs['kwargs']['dry_run']:
+                    function_name = "{} (dry_run)".format(func.__name__)
+                else:
+                    function_name = func.__name__
+            except Exception:
+                function_name = func.__name__
+            job_comment = kwargs['kwargs'].pop('job_comment', None)
+            if job_comment and isinstance(job_comment, str):
+                job.comment = job_comment[:255]
+            job_ticket_ref = kwargs['kwargs'].pop('job_ticket_ref', None)
+            if job_ticket_ref and isinstance(job_comment, str):
+                job.ticket_ref = job_ticket_ref[:32]
+            job.start_job(function_name=function_name,
                           scheduled_by=scheduled_by)
             if func.__name__ in progress_funcitons:
                 stop_event = threading.Event()

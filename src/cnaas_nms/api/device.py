@@ -1,17 +1,19 @@
 import json
+import datetime
 from typing import Optional
 
 from flask import request, make_response
 from flask_restx import Resource, Namespace, fields
 from sqlalchemy import func
-from nornir.core.filter import F
+from sqlalchemy.exc import IntegrityError
 
-import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -79,6 +81,11 @@ device_update_facts_model = device_syncto_api.model('device_update_facts', {
     'hostname': fields.String(required=False),
 })
 
+device_restore_model = device_api.model('device_restore', {
+    'dry_run': fields.Boolean(required=False),
+    'job_id': fields.Integer(required=True),
+})
+
 
 class DeviceByIdApi(Resource):
     @jwt_required
@@ -99,7 +106,7 @@ class DeviceByIdApi(Resource):
         """ Delete device from ID """
         json_data = request.get_json()
 
-        if 'factory_default' in json_data:
+        if json_data and 'factory_default' in json_data:
             if isinstance(json_data['factory_default'], bool) and json_data['factory_default'] is True:
                 scheduler = Scheduler()
                 job_id = scheduler.add_onetime_job(
@@ -111,12 +118,22 @@ class DeviceByIdApi(Resource):
         else:
             with sqla_session() as session:
                 dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
-                if dev:
+                if not dev:
+                    return empty_result('error', "Device not found"), 404
+                try:
                     session.delete(dev)
                     session.commit()
-                    return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
-                else:
-                    return empty_result('error', "Device not found"), 404
+                except IntegrityError as e:
+                    session.rollback()
+                    return empty_result(
+                        status='error',
+                        data="Could not remove device because existing references: {}".format(e))
+                except Exception as e:
+                    session.rollback()
+                    return empty_result(
+                        status='error',
+                        data="Could not remove device: {}".format(e))
+                return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
 
     @jwt_required
     @device_api.expect(device_model)
@@ -131,7 +148,7 @@ class DeviceByIdApi(Resource):
                 return empty_result(status='error', data=f"No device with id {device_id}")
 
             errors = dev.device_update(**json_data)
-            if errors is not None:
+            if errors:
                 return empty_result(status='error', data=errors), 404
             return empty_result(status='success', data={"updated_device": dev.as_dict()}), 200
 
@@ -166,7 +183,7 @@ class DeviceApi(Resource):
         with sqla_session() as session:
             instance: Device = session.query(Device).filter(Device.hostname ==
                                                             data['hostname']).one_or_none()
-            if instance is not None:
+            if instance:
                 errors.append('Device already exists')
                 return empty_result(status='error', data=errors), 400
             if 'platform' not in data or data['platform'] not in supported_platforms:
@@ -305,63 +322,13 @@ class DeviceSyncApi(Resource):
     def post(self):
         """ Start sync of device(s) """
         json_data = request.get_json()
-        kwargs: dict = {}
-
-        total_count: Optional[int] = None
-
-        if 'hostname' in json_data:
-            hostname = str(json_data['hostname'])
-            if not Device.valid_hostname(hostname):
-                return empty_result(
-                    status='error',
-                    data=f"Hostname '{hostname}' is not a valid hostname"
-                ), 400
-            with sqla_session() as session:
-                dev: Device = session.query(Device).\
-                    filter(Device.hostname == hostname).one_or_none()
-                if not dev or dev.state != DeviceState.MANAGED:
-                    return empty_result(
-                        status='error',
-                        data=f"Hostname '{hostname}' not found or is not a managed device"
-                    ), 400
-            kwargs['hostname'] = hostname
-            what = hostname
-            total_count = 1
-        elif 'device_type' in json_data:
-            devtype_str = str(json_data['device_type']).upper()
-            if DeviceType.has_name(devtype_str):
-                kwargs['device_type'] = devtype_str
-            else:
-                return empty_result(
-                    status='error',
-                    data=f"Invalid device type '{json_data['device_type']}' specified"
-                ), 400
-            what = f"{json_data['device_type']} devices"
-            with sqla_session() as session:
-                total_count = session.query(Device). \
-                    filter(Device.device_type == DeviceType[devtype_str]).count()
-        elif 'group' in json_data:
-            group_name = str(json_data['group'])
-            if group_name not in get_groups():
-                return empty_result(status='error', data='Could not find a group with name {}'.format(group_name))
-            kwargs['group'] = group_name
-            what = 'group {}'.format(group_name)
-            nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-            nr_filtered = nr.filter(F(groups__contains=group_name))
-            total_count = len(nr_filtered.inventory.hosts)
-        elif 'all' in json_data and isinstance(json_data['all'], bool) and json_data['all']:
-            what = "all devices"
-            with sqla_session() as session:
-                total_count_q = session.query(Device).filter(Device.state == DeviceState.MANAGED)
-                if 'resync' in json_data and isinstance(json_data['resync'], bool) and json_data['resync']:
-                    total_count = total_count_q.count()
-                else:
-                    total_count = total_count_q.filter(Device.synchronized == False).count()
-        else:
-            return empty_result(
-                status='error',
-                data=f"No devices to synchronize was specified"
-            ), 400
+        # default args
+        kwargs: dict = {
+            'dry_run': True,
+            'auto_push': False,
+            'force': False,
+            'resync': False
+        }
 
         if 'dry_run' in json_data and isinstance(json_data['dry_run'], bool) \
                 and not json_data['dry_run']:
@@ -372,6 +339,57 @@ class DeviceSyncApi(Resource):
             kwargs['auto_push'] = json_data['auto_push']
         if 'resync' in json_data and isinstance(json_data['resync'], bool):
             kwargs['resync'] = json_data['resync']
+        if 'comment' in json_data and isinstance(json_data['comment'], str):
+            kwargs['job_comment'] = json_data['comment']
+        if 'ticket_ref' in json_data and isinstance(json_data['ticket_ref'], str):
+            kwargs['job_ticket_ref'] = json_data['ticket_ref']
+
+        total_count: Optional[int] = None
+        nr = cnaas_init()
+
+        if 'hostname' in json_data:
+            hostname = str(json_data['hostname'])
+            if not Device.valid_hostname(hostname):
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' is not a valid hostname"
+                ), 400
+            _, total_count, _ = inventory_selector(nr, hostname=hostname)
+            if total_count != 1:
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' not found or is not a managed device"
+                ), 400
+            kwargs['hostname'] = hostname
+            what = hostname
+        elif 'device_type' in json_data:
+            devtype_str = str(json_data['device_type']).upper()
+            if DeviceType.has_name(devtype_str):
+                kwargs['device_type'] = devtype_str
+            else:
+                return empty_result(
+                    status='error',
+                    data=f"Invalid device type '{json_data['device_type']}' specified"
+                ), 400
+            what = f"{json_data['device_type']} devices"
+            _, total_count, _ = inventory_selector(nr, resync=kwargs['resync'],
+                                                   device_type=devtype_str)
+        elif 'group' in json_data:
+            group_name = str(json_data['group'])
+            if group_name not in get_groups():
+                return empty_result(status='error', data='Could not find a group with name {}'.format(group_name))
+            kwargs['group'] = group_name
+            what = 'group {}'.format(group_name)
+            _, total_count, _ = inventory_selector(nr, resync=kwargs['resync'],
+                                                   group=group_name)
+        elif 'all' in json_data and isinstance(json_data['all'], bool) and json_data['all']:
+            what = "all devices"
+            _, total_count, _ = inventory_selector(nr, resync=kwargs['resync'])
+        else:
+            return empty_result(
+                status='error',
+                data=f"No devices to synchronize was specified"
+            ), 400
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
@@ -469,10 +487,117 @@ class DeviceConfigApi(Resource):
         return result
 
 
+class DevicePreviousConfigApi(Resource):
+    @jwt_required
+    @device_api.param('job_id')
+    @device_api.param('previous')
+    @device_api.param('before')
+    def get(self, hostname: str):
+        args = request.args
+        result = empty_result()
+        result['data'] = {'config': None}
+        if not Device.valid_hostname(hostname):
+            return empty_result(
+                status='error',
+                data=f"Invalid hostname specified"
+            ), 400
+
+        kwargs = {}
+        if 'job_id' in args:
+            try:
+                kwargs['job_id'] = int(args['job_id'])
+            except Exception:
+                return empty_result('error', "job_id must be an integer"), 400
+        elif 'previous' in args:
+            try:
+                kwargs['previous'] = int(args['previous'])
+            except Exception:
+                return empty_result('error', "previous must be an integer"), 400
+        elif 'before' in args:
+            try:
+                kwargs['before'] = datetime.datetime.fromisoformat(args['before'])
+            except Exception:
+                return empty_result('error', "before must be a valid ISO format date time string"), 400
+
+        with sqla_session() as session:
+            try:
+                result['data'] = Job.get_previous_config(session, hostname, **kwargs)
+            except JobNotFoundError as e:
+                return empty_result('error', str(e)), 404
+            except InvalidJobError as e:
+                return empty_result('error', str(e)), 500
+            except Exception as e:
+                return empty_result('error', "Unhandled exception: {}".format(e)), 500
+
+        return result
+
+    @jwt_required
+    @device_api.expect(device_restore_model)
+    def post(self, hostname: str):
+        """Restore configuration to previous version"""
+        json_data = request.get_json()
+        apply_kwargs = {'hostname': hostname}
+        config = None
+        if not Device.valid_hostname(hostname):
+            return empty_result(
+                status='error',
+                data=f"Invalid hostname specified"
+            ), 400
+
+        if 'job_id' in json_data:
+            try:
+                job_id = int(json_data['job_id'])
+            except Exception:
+                return empty_result('error', "job_id must be an integer"), 400
+        else:
+            return empty_result('error', "job_id must be specified"), 400
+
+        with sqla_session() as session:
+            try:
+                prev_config_result = Job.get_previous_config(session, hostname, job_id=job_id)
+                failed = prev_config_result['failed']
+                if not failed and 'config' in prev_config_result:
+                    config = prev_config_result['config']
+            except JobNotFoundError as e:
+                return empty_result('error', str(e)), 404
+            except InvalidJobError as e:
+                return empty_result('error', str(e)), 500
+            except Exception as e:
+                return empty_result('error', "Unhandled exception: {}".format(e)), 500
+
+        if failed:
+            return empty_result('error', "The specified job_id has a failed status"), 400
+
+        if not config:
+            return empty_result('error', "No config found in this job"), 500
+
+        if 'dry_run' in json_data and isinstance(json_data['dry_run'], bool) \
+                and not json_data['dry_run']:
+            apply_kwargs['dry_run'] = False
+        else:
+            apply_kwargs['dry_run'] = True
+
+        apply_kwargs['config'] = config
+
+        scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.sync_devices:apply_config',
+            when=1,
+            scheduled_by=get_jwt_identity(),
+            kwargs=apply_kwargs,
+        )
+
+        res = empty_result(data=f"Scheduled job to restore {hostname}")
+        res['job_id'] = job_id
+
+        return res, 200
+
+
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
 device_api.add_resource(DeviceByHostnameApi, '/<string:hostname>')
 device_api.add_resource(DeviceConfigApi, '/<string:hostname>/generate_config')
+device_api.add_resource(DevicePreviousConfigApi, '/<string:hostname>/previous_config')
 device_api.add_resource(DeviceApi, '')
 devices_api.add_resource(DevicesApi, '')
 device_init_api.add_resource(DeviceInitApi, '/<int:device_id>')

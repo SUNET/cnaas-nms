@@ -268,6 +268,19 @@ class GetTests(unittest.TestCase):
         job = self.check_jobid(restore_job_id)
         self.assertFalse(job['result']['devices'][hostname]['failed'])
 
+    def test_11_update_facts_dist(self):
+        hostname = "eosdist1"
+        r = requests.post(
+            f'{URL}/api/v1.0/device_update_facts',
+            headers=AUTH_HEADER,
+            json={"hostname": hostname},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do update facts for dist")
+        restore_job_id = r.json()['job_id']
+        job = self.check_jobid(restore_job_id)
+        self.assertFalse(job['result']['devices'][hostname]['failed'])
+
 
 if __name__ == '__main__':
     unittest.main()

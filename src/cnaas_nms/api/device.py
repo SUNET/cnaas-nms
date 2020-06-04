@@ -428,10 +428,11 @@ class DeviceUpdateFactsApi(Resource):
             with sqla_session() as session:
                 dev: Device = session.query(Device). \
                     filter(Device.hostname == hostname).one_or_none()
-                if not dev or dev.state != DeviceState.MANAGED:
+                if not dev or (dev.state != DeviceState.MANAGED and
+                               dev.state != DeviceState.UNMANAGED):
                     return empty_result(
                         status='error',
-                        data=f"Hostname '{hostname}' not found or is not a managed device"
+                        data=f"Hostname '{hostname}' not found or is in invalid state"
                     ), 400
             kwargs['hostname'] = hostname
             total_count = 1

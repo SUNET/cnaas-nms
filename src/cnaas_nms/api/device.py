@@ -33,6 +33,9 @@ device_syncto_api = Namespace('device_syncto', description='API to sync devices'
                               prefix='/api/{}'.format(__api_version__))
 device_discover_api = Namespace('device_discover', description='API to discover devices',
                                 prefix='/api/{}'.format(__api_version__))
+device_update_facts_api = Namespace('device_update_facts',
+                                    description='API to update facts about devices',
+                                    prefix='/api/{}'.format(__api_version__))
 
 
 device_model = device_api.model('device', {
@@ -70,6 +73,10 @@ device_syncto_model = device_syncto_api.model('device_sync', {
     'force': fields.Boolean(required=False),
     'auto_push': fields.Boolean(required=False),
     'resync': fields.Boolean(required=False)
+})
+
+device_update_facts_model = device_syncto_api.model('device_update_facts', {
+    'hostname': fields.String(required=False),
 })
 
 
@@ -383,6 +390,56 @@ class DeviceSyncApi(Resource):
         return resp
 
 
+class DeviceUpdateFactsApi(Resource):
+    @jwt_required
+    @device_update_facts_api.expect(device_update_facts_model)
+    def post(self):
+        """ Start update facts of device(s) """
+        json_data = request.get_json()
+        kwargs: dict = {}
+
+        total_count: Optional[int] = None
+
+        if 'hostname' in json_data:
+            hostname = str(json_data['hostname'])
+            if not Device.valid_hostname(hostname):
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' is not a valid hostname"
+                ), 400
+            with sqla_session() as session:
+                dev: Device = session.query(Device). \
+                    filter(Device.hostname == hostname).one_or_none()
+                if not dev or dev.state != DeviceState.MANAGED:
+                    return empty_result(
+                        status='error',
+                        data=f"Hostname '{hostname}' not found or is not a managed device"
+                    ), 400
+            kwargs['hostname'] = hostname
+            total_count = 1
+        else:
+            return empty_result(
+                status='error',
+                data="No target to be updated was specified"
+            ), 400
+
+        scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.update:update_facts',
+            when=0,
+            scheduled_by=get_jwt_identity(),
+            kwargs=kwargs)
+
+        res = empty_result(data=f"Scheduled job to update facts for {hostname}")
+        res['job_id'] = job_id
+
+        resp = make_response(json.dumps(res), 200)
+        if total_count:
+            resp.headers['X-Total-Count'] = total_count
+        resp.headers['Content-Type'] = "application/json"
+        return resp
+
+
 class DeviceConfigApi(Resource):
     @jwt_required
     def get(self, hostname: str):
@@ -421,4 +478,5 @@ devices_api.add_resource(DevicesApi, '')
 device_init_api.add_resource(DeviceInitApi, '/<int:device_id>')
 device_discover_api.add_resource(DeviceDiscoverApi, '')
 device_syncto_api.add_resource(DeviceSyncApi, '')
+device_update_facts_api.add_resource(DeviceUpdateFactsApi, '')
 # device/<string:hostname>/current_config

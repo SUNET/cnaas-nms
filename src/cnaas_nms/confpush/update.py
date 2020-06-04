@@ -108,7 +108,7 @@ def update_facts(hostname: str,
         if not dev:
             raise ValueError("Device with hostname {} not found".format(hostname))
         if not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
-            raise ValueError("Device with ztp_mac {} is in incorrect state: {}".format(
+            raise ValueError("Device with hostname {} is in incorrect state: {}".format(
                 hostname, str(dev.state)
             ))
         hostname = dev.hostname
@@ -119,7 +119,7 @@ def update_facts(hostname: str,
     nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
 
     if nrresult.failed:
-        logger.info("Could not contact device with hostname {}".format(hostname))
+        logger.error("Could not contact device with hostname {}".format(hostname))
         return NornirJobResult(nrresult=nrresult)
     try:
         facts = nrresult[hostname][0].result['facts']
@@ -129,11 +129,14 @@ def update_facts(hostname: str,
             dev.vendor = facts['vendor']
             dev.model = facts['model']
             dev.os_version = facts['os_version']
+        logger.debug("Updating facts for device {}: {}, {}, {}, {}".format(
+            hostname, facts['serial_number'], facts['vendor'], facts['model'], facts['os_version']
+        ))
     except Exception as e:
         logger.exception("Could not update device with hostname {} with new facts: {}".format(
             hostname, str(e)
         ))
-        logger.debug("nrresult for hostname {}: {}".format(hostname, nrresult))
+        logger.debug("Get facts nrresult for hostname {}: {}".format(hostname, nrresult))
         raise e
 
     return NornirJobResult(nrresult=nrresult)

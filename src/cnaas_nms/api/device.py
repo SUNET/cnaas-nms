@@ -86,6 +86,11 @@ device_restore_model = device_api.model('device_restore', {
     'job_id': fields.Integer(required=True),
 })
 
+device_apply_config_model = device_api.model('device_apply_config', {
+    'dry_run': fields.Boolean(required=False),
+    'full_config': fields.String(required=True),
+})
+
 
 class DeviceByIdApi(Resource):
     @jwt_required
@@ -594,11 +599,54 @@ class DevicePreviousConfigApi(Resource):
         return res, 200
 
 
+class DeviceApplyConfigApi(Resource):
+    @jwt_required
+    @device_api.expect(device_apply_config_model)
+    def post(self, hostname: str):
+        """Apply exact specified configuration to device without using templates"""
+        json_data = request.get_json()
+        apply_kwargs = {'hostname': hostname}
+        allow_live_run = False
+        if not Device.valid_hostname(hostname):
+            return empty_result(
+                status='error',
+                data=f"Invalid hostname specified"
+            ), 400
+
+        if 'full_config' not in json_data:
+            return empty_result('error', "full_config must be specified"), 400
+
+        if 'dry_run' in json_data and isinstance(json_data['dry_run'], bool) \
+                and not json_data['dry_run']:
+            if allow_live_run:
+                apply_kwargs['dry_run'] = False
+            else:
+                return empty_result('error', "Apply config live_run is not allowed"), 400
+        else:
+            apply_kwargs['dry_run'] = True
+
+        apply_kwargs['config'] = json_data['full_config']
+
+        scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.sync_devices:apply_config',
+            when=1,
+            scheduled_by=get_jwt_identity(),
+            kwargs=apply_kwargs,
+        )
+
+        res = empty_result(data=f"Scheduled job to apply config {hostname}")
+        res['job_id'] = job_id
+
+        return res, 200
+
+
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
 device_api.add_resource(DeviceByHostnameApi, '/<string:hostname>')
 device_api.add_resource(DeviceConfigApi, '/<string:hostname>/generate_config')
 device_api.add_resource(DevicePreviousConfigApi, '/<string:hostname>/previous_config')
+device_api.add_resource(DeviceApplyConfigApi, '/<string:hostname>/apply_config')
 device_api.add_resource(DeviceApi, '')
 devices_api.add_resource(DevicesApi, '')
 device_init_api.add_resource(DeviceInitApi, '/<int:device_id>')

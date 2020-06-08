@@ -211,6 +211,22 @@ have finished with a successful status for the specified device. The device
 will change to UNMANAGED state since it's no longer in sync with current
 templates and settings.
 
+Apply static config
+-------------------
+
+You can also test a static configuration specified in the API call directly
+instead of generating the configuration via templates and settings.
+This can be useful when developing new templates (see template_dry_run.py tool)
+when you don't wish to do the commit/push/refresh/sync workflow for every
+iteration. By default only dry_run are allowed, but you can configure api.yml
+to allow apply config live run as well.
+
+::
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/apply_config" -X POST -d '{"full_config": "hostname eosdist1\n...", "dry_run": True}' -H "Content-Type: application/json"
+
+This will schedule a job to send the configuration to the device.
+
 Initialize device
 -----------------
 

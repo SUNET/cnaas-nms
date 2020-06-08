@@ -2,10 +2,17 @@
 
 import sys
 import os
-import requests
-import jinja2
-import yaml
+try:
+    import requests
+    import jinja2
+    import yaml
+except ModuleNotFoundError as e:
+    print("Please install python modules requests, jinja2 and yaml: {}".format(e))
+    sys.exit(3)
 
+if 'CNAASURL' not in os.environ or 'JWT_AUTH_TOKEN' not in os.environ:
+    print("Please export environment variables CNAASURL and JWT_AUTH_TOKEN")
+    sys.exit(4)
 
 api_url = os.environ['CNAASURL']
 headers = {"Authorization": "Bearer "+os.environ['JWT_AUTH_TOKEN']}
@@ -88,7 +95,7 @@ def main():
     print(new_config)
 
     try:
-        input("Start apply_config dry run? Ctrl-c to abort...")
+        input("Start apply_config dry run? Ctrl-c to abort or enter to continue...")
     except KeyboardInterrupt:
         print("Exiting...")
     else:

@@ -20,6 +20,7 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from cnaas_nms.version import __api_version__
+from cnaas_nms.tools.get_apidata import get_apidata
 
 
 logger = get_logger()
@@ -606,7 +607,7 @@ class DeviceApplyConfigApi(Resource):
         """Apply exact specified configuration to device without using templates"""
         json_data = request.get_json()
         apply_kwargs = {'hostname': hostname}
-        allow_live_run = False
+        allow_live_run = get_apidata()['allow_apply_config_liverun']
         if not Device.valid_hostname(hostname):
             return empty_result(
                 status='error',

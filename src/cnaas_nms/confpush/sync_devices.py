@@ -557,13 +557,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         total_change_score = 0
     elif not change_scores or total_change_score >= 100 or failed_hosts:
         total_change_score = 100
-    elif max(change_scores) > 1000:
-        # If some device has a score higher than this, disregard any averages
-        # and report max impact score
-        total_change_score = 100
     else:
-        # calculate median value and round up, use min value of 1 and max of 100
-        total_change_score = max(min(int(median(change_scores) + 0.5), 100), 1)
+        # use individual max as total_change_score, range 1-100
+        total_change_score = max(min(int(max(change_scores) + 0.5), 100), 1)
     logger.info(
         "Change impact score: {} (dry_run: {}, selected devices: {}, changed devices: {})".
             format(total_change_score, dry_run, len(device_list), len(changed_hosts)))

@@ -129,7 +129,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             raise ValueError("Unknown platform: {}".format(dev.platform))
         settings, settings_origin = get_settings(hostname, devtype)
         device_variables = {
-            'mgmt_ip': str(mgmt_ip)
+            'mgmt_ip': str(mgmt_ip),
+            'device_model': dev.model,
+            'device_os_version': dev.os_version
         }
 
         if devtype == DeviceType.ACCESS:

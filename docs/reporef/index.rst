@@ -44,6 +44,12 @@ that are exposed from CNaaS includes:
 
 - access_auto: A list of access_auto interfacs. Using same keys as uplinks.
 
+- device_model: Device model string, same as "model" in the device API. Can be
+  used if you need model specific configuration lines.
+
+- device_os_version: Device OS version string, same as "os_version" in the
+  device API. Can be used if you need OS version specific configuration lines.
+
 Additional variables available for distribution switches:
 
 - infra_ip: IPv4 infrastructure VRF address (ex 10.199.0.0)

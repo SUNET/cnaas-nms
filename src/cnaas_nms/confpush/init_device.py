@@ -206,7 +206,9 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
             'interfaces': [],
             'mgmt_vlan_id': mgmtdomain.vlan,
-            'mgmt_gw': mgmt_gw_ipif.ip
+            'mgmt_gw': mgmt_gw_ipif.ip,
+            'device_model': dev.model,
+            'device_os_version': dev.os_version
         }
         intfs = session.query(Interface).filter(Interface.device == dev).all()
         intf: Interface

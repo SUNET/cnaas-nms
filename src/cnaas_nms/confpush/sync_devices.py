@@ -210,15 +210,14 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                             'config': intf['config'],
                             'indexnum': ifindexnum
                         })
-            if devtype == DeviceType.DIST:
-                for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
-                    fabric_device_variables['mgmtdomains'].append({
-                        'id': mgmtdom.id,
-                        'ipv4_gw': mgmtdom.ipv4_gw,
-                        'vlan': mgmtdom.vlan,
-                        'description': mgmtdom.description,
-                        'esi_mac': mgmtdom.esi_mac
-                    })
+            for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
+                fabric_device_variables['mgmtdomains'].append({
+                    'id': mgmtdom.id,
+                    'ipv4_gw': mgmtdom.ipv4_gw,
+                    'vlan': mgmtdom.vlan,
+                    'description': mgmtdom.description,
+                    'esi_mac': mgmtdom.esi_mac
+                })
             # find fabric neighbors
             fabric_links = []
             for neighbor_d in dev.get_neighbors(session):

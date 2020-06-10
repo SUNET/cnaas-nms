@@ -6,7 +6,7 @@ Management domain can be retreived, added, updated an removed using this API.
 Get all managment domains
 -------------------------
 
-All management domain can be listed using CURL:
+All management domains can be listed using CURL:
 
 
 ::
@@ -39,6 +39,8 @@ That will return a JSON structured response which describes all domains availabl
       }
   }
 
+Note that some of these fields does not have a use case (yet).
+
 You can also specify one specifc mgmtdomain to query by using:
 
 ::
@@ -57,7 +59,15 @@ To add a new management domain we can to call the API with a few fields set in a
    * ipv4_gw (mandatory): The IPv4 gateway to be used, should be expressed with a prefix (10.0.0.1/24)
    * device_a (mandatory): Hostname of the first device
    * device_b (mandatory): Hostname of the second device
-   * vlan (mandatory): A VLAN
+   * vlan (mandatory): A VLAN ID
+
+device_a and device_b should be a pair of DIST devices that are connected to a
+specific set of access devices that should share the same management network.
+It's also possible to specify two CORE devices if there is a need to have the
+gateway/routing for all access switch management done in the CORE layer instead.
+In the case where two CORE devices are specified there should only be one single
+mgmtdomain defined for the entire NMS, and this mgmtdomain can only contain
+exactly two CORE devices even if there are more CORE devices in the network.
 
 Example using CURL:
 

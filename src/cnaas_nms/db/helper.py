@@ -3,7 +3,7 @@ from typing import List, Optional
 from ipaddress import IPv4Interface, IPv4Address
 
 import netaddr
-from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
@@ -49,12 +49,22 @@ def find_mgmtdomain(session, hostnames: List[str]) -> Optional[Mgmtdomain]:
             raise ValueError("Both uplink devices must be of same device type: {}, {}".format(
                 device0.hostname, device1.hostname
             ))
-        mgmtdomain: Mgmtdomain = session.query(Mgmtdomain).\
-            filter(
-                ((Mgmtdomain.device_a == device0) & (Mgmtdomain.device_b == device1))
-                |
-                ((Mgmtdomain.device_a == device1) & (Mgmtdomain.device_b == device0))
-            ).one_or_none()
+        try:
+            mgmtdomain: Mgmtdomain = session.query(Mgmtdomain).\
+                filter(
+                    ((Mgmtdomain.device_a == device0) & (Mgmtdomain.device_b == device1))
+                    |
+                    ((Mgmtdomain.device_a == device1) & (Mgmtdomain.device_b == device0))
+                ).one_or_none()
+            if not mgmtdomain:
+                mgmtdomain: Mgmtdomain = session.query(Mgmtdomain).filter(
+                    (Mgmtdomain.device_a.has(Device.device_type == DeviceType.CORE))
+                    |
+                    (Mgmtdomain.device_b.has(Device.device_type == DeviceType.CORE))
+                ).one_or_none()
+        except MultipleResultsFound:
+            raise Exception(
+                "Found multiple possible mgmtdomains, please remove any redundant mgmtdomains")
     elif device0.device_type == DeviceType.ACCESS or device1.device_type == DeviceType.ACCESS:
         if device0.device_type != DeviceType.ACCESS or device1.device_type != DeviceType.ACCESS:
             raise ValueError("Both uplink devices must be of same device type: {}, {}".format(

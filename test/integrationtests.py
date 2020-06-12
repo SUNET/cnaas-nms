@@ -120,7 +120,7 @@ class GetTests(unittest.TestCase):
             "vlan": 600
         }
         r = requests.post(
-            f'{URL}/api/v1.0/mgmtdomain',
+            f'{URL}/api/v1.0/mgmtdomains',
             headers=AUTH_HEADER,
             json=new_mgmtdom_data,
             verify=TLS_VERIFY

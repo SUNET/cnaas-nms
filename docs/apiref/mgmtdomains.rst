@@ -73,7 +73,7 @@ Example using CURL:
 
 ::
 
-   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomain -H "Content-Type: application/json" -X POST -d '{"ipv4_gw": "10.0.6.1/24", "device_a": "dist1", "device_b": "dist2", "vlan": 600}'
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/mgmtdomains -H "Content-Type: application/json" -X POST -d '{"ipv4_gw": "10.0.6.1/24", "device_a": "dist1", "device_b": "dist2", "vlan": 600}'
 
 
 Update management domain

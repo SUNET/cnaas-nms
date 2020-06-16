@@ -268,9 +268,9 @@ def device_upgrade(download: Optional[bool] = False,
         with sqla_session() as session:
             dev: Device = session.query(Device).\
                 filter(Device.hostname == device).one_or_none()
-            if not dev or dev.device_type != DeviceType.ACCESS:
-                raise Exception('Invalid device type: {}'.format(device))
-            if not dev or dev.platform != 'eos':
+            if not dev:
+                raise Exception('Could not find device: {}'.format(device))
+            if dev.platform != 'eos':
                 raise Exception('Invalid device platform: {}'.format(device))
 
     # Start tasks to take care of the upgrade

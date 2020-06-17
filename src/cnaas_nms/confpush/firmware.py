@@ -271,7 +271,8 @@ def device_upgrade(download: Optional[bool] = False,
             if not dev:
                 raise Exception('Could not find device: {}'.format(device))
             if dev.platform != 'eos':
-                raise Exception('Invalid device platform: {}'.format(device))
+                raise Exception('Invalid device platform "{}" for device: {}'.format(
+                    dev.platform, device))
 
     # Start tasks to take care of the upgrade
     try:

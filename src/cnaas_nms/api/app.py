@@ -21,7 +21,7 @@ from cnaas_nms.api.linknet import api as links_api
 from cnaas_nms.api.firmware import api as firmware_api
 from cnaas_nms.api.interface import api as interfaces_api
 from cnaas_nms.api.jobs import job_api, jobs_api, joblock_api
-from cnaas_nms.api.mgmtdomain import api as mgmtdomains_api
+from cnaas_nms.api.mgmtdomain import mgmtdomain_api, mgmtdomains_api
 from cnaas_nms.api.groups import api as groups_api
 from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
@@ -106,6 +106,7 @@ api.add_namespace(interfaces_api)
 api.add_namespace(job_api)
 api.add_namespace(jobs_api)
 api.add_namespace(joblock_api)
+api.add_namespace(mgmtdomain_api)
 api.add_namespace(mgmtdomains_api)
 api.add_namespace(groups_api)
 api.add_namespace(repository_api)

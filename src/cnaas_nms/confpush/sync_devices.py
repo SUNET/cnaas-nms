@@ -467,6 +467,10 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         raise e
     else:
         if nrresult.failed:
+            # Mark devices as unsynchronized if config hash check failed
+            with sqla_session() as session:
+                session.query(Device).filter(Device.hostname.in_(nrresult.failed_hosts.keys())).\
+                    update({Device.synchronized: False}, synchronize_session=False)
             raise Exception('Configuration hash check failed for {}'.format(
                 ' '.join(nrresult.failed_hosts.keys())))
 

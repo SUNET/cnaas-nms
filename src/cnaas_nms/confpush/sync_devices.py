@@ -514,7 +514,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             changed_hosts.append(host)
             if "change_score" in results[0].host:
                 change_scores.append(results[0].host["change_score"])
-                logger.debug("Change score for host {}: {}".format(
+                logger.debug("Change score for host {}: {:.1f}".format(
                     host, results[0].host["change_score"]))
         else:
             unchanged_hosts.append(host)
@@ -564,7 +564,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         # use individual max as total_change_score, range 1-100
         total_change_score = max(min(int(max(change_scores) + 0.5), 100), 1)
     logger.info(
-        "Change impact score: {} (dry_run: {}, selected devices: {}, changed devices: {})".
+        "Change impact score: {:.1f} (dry_run: {}, selected devices: {}, changed devices: {})".
             format(total_change_score, dry_run, len(device_list), len(changed_hosts)))
 
     next_job_id = None

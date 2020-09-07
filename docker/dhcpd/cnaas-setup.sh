@@ -36,5 +36,5 @@ cd cnaas-nms/
 git checkout develop
 #python3 -m pip install -r requirements.txt
 #minimal requirements for just dhcp-hook:
-python3 -m pip install requests pyyaml netaddr
+python3 -m pip install requests pyyaml netaddr jinja2
 

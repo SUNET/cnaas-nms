@@ -461,7 +461,6 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         nrresult = nr_filtered.run(task=sync_check_hash,
                                    force=force,
                                    job_id=job_id)
-        print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while checking config hash: {}".format(str(e)))
         raise e
@@ -483,7 +482,6 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run,
                                    job_id=job_id)
-        print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
         try:

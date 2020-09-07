@@ -28,8 +28,8 @@ if 'COVERAGE' in os.environ:
         cov.save()
 
     atexit.register(save_coverage)
-    gevent_signal(signal.SIGTERM, save_coverage)
-    gevent_signal(signal.SIGINT, save_coverage)
+    gevent_signal.signal(signal.SIGTERM, save_coverage)
+    gevent_signal.signal(signal.SIGINT, save_coverage)
 
 
 def get_app():

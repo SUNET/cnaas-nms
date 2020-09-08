@@ -12,7 +12,7 @@ from redis_lru import RedisLRU
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
-    check_settings_collisions, VlanConflictError
+    check_settings_collisions, get_model_specific_configfiles, VlanConflictError
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.job import Job, JobStatus
@@ -178,6 +178,10 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
                 if not Device.valid_hostname(hostname):
                     continue
                 get_settings(hostname)
+            for devtype_str, device_models in get_model_specific_configfiles(True).items():
+                devtype = DeviceType[devtype_str]
+                for device_model in device_models:
+                    get_settings('nonexisting', devtype, device_model)
             check_settings_collisions()
         except SettingsSyntaxError as e:
             logger.exception("Error in settings repo configuration: {}".format(str(e)))

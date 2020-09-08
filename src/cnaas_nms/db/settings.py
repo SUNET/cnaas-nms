@@ -72,11 +72,40 @@ DIR_STRUCTURE = {
     }
 }
 
-MODEL_IF_REGEX = re.compile(r'^interfaces_.*\.yml$')
+MODEL_IF_REGEX = re.compile(r'^interfaces_(.*)\.yml$')
+
+
+def get_model_specific_configfiles(only_modelname: bool = False) -> dict:
+    """Return all model specific configuration file names.
+
+    only_modelname: only show the model name part of the filename
+
+    Returns:
+        dict: dictionary with devtype as key and list of filenames as values
+
+        {
+            'CORE': [],
+            'DIST': ['interfaces_veos.yml']
+        }
+    """
+    ret = {'CORE': [], 'DIST': []}
+    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
+        repo_config = yaml.safe_load(db_file)
+    local_repo_path = repo_config['settings_local']
+
+    for devtype in ['CORE', 'DIST']:
+        for filename in os.listdir(os.path.join(local_repo_path, devtype.lower())):
+            m = re.match(MODEL_IF_REGEX, filename)
+            if m:
+                if only_modelname:
+                    ret[devtype].append(m.groups()[0])
+                else:
+                    ret[devtype].append(filename)
+    return ret
 
 
 def model_name_sanitize(model_name: str):
-    """Return the model name sanitized for file name purposes,
+    """Return the model name sanitized for filename purposes,
     strip whitespace, convert to lowercase etc."""
     ret_name = model_name.strip().rstrip().lower()
     ret_name = '_'.join(ret_name.split())

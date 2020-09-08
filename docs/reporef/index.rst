@@ -207,13 +207,11 @@ all lower-case and with all whitespaces replaced with underscore ("_").
 
 Keys for interfaces.yml or interfaces_<model>.yml:
 
-* interfaces:
+* interfaces: List of dicctionaries with keys:
 
-  * List
-
-    * name: Interface name, like "Ethernet1"
-    * ifclass: Interface class, one of: downlink, uplink, custom
-    * config: Raw CLI config used in case "custom" ifclass was selected
+  * name: Interface name, like "Ethernet1"
+  * ifclass: Interface class, one of: downlink, uplink, custom
+  * config: Optional. Raw CLI config used in case "custom" ifclass was selected
 
 etc
 ---

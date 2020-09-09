@@ -18,6 +18,7 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.confpush.underlay import find_free_infra_linknet
+from cnaas_nms.db.settings import get_settings
 
 
 def get_inventory():
@@ -237,6 +238,57 @@ def update_inventory(hostname: str, site='default') -> dict:
         return diff
 
 
+def verify_peer_iftype(local_hostname: str, local_devtype: DeviceType,
+                       local_device_settings: dict, local_if: str,
+                       remote_hostname: str, remote_devtype: DeviceType,
+                       remote_device_settings: dict, remote_if: str):
+    # Make sure interface with peers are configured in settings for CORE and DIST devices
+    if remote_devtype in [DeviceType.DIST, DeviceType.CORE]:
+        match = False
+        for intf in remote_device_settings['interfaces']:
+            if intf['name'] == remote_if:
+                match = True
+        if not match:
+            raise ValueError("Peer device interface is not configured: "
+                             "{} {}".format(remote_hostname,
+                                            remote_if))
+    if local_devtype in [DeviceType.DIST, DeviceType.CORE]:
+        match = False
+        for intf in local_device_settings['interfaces']:
+            if intf['name'] == local_if:
+                match = True
+        if not match:
+            raise ValueError("Local device interface is not configured: "
+                             "{} {}".format(local_hostname,
+                                            local_if))
+
+    # Make sure linknets between CORE/DIST devices are configured as fabric
+    if local_devtype in [DeviceType.DIST, DeviceType.CORE] and \
+            remote_devtype in [DeviceType.DIST, DeviceType.CORE]:
+        for intf in local_device_settings['interfaces']:
+            if intf['name'] == local_if and intf['ifclass'] != 'fabric':
+                raise ValueError("Local device interface is not configured as fabric: "
+                                 "{} {} ifclass: {}".format(local_hostname,
+                                                            intf['name'],
+                                                            intf['ifclass']))
+        for intf in remote_device_settings['interfaces']:
+            if intf['name'] == remote_if and intf['ifclass'] != 'fabric':
+                raise ValueError("Peer device interface is not configured as fabric: "
+                                 "{} {} ifclass: {}".format(remote_hostname,
+                                                            intf['name'],
+                                                            intf['ifclass']))
+
+    # Make sure that an access switch is connected to an interface
+    # configured as "downlink" on the remote end
+    if local_devtype == DeviceType.ACCESS and remote_devtype == DeviceType.DIST:
+        for intf in remote_device_settings['interfaces']:
+            if intf['name'] == remote_if and intf['ifclass'] != 'downlink':
+                raise ValueError("Peer device interface is not configured as downlink: "
+                                 "{} {} ifclass: {}".format(remote_hostname,
+                                                            intf['name'],
+                                                            intf['ifclass']))
+
+
 def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool = False):
     """Update linknet data for specified device using LLDP neighbor data.
     """
@@ -260,6 +312,20 @@ def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool =
             logger.info(f"Unknown connected device: {data[0]['hostname']}")
             continue
         logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
+
+        local_device_settings, _ = get_settings(hostname,
+                                                devtype,
+                                                local_device_inst.model
+                                                )
+        remote_device_settings, _ = get_settings(remote_device_inst.hostname,
+                                                 remote_device_inst.device_type,
+                                                 remote_device_inst.model
+                                                 )
+
+        verify_peer_iftype(hostname, devtype,
+                           local_device_settings, local_if,
+                           remote_device_inst.hostname, remote_device_inst.device_type,
+                           remote_device_settings, data[0]['port'])
 
         # Check if linknet object already exists in database
         local_devid = local_device_inst.id

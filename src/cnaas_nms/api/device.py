@@ -325,12 +325,17 @@ class DeviceInitCheckApi(Resource):
             except Exception as e:
                 return empty_result(status='error', data=str(e)), 500
 
-            ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
-                session,
-                hostname=dev.hostname,
-                devtype=DeviceType[parsed_args['device_type']],
-                dry_run=True
-            )
+            try:
+                ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
+                    session,
+                    hostname=dev.hostname,
+                    devtype=DeviceType[parsed_args['device_type']],
+                    dry_run=True
+                )
+            except ValueError as e:
+                return empty_result(status='error', data=str(e)), 400
+            except Exception as e:
+                return empty_result(status='error', data=str(e)), 500
 
         ret['parsed_args'] = parsed_args
         return empty_result(data=ret)

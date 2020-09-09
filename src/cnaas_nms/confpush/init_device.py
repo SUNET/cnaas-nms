@@ -93,6 +93,8 @@ def push_base_management_access(task, device_variables, job_id):
 
 
 def pre_init_checks(session, device_id) -> Device:
+    """Find device with device_id and check that it's ready for init, returns
+    Device object or raises exception"""
     # Check that we can find device and that it's in the correct state to start init
     dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
     if not dev:

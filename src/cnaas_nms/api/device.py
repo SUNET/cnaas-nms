@@ -32,6 +32,8 @@ devices_api = Namespace('devices', description='API for handling devices',
                         prefix='/api/{}'.format(__api_version__))
 device_init_api = Namespace('device_init', description='API for init devices',
                             prefix='/api/{}'.format(__api_version__))
+device_initcheck_api = Namespace('device_initcheck', description='API for init check of devices',
+                                 prefix='/api/{}'.format(__api_version__))
 device_syncto_api = Namespace('device_syncto', description='API to sync devices',
                               prefix='/api/{}'.format(__api_version__))
 device_discover_api = Namespace('device_discover', description='API to discover devices',
@@ -60,6 +62,10 @@ device_model = device_api.model('device', {
     'port': fields.Integer(required=False)})
 
 device_init_model = device_init_api.model('device_init', {
+    'hostname': fields.String(required=False),
+    'device_type': fields.String(required=False)})
+
+device_initcheck_model = device_initcheck_api.model('device_initcheck', {
     'hostname': fields.String(required=False),
     'device_type': fields.String(required=False)})
 
@@ -235,52 +241,13 @@ class DeviceInitApi(Resource):
     @device_init_api.expect(device_init_model)
     def post(self, device_id: int):
         """ Init a device """
-        if not isinstance(device_id, int):
-            return empty_result(status='error', data="'device_id' must be an integer"), 400
-
         json_data = request.get_json()
+        try:
+            job_kwargs = self.arg_check(device_id, json_data)
+        except ValueError as e:
+            return empty_result(status='error', data=str(e)), 400
 
-        if 'hostname' not in json_data:
-            return empty_result(status='error', data="POST data must include new 'hostname'"), 400
-        else:
-            if not Device.valid_hostname(json_data['hostname']):
-                return empty_result(
-                    status='error',
-                    data='Provided hostname is not valid'), 400
-            else:
-                new_hostname = json_data['hostname']
-
-        if 'device_type' not in json_data:
-            return empty_result(status='error', data="POST data must include 'device_type'"), 400
-        else:
-            try:
-                device_type = str(json_data['device_type']).upper()
-            except Exception:
-                return empty_result(status='error', data="'device_type' must be a string"), 400
-
-            if not DeviceType.has_name(device_type):
-                return empty_result(status='error', data="Invalid 'device_type' provided"), 400
-
-        job_kwargs = {
-            'device_id': device_id,
-            'new_hostname': new_hostname
-        }
-
-        if 'mlag_peer_id' in json_data or 'mlag_peer_hostname' in json_data:
-            if 'mlag_peer_id' not in json_data or 'mlag_peer_hostname' not in json_data:
-                return empty_result(
-                    status='error',
-                    data="Both 'mlag_peer_id' and 'mlag_peer_hostname' must be specified"), 400
-            if not isinstance(json_data['mlag_peer_id'], int):
-                return empty_result(status='error', data="'mlag_peer_id' must be an integer"), 400
-            if not Device.valid_hostname(json_data['mlag_peer_hostname']):
-                return empty_result(
-                    status='error',
-                    data="Provided 'mlag_peer_hostname' is not valid"), 400
-            job_kwargs['mlag_peer_id'] = json_data['mlag_peer_id']
-            job_kwargs['mlag_peer_new_hostname'] = json_data['mlag_peer_hostname']
-
-        if device_type == DeviceType.ACCESS.name:
+        if job_kwargs['device_type'] == DeviceType.ACCESS.name:
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_access_device_step1',
@@ -294,6 +261,69 @@ class DeviceInitApi(Resource):
         res['job_id'] = job_id
 
         return res
+
+    @classmethod
+    def arg_check(cls, device_id: int, json_data: dict) -> dict:
+        parsed_args = {
+            'device_id': device_id
+        }
+        if not isinstance(device_id, int):
+            raise ValueError("'device_id' must be an integer")
+
+        if 'hostname' not in json_data:
+            raise ValueError("POST data must include new 'hostname'")
+        else:
+            if not Device.valid_hostname(json_data['hostname']):
+                raise ValueError("Provided hostname is not valid")
+            else:
+                parsed_args['new_hostname'] = json_data['hostname']
+
+        if 'device_type' not in json_data:
+            raise ValueError("POST data must include 'device_type'")
+        else:
+            try:
+                device_type = str(json_data['device_type']).upper()
+            except Exception:
+                raise ValueError("'device_type' must be a string")
+
+            if DeviceType.has_name(device_type):
+                parsed_args['device_type'] = device_type
+            else:
+                raise ValueError("Invalid 'device_type' provided")
+
+        if 'mlag_peer_id' in json_data or 'mlag_peer_hostname' in json_data:
+            if 'mlag_peer_id' not in json_data or 'mlag_peer_hostname' not in json_data:
+                raise ValueError("Both 'mlag_peer_id' and 'mlag_peer_hostname' must be specified")
+            if not isinstance(json_data['mlag_peer_id'], int):
+                raise ValueError("'mlag_peer_id' must be an integer")
+            if not Device.valid_hostname(json_data['mlag_peer_hostname']):
+                raise ValueError("Provided 'mlag_peer_hostname' is not valid")
+            parsed_args['mlag_peer_id'] = json_data['mlag_peer_id']
+            parsed_args['mlag_peer_new_hostname'] = json_data['mlag_peer_hostname']
+
+        return parsed_args
+
+
+class DeviceInitCheckApi(Resource):
+    @jwt_required
+    @device_init_api.expect(device_initcheck_model)
+    def post(self, device_id: int):
+        """Perform init check on a device"""
+        json_data = request.get_json()
+        try:
+            parsed_args = DeviceInitApi.arg_check(device_id, json_data)
+        except ValueError as e:
+            return empty_result(status='error', data=str(e)), 400
+
+        with sqla_session() as session:
+            try:
+                dev = cnaas_nms.confpush.init_device.pre_init_checks(session, device_id)
+            except ValueError as e:
+                return empty_result(status='error', data=str(e)), 400
+            except Exception as e:
+                return empty_result(status='error', data=str(e)), 500
+
+        return empty_result(data=parsed_args)
 
 
 class DeviceDiscoverApi(Resource):
@@ -651,6 +681,7 @@ device_api.add_resource(DeviceApplyConfigApi, '/<string:hostname>/apply_config')
 device_api.add_resource(DeviceApi, '')
 devices_api.add_resource(DevicesApi, '')
 device_init_api.add_resource(DeviceInitApi, '/<int:device_id>')
+device_initcheck_api.add_resource(DeviceInitCheckApi, '/<int:device_id>')
 device_discover_api.add_resource(DeviceDiscoverApi, '')
 device_syncto_api.add_resource(DeviceSyncApi, '')
 device_update_facts_api.add_resource(DeviceUpdateFactsApi, '')

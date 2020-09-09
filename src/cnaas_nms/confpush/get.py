@@ -17,6 +17,7 @@ from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.confpush.underlay import find_free_infra_linknet
 
 
 def get_inventory():
@@ -236,7 +237,7 @@ def update_inventory(hostname: str, site='default') -> dict:
         return diff
 
 
-def update_linknets(session, hostname):
+def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool = False):
     """Update linknet data for specified device using LLDP neighbor data.
     """
     logger = get_logger()
@@ -247,12 +248,13 @@ def update_linknets(session, hostname):
 
     ret = []
 
-    local_device_inst = session.query(Device).filter(Device.hostname == hostname).one()
-    logger.debug("Updating linknets for device {} ...".format(local_device_inst.id))
+    local_device_inst: Device = session.query(Device).filter(Device.hostname == hostname).one()
+    logger.debug("Updating linknets for device {} of type {}...".format(
+        local_device_inst.id, devtype.name))
 
     for local_if, data in neighbors.items():
         logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
-        remote_device_inst = session.query(Device).\
+        remote_device_inst: Device = session.query(Device).\
             filter(Device.hostname == data[0]['hostname']).one_or_none()
         if not remote_device_inst:
             logger.info(f"Unknown connected device: {data[0]['hostname']}")
@@ -274,15 +276,17 @@ def update_linknets(session, hostname):
                  (Linknet.device_b_port == data[0]['port']))
             ).one_or_none()
         if check_linknet:
-            logger.debug(f"Found entry: {check_linknet.id}")
+            logger.debug(f"Found existing linknet id: {check_linknet.id}")
             if (
-                    (       check_linknet.device_a_id == local_devid
+                    (
+                        check_linknet.device_a_id == local_devid
                         and check_linknet.device_a_port == local_if
                         and check_linknet.device_b_id == remote_device_inst.id
                         and check_linknet.device_b_port == data[0]['port']
                     )
                     or
-                    (       check_linknet.device_a_id == local_devid
+                    (
+                        check_linknet.device_a_id == local_devid
                         and check_linknet.device_a_port == local_if
                         and check_linknet.device_b_id == remote_device_inst.id
                         and check_linknet.device_b_port == data[0]['port']
@@ -292,15 +296,37 @@ def update_linknets(session, hostname):
                 continue
             else:
                 # TODO: update instead of delete+new insert?
-                session.delete(check_linknet)
-                session.commit()
+                if not dry_run:
+                    session.delete(check_linknet)
+                    session.commit()
 
-        new_link = Linknet()
-        new_link.device_a = local_device_inst
-        new_link.device_a_port = local_if
-        new_link.device_b = remote_device_inst
-        new_link.device_b_port = data[0]['port']
-        session.add(new_link)
-        ret.append(new_link.as_dict())
-    session.commit()
+        if devtype in [DeviceType.CORE, DeviceType.DIST] and \
+                remote_device_inst.device_type in [DeviceType.CORE, DeviceType.DIST]:
+            ipv4_network = find_free_infra_linknet(session)
+        else:
+            ipv4_network = None
+        new_link = Linknet.create_linknet(
+            session,
+            hostname_a=local_device_inst.hostname,
+            interface_a=local_if,
+            hostname_b=remote_device_inst.hostname,
+            interface_b=data[0]['port'],
+            ipv4_network=ipv4_network
+        )
+        if not dry_run:
+            session.add(new_link)
+            session.commit()
+        else:
+            # Make sure linknet object is not added to session because of foreign key load
+            session.expunge(new_link)
+        # Make return data pretty
+        ret_dict = {
+            'device_a_hostname': local_device_inst.hostname,
+            'device_b_hostname': remote_device_inst.hostname,
+            **new_link.as_dict()
+        }
+        del ret_dict['id']
+        del ret_dict['device_a_id']
+        del ret_dict['device_b_id']
+        ret.append({k: ret_dict[k] for k in sorted(ret_dict)})
     return ret

@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
+import cnaas_nms.confpush.get
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -310,6 +311,7 @@ class DeviceInitCheckApi(Resource):
     def post(self, device_id: int):
         """Perform init check on a device"""
         json_data = request.get_json()
+        ret = {}
         try:
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
         except ValueError as e:
@@ -323,7 +325,15 @@ class DeviceInitCheckApi(Resource):
             except Exception as e:
                 return empty_result(status='error', data=str(e)), 500
 
-        return empty_result(data=parsed_args)
+            ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
+                session,
+                hostname=dev.hostname,
+                devtype=DeviceType[parsed_args['device_type']],
+                dry_run=True
+            )
+
+        ret['parsed_args'] = parsed_args
+        return empty_result(data=ret)
 
 
 class DeviceDiscoverApi(Resource):

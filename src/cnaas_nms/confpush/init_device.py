@@ -32,6 +32,10 @@ class ConnectionCheckError(Exception):
     pass
 
 
+class InitVerificationError(Exception):
+    pass
+
+
 class InitError(Exception):
     pass
 
@@ -113,6 +117,63 @@ def pre_init_checks(session, device_id) -> Device:
         print_result(nrresult_old)
         raise ConnectionCheckError(f"Failed to connect to device_id {device_id}")
     return dev
+
+
+def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
+                             linknets: List[dict],
+                             expected_neighbors: Optional[List[str]] = None):
+    logger = get_logger()
+    if expected_neighbors is not None and len(expected_neighbors) == 0:
+        logger.debug("expected_neighbors explicitly set to empty list, skipping neighbor checks")
+        return True
+    if not linknets:
+        raise Exception("No linknets were specified to check_neighbors")
+
+    if devtype == DeviceType.ACCESS:
+        pass
+    elif devtype in [DeviceType.CORE, DeviceType.DIST]:
+        verified_linknets = []
+        for linknet in linknets:
+            if linknet['device_a_hostname'] == dev.hostname:
+                neighbor = linknet['device_b_hostname']
+            elif linknet['device_b_hostname'] == dev.hostname:
+                neighbor = linknet['device_a_hostname']
+            else:
+                raise Exception("Own hostname not found in linknet")
+            if expected_neighbors:
+                if neighbor in expected_neighbors:
+                    verified_linknets.append(linknet)
+                # Neighbor was explicitly set -> skip verification of neighbor devtype
+                continue
+
+            neighbor_dev: Device = session.query(Device).\
+                filter(Device.hostname == neighbor).one_or_none()
+            if not neighbor_dev:
+                raise Exception("Neighbor device {} not found in database".format(neighbor))
+            if devtype == DeviceType.CORE:
+                if neighbor_dev.device_type == DeviceType.DIST:
+                    verified_linknets.append(linknet)
+                else:
+                    logger.warn("Neighbor device {} is of unexpected device type {}, ignoring".format(
+                        neighbor, neighbor_dev.device_type.name
+                    ))
+            else:
+                if neighbor_dev.device_type == DeviceType.CORE:
+                    verified_linknets.append(linknet)
+                else:
+                    logger.warn("Neighbor device {} is of unexpected device type {}, ignoring".format(
+                        neighbor, neighbor_dev.device_type.name
+                    ))
+
+        if expected_neighbors:
+            if len(expected_neighbors) != len(verified_linknets):
+                raise InitVerificationError("Not all expected neighbors were detected")
+        else:
+            if len(verified_linknets) < 2:
+                raise InitVerificationError("Not enough compatible neighbors ({} of 2) were detected".format(
+                    len(verified_linknets)
+                ))
+    return verified_linknets
 
 
 def pre_init_check_mlag(session, dev, mlag_peer_dev):

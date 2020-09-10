@@ -302,6 +302,18 @@ class DeviceInitApi(Resource):
             parsed_args['mlag_peer_id'] = json_data['mlag_peer_id']
             parsed_args['mlag_peer_new_hostname'] = json_data['mlag_peer_hostname']
 
+        if 'neighbors' in json_data and json_data['neighbors'] is not None:
+            if isinstance(json_data['neighbors'], list):
+                for neighbor in json_data['neighbors']:
+                    if not Device.valid_hostname(neighbor):
+                        raise ValueError("Invalid hostname specified in neighbor list")
+                parsed_args['neighbors'] = json_data['neighbors']
+            else:
+                raise ValueError("Neighbors must be specified as either a list of hostnames,"
+                                 "an empty list, or not specified at all")
+        else:
+            parsed_args['neighbors'] = None
+
         return parsed_args
 
 
@@ -314,6 +326,7 @@ class DeviceInitCheckApi(Resource):
         ret = {}
         try:
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
+            target_devtype = DeviceType[parsed_args['device_type']]
         except ValueError as e:
             return empty_result(status='error', data=str(e)), 400
 
@@ -329,15 +342,32 @@ class DeviceInitCheckApi(Resource):
                 ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
                     session,
                     hostname=dev.hostname,
-                    devtype=DeviceType[parsed_args['device_type']],
+                    devtype=target_devtype,
                     dry_run=True
                 )
+                ret['linknets_compatible'] = True
             except ValueError as e:
-                return empty_result(status='error', data=str(e)), 400
+                ret['linknets_compatible'] = False
+                ret['linknets_error'] = str(e)
+            except Exception as e:
+                return empty_result(status='error', data=str(e)), 500
+
+            try:
+                cnaas_nms.confpush.init_device.pre_init_check_neighbors(
+                    session, dev, target_devtype,
+                    ret['linknets'], parsed_args['neighbors'])
+                ret['neighbors_compatible'] = True
+            except (ValueError, cnaas_nms.confpush.init_device.InitVerificationError) as e:
+                ret['neighbors_compatible'] = False
+                ret['neighbors_error'] = str(e)
             except Exception as e:
                 return empty_result(status='error', data=str(e)), 500
 
         ret['parsed_args'] = parsed_args
+        if ret['linknets_compatible'] and ret['neighbors_compatible']:
+            ret['compatible'] = True
+        else:
+            ret['compatible'] = False
         return empty_result(data=ret)
 
 

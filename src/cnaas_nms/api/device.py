@@ -353,10 +353,11 @@ class DeviceInitCheckApi(Resource):
                 return empty_result(status='error', data=str(e)), 500
 
             try:
-                cnaas_nms.confpush.init_device.pre_init_check_neighbors(
-                    session, dev, target_devtype,
-                    ret['linknets'], parsed_args['neighbors'])
-                ret['neighbors_compatible'] = True
+                if 'linknets' in ret:
+                    cnaas_nms.confpush.init_device.pre_init_check_neighbors(
+                        session, dev, target_devtype,
+                        ret['linknets'], parsed_args['neighbors'])
+                    ret['neighbors_compatible'] = True
             except (ValueError, cnaas_nms.confpush.init_device.InitVerificationError) as e:
                 ret['neighbors_compatible'] = False
                 ret['neighbors_error'] = str(e)

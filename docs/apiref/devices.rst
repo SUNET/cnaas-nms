@@ -227,6 +227,65 @@ to allow apply config live run as well.
 
 This will schedule a job to send the configuration to the device.
 
+Initialize check
+----------------
+
+Before initializing a new CORE or DIST device you can run a pre-check API call.
+This will check that compatible LLDP neighbors are found and that the
+interfaces facing these neighbors are set to the correct ifclass as well as
+some basic device state checks.
+
+To test if a device is compatible for DIST ZTP run:
+
+::
+
+   curl https://localhost/api/v1.0/device_initcheck/45 -d '{"hostname": "dist3", "device_type": "DIST"}' -X POST -H "Content-Type: application/json"
+
+Example output:
+
+::
+
+   {
+       "status": "success",
+       "data": {
+           "linknets": [
+               {
+                   "description": null,
+                   "device_a_hostname": "dist3",
+                   "device_a_ip": "10.198.0.0",
+                   "device_a_port": "Ethernet3",
+                   "device_b_hostname": "core1",
+                   "device_b_ip": "10.198.0.1",
+                   "device_b_port": "Ethernet3",
+                   "ipv4_network": "10.198.0.0/31",
+                   "site_id": null
+               }
+           ],
+           "linknets_compatible": true,
+           "neighbors_compatible": false,
+           "neighbors_error": "Not enough linknets (1 of 2) were detected",
+           "parsed_args": {
+               "device_id": 2,
+               "new_hostname": "dist3",
+               "device_type": "DIST",
+               "neighbors": null
+           },
+           "compatible": false
+       }
+   }
+
+Status success in this case means all checks were able to complete, but if
+you check the "compatible" key it says false which means this device is
+actually not compatible for DIST ZTP at the moment. We did find a compatible
+linknet, but there were not enough neighboring devices of the correct device
+type found. If you want to perform some non-standard configuration like trying
+ZTP with just one neighbor you can manually specify what neighbors you expect
+to see instead.
+
+If the checks can not be performed at all, like when the device is not found
+or an invalid device type is specified the API call will return a 400 or 500
+error instead.
+
 Initialize device
 -----------------
 

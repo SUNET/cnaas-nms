@@ -249,6 +249,8 @@ class DeviceInitApi(Resource):
             return empty_result(status='error', data=str(e)), 400
 
         if job_kwargs['device_type'] == DeviceType.ACCESS.name:
+            del job_kwargs['device_type']
+            del job_kwargs['neighbors']
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_access_device_step1',

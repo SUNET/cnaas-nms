@@ -94,10 +94,12 @@ The directory structure looks like this:
 - core
 
   * base_system.yml: Base system settings
+  * interfaces_<model>.yml: Model specific default interface settings
 
 - dist
 
   * base_system.yml: Base system settings
+  * interfaces_<model>.yml: Model specific default interface settings
 
 - access:
 
@@ -194,6 +196,22 @@ name is the dictionary key and dictionaly values are:
   * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
     access switch the parent dist switch should be automatically provisioned.
 
+interfaces.yml:
+
+For dist and core devices interfaces are configured in YAML files. The
+interface configuration can either be done per device, or per device model.
+If there is a device specific folder under devices/ then the model
+interface settings will be ignored. Model specific YAML files
+should be named like the device model as listed in the devices API, but in
+all lower-case and with all whitespaces replaced with underscore ("_").
+
+Keys for interfaces.yml or interfaces_<model>.yml:
+
+* interfaces: List of dicctionaries with keys:
+
+  * name: Interface name, like "Ethernet1"
+  * ifclass: Interface class, one of: downlink, uplink, custom
+  * config: Optional. Raw CLI config used in case "custom" ifclass was selected
 
 etc
 ---

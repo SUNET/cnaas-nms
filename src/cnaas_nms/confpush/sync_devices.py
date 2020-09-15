@@ -127,7 +127,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             platform: str = dev.platform
         else:
             raise ValueError("Unknown platform: {}".format(dev.platform))
-        settings, settings_origin = get_settings(hostname, devtype)
+        settings, settings_origin = get_settings(hostname, devtype, dev.model)
         device_variables = {
             'mgmt_ip': str(mgmt_ip),
             'device_model': dev.model,

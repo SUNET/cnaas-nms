@@ -72,6 +72,45 @@ DIR_STRUCTURE = {
     }
 }
 
+MODEL_IF_REGEX = re.compile(r'^interfaces_(.*)\.yml$')
+
+
+def get_model_specific_configfiles(only_modelname: bool = False) -> dict:
+    """Return all model specific configuration file names.
+
+    only_modelname: only show the model name part of the filename
+
+    Returns:
+        dict: dictionary with devtype as key and list of filenames as values
+
+        {
+            'CORE': [],
+            'DIST': ['interfaces_veos.yml']
+        }
+    """
+    ret = {'CORE': [], 'DIST': []}
+    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
+        repo_config = yaml.safe_load(db_file)
+    local_repo_path = repo_config['settings_local']
+
+    for devtype in ['CORE', 'DIST']:
+        for filename in os.listdir(os.path.join(local_repo_path, devtype.lower())):
+            m = re.match(MODEL_IF_REGEX, filename)
+            if m:
+                if only_modelname:
+                    ret[devtype].append(m.groups()[0])
+                else:
+                    ret[devtype].append(filename)
+    return ret
+
+
+def model_name_sanitize(model_name: str):
+    """Return the model name sanitized for filename purposes,
+    strip whitespace, convert to lowercase etc."""
+    ret_name = model_name.strip().rstrip().lower()
+    ret_name = '_'.join(ret_name.split())
+    return ret_name
+
 
 def verify_dir_structure(path: str, dir_structure: dict):
     """Verify that given path complies to given directory structure.
@@ -134,6 +173,8 @@ def get_setting_filename(repo_root: str, path: List[str]) -> str:
             raise ValueError("Invalid directory structure for devices settings")
         if not keys_exists(DIR_STRUCTURE_HOST, path[2:]):
             raise ValueError("File {} not defined in DIR_STRUCTURE".format(path[2:]))
+    elif re.match(MODEL_IF_REGEX, path[1]):
+        pass
     elif not keys_exists(DIR_STRUCTURE, path):
         raise ValueError("File {} not defined in DIR_STRUCTURE".format(path))
     return os.path.join(repo_root, *path)
@@ -442,8 +483,8 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
 
 
 @redis_lru_cache
-def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None) -> \
-        Tuple[dict, dict]:
+def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceType] = None,
+                 device_model: Optional[str] = None) -> Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
     logger = get_logger()
@@ -507,6 +548,19 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
                 local_repo_path, ['devices', hostname, 'routing.yml'],
                 'device->{}->routing.yml'.format(hostname),
                 settings, settings_origin, groups)
+        # Check for model specific default interface settings
+        elif (device_type == DeviceType.DIST or device_type == DeviceType.CORE) and \
+                device_type and device_model and os.path.isfile(
+            os.path.join(local_repo_path,
+                         device_type.name.lower(),
+                         'interfaces_{}.yml'.format(model_name_sanitize(device_model)))):
+            settings, settings_origin = read_settings(
+                local_repo_path, [device_type.name.lower(),
+                                  'interfaces_{}.yml'.format(device_model.lower())],
+                '{}->interfaces_{}.yml'.format(device_type.name.lower(),
+                                               model_name_sanitize(device_model)),
+                settings, settings_origin)
+
     else:
         # Some settings parsing require knowledge of group memberships
         groups = []

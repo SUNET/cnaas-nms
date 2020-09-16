@@ -19,7 +19,7 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.confpush.update import update_interfacedb_worker
-from cnaas_nms.confpush.sync_devices import get_mlag_vars
+from cnaas_nms.confpush.sync_devices import populate_device_vars
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
@@ -265,29 +265,18 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         session.add(reserved_ip)
         # Populate variables for template rendering
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
-        device_variables = {
+        mgmt_variables = {
             'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
             'mgmt_ip': str(mgmt_ip),
             'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
-            'interfaces': [],
             'mgmt_vlan_id': mgmtdomain.vlan,
             'mgmt_gw': mgmt_gw_ipif.ip,
-            'device_model': dev.model,
-            'device_os_version': dev.os_version
         }
-        intfs = session.query(Interface).filter(Interface.device == dev).all()
-        intf: Interface
-        for intf in intfs:
-            intfdata = None
-            if intf.data:
-                intfdata = dict(intf.data)
-            device_variables['interfaces'].append({
-                'name': intf.name,
-                'ifclass': intf.configtype.name,
-                'data': intfdata
-            })
-        mlag_vars = get_mlag_vars(session, dev)
-        device_variables = {**device_variables, **mlag_vars}
+        device_variables = populate_device_vars(session, dev, new_hostname, DeviceType.ACCESS)
+        device_variables = {
+            **device_variables,
+            **mgmt_variables
+        }
         # Update device state
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.hostname = new_hostname

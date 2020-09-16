@@ -151,6 +151,7 @@ def populate_device_vars(session, dev: Device,
                 'mgmt_gw': str(mgmt_gw_ipif.ip),
                 'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip,
                                                               mgmt_gw_ipif.network.prefixlen))),
+                'mgmt_ip': str(mgmt_ip),
                 'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
                 'interfaces': []
             }

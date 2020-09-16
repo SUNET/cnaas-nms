@@ -295,6 +295,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.management_ip = device_variables['mgmt_ip']
         dev.state = DeviceState.INIT
+        dev.device_type = DeviceType.ACCESS
         # Remove the reserved IP since it's now saved in the device database instead
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:
@@ -343,13 +344,13 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     )
 
 
-def schedule_init_access_device_step2(device_id: int, iteration: int,
+def schedule_init_device_step2(device_id: int, iteration: int,
                                       scheduled_by: str) -> Optional[Job]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
         next_job_id = scheduler.add_onetime_job(
-            'cnaas_nms.confpush.init_device:init_access_device_step2',
+            'cnaas_nms.confpush.init_device:init_device_step2',
             when=(30*iteration),
             scheduled_by=scheduled_by,
             kwargs={'device_id': device_id, 'iteration': iteration+1})
@@ -359,10 +360,10 @@ def schedule_init_access_device_step2(device_id: int, iteration: int,
 
 
 @job_wrapper
-def init_access_device_step2(device_id: int, iteration: int = -1,
-                             job_id: Optional[str] = None,
-                             scheduled_by: Optional[str] = None) -> \
-                             NornirJobResult:
+def init_device_step2(device_id: int, iteration: int = -1,
+                      job_id: Optional[str] = None,
+                      scheduled_by: Optional[str] = None) -> \
+                      NornirJobResult:
     logger = get_logger()
     # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
     with sqla_session() as session:
@@ -372,14 +373,14 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
                          format(device_id, dev.state.name))
             raise DeviceStateException("Device must be in state INIT to continue init step 2")
         hostname = dev.hostname
+        devtype: DeviceType = dev.device_type
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
     nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
 
     if nrresult.failed:
-        next_job_id = schedule_init_access_device_step2(device_id, iteration,
-                                                        scheduled_by)
+        next_job_id = schedule_init_device_step2(device_id, iteration, scheduled_by)
         if next_job_id:
             return NornirJobResult(
                 nrresult=nrresult,
@@ -398,7 +399,6 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
-        dev.device_type = DeviceType.ACCESS
         dev.synchronized = False
         dev.serial = facts['serial_number']
         dev.vendor = facts['vendor']
@@ -413,7 +413,7 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
         pmh = PluginManagerHandler()
         pmh.pm.hook.new_managed_device(
             hostname=hostname,
-            device_type=DeviceType.ACCESS.name,
+            device_type=devtype.name,
             serial_number=facts['serial_number'],
             vendor=facts['vendor'],
             model=facts['model'],
@@ -423,9 +423,7 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
     except Exception as e:
         logger.exception("Error while running plugin hooks for new_managed_device: ".format(str(e)))
 
-    return NornirJobResult(
-        nrresult = nrresult
-    )
+    return NornirJobResult(nrresult=nrresult)
 
 
 def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,

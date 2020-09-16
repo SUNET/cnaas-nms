@@ -177,7 +177,9 @@ def populate_device_vars(session, dev: Device,
                 'data': intfdata
             })
         mlag_vars = get_mlag_vars(session, dev)
-        device_variables = {**settings, **access_device_variables, **device_variables, **mlag_vars}
+        device_variables = {**device_variables,
+                            **access_device_variables,
+                            **mlag_vars}
     elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
         infra_ip = dev.infra_ip
         asn = generate_asn(infra_ip)
@@ -280,11 +282,23 @@ def populate_device_vars(session, dev: Device,
                 'peer_infra_lo': str(neighbor_d.infra_ip),
                 'peer_asn': generate_asn(neighbor_d.infra_ip)
             })
-        # Merge device variables with settings before sending to template rendering
-        # Device variables override any names from settings, for example the
-        # interfaces list from settings are replaced with an interface list from
-        # device variables that contains more information
-        device_variables = {**settings, **fabric_device_variables, **device_variables}
+        device_variables = {**device_variables,
+                            **fabric_device_variables}
+
+    # Add all environment variables starting with TEMPLATE_SECRET_ to
+    # the list of configuration variables. The idea is to store secret
+    # configuration outside of the templates repository.
+    template_secrets = {}
+    for env in os.environ:
+        if env.startswith('TEMPLATE_SECRET_'):
+            template_secrets[env] = os.environ[env]
+    # Merge all dicts with variables into one, later row overrides
+    # Device variables override any names from settings, for example the
+    # interfaces list from settings are replaced with an interface list from
+    # device variables that contains more information
+    device_variables = {**settings,
+                        **device_variables,
+                        **template_secrets}
     return device_variables
 
 
@@ -308,19 +322,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
     hostname = task.host.name
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-        device_variables = populate_device_vars(session, dev)
+        template_vars = populate_device_vars(session, dev)
         platform = dev.platform
         devtype = dev.device_type
-
-    # Add all environment variables starting with TEMPLATE_SECRET_ to
-    # the list of configuration variables. The idea is to store secret
-    # configuration outside of the templates repository.
-    template_secrets = {}
-    for env in os.environ:
-        if env.startswith('TEMPLATE_SECRET_'):
-            template_secrets[env] = os.environ[env]
-
-    template_vars = {**device_variables, **template_secrets}
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)

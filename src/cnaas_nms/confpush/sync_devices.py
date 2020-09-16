@@ -101,6 +101,7 @@ def get_mlag_vars(session, dev: Device) -> dict:
 def populate_device_vars(session, dev: Device,
                          ztp_hostname: Optional[str] = None,
                          ztp_devtype: Optional[DeviceType] = None):
+    logger = get_logger()
     device_variables = {
         'device_model': dev.model,
         'device_os_version': dev.os_version
@@ -191,6 +192,30 @@ def populate_device_vars(session, dev: Device,
             'mgmtdomains': [],
             'asn': asn
         }
+        # find fabric neighbors
+        fabric_interfaces = {}
+        for neighbor_d in dev.get_neighbors(session):
+            if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
+                # TODO: support multiple links to the same neighbor?
+                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+                local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
+                neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
+                if local_if:
+                    fabric_interfaces[local_if] = {
+                        'name': local_if,
+                        'ifclass': 'fabric',
+                        'ipv4if': local_ipif,
+                        'peer_hostname': neighbor_d.hostname,
+                        'peer_infra_lo': str(neighbor_d.infra_ip),
+                        'peer_ip': str(neighbor_ip),
+                        'peer_asn': generate_asn(neighbor_d.infra_ip)
+                    }
+                    fabric_device_variables['bgp_ipv4_peers'].append({
+                        'peer_hostname': neighbor_d.hostname,
+                        'peer_infra_lo': str(neighbor_d.infra_ip),
+                        'peer_ip': str(neighbor_ip),
+                        'peer_asn': generate_asn(neighbor_d.infra_ip)
+                    })
         ifname_peer_map = dev.get_linknet_localif_mapping(session)
         if 'interfaces' in settings and settings['interfaces']:
             for intf in settings['interfaces']:
@@ -198,7 +223,9 @@ def populate_device_vars(session, dev: Device,
                     ifindexnum: int = Interface.interface_index_num(intf['name'])
                 except ValueError as e:
                     ifindexnum: int = 0
-                if 'ifclass' in intf and intf['ifclass'] == 'downlink':
+                if 'ifclass' not in intf:
+                    continue
+                if intf['ifclass'] == 'downlink':
                     data = {}
                     if intf['name'] in ifname_peer_map:
                         data['description'] = ifname_peer_map[intf['name']]
@@ -208,13 +235,34 @@ def populate_device_vars(session, dev: Device,
                         'indexnum': ifindexnum,
                         'data': data
                     })
-                elif 'ifclass' in intf and intf['ifclass'] == 'custom':
+                elif intf['ifclass'] == 'custom':
                     fabric_device_variables['interfaces'].append({
                         'name': intf['name'],
                         'ifclass': intf['ifclass'],
                         'config': intf['config'],
                         'indexnum': ifindexnum
                     })
+                elif intf['ifclass'] == 'fabric':
+                    if intf['name'] in fabric_interfaces:
+                        fabric_device_variables['interfaces'].append(
+                            {**fabric_interfaces[intf['name']], **{'indexnum': ifindexnum}}
+                        )
+                        del fabric_interfaces[intf['name']]
+                    else:
+                        fabric_device_variables['interfaces'].append({
+                            'name': intf['name'],
+                            'ifclass': intf['ifclass'],
+                            'indexnum': ifindexnum,
+                            'ipv4if': None,
+                            'peer_hostname': 'ztp',
+                            'peer_infra_lo': None,
+                            'peer_ip': None,
+                            'peer_asn': None
+                        })
+        for local_if, data in fabric_interfaces.items():
+            logger.warn(f"Interface {local_if} on device {hostname} not "
+                        "configured as linknet because of wrong ifclass")
+
         for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
             fabric_device_variables['mgmtdomains'].append({
                 'id': mgmtdom.id,
@@ -223,30 +271,6 @@ def populate_device_vars(session, dev: Device,
                 'description': mgmtdom.description,
                 'esi_mac': mgmtdom.esi_mac
             })
-        # find fabric neighbors
-        fabric_links = []
-        for neighbor_d in dev.get_neighbors(session):
-            if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
-                # TODO: support multiple links to the same neighbor?
-                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-                local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
-                neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
-                if local_if:
-                    fabric_device_variables['interfaces'].append({
-                        'name': local_if,
-                        'ifclass': 'fabric',
-                        'ipv4if': local_ipif,
-                        'peer_hostname': neighbor_d.hostname,
-                        'peer_infra_lo': str(neighbor_d.infra_ip),
-                        'peer_ip': str(neighbor_ip),
-                        'peer_asn': generate_asn(neighbor_d.infra_ip)
-                    })
-                    fabric_device_variables['bgp_ipv4_peers'].append({
-                        'peer_hostname': neighbor_d.hostname,
-                        'peer_infra_lo': str(neighbor_d.infra_ip),
-                        'peer_ip': str(neighbor_ip),
-                        'peer_asn': generate_asn(neighbor_d.infra_ip)
-                    })
         # populate evpn peers data
         for neighbor_d in get_evpn_spines(session, settings):
             if neighbor_d.hostname == dev.hostname:

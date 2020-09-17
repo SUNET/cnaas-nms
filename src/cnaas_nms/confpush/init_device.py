@@ -302,7 +302,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     # step3. register apscheduler job that continues steps
     scheduler = Scheduler()
     next_job_id = scheduler.add_onetime_job(
-        'cnaas_nms.confpush.init_device:init_access_device_step2',
+        'cnaas_nms.confpush.init_device:init_device_step2',
         when=30,
         scheduled_by=scheduled_by,
         kwargs={'device_id': device_id, 'iteration': 1})

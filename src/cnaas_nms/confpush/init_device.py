@@ -40,7 +40,7 @@ class InitError(Exception):
     pass
 
 
-def push_base_management_access(task, device_variables, job_id):
+def push_base_management(task, device_variables: dict, devtype: DeviceType, job_id):
     set_thread_data(job_id)
     logger = get_logger()
     logger.debug("Push basetemplate for host: {}".format(task.host.name))
@@ -54,7 +54,7 @@ def push_base_management_access(task, device_variables, job_id):
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, 'r') as f:
         mapping = yaml.safe_load(f)
-        template = mapping['ACCESS']['entrypoint']
+        template = mapping[devtype.name]['entrypoint']
 
     r = task.run(task=text.template_file,
                  name="Generate initial device config",
@@ -274,8 +274,9 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     nr_filtered = nr.filter(name=hostname)
 
     # step2. push management config
-    nrresult = nr_filtered.run(task=push_base_management_access,
+    nrresult = nr_filtered.run(task=push_base_management,
                                device_variables=device_variables,
+                               devtype=DeviceType.ACCESS,
                                job_id=job_id)
 
     with sqla_session() as session:

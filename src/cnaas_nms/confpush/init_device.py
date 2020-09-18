@@ -11,6 +11,7 @@ import os
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
+import cnaas_nms.confpush.underlay
 import cnaas_nms.db.helper
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
@@ -19,9 +20,9 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.confpush.update import update_interfacedb_worker
-from cnaas_nms.confpush.sync_devices import populate_device_vars
+from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
+    sync_devices
 from cnaas_nms.db.git import RepoStructureException
-from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.tools.log import get_logger
@@ -37,6 +38,10 @@ class InitVerificationError(Exception):
 
 
 class InitError(Exception):
+    pass
+
+
+class NeighborError(Exception):
     pass
 
 
@@ -108,18 +113,18 @@ def pre_init_checks(session, device_id) -> Device:
 
 def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                              linknets: List[dict],
-                             expected_neighbors: Optional[List[str]] = None):
+                             expected_neighbors: Optional[List[str]] = None) -> List[str]:
     logger = get_logger()
     if expected_neighbors is not None and len(expected_neighbors) == 0:
         logger.debug("expected_neighbors explicitly set to empty list, skipping neighbor checks")
-        return True
+        return []
     if not linknets:
         raise Exception("No linknets were specified to check_neighbors")
 
     if devtype == DeviceType.ACCESS:
         pass
     elif devtype in [DeviceType.CORE, DeviceType.DIST]:
-        verified_linknets = []
+        verified_neighbors = []
         for linknet in linknets:
             if linknet['device_a_hostname'] == dev.hostname:
                 neighbor = linknet['device_b_hostname']
@@ -129,7 +134,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 raise Exception("Own hostname not found in linknet")
             if expected_neighbors:
                 if neighbor in expected_neighbors:
-                    verified_linknets.append(linknet)
+                    verified_neighbors.append(neighbor)
                 # Neighbor was explicitly set -> skip verification of neighbor devtype
                 continue
 
@@ -139,28 +144,28 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 raise Exception("Neighbor device {} not found in database".format(neighbor))
             if devtype == DeviceType.CORE:
                 if neighbor_dev.device_type == DeviceType.DIST:
-                    verified_linknets.append(linknet)
+                    verified_neighbors.append(neighbor)
                 else:
                     logger.warn("Neighbor device {} is of unexpected device type {}, ignoring".format(
                         neighbor, neighbor_dev.device_type.name
                     ))
             else:
                 if neighbor_dev.device_type == DeviceType.CORE:
-                    verified_linknets.append(linknet)
+                    verified_neighbors.append(neighbor)
                 else:
                     logger.warn("Neighbor device {} is of unexpected device type {}, ignoring".format(
                         neighbor, neighbor_dev.device_type.name
                     ))
 
         if expected_neighbors:
-            if len(expected_neighbors) != len(verified_linknets):
+            if len(expected_neighbors) != len(verified_neighbors):
                 raise InitVerificationError("Not all expected neighbors were detected")
         else:
-            if len(verified_linknets) < 2:
+            if len(verified_neighbors) < 2:
                 raise InitVerificationError("Not enough compatible neighbors ({} of 2) were detected".format(
-                    len(verified_linknets)
+                    len(verified_neighbors)
                 ))
-    return verified_linknets
+    return verified_neighbors
 
 
 def pre_init_check_mlag(session, dev, mlag_peer_dev):
@@ -265,7 +270,6 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             **mgmt_variables
         }
         # Update device state
-        dev = session.query(Device).filter(Device.id == device_id).one()
         dev.hostname = new_hostname
         session.commit()
         hostname = dev.hostname
@@ -332,8 +336,156 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     )
 
 
+def check_neighbor_sync(session, hostnames: List[str]):
+    for hostname in hostnames:
+        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not dev:
+            raise NeighborError("Neighbor device {} not found".format(hostname))
+        if not dev.state == DeviceState.MANAGED:
+            raise NeighborError("Neighbor device {} not in state MANAGED".format(hostname))
+        if not dev.synchronized:
+            raise NeighborError("Neighbor device {} not synchronized".format(hostname))
+    confcheck_devices(hostnames)
+
+
+@job_wrapper
+def init_fabric_device_step1(device_id: int, new_hostname: str, devtype: DeviceType,
+                             neighbors: Optional[List[str]] = [],
+                             job_id: Optional[str] = None,
+                             scheduled_by: Optional[str] = None) -> NornirJobResult:
+    """Initialize fabric (CORE/DIST) device for management by CNaaS-NMS.
+
+    Args:
+        device_id: Device to select for initialization
+        new_hostname: Hostname to configure on this device
+        neighbors: Optional list of hostnames of peer devices
+        job_id: job_id provided by scheduler when adding job
+        scheduled_by: Username from JWT.
+
+    Returns:
+        Nornir result object
+
+    Raises:
+        DeviceStateException
+        ValueError
+    """
+    logger = get_logger()
+
+    if devtype not in [DeviceType.CORE, DeviceType.DIST]:
+        raise ValueError("Init fabric device requires device type DIST or CORE")
+
+    with sqla_session() as session:
+        dev = pre_init_checks(session, device_id)
+
+        # Test update of linknets using LLDP data
+        linknets = cnaas_nms.confpush.get.update_linknets(
+            session, dev.hostname, devtype, dry_run=True)
+
+        try:
+            verified_neighbors = pre_init_check_neighbors(
+                session, dev, devtype, linknets, neighbors)
+            logger.debug("Found valid neighbors for INIT of {}: {}".format(
+                new_hostname, ", ".join(verified_neighbors)
+            ))
+            check_neighbor_sync(session, verified_neighbors)
+        except Exception as e:
+            raise e
+        else:
+            # If neighbor check works, commit new linknets
+            # This will also mark neighbors as unsynced
+            linknets = cnaas_nms.confpush.get.update_linknets(
+                session, dev.hostname, devtype, dry_run=False)
+            logger.debug("New linknets for INIT of {} created: {}".format(
+                new_hostname, linknets
+            ))
+
+        # Select and reserve a new management and infra IP for the device
+        ReservedIP.clean_reservations(session, device=dev)
+        session.commit()
+
+        mgmt_ip = cnaas_nms.confpush.underlay.find_free_mgmt_lo_ip(session)
+        infra_ip = cnaas_nms.confpush.underlay.find_free_infra_ip(session)
+
+        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
+        session.add(reserved_ip)
+        dev.infra_ip = infra_ip
+        session.commit()
+
+        mgmt_variables = {
+            'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
+            'mgmt_prefixlen': 32,
+            'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
+            'infra_ip': str(infra_ip),
+        }
+
+        device_variables = populate_device_vars(session, dev, new_hostname, DeviceType.ACCESS)
+        device_variables = {
+            **device_variables,
+            **mgmt_variables
+        }
+        # Update device state
+        dev.hostname = new_hostname
+        session.commit()
+        hostname = dev.hostname
+
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname)
+
+    # step2. push management config
+    nrresult = nr_filtered.run(task=push_base_management,
+                               device_variables=device_variables,
+                               devtype=devtype,
+                               job_id=job_id)
+
+    with sqla_session() as session:
+        dev = session.query(Device).filter(Device.id == device_id).one()
+        dev.management_ip = device_variables['mgmt_ip']
+        dev.state = DeviceState.INIT
+        dev.device_type = devtype
+        # Remove the reserved IP since it's now saved in the device database instead
+        reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
+        if reserved_ip:
+            session.delete(reserved_ip)
+
+    # Plugin hook, allocated IP
+    try:
+        pmh = PluginManagerHandler()
+        pmh.pm.hook.allocated_ipv4(vrf='mgmt', ipv4_address=str(mgmt_ip),
+                                   ipv4_network=None,
+                                   hostname=hostname
+                                   )
+    except Exception as e:
+        logger.exception("Error while running plugin hooks for allocated_ipv4: ".format(str(e)))
+
+    # step3. resync neighbors
+    scheduler = Scheduler()
+    sync_nei_job_id = scheduler.add_onetime_job(
+        'cnaas_nms.confpush.sync_devices:sync_devices',
+        when=1,
+        scheduled_by=scheduled_by,
+        kwargs={'hostnames': verified_neighbors, 'dry_run': False})
+    logger.info(f"Scheduled job {sync_nei_job_id} to resynchronize neighbors")
+
+    # step4. register apscheduler job that continues steps
+    scheduler = Scheduler()
+    next_job_id = scheduler.add_onetime_job(
+        'cnaas_nms.confpush.init_device:init_device_step2',
+        when=60,
+        scheduled_by=scheduled_by,
+        kwargs={'device_id': device_id, 'iteration': 1})
+
+    logger.info("Init step 2 for {} scheduled as job # {}".format(
+        new_hostname, next_job_id
+    ))
+
+    return NornirJobResult(
+        nrresult=nrresult,
+        next_job_id=next_job_id
+    )
+
+
 def schedule_init_device_step2(device_id: int, iteration: int,
-                                      scheduled_by: str) -> Optional[Job]:
+                               scheduled_by: str) -> Optional[Job]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()

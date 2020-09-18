@@ -463,6 +463,22 @@ def update_config_hash(task):
             logger.debug("Config hash for {} updated to {}".format(task.host.name, new_config_hash))
 
 
+def confcheck_devices(hostnames: List[str], job_id=None):
+    nr = cnaas_init()
+    nr_filtered, dev_count, skipped_hostnames = \
+        inventory_selector(nr, hostname=hostnames)
+
+    try:
+        nrresult = nr_filtered.run(task=sync_check_hash,
+                                   job_id=job_id)
+    except Exception as e:
+        raise e
+    else:
+        if nrresult.failed:
+            raise Exception('Configuration hash check failed for {}'.format(
+                ' '.join(nrresult.failed_hosts.keys())))
+
+
 @job_wrapper
 def sync_devices(hostnames: Optional[List[str]] = None, device_type: Optional[str] = None,
                  group: Optional[str] = None, dry_run: bool = True, force: bool = False,

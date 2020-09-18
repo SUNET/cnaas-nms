@@ -356,7 +356,7 @@ class DeviceInitCheckApi(Resource):
 
             try:
                 if 'linknets' in ret:
-                    cnaas_nms.confpush.init_device.pre_init_check_neighbors(
+                    ret['neighbors'] = cnaas_nms.confpush.init_device.pre_init_check_neighbors(
                         session, dev, target_devtype,
                         ret['linknets'], parsed_args['neighbors'])
                     ret['neighbors_compatible'] = True

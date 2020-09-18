@@ -464,7 +464,7 @@ def update_config_hash(task):
 
 
 @job_wrapper
-def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
+def sync_devices(hostnames: Optional[List[str]] = None, device_type: Optional[str] = None,
                  group: Optional[str] = None, dry_run: bool = True, force: bool = False,
                  auto_push: bool = False, job_id: Optional[int] = None,
                  scheduled_by: Optional[str] = None, resync: bool = False) -> NornirJobResult:
@@ -492,9 +492,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     nr = cnaas_init()
     dev_count = 0
     skipped_hostnames = []
-    if hostname:
+    if hostnames:
         nr_filtered, dev_count, skipped_hostnames = \
-            inventory_selector(nr, hostname=hostname)
+            inventory_selector(nr, hostname=hostnames)
     else:
         if device_type:
             nr_filtered, dev_count, skipped_hostnames = \
@@ -626,7 +626,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             format(total_change_score, dry_run, len(device_list), len(changed_hosts)))
 
     next_job_id = None
-    if auto_push and len(device_list) == 1 and hostname and dry_run:
+    if auto_push and len(device_list) == 1 and hostnames and dry_run:
         if not changed_hosts:
             logger.info("None of the selected host has any changes (diff), skipping auto-push")
         elif total_change_score < AUTOPUSH_MAX_SCORE:
@@ -635,11 +635,11 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                 'cnaas_nms.confpush.sync_devices:sync_devices',
                 when=0,
                 scheduled_by=scheduled_by,
-                kwargs={'hostname': hostname, 'dry_run': False, 'force': force})
+                kwargs={'hostnames': hostnames, 'dry_run': False, 'force': force})
             logger.info(f"Auto-push scheduled live-run of commit as job id {next_job_id}")
         else:
             logger.info(
-                f"Auto-push of config to device {hostname} failed because change score of "
+                f"Auto-push of config to device {hostnames} failed because change score of "
                 f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
             )
 

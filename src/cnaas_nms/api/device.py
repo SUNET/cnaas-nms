@@ -444,7 +444,7 @@ class DeviceSyncApi(Resource):
                     status='error',
                     data=f"Hostname '{hostname}' not found or is not a managed device"
                 ), 400
-            kwargs['hostname'] = hostname
+            kwargs['hostnames'] = [hostname]
             what = hostname
         elif 'device_type' in json_data:
             devtype_str = str(json_data['device_type']).upper()

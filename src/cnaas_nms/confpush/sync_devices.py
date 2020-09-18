@@ -185,16 +185,20 @@ def populate_device_vars(session, dev: Device,
         infra_ip = dev.infra_ip
         asn = generate_asn(infra_ip)
         fabric_device_variables = {
-            'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
-            'mgmt_prefixlen': 32,
-            'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
-            'infra_ip': str(infra_ip),
             'interfaces': [],
             'bgp_ipv4_peers': [],
             'bgp_evpn_peers': [],
             'mgmtdomains': [],
             'asn': asn
         }
+        if mgmt_ip and infra_ip:
+            mgmt_device_variables = {
+                'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
+                'mgmt_prefixlen': 32,
+                'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
+                'infra_ip': str(infra_ip),
+            }
+            fabric_device_variables = {**fabric_device_variables, **mgmt_device_variables}
         # find fabric neighbors
         fabric_interfaces = {}
         for neighbor_d in dev.get_neighbors(session):
@@ -266,14 +270,15 @@ def populate_device_vars(session, dev: Device,
             logger.warn(f"Interface {local_if} on device {hostname} not "
                         "configured as linknet because of wrong ifclass")
 
-        for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
-            fabric_device_variables['mgmtdomains'].append({
-                'id': mgmtdom.id,
-                'ipv4_gw': mgmtdom.ipv4_gw,
-                'vlan': mgmtdom.vlan,
-                'description': mgmtdom.description,
-                'esi_mac': mgmtdom.esi_mac
-            })
+        if not ztp_hostname:
+            for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
+                fabric_device_variables['mgmtdomains'].append({
+                    'id': mgmtdom.id,
+                    'ipv4_gw': mgmtdom.ipv4_gw,
+                    'vlan': mgmtdom.vlan,
+                    'description': mgmtdom.description,
+                    'esi_mac': mgmtdom.esi_mac
+                })
         # populate evpn peers data
         for neighbor_d in get_evpn_spines(session, settings):
             if neighbor_d.hostname == dev.hostname:

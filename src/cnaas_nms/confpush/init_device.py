@@ -418,7 +418,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, devtype: DeviceT
             'infra_ip': str(infra_ip),
         }
 
-        device_variables = populate_device_vars(session, dev, new_hostname, DeviceType.ACCESS)
+        device_variables = populate_device_vars(session, dev, new_hostname, devtype)
         device_variables = {
             **device_variables,
             **mgmt_variables
@@ -439,7 +439,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, devtype: DeviceT
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
-        dev.management_ip = device_variables['mgmt_ip']
+        dev.management_ip = mgmt_ip
         dev.state = DeviceState.INIT
         dev.device_type = devtype
         # Remove the reserved IP since it's now saved in the device database instead

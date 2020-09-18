@@ -380,6 +380,8 @@ def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool =
             ipv4_network=ipv4_network
         )
         if not dry_run:
+            local_device_inst.synchronized = False
+            remote_device_inst.synchronized = False
             session.add(new_link)
             session.commit()
         else:

@@ -64,7 +64,7 @@ Additional variables available for distribution switches:
   Populated from the links database table.
 
 - bgp_evpn_peers: A list of dictionaries with the keys: "peer_hostname", "peer_infra_lo", "peer_asn".
-  Contains one entry per hostname specified in settings->evpn_spines. Used to build
+  Contains one entry per hostname specified in settings->evpn_peers. Used to build
   eBGP peering for EVPN between loopbacks.
 
 - mgmtdomains: A list of dictionaries with the keys: "ipv4_gw", "vlan", "description", "esi_mac".
@@ -129,7 +129,8 @@ Can contain the following dictionaries with specified keys:
 
   * hostname: A hostname of a CORE (or DIST) device from the device database.
     The other DIST switches participating in the VXLAN/EVPN fabric will establish
-    eBGP connections to these devices.
+    eBGP connections to these devices. If an empty list is provided all CORE
+    devices will be added as evpn_peers instead.
 
 - vrfs:
 

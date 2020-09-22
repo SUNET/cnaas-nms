@@ -131,6 +131,25 @@ class DeviceTests(unittest.TestCase):
         result = self.client.delete(f'/api/v1.0/device/{device_id}')
         self.assertEqual(result.status_code, 200)
 
+    def test_5_initcheck_distdevice(self):
+        device_id = self.testdata['initcheck_device_id']
+        self.client.put(f'/api/v1.0/device/{device_id}',
+                        json={'state': 'DISCOVERED'})
+
+        device_data = {
+            "hostname": "distcheck",
+            "device_type": "DIST"
+        }
+        result = self.client.post(f'/api/v1.0/device_initcheck/{device_id}',
+                                  json=device_data)
+        self.assertEqual(result.status_code, 200)
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(json_data['data']['compatible'], False)
+
+        self.client.put(f'/api/v1.0/device/{device_id}',
+                        json={'state': 'MANAGED'})
+
+
 
 if __name__ == '__main__':
     unittest.main()

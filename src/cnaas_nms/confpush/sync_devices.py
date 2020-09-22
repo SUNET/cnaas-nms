@@ -38,7 +38,7 @@ def generate_asn(ipv4_address: IPv4Address) -> Optional[int]:
     return PRIVATE_ASN_START + (ipv4_address.packed[2]*256 + ipv4_address.packed[3])
 
 
-def get_evpn_spines(session, settings: dict):
+def get_evpn_peers(session, settings: dict):
     logger = get_logger()
     device_hostnames = []
     for entry in settings['evpn_peers']:
@@ -50,6 +50,11 @@ def get_evpn_spines(session, settings: dict):
     for hostname in device_hostnames:
         dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if dev:
+            ret.append(dev)
+    # If no evpn_peers were specified return a list of all CORE devices instead
+    if not ret:
+        core_devs = session.query(Device).filter(Device.device_type == DeviceType.CORE).all()
+        for dev in core_devs:
             ret.append(dev)
     return ret
 
@@ -280,7 +285,7 @@ def populate_device_vars(session, dev: Device,
                     'esi_mac': mgmtdom.esi_mac
                 })
         # populate evpn peers data
-        for neighbor_d in get_evpn_spines(session, settings):
+        for neighbor_d in get_evpn_peers(session, settings):
             if neighbor_d.hostname == dev.hostname:
                 continue
             fabric_device_variables['bgp_evpn_peers'].append({

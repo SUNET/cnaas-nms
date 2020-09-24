@@ -338,6 +338,7 @@ class DeviceInitCheckApi(Resource):
         try:
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
             target_devtype = DeviceType[parsed_args['device_type']]
+            target_hostname = parsed_args['new_hostname']
         except ValueError as e:
             return empty_result(status='error', data=str(e)), 400
 
@@ -352,7 +353,7 @@ class DeviceInitCheckApi(Resource):
             try:
                 ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
                     session,
-                    hostname=dev.hostname,
+                    hostname=target_hostname,
                     devtype=target_devtype,
                     dry_run=True
                 )

@@ -289,7 +289,8 @@ def verify_peer_iftype(local_hostname: str, local_devtype: DeviceType,
                                                             intf['ifclass']))
 
 
-def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool = False):
+def update_linknets(session, hostname: str, devtype: DeviceType,
+                    ztp_hostname: Optional[str] = None, dry_run: bool = False):
     """Update linknet data for specified device using LLDP neighbor data.
     """
     logger = get_logger()
@@ -297,6 +298,10 @@ def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool =
     if result.failed:
         raise Exception
     neighbors = result.result['lldp_neighbors']
+    if ztp_hostname:
+        settings_hostname = ztp_hostname
+    else:
+        settings_hostname = hostname
 
     ret = []
 
@@ -313,7 +318,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool =
             continue
         logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
-        local_device_settings, _ = get_settings(hostname,
+        local_device_settings, _ = get_settings(settings_hostname,
                                                 devtype,
                                                 local_device_inst.model
                                                 )

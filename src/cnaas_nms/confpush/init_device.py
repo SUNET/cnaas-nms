@@ -379,7 +379,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, devtype: DeviceT
 
         # Test update of linknets using LLDP data
         linknets = cnaas_nms.confpush.get.update_linknets(
-            session, dev.hostname, devtype, dry_run=True)
+            session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=True)
 
         try:
             verified_neighbors = pre_init_check_neighbors(
@@ -394,7 +394,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, devtype: DeviceT
             # If neighbor check works, commit new linknets
             # This will also mark neighbors as unsynced
             linknets = cnaas_nms.confpush.get.update_linknets(
-                session, dev.hostname, devtype, dry_run=False)
+                session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=False)
             logger.debug("New linknets for INIT of {} created: {}".format(
                 new_hostname, linknets
             ))

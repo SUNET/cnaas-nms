@@ -353,8 +353,9 @@ class DeviceInitCheckApi(Resource):
             try:
                 ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
                     session,
-                    hostname=target_hostname,
+                    hostname=dev.hostname,
                     devtype=target_devtype,
+                    ztp_hostname=target_hostname,
                     dry_run=True
                 )
                 ret['linknets_compatible'] = True

@@ -349,7 +349,7 @@ def check_neighbor_sync(session, hostnames: List[str]):
 
 
 @job_wrapper
-def init_fabric_device_step1(device_id: int, new_hostname: str, devtype: DeviceType,
+def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str,
                              neighbors: Optional[List[str]] = [],
                              job_id: Optional[str] = None,
                              scheduled_by: Optional[str] = None) -> NornirJobResult:
@@ -358,6 +358,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, devtype: DeviceT
     Args:
         device_id: Device to select for initialization
         new_hostname: Hostname to configure on this device
+        device_type: String representing DeviceType
         neighbors: Optional list of hostnames of peer devices
         job_id: job_id provided by scheduler when adding job
         scheduled_by: Username from JWT.
@@ -370,6 +371,10 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, devtype: DeviceT
         ValueError
     """
     logger = get_logger()
+    if DeviceType.has_name(device_type):
+        devtype = DeviceType[device_type]
+    else:
+        raise ValueError("Invalid 'device_type' provided")
 
     if devtype not in [DeviceType.CORE, DeviceType.DIST]:
         raise ValueError("Init fabric device requires device type DIST or CORE")

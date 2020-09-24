@@ -258,8 +258,6 @@ class DeviceInitApi(Resource):
                 scheduled_by=get_jwt_identity(),
                 kwargs=job_kwargs)
         elif job_kwargs['device_type'] in [DeviceType.CORE.name, DeviceType.DIST.name]:
-            job_kwargs['devtype'] = DeviceType[job_kwargs['device_type']]
-            del job_kwargs['device_type']
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_fabric_device_step1',

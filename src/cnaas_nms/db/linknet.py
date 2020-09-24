@@ -54,14 +54,15 @@ class Linknet(cnaas_nms.db.base.Base):
 
     @classmethod
     def create_linknet(cls, session, hostname_a: str, interface_a: str, hostname_b: str,
-                       interface_b: str, ipv4_network: Optional[ipaddress.IPv4Network] = None):
+                       interface_b: str, ipv4_network: Optional[ipaddress.IPv4Network] = None,
+                       strict_check: bool = True):
         """Add a linknet between two devices. If ipv4_network is specified both
         devices must be of type CORE or DIST."""
         dev_a: cnaas_nms.db.device.Device = session.query(cnaas_nms.db.device.Device).\
             filter(cnaas_nms.db.device.Device.hostname == hostname_a).one_or_none()
         if not dev_a:
             raise ValueError(f"Hostname {hostname_a} not found in database")
-        if ipv4_network and dev_a.device_type not in \
+        if strict_check and ipv4_network and dev_a.device_type not in \
                 [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]:
             raise ValueError(
                 "Linknets can only be added between two core/dist devices " +
@@ -72,7 +73,7 @@ class Linknet(cnaas_nms.db.base.Base):
             filter(cnaas_nms.db.device.Device.hostname == hostname_b).one_or_none()
         if not dev_b:
             raise ValueError(f"Hostname {hostname_b} not found in database")
-        if ipv4_network and dev_b.device_type not in \
+        if strict_check and ipv4_network and dev_b.device_type not in \
                 [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]:
             raise ValueError(
                 "Linknets can only be added between two core/dist devices " +

@@ -382,7 +382,8 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
             interface_a=local_if,
             hostname_b=remote_device_inst.hostname,
             interface_b=data[0]['port'],
-            ipv4_network=ipv4_network
+            ipv4_network=ipv4_network,
+            strict_check=not dry_run  # Don't do strict check if this is a dry_run
         )
         if not dry_run:
             local_device_inst.synchronized = False

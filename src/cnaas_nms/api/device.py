@@ -248,6 +248,26 @@ class DeviceInitApi(Resource):
         except ValueError as e:
             return empty_result(status='error', data=str(e)), 400
 
+        # If device init is already in progress, reschedule a new step2 (connectivity check)
+        # instead of trying to restart initialization
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if dev and dev.state == DeviceState.INIT and \
+                    dev.management_ip and dev.device_type is not DeviceType.UNKNOWN:
+                scheduler = Scheduler()
+                job_id = scheduler.add_onetime_job(
+                    'cnaas_nms.confpush.init_device:init_device_step2',
+                    when=60,
+                    scheduled_by=get_jwt_identity(),
+                    kwargs={'device_id': device_id, 'iteration': 1})
+
+                logger.info("Re-scheduled init step 2 for {} as job # {}".format(
+                    device_id, job_id
+                ))
+                res = empty_result(data=f"Re-scheduled init step 2 for device_id { device_id }")
+                res['job_id'] = job_id
+                return res
+
         if job_kwargs['device_type'] == DeviceType.ACCESS.name:
             del job_kwargs['device_type']
             del job_kwargs['neighbors']

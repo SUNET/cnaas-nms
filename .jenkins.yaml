@@ -47,6 +47,16 @@ extra_jobs:
     docker_tags:
       - "v0.1.0"
 
+  - name: cnaas-api-master
+    git:
+      branch: master
+    builders:
+      - docker
+    docker_name: cnaas/api
+    docker_context_dir: docker/api
+    docker_tags:
+      - "master"
+
   - name: cnaas-postgres
     git:
       branch: develop

@@ -1,4 +1,5 @@
 FROM debian:buster
+ARG BUILDBRANCH=develop
 
 # Create directories
 RUN mkdir -p /opt/cnaas
@@ -14,7 +15,7 @@ COPY config/plugins.yml /etc/cnaas-nms/plugins.yml
 
 # Setup script
 COPY cnaas-setup.sh /opt/cnaas/cnaas-setup.sh
-RUN /opt/cnaas/cnaas-setup.sh
+RUN /opt/cnaas/cnaas-setup.sh $BUILDBRANCH
 
 # Prepare for supervisord, uwsgi, ngninx
 COPY nosetests.sh /opt/cnaas/

@@ -24,6 +24,8 @@ with dry_run to preview changes::
 The API call to device_syncto will start a job running in the background on the API server. To
 show the progress/output of the job run the last command (/job) until you get a finished result.
 
+.. _ztp_intro:
+
 Zero-touch provisioning of access switch
 ----------------------------------------
 

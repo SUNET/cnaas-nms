@@ -160,6 +160,15 @@ To remove a device, pass the device ID in a DELTE call:
    curl -X DELETE https://hostname/api/v1.0/device/10
 
 
+There is also the option to factory default and reboot the device
+when removing it. This can be done like this:
+
+::
+
+   curl -H "Content-Type: application/json" -X DELETE -d
+   '{"factory_default": true}' https://hostname/api/v1.0/device/10
+
+
 Preview config
 --------------
 
@@ -173,3 +182,83 @@ touching the device use generate_config:
 This will return both the generated configuration based on the template for
 this device type, and also a list of available vaiables that could be used
 in the template.
+
+View previous config
+--------------------
+
+You can also view previous versions of the configuration for a device. All
+previous configurations are saved in the job database and can be found using
+either a specific Job ID (using job_id=), a number of steps to walk backward
+to find a previous configuration (previous=), or using a date to find the last
+configuration applied to the device before that date.
+
+::
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/previous_config?before=2020-04-07T12:03:05"
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/previous_config?previous=1"
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/previous_config?job_id=12"
+
+If you want to restore a device to a previous configuration you can send a POST:
+
+::
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/previous_config" -X POST -d '{"job_id": 12, "dry_run": true}' -H "Content-Type: application/json"
+
+When sending a POST you must specify an exact job_id to restore. The job must
+have finished with a successful status for the specified device. The device
+will change to UNMANAGED state since it's no longer in sync with current
+templates and settings.
+
+Apply static config
+-------------------
+
+You can also test a static configuration specified in the API call directly
+instead of generating the configuration via templates and settings.
+This can be useful when developing new templates (see template_dry_run.py tool)
+when you don't wish to do the commit/push/refresh/sync workflow for every
+iteration. By default only dry_run are allowed, but you can configure api.yml
+to allow apply config live run as well.
+
+::
+
+   curl "https://hostname/api/v1.0/device/<device_hostname>/apply_config" -X POST -d '{"full_config": "hostname eosdist1\n...", "dry_run": True}' -H "Content-Type: application/json"
+
+This will schedule a job to send the configuration to the device.
+
+Initialize device
+-----------------
+
+For a more detailed explanation see documentation under Howto :ref:`ztp_intro`.
+
+To initialize a single ACCESS type device:
+
+::
+
+   curl https://localhost/api/v1.0/device_init/45 -d '{"hostname": "ex2300-top", "device_type": "ACCESS"}' -X POST -H "Content-Type: application/json"
+
+The device must be in state DISCOVERED to start initialization. The device must be able to detect compatible uplink devices via LLDP for initialization to finish.
+
+To initialize a pair of ACCESS devices as an MLAG pair:
+
+::
+
+   curl https://localhost/api/v1.0/device_init/45 -d '{"hostname": "a1", "device_type": "ACCESS", "mlag_peer_id": 46, "mlag_peer_hostname": "a2"}' -X POST -H "Content-Type: application/json"
+
+For MLAG pairs the devices must be able to dectect it's peer via LLDP neighbors and compatible uplink devices for initialization to finish.
+
+Update facts
+------------
+
+To update the facts about a device (serial number, vendor, model and OS version)
+use this API call:
+
+::
+
+   curl https://localhost/api/v1.0/device_update_facts -d '{"hostname": "eosdist1"}' -X POST -H "Content-Type: application/json"
+
+This will schedule a job to log in to the device, get the facts and update the
+database. You can perform this action on both MANAGED and UNMANAGED devices.
+UNMANAGED devices might not be reachable so this could be a good test-call
+before moving the device back to the MANAGED state.

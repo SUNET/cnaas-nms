@@ -11,10 +11,12 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.version import __api_version__
 
 
-api = Namespace('mgmtdomains', description='API for handling managemeent domains',
-                prefix='/api/{}'.format(__api_version__))
+mgmtdomains_api = Namespace('mgmtdomains', description='API for handling management domains',
+                            prefix='/api/{}'.format(__api_version__))
+mgmtdomain_api = Namespace('mgmtdomain', description='API for handling a single management domain',
+                           prefix='/api/{}'.format(__api_version__))
 
-mgmtdomain_model = api.model('mgmtdomain', {
+mgmtdomain_model = mgmtdomain_api.model('mgmtdomain', {
     'device_a': fields.String(required=True),
     'device_b': fields.String(required=True),
     'vlan': fields.Integer(required=True),
@@ -51,7 +53,7 @@ class MgmtdomainByIdApi(Resource):
                 return empty_result('error', "Management domain not found"), 404
 
     @jwt_required
-    @api.expect(mgmtdomain_model)
+    @mgmtdomain_api.expect(mgmtdomain_model)
     def put(self, mgmtdomain_id):
         """ Modify management domain """
         json_data = request.get_json()
@@ -105,7 +107,7 @@ class MgmtdomainsApi(Resource):
         return result
 
     @jwt_required
-    @api.expect(mgmtdomain_model)
+    @mgmtdomain_api.expect(mgmtdomain_model)
     def post(self):
         """ Add management domain """
         json_data = request.get_json()
@@ -169,5 +171,5 @@ class MgmtdomainsApi(Resource):
                 return empty_result('error', errors), 400
 
 
-api.add_resource(MgmtdomainsApi, '')
-api.add_resource(MgmtdomainByIdApi, '/<int:mgmtdomain_id>')
+mgmtdomains_api.add_resource(MgmtdomainsApi, '')
+mgmtdomain_api.add_resource(MgmtdomainByIdApi, '/<int:mgmtdomain_id>')

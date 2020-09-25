@@ -6,6 +6,8 @@ import pkg_resources
 import yaml
 import os
 
+from cnaas_nms.db.session import sqla_session
+
 class GetTests(unittest.TestCase):
     def setUp(self):
         data_dir = pkg_resources.resource_filename(__name__, 'data')
@@ -33,8 +35,10 @@ class GetTests(unittest.TestCase):
         pprint.pprint(diff)
 
     def test_update_links(self):
-        new_links = cnaas_nms.confpush.get.update_linknets(self.testdata['update_hostname'])
+        with sqla_session() as session:
+            new_links = cnaas_nms.confpush.get.update_linknets(session, self.testdata['update_hostname'])
         pprint.pprint(new_links)
+
 
 if __name__ == '__main__':
     unittest.main()

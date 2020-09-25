@@ -1,6 +1,25 @@
 Changelog
 =========
 
+Version 1.1.0
+-------------
+
+New features:
+
+- New options for connecting access switches:
+
+  - Two access switches as an MLAG pair
+  - Access switch connected to other access switch
+
+- New template variables:
+
+  - device_model: Hardware model of this device
+  - device_os_version: OS version of this device
+
+- Get/restore previous config versions for a device
+- API call to update facts (serial,os version etc) about device
+- Websocket event improvements for logs, jobs and device updates
+
 Version 1.0.0
 -------------
 

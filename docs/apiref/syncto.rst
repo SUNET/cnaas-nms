@@ -54,6 +54,10 @@ Arguments:
    re-synchronized, if you specify this option as true then all devices will be checked.
    This option does not affect syncto jobs with a specified hostname, when you select only
    a single device via hostname it's always re-synchronized. Defaults to false.
+ - comment: Optionally add a comment that is saved in the job log.
+   This should be a string with max 255 characters.
+ - ticket_ref: Optionally reference a service ticket associated with this job.
+   This should be a string with max 32 characters.
 
 If neither hostname or device_type is specified all devices that needs to be sycnhronized
 will be selected.

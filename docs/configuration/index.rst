@@ -23,6 +23,7 @@ Defines parameters for the API:
 - jwtcert: Defines the path to the public JWT certificate used to verify JWT tokens
 - httpd_url: URL to the httpd container containing firmware images
 - verify_tls: Verify certificate for connections to httpd/firmware server
+- allow_apply_config_liverun: Allow liverun on apply_config API call. Defaults to False.
 
 /etc/cnaas-nms/repository.yml
 -----------------------------

@@ -44,6 +44,12 @@ that are exposed from CNaaS includes:
 
 - access_auto: A list of access_auto interfacs. Using same keys as uplinks.
 
+- device_model: Device model string, same as "model" in the device API. Can be
+  used if you need model specific configuration lines.
+
+- device_os_version: Device OS version string, same as "os_version" in the
+  device API. Can be used if you need OS version specific configuration lines.
+
 Additional variables available for distribution switches:
 
 - infra_ip: IPv4 infrastructure VRF address (ex 10.199.0.0)
@@ -181,10 +187,10 @@ Contains a dictinary called "vxlans", which in turn has one dictinoary per vxlan
 name is the dictionary key and dictionaly values are:
 
   * vni: VXLAN ID, 1-16777215
-  * vrf: VRF name
+  * vrf: VRF name. Optional unless ipv4_gw is also specified.
   * vlan_id: VLAN ID, 1-4095
   * vlan_name: VLAN name, single word/no spaces, max 31 characters
-  * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24
+  * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24. Optional.
   * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
     access switch the parent dist switch should be automatically provisioned.
 

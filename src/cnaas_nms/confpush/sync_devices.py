@@ -7,13 +7,12 @@ from hashlib import sha256
 
 from nornir.plugins.tasks import networking, text
 from nornir.plugins.functions.text import print_result
-from nornir.core.filter import F
 from nornir.core.task import MultiResult
 
 import cnaas_nms.db.helper
-import cnaas_nms.confpush.nornir_helper
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.db.session import sqla_session, redis_session
-from cnaas_nms.confpush.get import get_uplinks, calc_config_hash
+from cnaas_nms.confpush.get import calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
@@ -81,6 +80,24 @@ def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
     return ret
 
 
+def get_mlag_vars(session, dev: Device) -> dict:
+    ret = {
+        'mlag_peer': False,
+        'mlag_peer_hostname': None,
+        'mlag_peer_low': None
+    }
+    mlag_peer: Device = dev.get_mlag_peer(session)
+    if not mlag_peer:
+        return ret
+    ret['mlag_peer'] = True
+    ret['mlag_peer_hostname'] = mlag_peer.hostname
+    if dev.id < mlag_peer.id:
+        ret['mlag_peer_low'] = True
+    else:
+        ret['mlag_peer_low'] = False
+    return ret
+
+
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                      job_id: Optional[str] = None,
                      scheduled_by: Optional[str] = None):
@@ -112,19 +129,17 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             raise ValueError("Unknown platform: {}".format(dev.platform))
         settings, settings_origin = get_settings(hostname, devtype)
         device_variables = {
-            'mgmt_ip': str(mgmt_ip)
+            'mgmt_ip': str(mgmt_ip),
+            'device_model': dev.model,
+            'device_os_version': dev.os_version
         }
 
         if devtype == DeviceType.ACCESS:
-            neighbor_hostnames = dev.get_uplink_peers(session)
-            if not neighbor_hostnames:
-                raise Exception("Could not find any uplink neighbors for device {}".format(
-                    hostname))
-            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, neighbor_hostnames)
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, dev.management_ip)
             if not mgmtdomain:
                 raise Exception(
-                    "Could not find appropriate management domain for uplink peer devices: {}".
-                    format(neighbor_hostnames))
+                    "Could not find appropriate management domain for management_ip: {}".
+                    format(dev.management_ip))
 
             mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
             access_device_variables = {
@@ -156,8 +171,8 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                     'tagged_vlan_list': tagged_vlan_list,
                     'data': intfdata
                 })
-
-            device_variables = {**access_device_variables, **device_variables}
+            mlag_vars = get_mlag_vars(session, dev)
+            device_variables = {**access_device_variables, **device_variables, **mlag_vars}
         elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
             asn = generate_asn(infra_ip)
             fabric_device_variables = {
@@ -195,19 +210,19 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                             'config': intf['config'],
                             'indexnum': ifindexnum
                         })
-            if devtype == DeviceType.DIST:
-                for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
-                    fabric_device_variables['mgmtdomains'].append({
-                        'id': mgmtdom.id,
-                        'ipv4_gw': mgmtdom.ipv4_gw,
-                        'vlan': mgmtdom.vlan,
-                        'description': mgmtdom.description,
-                        'esi_mac': mgmtdom.esi_mac
-                    })
+            for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
+                fabric_device_variables['mgmtdomains'].append({
+                    'id': mgmtdom.id,
+                    'ipv4_gw': mgmtdom.ipv4_gw,
+                    'vlan': mgmtdom.vlan,
+                    'description': mgmtdom.description,
+                    'esi_mac': mgmtdom.esi_mac
+                })
             # find fabric neighbors
             fabric_links = []
             for neighbor_d in dev.get_neighbors(session):
                 if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
+                    # TODO: support multiple links to the same neighbor?
                     local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
                     local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
                     neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
@@ -313,8 +328,8 @@ def generate_only(hostname: str) -> (str, dict):
         (string with config, dict with available template variables)
     """
     logger = get_logger()
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    nr_filtered = nr.filter(name=hostname).filter(managed=True)
+    nr = cnaas_init()
+    nr_filtered, _, _ = inventory_selector(nr, hostname=hostname)
     template_vars = {}
     if len(nr_filtered.inventory.hosts) != 1:
         raise ValueError("Invalid hostname: {}".format(hostname))
@@ -414,42 +429,47 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         NornirJobResult
     """
     logger = get_logger()
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_init()
+    dev_count = 0
+    skipped_hostnames = []
     if hostname:
-        nr_filtered = nr.filter(name=hostname).filter(managed=True)
+        nr_filtered, dev_count, skipped_hostnames = \
+            inventory_selector(nr, hostname=hostname)
     else:
         if device_type:
-            nr_filtered = nr.filter(F(groups__contains='T_'+device_type)).filter(managed=True)
+            nr_filtered, dev_count, skipped_hostnames = \
+                inventory_selector(nr, resync=resync, device_type=device_type)
         elif group:
-            nr_filtered = nr.filter(F(groups__contains=group)).filter(managed=True)
+            nr_filtered, dev_count, skipped_hostnames = \
+                inventory_selector(nr, resync=resync, group=group)
         else:
             # all devices
-            nr_filtered = nr.filter(managed=True)
-        if not resync:
-            pre_device_list = list(nr_filtered.inventory.hosts.keys())
-            nr_filtered = nr_filtered.filter(synchronized=False)
-            post_device_list = list(nr_filtered.inventory.hosts.keys())
-            already_synced_device_list = [x for x in pre_device_list if x not in post_device_list]
-            if already_synced_device_list:
-                logger.info("Device(s) already synchronized, skipping: {}".format(
-                    already_synced_device_list
-                ))
+            nr_filtered, dev_count, skipped_hostnames = \
+                inventory_selector(nr, resync=resync)
+
+    if skipped_hostnames:
+        logger.info("Device(s) already synchronized, skipping ({}): {}".format(
+            len(skipped_hostnames), ", ".join(skipped_hostnames)
+        ))
 
     device_list = list(nr_filtered.inventory.hosts.keys())
-    logger.info("Device(s) selected for synchronization: {}".format(
-        device_list
+    logger.info("Device(s) selected for synchronization ({}): {}".format(
+        dev_count, ", ".join(device_list)
     ))
 
     try:
         nrresult = nr_filtered.run(task=sync_check_hash,
                                    force=force,
                                    job_id=job_id)
-        print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while checking config hash: {}".format(str(e)))
         raise e
     else:
         if nrresult.failed:
+            # Mark devices as unsynchronized if config hash check failed
+            with sqla_session() as session:
+                session.query(Device).filter(Device.hostname.in_(nrresult.failed_hosts.keys())).\
+                    update({Device.synchronized: False}, synchronize_session=False)
             raise Exception('Configuration hash check failed for {}'.format(
                 ' '.join(nrresult.failed_hosts.keys())))
 
@@ -462,7 +482,6 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     try:
         nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run,
                                    job_id=job_id)
-        print_result(nrresult)
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
         try:
@@ -493,7 +512,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             changed_hosts.append(host)
             if "change_score" in results[0].host:
                 change_scores.append(results[0].host["change_score"])
-                logger.debug("Change score for host {}: {}".format(
+                logger.debug("Change score for host {}: {:.1f}".format(
                     host, results[0].host["change_score"]))
         else:
             unchanged_hosts.append(host)
@@ -539,15 +558,11 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
         total_change_score = 0
     elif not change_scores or total_change_score >= 100 or failed_hosts:
         total_change_score = 100
-    elif max(change_scores) > 1000:
-        # If some device has a score higher than this, disregard any averages
-        # and report max impact score
-        total_change_score = 100
     else:
-        # calculate median value and round up, use min value of 1 and max of 100
-        total_change_score = max(min(int(median(change_scores) + 0.5), 100), 1)
+        # use individual max as total_change_score, range 1-100
+        total_change_score = max(min(int(max(change_scores) + 0.5), 100), 1)
     logger.info(
-        "Change impact score: {} (dry_run: {}, selected devices: {}, changed devices: {})".
+        "Change impact score: {:.1f} (dry_run: {}, selected devices: {}, changed devices: {})".
             format(total_change_score, dry_run, len(device_list), len(changed_hosts)))
 
     next_job_id = None
@@ -569,3 +584,73 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             )
 
     return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id, change_score=total_change_score)
+
+
+def push_static_config(task, config: str, dry_run: bool = True,
+                       job_id: Optional[str] = None,
+                       scheduled_by: Optional[str] = None):
+    """
+    Nornir task to push static config to device
+
+    Args:
+        task: nornir task, sent by nornir when doing .run()
+        config: static config to apply
+        dry_run: Don't commit config to device, just do compare/diff
+        scheduled_by: username that triggered job
+
+    Returns:
+    """
+    set_thread_data(job_id)
+    logger = get_logger()
+
+    logger.debug("Push static config to device: {}".format(task.host.name))
+
+    task.run(task=networking.napalm_configure,
+             name="Push static config",
+             replace=True,
+             configuration=config,
+             dry_run=dry_run
+             )
+
+
+@job_wrapper
+def apply_config(hostname: str, config: str, dry_run: bool,
+                 job_id: Optional[int] = None,
+                 scheduled_by: Optional[str] = None) -> NornirJobResult:
+    """Apply a static configuration (from backup etc) to a device.
+
+    Args:
+        hostname: Specify a single host by hostname to synchronize
+        config: Static configuration to apply
+        dry_run: Set to false to actually apply config to device
+        job_id: Job ID number
+        scheduled_by: Username from JWT
+
+    Returns:
+        NornirJobResult
+    """
+    logger = get_logger()
+
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not dev:
+            raise Exception("Device {} not found".format(hostname))
+        elif not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
+            raise Exception("Device {} is in invalid state: {}".format(hostname, dev.state))
+        if not dry_run:
+            dev.state = DeviceState.UNMANAGED
+            dev.synchronized = False
+
+    nr = cnaas_init()
+    nr_filtered, _, _ = inventory_selector(nr, hostname=hostname)
+
+    try:
+        nrresult = nr_filtered.run(task=push_static_config,
+                                   config=config,
+                                   dry_run=dry_run,
+                                   job_id=job_id)
+    except Exception as e:
+        logger.exception("Exception in apply_config: {}".format(e))
+
+    return NornirJobResult(nrresult=nrresult)
+

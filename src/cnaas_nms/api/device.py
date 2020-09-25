@@ -257,7 +257,7 @@ class DeviceInitApi(Resource):
                 scheduler = Scheduler()
                 job_id = scheduler.add_onetime_job(
                     'cnaas_nms.confpush.init_device:init_device_step2',
-                    when=60,
+                    when=1,
                     scheduled_by=get_jwt_identity(),
                     kwargs={'device_id': device_id, 'iteration': 1})
 

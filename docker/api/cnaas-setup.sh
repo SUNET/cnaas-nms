@@ -25,11 +25,12 @@ apt-get update && \
       supervisor \
       libssl-dev \
       libpq-dev \
-      uwsgi \
+      libpcre2-dev \
+      libpcre3-dev \
       uwsgi-plugin-python3 \
     && apt-get clean
 
-#pip3 install uwsgi
+pip3 install uwsgi
 
 # Start venv
 python3 -m venv /opt/cnaas/venv
@@ -45,11 +46,13 @@ git checkout develop
 python3 -m pip install -r requirements.txt
 
 # Temporary for testing new branch
-#cd /opt/cnaas/venv/cnaas-nms/
-#git remote update
-#git fetch
-#git checkout --track origin/feature.websocket_events_redis
-#python3 -m pip install -r requirements.txt
+if [ "$1" != "develop" ] ; then
+	cd /opt/cnaas/venv/cnaas-nms/
+	git remote update
+	git fetch
+	git checkout --track origin/$1
+	python3 -m pip install -r requirements.txt
+fi
 
 chown -R www-data:www-data /opt/cnaas/settings
 chown -R www-data:www-data /opt/cnaas/templates

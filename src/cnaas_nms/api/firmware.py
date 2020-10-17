@@ -36,6 +36,8 @@ firmware_upgrade_model = api.model('firmware_upgrade', {
     'group': fields.String(required=False),
     'hostname': fields.String(required=False),
     'pre_flight': fields.Boolean(required=False),
+    'post_flight': fields.Boolean(required=False),
+    'post_wattime': fields.Integer(required=False),
     'reboot': fields.Boolean(required=False)})
 
 
@@ -239,6 +241,20 @@ class FirmwareUpgradeApi(Resource):
             else:
                 return empty_result(status='error',
                                     data='pre_flight should be a boolean')
+
+        if 'post_flight' in json_data:
+            if isinstance(json_data['post_flight'], bool):
+                kwargs['post_flight'] = json_data['post_flight']
+            else:
+                return empty_result(status='error',
+                                    data='post_flight should be a boolean')
+
+        if 'post_waittime' in json_data:
+            if isinstance(json_data['post_waittime'], int):
+                kwargs['post_waittime'] = json_data['post_waittime']
+            else:
+                return empty_result(status='error',
+                                    data='post_waittime should be an integer')
 
         if 'filename' in json_data:
             if isinstance(json_data['filename'], str):

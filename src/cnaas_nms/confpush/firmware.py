@@ -2,11 +2,12 @@ from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.confpush.update import update_facts
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
 
 from nornir.plugins.functions.text import print_result
-from nornir.plugins.tasks.networking import napalm_cli
+from nornir.plugins.tasks.networking import napalm_cli, napalm_get
 from nornir.plugins.tasks.networking import netmiko_send_command
 from nornir.core.task import MultiResult
 
@@ -14,11 +15,13 @@ from napalm.base.exceptions import CommandErrorException
 
 from typing import Optional
 
+import time
+
 
 logger = get_logger()
 
 
-def arista_pre_flight_check(task):
+def arista_pre_flight_check(task) -> str:
     """
     NorNir task to do some basic checks before attempting to upgrade a switch.
 
@@ -49,6 +52,34 @@ def arista_pre_flight_check(task):
         logger.info('Enough free space ({}b), no cleanup'.format(free_bytes))
 
     return "Pre-flight check done."
+
+
+def arista_post_flight_check(task, post_waittime: int) -> str:
+    """
+    NorNir task to update device facts after a switch have been upgraded
+
+    Args:
+        task: NorNir task
+        post_waittime: Time to wait before trying to gather facts
+
+    Returns:
+        Nope, nothing.
+
+    """
+    logger.info('Post-flight check will wait {} seconds before updating {}'.format(post_waittime, task.host.name))
+    time.sleep(int(post_waittime))
+
+    try:
+        res = task.run(napalm_get, getters=["facts"])
+        os_version = res[0].result['facts']['os_version']
+
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
+            dev.os_version = os_version
+    except Exception:
+        return 'Post-flight failed on device {}, could not update OS version'.format(task.host.name)
+
+    return "Post-flight, OS version updated for device {}, now {}.".format(task.host.name, os_version)
 
 
 def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
@@ -175,10 +206,13 @@ def arista_device_reboot(task) -> None:
     return "Device reboot done."
 
 
-def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
+def device_upgrade_task(task, job_id: str,
+                        reboot: False, filename: str,
                         url: str,
                         download: Optional[bool] = False,
                         pre_flight: Optional[bool] = False,
+                        post_flight: Optional[bool] = False,
+                        post_waittime: Optional[int] = 0,
                         activate: Optional[bool] = False) -> NornirJobResult:
 
     # If pre-flight is selected, execute the pre-flight task which
@@ -187,7 +221,6 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
         logger.info('Running pre-flight check on {}'.format(task.host.name))
         try:
             res = task.run(task=arista_pre_flight_check)
-            print_result(res)
         except Exception as e:
             logger.exception("Exception while doing pre-flight check: {}".
                              format(str(e)))
@@ -197,6 +230,19 @@ def device_upgrade_task(task, job_id: str, reboot: False, filename: str,
                 logger.exception('Pre-flight check failed for: {}'.format(
                     ' '.join(res.failed_hosts.keys())))
                 raise e
+
+    # If post-flight is selected, execute the post-flight task which
+    # will update device facts for the selected devices
+    if post_flight:
+        logger.info('Running post-flight check on {}'.format(task.host.name))
+        try:
+            res = task.run(task=arista_post_flight_check, post_waittime=post_waittime)
+        except Exception as e:
+            logger.exception('Failed to run post-flight check: {}'.format(str(e)))
+        else:
+            if res.failed:
+                logger.error('Post-flight check failed for: {}'.format(
+                    ' '.join(res.failed_hosts.keys())))
 
     # If download is true, go ahead and download the firmware
     if download:
@@ -247,6 +293,8 @@ def device_upgrade(download: Optional[bool] = False,
                    url: Optional[str] = None,
                    job_id: Optional[str] = None,
                    pre_flight: Optional[bool] = False,
+                   post_flight: Optional[bool] = False,
+                   post_waittime: Optional[int] = 0,
                    reboot: Optional[bool] = False,
                    scheduled_by: Optional[str] = None) -> NornirJobResult:
 
@@ -276,14 +324,16 @@ def device_upgrade(download: Optional[bool] = False,
 
     # Start tasks to take care of the upgrade
     try:
-        nrresult = nr_filtered.run(task=device_upgrade_task, job_id=job_id,
+        nrresult = nr_filtered.run(task=device_upgrade_task,
+                                   job_id=job_id,
                                    download=download,
                                    filename=filename,
                                    url=url,
                                    pre_flight=pre_flight,
+                                   post_flight=post_flight,
+                                   post_waittime=post_waittime,
                                    reboot=reboot,
                                    activate=activate)
-        print_result(nrresult)
     except Exception as e:
         logger.exception('Exception while upgrading devices: {}'.format(
             str(e)))

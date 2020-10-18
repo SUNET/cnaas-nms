@@ -29,7 +29,7 @@ def arista_pre_flight_check(task) -> str:
         task: NorNir task
 
     Returns:
-        Nope, nothing.
+        String, describing the result
 
     """
     logger.info("Pre-flight check for {}".format(task.host.name))
@@ -63,7 +63,7 @@ def arista_post_flight_check(task, post_waittime: int) -> str:
         post_waittime: Time to wait before trying to gather facts
 
     Returns:
-        Nope, nothing.
+        String, describing the result
 
     """
     logger.info('Post-flight check will wait {} seconds before updating {}'.format(post_waittime, task.host.name))
@@ -92,7 +92,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
         httpd_url: Base URL to the HTTP server
 
     Returns:
-        Nothing.
+        String, describing the result
 
     """
     logger.info('Downloading firmware for {}'.format(task.host.name))
@@ -137,7 +137,7 @@ def arista_firmware_activate(task, filename: str) -> None:
         filename: Name of the new firmware image
 
     Returns:
-        Nope.
+        String, describing the result
 
     """
     try:
@@ -183,7 +183,7 @@ def arista_device_reboot(task) -> None:
         task: NorNir task.
 
     Returns:
-        Nothing.
+        String, describing the result
 
     """
     try:

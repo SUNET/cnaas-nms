@@ -75,11 +75,14 @@ def arista_post_flight_check(task, post_waittime: int) -> str:
 
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
+            prev_os_version = dev.os_version
             dev.os_version = os_version
     except Exception:
         return 'Post-flight failed on device {}, could not update OS version'.format(task.host.name)
 
-    return "Post-flight, OS version updated for device {}, now {}.".format(task.host.name, os_version)
+    return "Post-flight, OS version updated for device {}, updated from {} to {}.".format(task.host.name,
+                                                                                           prev_os_version,
+                                                                                           os_version)
 
 
 def arista_firmware_download(task, filename: str, httpd_url: str) -> None:

@@ -234,19 +234,6 @@ def device_upgrade_task(task, job_id: str,
                     ' '.join(res.failed_hosts.keys())))
                 raise e
 
-    # If post-flight is selected, execute the post-flight task which
-    # will update device facts for the selected devices
-    if post_flight:
-        logger.info('Running post-flight check on {}'.format(task.host.name))
-        try:
-            res = task.run(task=arista_post_flight_check, post_waittime=post_waittime)
-        except Exception as e:
-            logger.exception('Failed to run post-flight check: {}'.format(str(e)))
-        else:
-            if res.failed:
-                logger.error('Post-flight check failed for: {}'.format(
-                    ' '.join(res.failed_hosts.keys())))
-
     # If download is true, go ahead and download the firmware
     if download:
         # Download the firmware from the HTTP container.
@@ -281,6 +268,19 @@ def device_upgrade_task(task, job_id: str,
             res = task.run(task=arista_device_reboot)
         except Exception as e:
             pass
+
+    # If post-flight is selected, execute the post-flight task which
+    # will update device facts for the selected devices
+    if post_flight:
+        logger.info('Running post-flight check on {}'.format(task.host.name))
+        try:
+            res = task.run(task=arista_post_flight_check, post_waittime=post_waittime)
+        except Exception as e:
+            logger.exception('Failed to run post-flight check: {}'.format(str(e)))
+        else:
+            if res.failed:
+                logger.error('Post-flight check failed for: {}'.format(
+                    ' '.join(res.failed_hosts.keys())))
 
     if job_id:
         with redis_session() as db:

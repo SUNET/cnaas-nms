@@ -297,7 +297,7 @@ def device_upgrade(download: Optional[bool] = False,
                    job_id: Optional[str] = None,
                    pre_flight: Optional[bool] = False,
                    post_flight: Optional[bool] = False,
-                   post_waittime: Optional[int] = 0,
+                   post_waittime: Optional[int] = 600,
                    reboot: Optional[bool] = False,
                    scheduled_by: Optional[str] = None) -> NornirJobResult:
 

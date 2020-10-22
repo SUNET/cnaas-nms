@@ -13,7 +13,7 @@ from nornir.plugins.tasks.networking import napalm_get
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
@@ -314,8 +314,13 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
         remote_device_inst: Device = session.query(Device).\
             filter(Device.hostname == data[0]['hostname']).one_or_none()
         if not remote_device_inst:
-            logger.info(f"Unknown connected device: {data[0]['hostname']}")
+            logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
             continue
+        if remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
+            logger.debug("Neighbor device is not MANAGED/UNMANAGED, ignoring: {}".format(
+                data[0]['hostname']))
+            continue
+
         logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
         local_device_settings, _ = get_settings(settings_hostname,

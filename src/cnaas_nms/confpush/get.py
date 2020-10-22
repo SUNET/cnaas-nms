@@ -316,10 +316,16 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
         if not remote_device_inst:
             logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
             continue
-        if remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
-            logger.debug("Neighbor device is not MANAGED/UNMANAGED, ignoring: {}".format(
+        if remote_device_inst.state in [DeviceState.DISCOVERED, DeviceState.INIT]:
+            # In case of MLAG init the peer does not have the correct devtype set yet,
+            # use same devtype as local device instead
+            remote_devtype = devtype
+        elif remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
+            logger.debug("Neighbor device has invalid state, ignoring: {}".format(
                 data[0]['hostname']))
             continue
+        else:
+            remote_devtype = remote_device_inst.device_type
 
         logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
@@ -328,7 +334,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                                                 local_device_inst.model
                                                 )
         remote_device_settings, _ = get_settings(remote_device_inst.hostname,
-                                                 remote_device_inst.device_type,
+                                                 remote_devtype,
                                                  remote_device_inst.model
                                                  )
 

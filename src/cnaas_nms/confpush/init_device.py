@@ -304,10 +304,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         logger.exception("Error while running plugin hooks for allocated_ipv4: ".format(str(e)))
 
     # step3. register apscheduler job that continues steps
+    if mlag_peer_id and mlag_peer_new_hostname:
+        step2_delay = 30+60+30  # account for delayed start of peer device plus mgmt timeout
+    else:
+        step2_delay = 30
     scheduler = Scheduler()
     next_job_id = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_device_step2',
-        when=30,
+        when=step2_delay,
         scheduled_by=scheduled_by,
         kwargs={'device_id': device_id, 'iteration': 1})
 

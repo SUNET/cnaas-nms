@@ -36,15 +36,47 @@ and the hostnames of all devices in the group:
 Show specific group
 -------------------
 
-To show a specific group specify the group name in the path:
+To show a single group specify the group name in the path:
 
 ::
 
    curl https://hostname/api/v1.0/groups/mygroup
 
 
+Show specific group OS versions
+-------------------------------
+
+To show the OS versions of the devices in a group:
+
+::
+
+   curl https://hostname/api/v1.0/groups/MY_EOS_DEVICES/os_versions
+
+Output:
+
+::
+
+   {
+       "status": "success",
+       "data": {
+           "groups": {
+               "MY_EOS_DEVICES": {
+                   "4.21.1.1F-10146868.42111F": [
+                       "eosaccess"
+                   ],
+                   "4.22.3M-14418192.4223M": [
+                       "eosdist1",
+                       "eosdist2"
+                   ]
+               }
+           }
+       }
+   }
+
+
+
 Define groups
 -------------
 
-New groups can be defined in the settings repository.
+New groups can be defined in the settings repository. :ref:`settings_repo_ref`
 

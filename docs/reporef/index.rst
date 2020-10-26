@@ -75,6 +75,8 @@ Additional variables available for distribution switches:
  
 All settings configured in the settings repository are also exposed to the templates.
 
+.. _settings_repo_ref:
+
 settings
 --------
 

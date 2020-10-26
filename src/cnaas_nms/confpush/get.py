@@ -106,12 +106,13 @@ def get_uplinks(session, hostname: str) -> Dict[str, str]:
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.device_type == DeviceType.DIST:
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-            # TODO: check that dist interface is configured as downlink
+            # Neighbor interface ifclass is already verified in
+            # update_linknets -> verify_peer_iftype
             if local_if:
                 uplinks[local_if] = neighbor_d.hostname
         elif neighbor_d.device_type == DeviceType.ACCESS:
             intfs: Interface = session.query(Interface).filter(Interface.device == neighbor_d). \
-                filter(InterfaceConfigType == InterfaceConfigType.ACCESS_DOWNLINK).all()
+                filter(Interface.configtype == InterfaceConfigType.ACCESS_DOWNLINK).all()
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
             remote_if = neighbor_d.get_neighbor_local_ifname(session, dev)
 

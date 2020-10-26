@@ -13,46 +13,38 @@ To show all groups the following REST call can be used:
 
    curl https://hostname/api/v1.0/groups
 
-That will return a JSON structure with all the groups defined:
+That will return a JSON structure with all group names
+and the hostnames of all devices in the group:
 
 ::
 
    {
      "status": "success",
      "data": {
-        "status": "success",
-        "data": {
-            "groups": {
-                "group_0": [
-                    "testdevice_a",
-                ],
-                "group_1": [
-                    "testdevice_b",
-		    "testdevice_c"
-                ]
-            }
+         "groups": {
+             "group_0": [
+                 "testdevice_a",
+             ],
+             "group_1": [
+                 "testdevice_b",
+                 "testdevice_c"
+             ]
          }
       }
    }
+
+Show specific group
+-------------------
+
+To show a specific group specify the group name in the path:
+
+::
+
+   curl https://hostname/api/v1.0/groups/mygroup
 
 
 Define groups
 -------------
 
-New groups can be defined in the settings template.
+New groups can be defined in the settings repository.
 
-In the global settings, modify 'base_system.yml' and add the following
-section:
-
-::
-   
-   groups:
-   - group:
-      name: 'MY_NEW_GROUP'
-      regex: '.*'
-   - group:
-      name: 'ANOTHER_NEW_GROUP'
-      regex: '.*'
-
-As you can see, a name and a regex is expected. The regex will match
-on the device hostnames and based on that add them to the group.

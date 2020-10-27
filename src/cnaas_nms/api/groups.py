@@ -42,7 +42,8 @@ def groups_osversion_populate(group_name: str):
 
     with sqla_session() as session:
         devices: List[Device] = session.query(Device).\
-            filter(Device.state == DeviceState.MANAGED).all()
+            filter(Device.state == DeviceState.MANAGED).\
+            order_by(Device.hostname.asc()).all()
         for dev in devices:
             if not dev.os_version:
                 continue

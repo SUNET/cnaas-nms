@@ -323,6 +323,24 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['status'], 'success')
 
+    def test_get_groups(self):
+        groupname = self.testdata['groupname']
+        result = self.client.get("/api/v1.0/groups")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertTrue(groupname in result.json['data']['groups'],
+                        f"Group '{groupname}' not found")
+        self.assertGreaterEqual(len(result.json['data']['groups'][groupname]), 1,
+                                f"No devices found in group '{groupname}'")
+
+    def test_get_groups_osversion(self):
+        groupname = self.testdata['groupname']
+        result = self.client.get(f"/api/v1.0/groups/{groupname}/os_version")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertGreaterEqual(len(result.json['data']['groups'][groupname]), 1,
+                                f"No devices found in group '{groupname}' os_versions")
+
 
 if __name__ == '__main__':
     unittest.main()

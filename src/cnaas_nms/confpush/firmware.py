@@ -2,7 +2,6 @@ from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
-from cnaas_nms.confpush.update import update_facts
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
 
@@ -11,11 +10,13 @@ from nornir.plugins.tasks.networking import napalm_cli, napalm_get
 from nornir.plugins.tasks.networking import netmiko_send_command
 from nornir.core.task import MultiResult
 
-from napalm.base.exceptions import CommandErrorException
-
 from typing import Optional
 
 import time
+
+
+class FirmwareAlreadyActiveException(Exception):
+    pass
 
 
 logger = get_logger()
@@ -77,15 +78,18 @@ def arista_post_flight_check(task, post_waittime: int) -> str:
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
             prev_os_version = dev.os_version
             dev.os_version = os_version
-    except Exception:
-        return 'Post-flight failed on device {}, could not update OS version'.format(task.host.name)
+        if prev_os_version == os_version:
+            raise Exception("OS version did not change, activation failed?")
+    except Exception as e:
+        return 'Post-flight failed on device {}, could not update OS version: {}'.format(
+            task.host.name, str(e))
 
     return "Post-flight, OS version updated for device {}, updated from {} to {}.".format(task.host.name,
                                                                                            prev_os_version,
                                                                                            os_version)
 
 
-def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
+def arista_firmware_download(task, filename: str, httpd_url: str) -> str:
     """
     NorNir task to download firmware image from the HTTP server.
 
@@ -131,7 +135,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> None:
     return "Firmware download done."
 
 
-def arista_firmware_activate(task, filename: str) -> None:
+def arista_firmware_activate(task, filename: str) -> str:
     """
     NorNir task to modify the boot config for new firmwares.
 
@@ -149,6 +153,13 @@ def arista_firmware_activate(task, filename: str) -> None:
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#')
         print_result(res)
+
+        res = task.run(netmiko_send_command,
+                       command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
+        print_result(res)
+        if res.result == filename:
+            raise FirmwareAlreadyActiveException(
+                'Firmware already activated in boot-config on {}'.format(task.host.name))
 
         res = task.run(netmiko_send_command, command_string='conf t',
                        expect_string='.*config.*#')
@@ -178,7 +189,7 @@ def arista_firmware_activate(task, filename: str) -> None:
     return "Firmware activate done."
 
 
-def arista_device_reboot(task) -> None:
+def arista_device_reboot(task) -> str:
     """
     NorNir task to reboot a single device.
 
@@ -232,7 +243,7 @@ def device_upgrade_task(task, job_id: str,
             if res.failed:
                 logger.exception('Pre-flight check failed for: {}'.format(
                     ' '.join(res.failed_hosts.keys())))
-                raise e
+                raise
 
     # If download is true, go ahead and download the firmware
     if download:
@@ -250,19 +261,23 @@ def device_upgrade_task(task, job_id: str,
 
     # If download_only is false, continue to activate the newly downloaded
     # firmware and verify that it if present in the boot-config.
+    already_active = False
     if activate:
         logger.info('Activating firmware {} on {}'.format(
             filename, task.host.name))
         try:
             res = task.run(task=arista_firmware_activate, filename=filename)
             print_result(res)
+        except FirmwareAlreadyActiveException as e:
+            already_active = True
+            logger.debug("Firmware already active, skipping reboot and post_flight: {}".format(e))
         except Exception as e:
             logger.exception('Exception while activating firmware: {}'.format(
                 str(e)))
             raise e
 
     # Reboot the device if needed, we will then lose the connection.
-    if reboot:
+    if reboot and not already_active:
         logger.info('Rebooting {}'.format(task.host.name))
         try:
             res = task.run(task=arista_device_reboot)
@@ -271,7 +286,7 @@ def device_upgrade_task(task, job_id: str,
 
     # If post-flight is selected, execute the post-flight task which
     # will update device facts for the selected devices
-    if post_flight:
+    if post_flight and not already_active:
         logger.info('Running post-flight check on {}'.format(task.host.name))
         try:
             res = task.run(task=arista_post_flight_check, post_waittime=post_waittime)

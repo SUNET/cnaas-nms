@@ -11,6 +11,7 @@ import os
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
+import cnaas_nms.confpush.underlay
 import cnaas_nms.db.helper
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
@@ -19,9 +20,9 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.confpush.update import update_interfacedb_worker
-from cnaas_nms.confpush.sync_devices import get_mlag_vars
+from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
+    sync_devices
 from cnaas_nms.db.git import RepoStructureException
-from cnaas_nms.db.settings import get_settings
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.tools.log import get_logger
@@ -40,7 +41,11 @@ class InitError(Exception):
     pass
 
 
-def push_base_management_access(task, device_variables, job_id):
+class NeighborError(Exception):
+    pass
+
+
+def push_base_management(task, device_variables: dict, devtype: DeviceType, job_id):
     set_thread_data(job_id)
     logger = get_logger()
     logger.debug("Push basetemplate for host: {}".format(task.host.name))
@@ -54,26 +59,13 @@ def push_base_management_access(task, device_variables, job_id):
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, 'r') as f:
         mapping = yaml.safe_load(f)
-        template = mapping['ACCESS']['entrypoint']
-
-    settings, settings_origin = get_settings(task.host.name, DeviceType.ACCESS)
-
-    # Add all environment variables starting with TEMPLATE_SECRET_ to
-    # the list of configuration variables. The idea is to store secret
-    # configuration outside of the templates repository.
-    template_secrets = {}
-    for env in os.environ:
-        if env.startswith('TEMPLATE_SECRET_'):
-            template_secrets[env] = os.environ[env]
-
-    # Merge dicts, this will overwrite interface list from settings
-    template_vars = {**settings, **device_variables, **template_secrets}
+        template = mapping[devtype.name]['entrypoint']
 
     r = task.run(task=text.template_file,
                  name="Generate initial device config",
                  template=template,
                  path=f"{local_repo_path}/{task.host.platform}",
-                 **template_vars)
+                 **device_variables)
 
     #TODO: Handle template not found, variables not defined
 
@@ -121,18 +113,18 @@ def pre_init_checks(session, device_id) -> Device:
 
 def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                              linknets: List[dict],
-                             expected_neighbors: Optional[List[str]] = None):
+                             expected_neighbors: Optional[List[str]] = None) -> List[str]:
     logger = get_logger()
     if expected_neighbors is not None and len(expected_neighbors) == 0:
         logger.debug("expected_neighbors explicitly set to empty list, skipping neighbor checks")
-        return True
+        return []
     if not linknets:
         raise Exception("No linknets were specified to check_neighbors")
 
     if devtype == DeviceType.ACCESS:
         pass
     elif devtype in [DeviceType.CORE, DeviceType.DIST]:
-        verified_linknets = []
+        verified_neighbors = []
         for linknet in linknets:
             if linknet['device_a_hostname'] == dev.hostname:
                 neighbor = linknet['device_b_hostname']
@@ -142,7 +134,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 raise Exception("Own hostname not found in linknet")
             if expected_neighbors:
                 if neighbor in expected_neighbors:
-                    verified_linknets.append(linknet)
+                    verified_neighbors.append(neighbor)
                 # Neighbor was explicitly set -> skip verification of neighbor devtype
                 continue
 
@@ -152,28 +144,28 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 raise Exception("Neighbor device {} not found in database".format(neighbor))
             if devtype == DeviceType.CORE:
                 if neighbor_dev.device_type == DeviceType.DIST:
-                    verified_linknets.append(linknet)
+                    verified_neighbors.append(neighbor)
                 else:
                     logger.warn("Neighbor device {} is of unexpected device type {}, ignoring".format(
                         neighbor, neighbor_dev.device_type.name
                     ))
             else:
                 if neighbor_dev.device_type == DeviceType.CORE:
-                    verified_linknets.append(linknet)
+                    verified_neighbors.append(neighbor)
                 else:
                     logger.warn("Neighbor device {} is of unexpected device type {}, ignoring".format(
                         neighbor, neighbor_dev.device_type.name
                     ))
 
         if expected_neighbors:
-            if len(expected_neighbors) != len(verified_linknets):
+            if len(expected_neighbors) != len(verified_neighbors):
                 raise InitVerificationError("Not all expected neighbors were detected")
         else:
-            if len(verified_linknets) < 2:
+            if len(verified_neighbors) < 2:
                 raise InitVerificationError("Not enough compatible neighbors ({} of 2) were detected".format(
-                    len(verified_linknets)
+                    len(verified_neighbors)
                 ))
-    return verified_linknets
+    return verified_neighbors
 
 
 def pre_init_check_mlag(session, dev, mlag_peer_dev):
@@ -265,31 +257,19 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         session.add(reserved_ip)
         # Populate variables for template rendering
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
-        device_variables = {
+        mgmt_variables = {
             'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
             'mgmt_ip': str(mgmt_ip),
             'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
-            'interfaces': [],
             'mgmt_vlan_id': mgmtdomain.vlan,
             'mgmt_gw': mgmt_gw_ipif.ip,
-            'device_model': dev.model,
-            'device_os_version': dev.os_version
         }
-        intfs = session.query(Interface).filter(Interface.device == dev).all()
-        intf: Interface
-        for intf in intfs:
-            intfdata = None
-            if intf.data:
-                intfdata = dict(intf.data)
-            device_variables['interfaces'].append({
-                'name': intf.name,
-                'ifclass': intf.configtype.name,
-                'data': intfdata
-            })
-        mlag_vars = get_mlag_vars(session, dev)
-        device_variables = {**device_variables, **mlag_vars}
+        device_variables = populate_device_vars(session, dev, new_hostname, DeviceType.ACCESS)
+        device_variables = {
+            **device_variables,
+            **mgmt_variables
+        }
         # Update device state
-        dev = session.query(Device).filter(Device.id == device_id).one()
         dev.hostname = new_hostname
         session.commit()
         hostname = dev.hostname
@@ -298,14 +278,16 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     nr_filtered = nr.filter(name=hostname)
 
     # step2. push management config
-    nrresult = nr_filtered.run(task=push_base_management_access,
+    nrresult = nr_filtered.run(task=push_base_management,
                                device_variables=device_variables,
+                               devtype=DeviceType.ACCESS,
                                job_id=job_id)
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.management_ip = device_variables['mgmt_ip']
         dev.state = DeviceState.INIT
+        dev.device_type = DeviceType.ACCESS
         # Remove the reserved IP since it's now saved in the device database instead
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:
@@ -322,10 +304,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         logger.exception("Error while running plugin hooks for allocated_ipv4: ".format(str(e)))
 
     # step3. register apscheduler job that continues steps
+    if mlag_peer_id and mlag_peer_new_hostname:
+        step2_delay = 30+60+30  # account for delayed start of peer device plus mgmt timeout
+    else:
+        step2_delay = 30
     scheduler = Scheduler()
     next_job_id = scheduler.add_onetime_job(
-        'cnaas_nms.confpush.init_device:init_access_device_step2',
-        when=30,
+        'cnaas_nms.confpush.init_device:init_device_step2',
+        when=step2_delay,
         scheduled_by=scheduled_by,
         kwargs={'device_id': device_id, 'iteration': 1})
 
@@ -354,13 +340,167 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     )
 
 
-def schedule_init_access_device_step2(device_id: int, iteration: int,
-                                      scheduled_by: str) -> Optional[Job]:
+def check_neighbor_sync(session, hostnames: List[str]):
+    for hostname in hostnames:
+        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        if not dev:
+            raise NeighborError("Neighbor device {} not found".format(hostname))
+        if not dev.state == DeviceState.MANAGED:
+            raise NeighborError("Neighbor device {} not in state MANAGED".format(hostname))
+        if not dev.synchronized:
+            raise NeighborError("Neighbor device {} not synchronized".format(hostname))
+    confcheck_devices(hostnames)
+
+
+@job_wrapper
+def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str,
+                             neighbors: Optional[List[str]] = [],
+                             job_id: Optional[str] = None,
+                             scheduled_by: Optional[str] = None) -> NornirJobResult:
+    """Initialize fabric (CORE/DIST) device for management by CNaaS-NMS.
+
+    Args:
+        device_id: Device to select for initialization
+        new_hostname: Hostname to configure on this device
+        device_type: String representing DeviceType
+        neighbors: Optional list of hostnames of peer devices
+        job_id: job_id provided by scheduler when adding job
+        scheduled_by: Username from JWT.
+
+    Returns:
+        Nornir result object
+
+    Raises:
+        DeviceStateException
+        ValueError
+    """
+    logger = get_logger()
+    if DeviceType.has_name(device_type):
+        devtype = DeviceType[device_type]
+    else:
+        raise ValueError("Invalid 'device_type' provided")
+
+    if devtype not in [DeviceType.CORE, DeviceType.DIST]:
+        raise ValueError("Init fabric device requires device type DIST or CORE")
+
+    with sqla_session() as session:
+        dev = pre_init_checks(session, device_id)
+
+        # Test update of linknets using LLDP data
+        linknets = cnaas_nms.confpush.get.update_linknets(
+            session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=True)
+
+        try:
+            verified_neighbors = pre_init_check_neighbors(
+                session, dev, devtype, linknets, neighbors)
+            logger.debug("Found valid neighbors for INIT of {}: {}".format(
+                new_hostname, ", ".join(verified_neighbors)
+            ))
+            check_neighbor_sync(session, verified_neighbors)
+        except Exception as e:
+            raise e
+        else:
+            dev.state = DeviceState.INIT
+            dev.device_type = devtype
+            session.commit()
+            # If neighbor check works, commit new linknets
+            # This will also mark neighbors as unsynced
+            linknets = cnaas_nms.confpush.get.update_linknets(
+                session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=False)
+            logger.debug("New linknets for INIT of {} created: {}".format(
+                new_hostname, linknets
+            ))
+
+        # Select and reserve a new management and infra IP for the device
+        ReservedIP.clean_reservations(session, device=dev)
+        session.commit()
+
+        mgmt_ip = cnaas_nms.confpush.underlay.find_free_mgmt_lo_ip(session)
+        infra_ip = cnaas_nms.confpush.underlay.find_free_infra_ip(session)
+
+        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
+        session.add(reserved_ip)
+        dev.infra_ip = infra_ip
+        session.commit()
+
+        mgmt_variables = {
+            'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
+            'mgmt_prefixlen': 32,
+            'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
+            'infra_ip': str(infra_ip),
+        }
+
+        device_variables = populate_device_vars(session, dev, new_hostname, devtype)
+        device_variables = {
+            **device_variables,
+            **mgmt_variables
+        }
+        # Update device state
+        dev.hostname = new_hostname
+        session.commit()
+        hostname = dev.hostname
+
+    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr_filtered = nr.filter(name=hostname)
+
+    # step2. push management config
+    nrresult = nr_filtered.run(task=push_base_management,
+                               device_variables=device_variables,
+                               devtype=devtype,
+                               job_id=job_id)
+
+    with sqla_session() as session:
+        dev = session.query(Device).filter(Device.id == device_id).one()
+        dev.management_ip = mgmt_ip
+        # Remove the reserved IP since it's now saved in the device database instead
+        reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
+        if reserved_ip:
+            session.delete(reserved_ip)
+
+    # Plugin hook, allocated IP
+    try:
+        pmh = PluginManagerHandler()
+        pmh.pm.hook.allocated_ipv4(vrf='mgmt', ipv4_address=str(mgmt_ip),
+                                   ipv4_network=None,
+                                   hostname=hostname
+                                   )
+    except Exception as e:
+        logger.exception("Error while running plugin hooks for allocated_ipv4: ".format(str(e)))
+
+    # step3. resync neighbors
+    scheduler = Scheduler()
+    sync_nei_job_id = scheduler.add_onetime_job(
+        'cnaas_nms.confpush.sync_devices:sync_devices',
+        when=1,
+        scheduled_by=scheduled_by,
+        kwargs={'hostnames': verified_neighbors, 'dry_run': False})
+    logger.info(f"Scheduled job {sync_nei_job_id} to resynchronize neighbors")
+
+    # step4. register apscheduler job that continues steps
+    scheduler = Scheduler()
+    next_job_id = scheduler.add_onetime_job(
+        'cnaas_nms.confpush.init_device:init_device_step2',
+        when=60,
+        scheduled_by=scheduled_by,
+        kwargs={'device_id': device_id, 'iteration': 1})
+
+    logger.info("Init step 2 for {} scheduled as job # {}".format(
+        new_hostname, next_job_id
+    ))
+
+    return NornirJobResult(
+        nrresult=nrresult,
+        next_job_id=next_job_id
+    )
+
+
+def schedule_init_device_step2(device_id: int, iteration: int,
+                               scheduled_by: str) -> Optional[Job]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
         next_job_id = scheduler.add_onetime_job(
-            'cnaas_nms.confpush.init_device:init_access_device_step2',
+            'cnaas_nms.confpush.init_device:init_device_step2',
             when=(30*iteration),
             scheduled_by=scheduled_by,
             kwargs={'device_id': device_id, 'iteration': iteration+1})
@@ -370,10 +510,10 @@ def schedule_init_access_device_step2(device_id: int, iteration: int,
 
 
 @job_wrapper
-def init_access_device_step2(device_id: int, iteration: int = -1,
-                             job_id: Optional[str] = None,
-                             scheduled_by: Optional[str] = None) -> \
-                             NornirJobResult:
+def init_device_step2(device_id: int, iteration: int = -1,
+                      job_id: Optional[str] = None,
+                      scheduled_by: Optional[str] = None) -> \
+                      NornirJobResult:
     logger = get_logger()
     # step4+ in apjob: if success, update management ip and device state, trigger external stuff?
     with sqla_session() as session:
@@ -383,14 +523,14 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
                          format(device_id, dev.state.name))
             raise DeviceStateException("Device must be in state INIT to continue init step 2")
         hostname = dev.hostname
+        devtype: DeviceType = dev.device_type
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
     nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
 
     if nrresult.failed:
-        next_job_id = schedule_init_access_device_step2(device_id, iteration,
-                                                        scheduled_by)
+        next_job_id = schedule_init_device_step2(device_id, iteration, scheduled_by)
         if next_job_id:
             return NornirJobResult(
                 nrresult=nrresult,
@@ -409,7 +549,6 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
-        dev.device_type = DeviceType.ACCESS
         dev.synchronized = False
         dev.serial = facts['serial_number']
         dev.vendor = facts['vendor']
@@ -424,7 +563,7 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
         pmh = PluginManagerHandler()
         pmh.pm.hook.new_managed_device(
             hostname=hostname,
-            device_type=DeviceType.ACCESS.name,
+            device_type=devtype.name,
             serial_number=facts['serial_number'],
             vendor=facts['vendor'],
             model=facts['model'],
@@ -434,9 +573,7 @@ def init_access_device_step2(device_id: int, iteration: int = -1,
     except Exception as e:
         logger.exception("Error while running plugin hooks for new_managed_device: ".format(str(e)))
 
-    return NornirJobResult(
-        nrresult = nrresult
-    )
+    return NornirJobResult(nrresult=nrresult)
 
 
 def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,

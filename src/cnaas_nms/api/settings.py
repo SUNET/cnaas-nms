@@ -25,6 +25,7 @@ class SettingsApi(Resource):
         args = request.args
         hostname = None
         device_type = None
+        model = None
         if 'hostname' in args:
             if Device.valid_hostname(args['hostname']):
                 hostname = args['hostname']
@@ -35,6 +36,7 @@ class SettingsApi(Resource):
                     filter(Device.hostname == hostname).one_or_none()
                 if dev:
                     device_type = dev.device_type
+                    model = dev.model
                 else:
                     return empty_result('error', "Hostname not found in database"), 400
         if 'device_type' in args:
@@ -44,7 +46,7 @@ class SettingsApi(Resource):
                 return empty_result('error', "Invalid device type specified"), 400
 
         try:
-            settings, settings_origin = get_settings(hostname, device_type)
+            settings, settings_origin = get_settings(hostname, device_type, model)
         except Exception as e:
             return empty_result('error', "Error getting settings: {}".format(str(e))), 400
 
@@ -55,7 +57,6 @@ class SettingsModelApi(Resource):
     def get(self):
         response = make_response(settings_root_model.schema_json())
         response.headers['Content-Type'] = "application/json"
-        response.headers['Content-Type'] = 'application/json'
         return response
 
     def post(self):

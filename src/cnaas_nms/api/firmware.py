@@ -289,8 +289,7 @@ class FirmwareUpgradeApi(Resource):
             if group_name not in get_groups():
                 return empty_result(status='error', data='Could not find a group with name {}'.format(group_name))
             kwargs['group'] = group_name
-            _, total_count, _ = inventory_selector(nr, resync=kwargs['resync'],
-                                                   group=group_name)
+            _, total_count, _ = inventory_selector(nr, group=group_name)
             kwargs['group'] = group_name
         else:
             return empty_result(

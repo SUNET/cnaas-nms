@@ -24,6 +24,9 @@ class DeviceTests(unittest.TestCase):
         self.tmp_postgres = PostgresTemporaryInstance()
 
     def tearDown(self):
+        device_id = self.testdata['initcheck_device_id']
+        self.client.put(f'/api/v1.0/device/{device_id}',
+                        json={'state': 'MANAGED'})
         self.tmp_postgres.shutdown()
 
     def test_0_add_invalid_device(self):

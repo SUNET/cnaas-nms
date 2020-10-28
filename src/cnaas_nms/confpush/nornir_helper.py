@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
 
 from nornir import InitNornir
 from nornir.core import Nornir
@@ -45,7 +45,7 @@ def nr_result_serialize(result: AggregatedResult):
 
 
 def inventory_selector(nr: Nornir, resync: bool = True,
-                       hostname: Optional[str] = None,
+                       hostname: Optional[Union[str, List[str]]] = None,
                        device_type: Optional[str] = None,
                        group: Optional[str] = None) -> Tuple[Nornir, int, List[str]]:
     """Return a filtered Nornir inventory with only the selected devices
@@ -53,7 +53,7 @@ def inventory_selector(nr: Nornir, resync: bool = True,
     Args:
         nr: Nornir object
         resync: Set to false if you want to filter out devices that are synchronized
-        hostname: Select device by hostname (string)
+        hostname: Select device by hostname (string) or list of hostnames (list)
         device_type: Select device by device_type (string)
         group: Select device by group (string)
 
@@ -63,7 +63,12 @@ def inventory_selector(nr: Nornir, resync: bool = True,
     """
     skipped_devices = []
     if hostname:
-        nr_filtered = nr.filter(name=hostname).filter(managed=True)
+        if isinstance(hostname, str):
+            nr_filtered = nr.filter(name=hostname).filter(managed=True)
+        elif isinstance(hostname, list):
+            nr_filtered = nr.filter(filter_func=lambda h: h.name in hostname).filter(managed=True)
+        else:
+            raise ValueError("Can't select hostname based on type {}".type(hostname))
     elif device_type:
         nr_filtered = nr.filter(F(groups__contains='T_'+device_type)).filter(managed=True)
     elif group:

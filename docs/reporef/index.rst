@@ -64,7 +64,7 @@ Additional variables available for distribution switches:
   Populated from the links database table.
 
 - bgp_evpn_peers: A list of dictionaries with the keys: "peer_hostname", "peer_infra_lo", "peer_asn".
-  Contains one entry per hostname specified in settings->evpn_spines. Used to build
+  Contains one entry per hostname specified in settings->evpn_peers. Used to build
   eBGP peering for EVPN between loopbacks.
 
 - mgmtdomains: A list of dictionaries with the keys: "ipv4_gw", "vlan", "description", "esi_mac".
@@ -129,7 +129,8 @@ Can contain the following dictionaries with specified keys:
 
   * hostname: A hostname of a CORE (or DIST) device from the device database.
     The other DIST switches participating in the VXLAN/EVPN fabric will establish
-    eBGP connections to these devices.
+    eBGP connections to these devices. If an empty list is provided all CORE
+    devices will be added as evpn_peers instead.
 
 - vrfs:
 
@@ -210,8 +211,16 @@ Keys for interfaces.yml or interfaces_<model>.yml:
 * interfaces: List of dicctionaries with keys:
 
   * name: Interface name, like "Ethernet1"
-  * ifclass: Interface class, one of: downlink, uplink, custom
+  * ifclass: Interface class, one of: downlink, fabric, custom
   * config: Optional. Raw CLI config used in case "custom" ifclass was selected
+
+The "downlink" ifclass is used on DIST devices to specify that this interface
+is used to connect access devices. The "fabric" ifclass is used to specify that
+this interface is used to connect DIST or CORE devices with each other to form
+the switch (vxlan) fabric. Linknet data will only be configured on interfaces
+specified as "fabric". If no linknet data is available in the database then
+the fabric interface will be configured for ZTP of DIST/CORE devices by
+providing DHCP (relay) access.
 
 etc
 ---

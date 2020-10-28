@@ -6,6 +6,7 @@ from sqlalchemy.orm import load_only
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.settings import get_settings
+from cnaas_nms.db.reservedip import ReservedIP
 
 
 def find_free_infra_ip(session) -> Optional[IPv4Address]:
@@ -29,16 +30,22 @@ def find_free_infra_ip(session) -> Optional[IPv4Address]:
 def find_free_mgmt_lo_ip(session) -> Optional[IPv4Address]:
     """Returns first free IPv4 infra IP."""
     used_ips = []
+    reserved_ips = []
     device_query = session.query(Device). \
         filter(Device.management_ip != None).options(load_only("management_ip"))
     for device in device_query:
         used_ips.append(device.management_ip)
+    reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
+    for reserved_ip in reserved_ip_query:
+        reserved_ips.append(reserved_ip.ip)
 
     settings, settings_origin = get_settings(device_type=DeviceType.CORE)
     mgmt_lo_net = IPv4Network(settings['underlay']['mgmt_lo_net'])
     for num, net in enumerate(mgmt_lo_net.subnets(new_prefix=32)):
         ipaddr = IPv4Address(net.network_address)
         if ipaddr in used_ips:
+            continue
+        if ipaddr in reserved_ips:
             continue
         else:
             return ipaddr

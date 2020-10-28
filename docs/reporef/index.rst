@@ -75,6 +75,8 @@ Additional variables available for distribution switches:
  
 All settings configured in the settings repository are also exposed to the templates.
 
+.. _settings_repo_ref:
+
 settings
 --------
 
@@ -87,8 +89,8 @@ The directory structure looks like this:
 - global
 
   * groups.yml: Definition of custom device groups
-  * vxlans.yml: Definition of VXLAN/VLANs
   * routing.yml: Definition of global routing settings like fabric underlay and VRFs
+  * vxlans.yml: Definition of VXLAN/VLANs
   * base_system.yml: Base system settings
 
 - core
@@ -112,6 +114,34 @@ The directory structure looks like this:
     + base_system.yml
     + interfaces.yml
     + routing.yml
+
+groups.yml:
+
+Contains a dictionary named "groups", that contains a list of groups.
+Each group is defined as a dictionary with a single key named "group",
+and that key contains a dictionary with two keys:
+
+- name: A string representing a name. No spaces.
+- regex: A Python style regex that matches on device hostnames
+
+All devices that matches the regex will be included in the group.
+
+::
+
+   ---
+   groups:
+     - group:
+         name: 'ALL'
+         regex: '.*'
+     - group:
+         name: 'BORDER_DIST'
+         regex: '(south-dist0[1-2]|north-dist0[1-2])'
+     - group:
+         name: 'DIST_EVEN'
+         regex: '.*-dist[0-9][02468]'
+     - group:
+         name: 'DIST_ODD'
+         regex: '.*-dist[0-9][13579]'
 
 routing.yml:
 
@@ -221,6 +251,35 @@ the switch (vxlan) fabric. Linknet data will only be configured on interfaces
 specified as "fabric". If no linknet data is available in the database then
 the fabric interface will be configured for ZTP of DIST/CORE devices by
 providing DHCP (relay) access.
+
+base_system.yml:
+
+Contains base system settings like:
+
+- ntp_servers
+- snmp_servers
+- syslog_servers
+- dhcp_relays
+
+Example of base_system.yml:
+
+::
+
+   ---
+   ntp_servers:
+     - host: 10.255.0.1
+     - host: 10.255.0.2
+   snmp_servers:
+     - host: 10.255.0.11
+   syslog_servers:
+     - host: 10.255.0.21
+     - host: 10.255.0.22
+   dhcp_relays:
+     - host: 10.255.1.1
+     - host: 10.255.1.2
+
+syslog_servers and radius_severs can optionally have the key "port" specified
+to indicate a non-defalut layer4 (TCP/UDP) port number.
 
 etc
 ---

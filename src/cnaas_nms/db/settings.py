@@ -623,3 +623,22 @@ def get_groups(hostname=''):
             continue
         groups.append(group['group']['name'])
     return groups
+
+
+def get_group_regex(group_name: str) -> Optional[str]:
+    """Returns a string containing the regex defining the specified
+    group name if it's found."""
+    settings, origin = get_group_settings()
+    if settings is None:
+        return None
+    if 'groups' not in settings:
+        return None
+    if settings['groups'] is None:
+        return None
+    for group in settings['groups']:
+        if 'name' not in group['group']:
+            continue
+        if 'regex' not in group['group']:
+            continue
+        if group_name == group['group']['name']:
+            return group['group']['regex']

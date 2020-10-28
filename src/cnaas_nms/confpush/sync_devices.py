@@ -38,7 +38,7 @@ def generate_asn(ipv4_address: IPv4Address) -> Optional[int]:
     return PRIVATE_ASN_START + (ipv4_address.packed[2]*256 + ipv4_address.packed[3])
 
 
-def get_evpn_spines(session, settings: dict):
+def get_evpn_peers(session, settings: dict):
     logger = get_logger()
     device_hostnames = []
     for entry in settings['evpn_peers']:
@@ -50,6 +50,11 @@ def get_evpn_spines(session, settings: dict):
     for hostname in device_hostnames:
         dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if dev:
+            ret.append(dev)
+    # If no evpn_peers were specified return a list of all CORE devices instead
+    if not ret:
+        core_devs = session.query(Device).filter(Device.device_type == DeviceType.CORE).all()
+        for dev in core_devs:
             ret.append(dev)
     return ret
 
@@ -98,6 +103,221 @@ def get_mlag_vars(session, dev: Device) -> dict:
     return ret
 
 
+def populate_device_vars(session, dev: Device,
+                         ztp_hostname: Optional[str] = None,
+                         ztp_devtype: Optional[DeviceType] = None):
+    logger = get_logger()
+    device_variables = {
+        'device_model': dev.model,
+        'device_os_version': dev.os_version
+    }
+
+    if ztp_hostname:
+        hostname: str = ztp_hostname
+    else:
+        hostname: str = dev.hostname
+
+    if ztp_devtype:
+        devtype: DeviceType = ztp_devtype
+    elif dev.device_type != DeviceType.UNKNOWN:
+        devtype: DeviceType = dev.device_type
+    else:
+        raise Exception("Can't populate device vars for device type UNKNOWN")
+
+    mgmt_ip = dev.management_ip
+    if not ztp_hostname:
+        if not mgmt_ip:
+            raise Exception("Could not find management IP for device {}".format(hostname))
+        else:
+            device_variables['mgmt_ip'] = str(mgmt_ip)
+
+    if isinstance(dev.platform, str):
+        platform: str = dev.platform
+    else:
+        raise ValueError("Unknown platform: {}".format(dev.platform))
+
+    settings, settings_origin = get_settings(hostname, devtype, dev.model)
+
+    if devtype == DeviceType.ACCESS:
+        if ztp_hostname:
+            access_device_variables = {
+                'interfaces': []
+            }
+        else:
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, dev.management_ip)
+            if not mgmtdomain:
+                raise Exception(
+                    "Could not find appropriate management domain for management_ip: {}".
+                    format(dev.management_ip))
+
+            mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
+            access_device_variables = {
+                'mgmt_vlan_id': mgmtdomain.vlan,
+                'mgmt_gw': str(mgmt_gw_ipif.ip),
+                'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip,
+                                                              mgmt_gw_ipif.network.prefixlen))),
+                'mgmt_ip': str(mgmt_ip),
+                'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
+                'interfaces': []
+            }
+
+        intfs = session.query(Interface).filter(Interface.device == dev).all()
+        intf: Interface
+        for intf in intfs:
+            untagged_vlan = None
+            tagged_vlan_list = []
+            intfdata = None
+            try:
+                ifindexnum: int = Interface.interface_index_num(intf.name)
+            except ValueError as e:
+                ifindexnum: int = 0
+            if intf.data:
+                if 'untagged_vlan' in intf.data:
+                    untagged_vlan = resolve_vlanid(intf.data['untagged_vlan'],
+                                                   settings['vxlans'])
+                if 'tagged_vlan_list' in intf.data:
+                    tagged_vlan_list = resolve_vlanid_list(intf.data['tagged_vlan_list'],
+                                                           settings['vxlans'])
+                intfdata = dict(intf.data)
+            access_device_variables['interfaces'].append({
+                'name': intf.name,
+                'ifclass': intf.configtype.name,
+                'untagged_vlan': untagged_vlan,
+                'tagged_vlan_list': tagged_vlan_list,
+                'data': intfdata,
+                'indexnum': ifindexnum
+            })
+        mlag_vars = get_mlag_vars(session, dev)
+        device_variables = {**device_variables,
+                            **access_device_variables,
+                            **mlag_vars}
+    elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
+        infra_ip = dev.infra_ip
+        asn = generate_asn(infra_ip)
+        fabric_device_variables = {
+            'interfaces': [],
+            'bgp_ipv4_peers': [],
+            'bgp_evpn_peers': [],
+            'mgmtdomains': [],
+            'asn': asn
+        }
+        if mgmt_ip and infra_ip:
+            mgmt_device_variables = {
+                'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
+                'mgmt_prefixlen': 32,
+                'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
+                'infra_ip': str(infra_ip),
+            }
+            fabric_device_variables = {**fabric_device_variables, **mgmt_device_variables}
+        # find fabric neighbors
+        fabric_interfaces = {}
+        for neighbor_d in dev.get_neighbors(session):
+            if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
+                # TODO: support multiple links to the same neighbor?
+                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+                local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
+                neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
+                if local_if:
+                    fabric_interfaces[local_if] = {
+                        'name': local_if,
+                        'ifclass': 'fabric',
+                        'ipv4if': local_ipif,
+                        'peer_hostname': neighbor_d.hostname,
+                        'peer_infra_lo': str(neighbor_d.infra_ip),
+                        'peer_ip': str(neighbor_ip),
+                        'peer_asn': generate_asn(neighbor_d.infra_ip)
+                    }
+                    fabric_device_variables['bgp_ipv4_peers'].append({
+                        'peer_hostname': neighbor_d.hostname,
+                        'peer_infra_lo': str(neighbor_d.infra_ip),
+                        'peer_ip': str(neighbor_ip),
+                        'peer_asn': generate_asn(neighbor_d.infra_ip)
+                    })
+        ifname_peer_map = dev.get_linknet_localif_mapping(session)
+        if 'interfaces' in settings and settings['interfaces']:
+            for intf in settings['interfaces']:
+                try:
+                    ifindexnum: int = Interface.interface_index_num(intf['name'])
+                except ValueError as e:
+                    ifindexnum: int = 0
+                if 'ifclass' not in intf:
+                    continue
+                if intf['ifclass'] == 'downlink':
+                    data = {}
+                    if intf['name'] in ifname_peer_map:
+                        data['description'] = ifname_peer_map[intf['name']]
+                    fabric_device_variables['interfaces'].append({
+                        'name': intf['name'],
+                        'ifclass': intf['ifclass'],
+                        'indexnum': ifindexnum,
+                        'data': data
+                    })
+                elif intf['ifclass'] == 'custom':
+                    fabric_device_variables['interfaces'].append({
+                        'name': intf['name'],
+                        'ifclass': intf['ifclass'],
+                        'config': intf['config'],
+                        'indexnum': ifindexnum
+                    })
+                elif intf['ifclass'] == 'fabric':
+                    if intf['name'] in fabric_interfaces:
+                        fabric_device_variables['interfaces'].append(
+                            {**fabric_interfaces[intf['name']], **{'indexnum': ifindexnum}}
+                        )
+                        del fabric_interfaces[intf['name']]
+                    else:
+                        fabric_device_variables['interfaces'].append({
+                            'name': intf['name'],
+                            'ifclass': intf['ifclass'],
+                            'indexnum': ifindexnum,
+                            'ipv4if': None,
+                            'peer_hostname': 'ztp',
+                            'peer_infra_lo': None,
+                            'peer_ip': None,
+                            'peer_asn': None
+                        })
+        for local_if, data in fabric_interfaces.items():
+            logger.warn(f"Interface {local_if} on device {hostname} not "
+                        "configured as linknet because of wrong ifclass")
+
+        if not ztp_hostname:
+            for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
+                fabric_device_variables['mgmtdomains'].append({
+                    'id': mgmtdom.id,
+                    'ipv4_gw': mgmtdom.ipv4_gw,
+                    'vlan': mgmtdom.vlan,
+                    'description': mgmtdom.description,
+                    'esi_mac': mgmtdom.esi_mac
+                })
+        # populate evpn peers data
+        for neighbor_d in get_evpn_peers(session, settings):
+            if neighbor_d.hostname == dev.hostname:
+                continue
+            fabric_device_variables['bgp_evpn_peers'].append({
+                'peer_hostname': neighbor_d.hostname,
+                'peer_infra_lo': str(neighbor_d.infra_ip),
+                'peer_asn': generate_asn(neighbor_d.infra_ip)
+            })
+        device_variables = {**device_variables,
+                            **fabric_device_variables}
+
+    # Add all environment variables starting with TEMPLATE_SECRET_ to
+    # the list of configuration variables. The idea is to store secret
+    # configuration outside of the templates repository.
+    template_secrets = {}
+    for env in os.environ:
+        if env.startswith('TEMPLATE_SECRET_'):
+            template_secrets[env] = os.environ[env]
+    # Merge all dicts with variables into one, later row overrides
+    # Device variables override any names from settings, for example the
+    # interfaces list from settings are replaced with an interface list from
+    # device variables that contains more information
+    device_variables = {**settings,
+                        **device_variables,
+                        **template_secrets}
+    return device_variables
+
+
 def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
                      job_id: Optional[str] = None,
                      scheduled_by: Optional[str] = None):
@@ -118,154 +338,9 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
     hostname = task.host.name
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-        mgmt_ip = dev.management_ip
-        infra_ip = dev.infra_ip
-        if not mgmt_ip:
-            raise Exception("Could not find management IP for device {}".format(hostname))
-        devtype: DeviceType = dev.device_type
-        if isinstance(dev.platform, str):
-            platform: str = dev.platform
-        else:
-            raise ValueError("Unknown platform: {}".format(dev.platform))
-        settings, settings_origin = get_settings(hostname, devtype, dev.model)
-        device_variables = {
-            'mgmt_ip': str(mgmt_ip),
-            'device_model': dev.model,
-            'device_os_version': dev.os_version
-        }
-
-        if devtype == DeviceType.ACCESS:
-            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, dev.management_ip)
-            if not mgmtdomain:
-                raise Exception(
-                    "Could not find appropriate management domain for management_ip: {}".
-                    format(dev.management_ip))
-
-            mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
-            access_device_variables = {
-                'mgmt_vlan_id': mgmtdomain.vlan,
-                'mgmt_gw': str(mgmt_gw_ipif.ip),
-                'mgmt_ipif': str(IPv4Interface('{}/{}'.format(mgmt_ip,
-                                                              mgmt_gw_ipif.network.prefixlen))),
-                'mgmt_prefixlen': int(mgmt_gw_ipif.network.prefixlen),
-                'interfaces': []
-            }
-            intfs = session.query(Interface).filter(Interface.device == dev).all()
-            intf: Interface
-            for intf in intfs:
-                untagged_vlan = None
-                tagged_vlan_list = []
-                intfdata = None
-                if intf.data:
-                    if 'untagged_vlan' in intf.data:
-                        untagged_vlan = resolve_vlanid(intf.data['untagged_vlan'],
-                                                       settings['vxlans'])
-                    if 'tagged_vlan_list' in intf.data:
-                        tagged_vlan_list = resolve_vlanid_list(intf.data['tagged_vlan_list'],
-                                                               settings['vxlans'])
-                    intfdata = dict(intf.data)
-                access_device_variables['interfaces'].append({
-                    'name': intf.name,
-                    'ifclass': intf.configtype.name,
-                    'untagged_vlan': untagged_vlan,
-                    'tagged_vlan_list': tagged_vlan_list,
-                    'data': intfdata
-                })
-            mlag_vars = get_mlag_vars(session, dev)
-            device_variables = {**access_device_variables, **device_variables, **mlag_vars}
-        elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
-            asn = generate_asn(infra_ip)
-            fabric_device_variables = {
-                'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
-                'mgmt_prefixlen': 32,
-                'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
-                'infra_ip': str(infra_ip),
-                'interfaces': [],
-                'bgp_ipv4_peers': [],
-                'bgp_evpn_peers': [],
-                'mgmtdomains': [],
-                'asn': asn
-            }
-            ifname_peer_map = dev.get_linknet_localif_mapping(session)
-            if 'interfaces' in settings and settings['interfaces']:
-                for intf in settings['interfaces']:
-                    try:
-                        ifindexnum: int = Interface.interface_index_num(intf['name'])
-                    except ValueError as e:
-                        ifindexnum: int = 0
-                    if 'ifclass' in intf and intf['ifclass'] == 'downlink':
-                        data = {}
-                        if intf['name'] in ifname_peer_map:
-                            data['description'] = ifname_peer_map[intf['name']]
-                        fabric_device_variables['interfaces'].append({
-                            'name': intf['name'],
-                            'ifclass': intf['ifclass'],
-                            'indexnum': ifindexnum,
-                            'data': data
-                        })
-                    elif 'ifclass' in intf and intf['ifclass'] == 'custom':
-                        fabric_device_variables['interfaces'].append({
-                            'name': intf['name'],
-                            'ifclass': intf['ifclass'],
-                            'config': intf['config'],
-                            'indexnum': ifindexnum
-                        })
-            for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
-                fabric_device_variables['mgmtdomains'].append({
-                    'id': mgmtdom.id,
-                    'ipv4_gw': mgmtdom.ipv4_gw,
-                    'vlan': mgmtdom.vlan,
-                    'description': mgmtdom.description,
-                    'esi_mac': mgmtdom.esi_mac
-                })
-            # find fabric neighbors
-            fabric_links = []
-            for neighbor_d in dev.get_neighbors(session):
-                if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
-                    # TODO: support multiple links to the same neighbor?
-                    local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-                    local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
-                    neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
-                    if local_if:
-                        fabric_device_variables['interfaces'].append({
-                            'name': local_if,
-                            'ifclass': 'fabric',
-                            'ipv4if': local_ipif,
-                            'peer_hostname': neighbor_d.hostname,
-                            'peer_infra_lo': str(neighbor_d.infra_ip),
-                            'peer_ip': str(neighbor_ip),
-                            'peer_asn': generate_asn(neighbor_d.infra_ip)
-                        })
-                        fabric_device_variables['bgp_ipv4_peers'].append({
-                            'peer_hostname': neighbor_d.hostname,
-                            'peer_infra_lo': str(neighbor_d.infra_ip),
-                            'peer_ip': str(neighbor_ip),
-                            'peer_asn': generate_asn(neighbor_d.infra_ip)
-                        })
-            # populate evpn peers data
-            for neighbor_d in get_evpn_spines(session, settings):
-                if neighbor_d.hostname == dev.hostname:
-                    continue
-                fabric_device_variables['bgp_evpn_peers'].append({
-                    'peer_hostname': neighbor_d.hostname,
-                    'peer_infra_lo': str(neighbor_d.infra_ip),
-                    'peer_asn': generate_asn(neighbor_d.infra_ip)
-                })
-            device_variables = {**fabric_device_variables, **device_variables}
-
-    # Add all environment variables starting with TEMPLATE_SECRET_ to
-    # the list of configuration variables. The idea is to store secret
-    # configuration outside of the templates repository.
-    template_secrets = {}
-    for env in os.environ:
-        if env.startswith('TEMPLATE_SECRET_'):
-            template_secrets[env] = os.environ[env]
-
-    # Merge device variables with settings before sending to template rendering
-    # Device variables override any names from settings, for example the
-    # interfaces list from settings are replaced with an interface list from
-    # device variables that contains more information
-    template_vars = {**settings, **device_variables, **template_secrets}
+        template_vars = populate_device_vars(session, dev)
+        platform = dev.platform
+        devtype = dev.device_type
 
     with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
         repo_config = yaml.safe_load(db_file)
@@ -403,8 +478,24 @@ def update_config_hash(task):
             logger.debug("Config hash for {} updated to {}".format(task.host.name, new_config_hash))
 
 
+def confcheck_devices(hostnames: List[str], job_id=None):
+    nr = cnaas_init()
+    nr_filtered, dev_count, skipped_hostnames = \
+        inventory_selector(nr, hostname=hostnames)
+
+    try:
+        nrresult = nr_filtered.run(task=sync_check_hash,
+                                   job_id=job_id)
+    except Exception as e:
+        raise e
+    else:
+        if nrresult.failed:
+            raise Exception('Configuration hash check failed for {}'.format(
+                ' '.join(nrresult.failed_hosts.keys())))
+
+
 @job_wrapper
-def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = None,
+def sync_devices(hostnames: Optional[List[str]] = None, device_type: Optional[str] = None,
                  group: Optional[str] = None, dry_run: bool = True, force: bool = False,
                  auto_push: bool = False, job_id: Optional[int] = None,
                  scheduled_by: Optional[str] = None, resync: bool = False) -> NornirJobResult:
@@ -432,9 +523,9 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
     nr = cnaas_init()
     dev_count = 0
     skipped_hostnames = []
-    if hostname:
+    if hostnames:
         nr_filtered, dev_count, skipped_hostnames = \
-            inventory_selector(nr, hostname=hostname)
+            inventory_selector(nr, hostname=hostnames)
     else:
         if device_type:
             nr_filtered, dev_count, skipped_hostnames = \
@@ -566,7 +657,7 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
             format(total_change_score, dry_run, len(device_list), len(changed_hosts)))
 
     next_job_id = None
-    if auto_push and len(device_list) == 1 and hostname and dry_run:
+    if auto_push and len(device_list) == 1 and hostnames and dry_run:
         if not changed_hosts:
             logger.info("None of the selected host has any changes (diff), skipping auto-push")
         elif total_change_score < AUTOPUSH_MAX_SCORE:
@@ -575,11 +666,11 @@ def sync_devices(hostname: Optional[str] = None, device_type: Optional[str] = No
                 'cnaas_nms.confpush.sync_devices:sync_devices',
                 when=0,
                 scheduled_by=scheduled_by,
-                kwargs={'hostname': hostname, 'dry_run': False, 'force': force})
+                kwargs={'hostnames': hostnames, 'dry_run': False, 'force': force})
             logger.info(f"Auto-push scheduled live-run of commit as job id {next_job_id}")
         else:
             logger.info(
-                f"Auto-push of config to device {hostname} failed because change score of "
+                f"Auto-push of config to device {hostnames} failed because change score of "
                 f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
             )
 

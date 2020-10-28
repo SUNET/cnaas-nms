@@ -115,3 +115,45 @@ device using the credentials and IP address saved in the database. The API
 will retry connecting to the device 5 times with increasing delay between
 each attempt. If you want to trigger more retries at a later point you can manually
 call the discover_device API call and send the MAC and DHCP IP of the device.
+
+
+Zero-touch provisioning of fabric switch
+----------------------------------------
+
+You can also provision a new switch to be part of the (EVPN/VXLAN) fabric, that
+is a switch with device_type DIST or CORE. Interfaces that connects between
+CORE and DIST devices should be configured as ifclass "fabric" on both ends.
+You can configure this in the settings repository via a device specific
+setting or via a model specific setting (model setting might be preferable for
+ZTP since you don't need to pre-provision new device hostnames in the settings
+repository).
+
+To verify that interfaces are configured correctly and that LLDP neighbors
+are seen you can use the device_initcheck API call (see devices API reference):
+
+::
+
+   curl https://localhost/api/v1.0/device_initcheck/45 -d '{"hostname": "dist3", "device_type": "DIST"}' -X POST -H "Content-Type: application/json"
+
+If all parameters are compatible you can start initialization:
+
+::
+
+   curl https://localhost/api/v1.0/device_init/45 -d '{"hostname": "dist3", "device_type": "DIST"}' -X POST -H "Content-Type: application/json"
+
+If LLDP neighbors are not seen or are not of the expected type (DIST type
+expect neighbors of type CORE and vice versa) you can manually specify the
+neighbors you want to verify connectivity to, but make sure you know what you
+are doing and maybe set up console access if something goes wrong here:
+
+::
+
+   curl https://localhost/api/v1.0/device_init/45 -d '{"hostname": "dist3", "device_type": "DIST", "neighbors": ["dist1", "dist2"]}' -X POST -H "Content-Type: application/json"
+
+If you don't expect to see any LLDP neighbors at all and instead have
+pre-configured some kind of uplink interfaces via ifclass custom interfaces
+in settings for this device, you could also specify an empty list as
+neighbors and in this case init will continue even if no LLDP neighbors were
+detected. This is also very risky since you can't verify that interfaces
+are connected correctly before sending configuration and possibly losing
+connectivity to the device.

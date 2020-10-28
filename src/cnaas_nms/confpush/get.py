@@ -13,7 +13,7 @@ from nornir.plugins.tasks.networking import napalm_get
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
@@ -106,12 +106,13 @@ def get_uplinks(session, hostname: str) -> Dict[str, str]:
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.device_type == DeviceType.DIST:
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-            # TODO: check that dist interface is configured as downlink
+            # Neighbor interface ifclass is already verified in
+            # update_linknets -> verify_peer_iftype
             if local_if:
                 uplinks[local_if] = neighbor_d.hostname
         elif neighbor_d.device_type == DeviceType.ACCESS:
             intfs: Interface = session.query(Interface).filter(Interface.device == neighbor_d). \
-                filter(InterfaceConfigType == InterfaceConfigType.ACCESS_DOWNLINK).all()
+                filter(Interface.configtype == InterfaceConfigType.ACCESS_DOWNLINK).all()
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
             remote_if = neighbor_d.get_neighbor_local_ifname(session, dev)
 
@@ -289,7 +290,8 @@ def verify_peer_iftype(local_hostname: str, local_devtype: DeviceType,
                                                             intf['ifclass']))
 
 
-def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool = False):
+def update_linknets(session, hostname: str, devtype: DeviceType,
+                    ztp_hostname: Optional[str] = None, dry_run: bool = False):
     """Update linknet data for specified device using LLDP neighbor data.
     """
     logger = get_logger()
@@ -297,6 +299,10 @@ def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool =
     if result.failed:
         raise Exception
     neighbors = result.result['lldp_neighbors']
+    if ztp_hostname:
+        settings_hostname = ztp_hostname
+    else:
+        settings_hostname = hostname
 
     ret = []
 
@@ -309,16 +315,27 @@ def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool =
         remote_device_inst: Device = session.query(Device).\
             filter(Device.hostname == data[0]['hostname']).one_or_none()
         if not remote_device_inst:
-            logger.info(f"Unknown connected device: {data[0]['hostname']}")
+            logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
             continue
+        if remote_device_inst.state in [DeviceState.DISCOVERED, DeviceState.INIT]:
+            # In case of MLAG init the peer does not have the correct devtype set yet,
+            # use same devtype as local device instead
+            remote_devtype = devtype
+        elif remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
+            logger.debug("Neighbor device has invalid state, ignoring: {}".format(
+                data[0]['hostname']))
+            continue
+        else:
+            remote_devtype = remote_device_inst.device_type
+
         logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
-        local_device_settings, _ = get_settings(hostname,
+        local_device_settings, _ = get_settings(settings_hostname,
                                                 devtype,
                                                 local_device_inst.model
                                                 )
         remote_device_settings, _ = get_settings(remote_device_inst.hostname,
-                                                 remote_device_inst.device_type,
+                                                 remote_devtype,
                                                  remote_device_inst.model
                                                  )
 
@@ -377,9 +394,12 @@ def update_linknets(session, hostname: str, devtype: DeviceType, dry_run: bool =
             interface_a=local_if,
             hostname_b=remote_device_inst.hostname,
             interface_b=data[0]['port'],
-            ipv4_network=ipv4_network
+            ipv4_network=ipv4_network,
+            strict_check=not dry_run  # Don't do strict check if this is a dry_run
         )
         if not dry_run:
+            local_device_inst.synchronized = False
+            remote_device_inst.synchronized = False
             session.add(new_link)
             session.commit()
         else:

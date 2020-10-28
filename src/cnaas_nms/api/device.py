@@ -248,12 +248,39 @@ class DeviceInitApi(Resource):
         except ValueError as e:
             return empty_result(status='error', data=str(e)), 400
 
+        # If device init is already in progress, reschedule a new step2 (connectivity check)
+        # instead of trying to restart initialization
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if dev and dev.state == DeviceState.INIT and \
+                    dev.management_ip and dev.device_type is not DeviceType.UNKNOWN:
+                scheduler = Scheduler()
+                job_id = scheduler.add_onetime_job(
+                    'cnaas_nms.confpush.init_device:init_device_step2',
+                    when=1,
+                    scheduled_by=get_jwt_identity(),
+                    kwargs={'device_id': device_id, 'iteration': 1})
+
+                logger.info("Re-scheduled init step 2 for {} as job # {}".format(
+                    device_id, job_id
+                ))
+                res = empty_result(data=f"Re-scheduled init step 2 for device_id { device_id }")
+                res['job_id'] = job_id
+                return res
+
         if job_kwargs['device_type'] == DeviceType.ACCESS.name:
             del job_kwargs['device_type']
             del job_kwargs['neighbors']
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
                 'cnaas_nms.confpush.init_device:init_access_device_step1',
+                when=1,
+                scheduled_by=get_jwt_identity(),
+                kwargs=job_kwargs)
+        elif job_kwargs['device_type'] in [DeviceType.CORE.name, DeviceType.DIST.name]:
+            scheduler = Scheduler()
+            job_id = scheduler.add_onetime_job(
+                'cnaas_nms.confpush.init_device:init_fabric_device_step1',
                 when=1,
                 scheduled_by=get_jwt_identity(),
                 kwargs=job_kwargs)
@@ -329,6 +356,7 @@ class DeviceInitCheckApi(Resource):
         try:
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
             target_devtype = DeviceType[parsed_args['device_type']]
+            target_hostname = parsed_args['new_hostname']
         except ValueError as e:
             return empty_result(status='error', data=str(e)), 400
 
@@ -345,6 +373,7 @@ class DeviceInitCheckApi(Resource):
                     session,
                     hostname=dev.hostname,
                     devtype=target_devtype,
+                    ztp_hostname=target_hostname,
                     dry_run=True
                 )
                 ret['linknets_compatible'] = True
@@ -356,7 +385,7 @@ class DeviceInitCheckApi(Resource):
 
             try:
                 if 'linknets' in ret:
-                    cnaas_nms.confpush.init_device.pre_init_check_neighbors(
+                    ret['neighbors'] = cnaas_nms.confpush.init_device.pre_init_check_neighbors(
                         session, dev, target_devtype,
                         ret['linknets'], parsed_args['neighbors'])
                     ret['neighbors_compatible'] = True
@@ -444,7 +473,7 @@ class DeviceSyncApi(Resource):
                     status='error',
                     data=f"Hostname '{hostname}' not found or is not a managed device"
                 ), 400
-            kwargs['hostname'] = hostname
+            kwargs['hostnames'] = [hostname]
             what = hostname
         elif 'device_type' in json_data:
             devtype_str = str(json_data['device_type']).upper()

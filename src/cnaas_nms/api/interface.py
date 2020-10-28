@@ -31,8 +31,12 @@ class InterfaceApi(Resource):
             result['data']['hostname'] = dev.hostname
             intfs = session.query(Interface).filter(Interface.device == dev).all()
             intf: Interface
+            interfaces = []
             for intf in intfs:
-                result['data']['interfaces'].append(intf.as_dict())
+                ifdict = intf.as_dict()
+                ifdict['indexnum'] = Interface.interface_index_num(ifdict['name'])
+                interfaces.append(ifdict)
+            result['data']['interfaces'] = sorted(interfaces, key=lambda i: i['indexnum'])
         return result
 
     @jwt_required

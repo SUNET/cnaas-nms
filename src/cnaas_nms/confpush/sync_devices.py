@@ -167,6 +167,10 @@ def populate_device_vars(session, dev: Device,
             untagged_vlan = None
             tagged_vlan_list = []
             intfdata = None
+            try:
+                ifindexnum: int = Interface.interface_index_num(intf.name)
+            except ValueError as e:
+                ifindexnum: int = 0
             if intf.data:
                 if 'untagged_vlan' in intf.data:
                     untagged_vlan = resolve_vlanid(intf.data['untagged_vlan'],
@@ -180,7 +184,8 @@ def populate_device_vars(session, dev: Device,
                 'ifclass': intf.configtype.name,
                 'untagged_vlan': untagged_vlan,
                 'tagged_vlan_list': tagged_vlan_list,
-                'data': intfdata
+                'data': intfdata,
+                'indexnum': ifindexnum
             })
         mlag_vars = get_mlag_vars(session, dev)
         device_variables = {**device_variables,

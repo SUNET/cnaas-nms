@@ -3,8 +3,9 @@ import json
 import requests
 
 from datetime import datetime
+from typing import Optional
 
-from flask import request
+from flask import request, make_response
 from flask_restx import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -14,6 +15,9 @@ from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.get_apidata import get_apidata
 from cnaas_nms.version import __api_version__
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
+from cnaas_nms.db.device import Device
+from cnaas_nms.db.settings import get_groups
 
 logger = get_logger()
 
@@ -263,19 +267,36 @@ class FirmwareUpgradeApi(Resource):
                 return empty_result(status='error',
                                     data='filename should be a string')
 
-        if 'group' in json_data:
-            if isinstance(json_data['group'], str):
-                kwargs['group'] = json_data['group']
-            else:
-                return empty_result(status='error',
-                                    data='group should be a string')
+        total_count: Optional[int] = None
+        nr = cnaas_init()
 
         if 'hostname' in json_data:
-            if isinstance(json_data['hostname'], str):
-                kwargs['hostname'] = json_data['hostname']
-            else:
-                return empty_result(status='error',
-                                    data='hostname should be a string')
+            hostname = str(json_data['hostname'])
+            if not Device.valid_hostname(hostname):
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' is not a valid hostname"
+                ), 400
+            _, total_count, _ = inventory_selector(nr, hostname=hostname)
+            if total_count != 1:
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' not found or is not a managed device"
+                ), 400
+            kwargs['hostname'] = hostname
+        elif 'group' in json_data:
+            group_name = str(json_data['group'])
+            if group_name not in get_groups():
+                return empty_result(status='error', data='Could not find a group with name {}'.format(group_name))
+            kwargs['group'] = group_name
+            _, total_count, _ = inventory_selector(nr, resync=kwargs['resync'],
+                                                   group=group_name)
+            kwargs['group'] = group_name
+        else:
+            return empty_result(
+                status='error',
+                data=f"No devices to upgrade were specified"
+            ), 400
 
         if 'start_at' in json_data:
             try:
@@ -302,7 +323,11 @@ class FirmwareUpgradeApi(Resource):
         res = empty_result(data='Scheduled job to upgrade devices')
         res['job_id'] = job_id
 
-        return res
+        resp = make_response(json.dumps(res), 200)
+        if total_count:
+            resp.headers['X-Total-Count'] = total_count
+        resp.headers['Content-Type'] = "application/json"
+        return resp
 
 
 # Firmware

@@ -4,6 +4,7 @@ from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
+from cnaas_nms.scheduler.thread_data import set_thread_data
 
 from nornir.plugins.functions.text import print_result
 from nornir.plugins.tasks.networking import napalm_cli, napalm_get
@@ -19,10 +20,7 @@ class FirmwareAlreadyActiveException(Exception):
     pass
 
 
-logger = get_logger()
-
-
-def arista_pre_flight_check(task) -> str:
+def arista_pre_flight_check(task, job_id: Optional[str] = None) -> str:
     """
     NorNir task to do some basic checks before attempting to upgrade a switch.
 
@@ -33,6 +31,8 @@ def arista_pre_flight_check(task) -> str:
         String, describing the result
 
     """
+    set_thread_data(job_id)
+    logger = get_logger()
     logger.info("Pre-flight check for {}".format(task.host.name))
 
     flash_diskspace = 'bash timeout 5 df /mnt/flash | awk \'{print $4}\''
@@ -55,7 +55,7 @@ def arista_pre_flight_check(task) -> str:
     return "Pre-flight check done."
 
 
-def arista_post_flight_check(task, post_waittime: int) -> str:
+def arista_post_flight_check(task, post_waittime: int, job_id: Optional[str] = None) -> str:
     """
     NorNir task to update device facts after a switch have been upgraded
 
@@ -67,6 +67,8 @@ def arista_post_flight_check(task, post_waittime: int) -> str:
         String, describing the result
 
     """
+    set_thread_data(job_id)
+    logger = get_logger()
     logger.info('Post-flight check will wait {} seconds before updating {}'.format(post_waittime, task.host.name))
     time.sleep(int(post_waittime))
 
@@ -79,7 +81,8 @@ def arista_post_flight_check(task, post_waittime: int) -> str:
             prev_os_version = dev.os_version
             dev.os_version = os_version
         if prev_os_version == os_version:
-            raise Exception("OS version did not change, activation failed?")
+            logger.error("OS version did not change, activation failed on {}".format(task.host.name))
+            raise Exception("OS version did not change, activation failed")
     except Exception as e:
         return 'Post-flight failed on device {}, could not update OS version: {}'.format(
             task.host.name, str(e))
@@ -89,7 +92,8 @@ def arista_post_flight_check(task, post_waittime: int) -> str:
                                                                                            os_version)
 
 
-def arista_firmware_download(task, filename: str, httpd_url: str) -> str:
+def arista_firmware_download(task, filename: str, httpd_url: str,
+                             job_id: Optional[str] = None) -> str:
     """
     NorNir task to download firmware image from the HTTP server.
 
@@ -102,6 +106,8 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> str:
         String, describing the result
 
     """
+    set_thread_data(job_id)
+    logger = get_logger()
     logger.info('Downloading firmware for {}'.format(task.host.name))
 
     url = httpd_url + '/' + filename
@@ -135,7 +141,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str) -> str:
     return "Firmware download done."
 
 
-def arista_firmware_activate(task, filename: str) -> str:
+def arista_firmware_activate(task, filename: str, job_id: Optional[str] = None) -> str:
     """
     NorNir task to modify the boot config for new firmwares.
 
@@ -147,6 +153,8 @@ def arista_firmware_activate(task, filename: str) -> str:
         String, describing the result
 
     """
+    set_thread_data(job_id)
+    logger = get_logger()
     try:
         boot_file_cmd = 'boot system flash:{}'.format(filename)
 
@@ -189,7 +197,7 @@ def arista_firmware_activate(task, filename: str) -> str:
     return "Firmware activate done."
 
 
-def arista_device_reboot(task) -> str:
+def arista_device_reboot(task, job_id: Optional[str] = None) -> str:
     """
     NorNir task to reboot a single device.
 
@@ -200,6 +208,8 @@ def arista_device_reboot(task) -> str:
         String, describing the result
 
     """
+    set_thread_data(job_id)
+    logger = get_logger()
     try:
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#')
@@ -231,10 +241,12 @@ def device_upgrade_task(task, job_id: str,
 
     # If pre-flight is selected, execute the pre-flight task which
     # will verify the amount of disk space and so on.
+    set_thread_data(job_id)
+    logger = get_logger()
     if pre_flight:
         logger.info('Running pre-flight check on {}'.format(task.host.name))
         try:
-            res = task.run(task=arista_pre_flight_check)
+            res = task.run(task=arista_pre_flight_check, job_id=job_id)
         except Exception as e:
             logger.exception("Exception while doing pre-flight check: {}".
                              format(str(e)))
@@ -252,7 +264,7 @@ def device_upgrade_task(task, job_id: str,
                                                            task.host.name))
         try:
             res = task.run(task=arista_firmware_download, filename=filename,
-                           httpd_url=url)
+                           httpd_url=url, job_id=job_id)
             print_result(res)
         except Exception as e:
             logger.exception('Exception while downloading firmware: {}'.format(
@@ -266,7 +278,7 @@ def device_upgrade_task(task, job_id: str,
         logger.info('Activating firmware {} on {}'.format(
             filename, task.host.name))
         try:
-            res = task.run(task=arista_firmware_activate, filename=filename)
+            res = task.run(task=arista_firmware_activate, filename=filename, job_id=job_id)
             print_result(res)
         except FirmwareAlreadyActiveException as e:
             already_active = True
@@ -280,7 +292,7 @@ def device_upgrade_task(task, job_id: str,
     if reboot and not already_active:
         logger.info('Rebooting {}'.format(task.host.name))
         try:
-            res = task.run(task=arista_device_reboot)
+            res = task.run(task=arista_device_reboot, job_id=job_id)
         except Exception as e:
             pass
 
@@ -289,7 +301,7 @@ def device_upgrade_task(task, job_id: str,
     if post_flight and not already_active:
         logger.info('Running post-flight check on {}'.format(task.host.name))
         try:
-            res = task.run(task=arista_post_flight_check, post_waittime=post_waittime)
+            res = task.run(task=arista_post_flight_check, post_waittime=post_waittime, job_id=job_id)
         except Exception as e:
             logger.exception('Failed to run post-flight check: {}'.format(str(e)))
         else:
@@ -316,6 +328,7 @@ def device_upgrade(download: Optional[bool] = False,
                    reboot: Optional[bool] = False,
                    scheduled_by: Optional[str] = None) -> NornirJobResult:
 
+    logger = get_logger()
     nr = cnaas_init()
     if hostname:
         nr_filtered, dev_count, _ = inventory_selector(nr, hostname=hostname)

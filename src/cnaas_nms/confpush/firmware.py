@@ -228,8 +228,9 @@ def arista_device_reboot(task, job_id: Optional[str] = None) -> str:
 
 
 def device_upgrade_task(task, job_id: str,
-                        reboot: False, filename: str,
+                        filename: str,
                         url: str,
+                        reboot: Optional[bool] = False,
                         download: Optional[bool] = False,
                         pre_flight: Optional[bool] = False,
                         post_flight: Optional[bool] = False,

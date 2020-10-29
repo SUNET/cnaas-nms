@@ -33,7 +33,6 @@ def arista_pre_flight_check(task, job_id: Optional[str] = None) -> str:
     """
     set_thread_data(job_id)
     logger = get_logger()
-    logger.info("Pre-flight check for {}".format(task.host.name))
 
     flash_diskspace = 'bash timeout 5 df /mnt/flash | awk \'{print $4}\''
     flash_cleanup = 'bash timeout 30 ls -t /mnt/flash/*.swi | tail -n +2 | grep -v `cut -d"/" -f2 /mnt/flash/boot-config` | xargs rm -f'
@@ -69,8 +68,8 @@ def arista_post_flight_check(task, post_waittime: int, job_id: Optional[str] = N
     """
     set_thread_data(job_id)
     logger = get_logger()
-    logger.info('Post-flight check will wait {} seconds before updating {}'.format(post_waittime, task.host.name))
     time.sleep(int(post_waittime))
+    logger.info('Post-flight check wait ({}s) complete, starting check for {}'.format(post_waittime, task.host.name))
 
     try:
         res = task.run(napalm_get, getters=["facts"])
@@ -84,12 +83,11 @@ def arista_post_flight_check(task, post_waittime: int, job_id: Optional[str] = N
             logger.error("OS version did not change, activation failed on {}".format(task.host.name))
             raise Exception("OS version did not change, activation failed")
     except Exception as e:
-        return 'Post-flight failed on device {}, could not update OS version: {}'.format(
-            task.host.name, str(e))
+        logger.exception("Could not update OS version on device {}: {}".format(task.host.name, str(e)))
+        return 'Post-flight failed, could not update OS version: {}'.format(str(e))
 
-    return "Post-flight, OS version updated for device {}, updated from {} to {}.".format(task.host.name,
-                                                                                           prev_os_version,
-                                                                                           os_version)
+    return "Post-flight, OS version updated from {} to {}.".format(prev_os_version,
+                                                                   os_version)
 
 
 def arista_firmware_download(task, filename: str, httpd_url: str,
@@ -108,7 +106,6 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
     """
     set_thread_data(job_id)
     logger = get_logger()
-    logger.info('Downloading firmware for {}'.format(task.host.name))
 
     url = httpd_url + '/' + filename
 
@@ -134,7 +131,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
                        expect_string='.*Copy completed successfully.*')
         print_result(res)
     except Exception as e:
-        logger.info('{} failed to download firmware: {}'.format(
+        logger.error('{} failed to download firmware: {}'.format(
             task.host.name, e))
         raise Exception('Failed to download firmware')
 
@@ -191,7 +188,7 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[str] = None) 
             raise Exception('Firmware not activated properly on {}'.format(task.host.name))
 
     except Exception as e:
-        logger.exception('Failed to activate firmware: {}'.format(str(e)))
+        logger.exception('Failed to activate firmware on {}: {}'.format(task.host.name, str(e)))
         raise Exception('Failed to activate firmware')
 
     return "Firmware activate done."
@@ -299,7 +296,8 @@ def device_upgrade_task(task, job_id: str,
     # If post-flight is selected, execute the post-flight task which
     # will update device facts for the selected devices
     if post_flight and not already_active:
-        logger.info('Running post-flight check on {}'.format(task.host.name))
+        logger.info('Running post-flight check on {}, delay start by {}s'.format(
+            task.host.name, post_waittime))
         try:
             res = task.run(task=arista_post_flight_check, post_waittime=post_waittime, job_id=job_id)
         except Exception as e:

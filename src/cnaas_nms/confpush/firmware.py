@@ -339,6 +339,8 @@ def device_upgrade(download: Optional[bool] = False,
     logger.info("Device(s) selected for firmware upgrade ({}): {}".format(
         dev_count, ", ".join(device_list)
     ))
+    logger.info(f"Upgrade tasks selected: pre_flight = {pre_flight}, download = {download}, " +
+                f"activate = {activate}, reboot = {reboot}, post_flight = {post_flight}")
 
     # Make sure we only upgrade Arista access switches
     for device in device_list:

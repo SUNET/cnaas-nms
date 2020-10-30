@@ -171,7 +171,7 @@ class Scheduler(object, metaclass=SingletonType):
             func_qualname = str(func.__qualname__)
         else:
             func_qualname = str(func)
-        func_name = func_qualname.split('.')[-1]
+        func_name = func_qualname.split(':')[-1]
 
         # Append (dry_run) to function name if set, so we can distinguish dry_run jobs
         try:

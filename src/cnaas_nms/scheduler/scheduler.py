@@ -147,6 +147,11 @@ class Scheduler(object, metaclass=SingletonType):
         """Schedule a job to run at a later time on the mule worker or
         local scheduler depending on setup.
 
+        Some extra checks against kwargs are performed here. If kwarg
+        with name 'dry_run' is included, (dry_run) is appended to function
+        name. If kwarg job_comment or job_ticket_ref are included, those
+        fields in the job will be populated.
+
         Args:
             func: The function to call
             when: Optional number of seconds to wait before starting job
@@ -162,10 +167,32 @@ class Scheduler(object, metaclass=SingletonType):
             trigger = None
             run_date = None
 
+        if isinstance(func, FunctionType):
+            func_qualname = str(func.__qualname__)
+        else:
+            func_qualname = str(func)
+        func_name = func_qualname.split('.')[-1]
+
+        # Append (dry_run) to function name if set, so we can distinguish dry_run jobs
+        try:
+            if kwargs['dry_run']:
+                func_name += " (dry_run)"
+        except Exception:
+            pass
+
         with sqla_session() as session:
             job = Job()
             if run_date:
                 job.scheduled_time = run_date
+            job.function_name = func_name
+            if scheduled_by is None:
+                scheduled_by = 'unknown'
+            job_comment = kwargs.pop('job_comment', None)
+            if job_comment and isinstance(job_comment, str):
+                job.comment = job_comment[:255]
+            job_ticket_ref = kwargs.pop('job_ticket_ref', None)
+            if job_ticket_ref and isinstance(job_comment, str):
+                job.ticket_ref = job_ticket_ref[:32]
             session.add(job)
             session.flush()
             job_id = job.id
@@ -179,16 +206,13 @@ class Scheduler(object, metaclass=SingletonType):
                 logger.exception("use_mule is set but not running in uwsgi")
                 raise e
             args = dict(kwargs)
-            if isinstance(func, FunctionType):
-                args['func'] = str(func.__qualname__)
-            else:
-                args['func'] = str(func)
+            args['func'] = func_qualname
             args['trigger'] = trigger
             args['when'] = when
             args['id'] = str(job_id)
             uwsgi.mule_msg(json.dumps(args))
             return job_id
         else:
-            self.add_local_job(func, trigger=trigger, kwargs=kwargs,
-                               id=str(job_id), run_date=run_date)
+            self.add_local_job(func, trigger=trigger, kwargs=kwargs, id=str(job_id),
+                               run_date=run_date, name=func_qualname)
             return job_id

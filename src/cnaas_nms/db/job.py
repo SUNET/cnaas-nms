@@ -84,18 +84,20 @@ class Job(cnaas_nms.db.base.Base):
             d[col.name] = value
         return d
 
-    def start_job(self, function_name: str, scheduled_by: str):
-        self.function_name = function_name
+    def start_job(self, function_name: Optional[str] = None, scheduled_by: Optional[str] = None):
         self.start_time = datetime.datetime.utcnow()
         self.status = JobStatus.RUNNING
         self.finished_devices = []
-        self.scheduled_by = scheduled_by
+        if function_name:
+            self.function_name = function_name
+        if scheduled_by:
+            self.scheduled_by = scheduled_by
         try:
             json_data = json.dumps({
                 "job_id": self.id,
                 "status": "RUNNING",
-                "function_name": function_name,
-                "scheduled_by": scheduled_by
+                "function_name": self.function_name,
+                "scheduled_by": self.scheduled_by
             })
             add_event(json_data=json_data, event_type="update", update_type="job")
         except Exception as e:

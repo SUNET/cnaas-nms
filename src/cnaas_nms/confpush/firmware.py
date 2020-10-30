@@ -134,8 +134,8 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
         if 'Copy completed successfully' in res.result:
             return "Firmware download done."
         else:
-            logger.error("Firmware download failed on {}: {}".format(
-                task.host.name, res.result))
+            logger.debug("Firmware download failed on {} ('{}'): {}".format(
+                task.host.name, firmware_download_cmd, res.result))
             raise Exception("Copy command did not complete successfully: {}".format(
                 ', '.join(filter(lambda x: x.startswith('get:'), res.result.splitlines()))
             ))

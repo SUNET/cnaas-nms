@@ -301,7 +301,7 @@ class FirmwareUpgradeApi(Resource):
             try:
                 time_start = datetime.strptime(json_data['start_at'],
                                                date_format)
-                time_now = datetime.now()
+                time_now = datetime.utcnow()
 
                 if time_start < time_now:
                     return empty_result(status='error',

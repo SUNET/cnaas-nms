@@ -307,7 +307,7 @@ class FirmwareUpgradeApi(Resource):
                     return empty_result(status='error',
                                         data='start_at must be in the future')
                 time_diff = time_start - time_now
-                seconds = time_diff.seconds
+                seconds = int(time_diff.total_seconds())
             except Exception as e:
                 logger.exception(f'Exception when scheduling job: {e}')
                 return empty_result(status='error',

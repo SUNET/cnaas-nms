@@ -187,6 +187,7 @@ class Scheduler(object, metaclass=SingletonType):
             job.function_name = func_name
             if scheduled_by is None:
                 scheduled_by = 'unknown'
+            job.scheduled_by = scheduled_by
             job_comment = kwargs.pop('job_comment', None)
             if job_comment and isinstance(job_comment, str):
                 job.comment = job_comment[:255]

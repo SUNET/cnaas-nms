@@ -7,7 +7,7 @@ from pytz import utc
 from typing import Optional, Union
 from types import FunctionType
 
-from apscheduler.schedulers.background import BackgroundScheduler, BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -112,17 +112,45 @@ class Scheduler(object, metaclass=SingletonType):
         if self._scheduler and not self.use_mule:
             return self._scheduler.shutdown()
 
-    def add_job(self, func, **kwargs):
+    def add_local_job(self, func, **kwargs):
+        """Add job to local scheduler."""
         return self._scheduler.add_job(func, **kwargs)
+
+    def remove_local_job(self, job_id):
+        """Remove job from local scheduler."""
+        return self._scheduler.remove_job(str(job_id))
+
+    def remove_scheduled_job(self, job_id, abort_message="removed"):
+        """Remove scheduled job from mule worker or local scheduler depending
+        on setup."""
+        if self.use_mule:
+            try:
+                import uwsgi
+            except Exception as e:
+                logger.exception("use_mule is set but not running in uwsgi")
+                raise e
+            args = {
+                "scheduler_action": "remove",
+                "id": str(job_id)
+            }
+            uwsgi.mule_msg(json.dumps(args))
+        else:
+            self.remove_local_job(job_id)
+
+        with sqla_session() as session:
+            job = session.query(Job).filter(Job.id == job_id).one_or_none()
+            job.finish_abort(message=abort_message)
 
     def add_onetime_job(self, func: Union[str, FunctionType],
                         when: Optional[int] = None,
                         scheduled_by: Optional[str] = None, **kwargs) -> int:
-        """Schedule a job to run at a later time.
+        """Schedule a job to run at a later time on the mule worker or
+        local scheduler depending on setup.
 
         Args:
             func: The function to call
             when: Optional number of seconds to wait before starting job
+            scheduled_by: Username that scheduled the job
             **kwargs: Arguments to pass through to called function
         Returns:
             int: job_id
@@ -161,7 +189,6 @@ class Scheduler(object, metaclass=SingletonType):
             uwsgi.mule_msg(json.dumps(args))
             return job_id
         else:
-            self._scheduler.add_job(func, trigger=trigger, kwargs=kwargs,
-                                    id=str(job_id),
-                                    run_date=run_date)
+            self.add_local_job(func, trigger=trigger, kwargs=kwargs,
+                               id=str(job_id), run_date=run_date)
             return job_id

@@ -152,7 +152,9 @@ The API method will accept a few parameters:
 * filename: Mandatory. Name of the new firmware, for example "test.swi".
 * url: Optional, can also be configured as an environment variable, FIRMQRE_URL. URL to the firmware storage, for example "http://hostname/firmware/". This should typically point to the CNaaS NMS server and files will be downloaded from the CNaaS HTTP server.
 * download: Optional, default is false. Only download the firmware.
-* pre_flight: Optional, default is false. If false, check disk-space etc before downloading the firmware.
+* pre_flight: Optional, default is false. If true, check disk-space etc before downloading the firmware.
+* post_flight: Optional, default is false. If true, update OS version after the upgrade have been finished.
+* post_waittime: Optional, default is 0. Defines the time we should wait before trying to connect to an updated device.
 * activate: Optional, default is false. Control whether we should install the new firmware or not.
 * reboot: Optional, default is false. When the firmware is downloaded, reboot the switch.
 * start_at: Schedule a firmware upgrade to be started sometime in the future.
@@ -160,7 +162,7 @@ The API method will accept a few parameters:
 An example CURL command can look like this:
 ::
 
-   curl -k -s -H "Content-Type: application/json" -X POST https://hostname/api/v1.0/firmware/upgrade -d '{"group": "ACCESS", "filename": "test_firmware.swi", "url": "http://hostname/", "pre-flight": true, "download": true, "activate": true, "reboot": true, "start_at": "2019-12-24 00:00:00"}'
+   curl -k -s -H "Content-Type: application/json" -X POST https://hostname/api/v1.0/firmware/upgrade -d '{"group": "ACCESS", "filename": "test_firmware.swi", "url": "http://hostname/", "pre-flight": true, "download": true, "activate": true, "reboot": true, "start_at": "2019-12-24 00:00:00", "post_flight": true, "post_waittime": 600'}
 
 The output from the job will look like this:
 
@@ -205,6 +207,12 @@ The output from the job will look like this:
               {
                 "name": "arista_device_reboot",
                 "result": "Device reboot done.",
+                "diff": "",
+                "failed": false
+              },
+              {
+                "result": "Post-flight, OS version updated for device eosaccess, now 4.23.2F-15405360.4232F.",
+                "task_name": "arista_post_flight_check",
                 "diff": "",
                 "failed": false
               }

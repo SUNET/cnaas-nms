@@ -501,7 +501,7 @@ class DeviceSyncApi(Resource):
         else:
             return empty_result(
                 status='error',
-                data=f"No devices to synchronize was specified"
+                data=f"No devices to synchronize were specified"
             ), 400
 
         scheduler = Scheduler()

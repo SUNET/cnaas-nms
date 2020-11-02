@@ -173,6 +173,11 @@ class Scheduler(object, metaclass=SingletonType):
             func_qualname = str(func)
         func_name = func_qualname.split(':')[-1]
 
+        try:
+            json.dumps(kwargs)
+        except TypeError as e:
+            raise TypeError("Job args must be JSON serializable: {}".format(e))
+
         # Append (dry_run) to function name if set, so we can distinguish dry_run jobs
         try:
             if kwargs['dry_run']:
@@ -194,6 +199,7 @@ class Scheduler(object, metaclass=SingletonType):
             job_ticket_ref = kwargs.pop('job_ticket_ref', None)
             if job_ticket_ref and isinstance(job_comment, str):
                 job.ticket_ref = job_ticket_ref[:32]
+            job.start_arguments = kwargs['kwargs']
             session.add(job)
             session.flush()
             job_id = job.id
@@ -217,3 +223,4 @@ class Scheduler(object, metaclass=SingletonType):
             self.add_local_job(func, trigger=trigger, kwargs=kwargs, id=str(job_id),
                                run_date=run_date, name=func_qualname)
             return job_id
+

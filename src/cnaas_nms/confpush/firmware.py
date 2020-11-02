@@ -4,6 +4,7 @@ from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
+from cnaas_nms.db.job import Job
 from cnaas_nms.scheduler.thread_data import set_thread_data
 
 from nornir.plugins.functions.text import print_result
@@ -70,6 +71,9 @@ def arista_post_flight_check(task, post_waittime: int, job_id: Optional[str] = N
     logger = get_logger()
     time.sleep(int(post_waittime))
     logger.info('Post-flight check wait ({}s) complete, starting check for {}'.format(post_waittime, task.host.name))
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Post-flight aborted"
 
     try:
         res = task.run(napalm_get, getters=["facts"])

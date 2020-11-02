@@ -89,9 +89,15 @@ class JobByIdApi(Resource):
 
             abort_reason += " (aborted by {})".format(get_jwt_identity())
 
-            scheduler = Scheduler()
-            scheduler.remove_scheduled_job(job_id=job_id, abort_message=abort_reason)
-            time.sleep(2)
+            if job_status == JobStatus.SCHEDULED:
+                scheduler = Scheduler()
+                scheduler.remove_scheduled_job(job_id=job_id, abort_message=abort_reason)
+                time.sleep(2)
+            elif job_status == JobStatus.RUNNING:
+                with sqla_session() as session:
+                    job = session.query(Job).filter(Job.id == job_id).one_or_none()
+                    job.status = JobStatus.ABORTING
+
             with sqla_session() as session:
                 job = session.query(Job).filter(Job.id == job_id).one_or_none()
                 return empty_result(data={"jobs": [job.as_dict()]})

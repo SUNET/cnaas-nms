@@ -37,6 +37,7 @@ class JobStatus(enum.Enum):
     FINISHED = 3
     EXCEPTION = 4
     ABORTED = 5
+    ABORTING = 6
 
     @classmethod
     def has_value(cls, value):
@@ -67,6 +68,7 @@ class Job(cnaas_nms.db.base.Base):
     exception = Column(JSONB)
     finished_devices = Column(JSONB)
     change_score = Column(SmallInteger)  # should be in range 0-100
+    start_arguments = Column(JSONB)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -119,14 +121,17 @@ class Job(cnaas_nms.db.base.Base):
             self.result = {"error": "unserializable"}
 
         self.finish_time = datetime.datetime.utcnow()
-        self.status = JobStatus.FINISHED
+        if self.status == JobStatus.ABORTING:
+            self.status = JobStatus.ABORTED
+        else:
+            self.status = JobStatus.FINISHED
         if next_job_id:
             # TODO: check if this exists in the db?
             self.next_job_id = next_job_id
         try:
             event_data = {
                 "job_id": self.id,
-                "status": "FINISHED"
+                "status": self.status.name
             }
             if next_job_id:
                 event_data['next_job_id'] = next_job_id
@@ -184,6 +189,14 @@ class Job(cnaas_nms.db.base.Base):
         for job in running_jobs:
             logger.warning(
                 "Job found in unfinished RUNNING state at startup moved to ABORTED, id: {}".
+                format(job.id))
+            job.status = JobStatus.ABORTED
+
+        aborting_jobs = session.query(Job).filter(Job.status == JobStatus.ABORTING).all()
+        job: Job
+        for job in aborting_jobs:
+            logger.warning(
+                "Job found in unfinished ABORTING state at startup moved to ABORTED, id: {}".
                 format(job.id))
             job.status = JobStatus.ABORTED
 
@@ -246,3 +259,13 @@ class Job(cnaas_nms.db.base.Base):
         result['failed'] = job.result['devices'][hostname]['failed']
 
         return result
+
+    @classmethod
+    def check_job_abort_status(cls, session, job_id) -> bool:
+        """Check if specified job is being aborted"""
+        job = session.query(Job).filter(Job.id == job_id).one_or_none()
+        if not job:
+            return True
+        if job.status != JobStatus.RUNNING:
+            return True
+        return False

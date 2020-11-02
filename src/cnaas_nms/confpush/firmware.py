@@ -34,6 +34,9 @@ def arista_pre_flight_check(task, job_id: Optional[str] = None) -> str:
     """
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Pre-flight aborted"
 
     flash_diskspace = 'bash timeout 5 df /mnt/flash | awk \'{print $4}\''
     flash_cleanup = 'bash timeout 30 ls -t /mnt/flash/*.swi | tail -n +2 | grep -v `cut -d"/" -f2 /mnt/flash/boot-config` | xargs rm -f'
@@ -110,6 +113,9 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
     """
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Firmware download aborted"
 
     url = httpd_url + '/' + filename
 
@@ -166,6 +172,10 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[str] = None) 
     """
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Firmware activate aborted"
+
     try:
         boot_file_cmd = 'boot system flash:{}'.format(filename)
 
@@ -221,6 +231,10 @@ def arista_device_reboot(task, job_id: Optional[str] = None) -> str:
     """
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Reboot aborted"
+
     try:
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#')

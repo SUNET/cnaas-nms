@@ -180,7 +180,7 @@ class Scheduler(object, metaclass=SingletonType):
 
         # Append (dry_run) to function name if set, so we can distinguish dry_run jobs
         try:
-            if kwargs['dry_run']:
+            if kwargs['kwargs']['dry_run']:
                 func_name += " (dry_run)"
         except Exception:
             pass
@@ -193,10 +193,10 @@ class Scheduler(object, metaclass=SingletonType):
             if scheduled_by is None:
                 scheduled_by = 'unknown'
             job.scheduled_by = scheduled_by
-            job_comment = kwargs.pop('job_comment', None)
+            job_comment = kwargs['kwargs'].pop('job_comment', None)
             if job_comment and isinstance(job_comment, str):
                 job.comment = job_comment[:255]
-            job_ticket_ref = kwargs.pop('job_ticket_ref', None)
+            job_ticket_ref = kwargs['kwargs'].pop('job_ticket_ref', None)
             if job_ticket_ref and isinstance(job_comment, str):
                 job.ticket_ref = job_ticket_ref[:32]
             job.start_arguments = kwargs['kwargs']

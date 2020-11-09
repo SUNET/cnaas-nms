@@ -297,17 +297,22 @@ class FirmwareUpgradeApi(Resource):
                 data=f"No devices to upgrade were specified"
             ), 400
 
+        if 'comment' in json_data and isinstance(json_data['comment'], str):
+            kwargs['job_comment'] = json_data['comment']
+        if 'ticket_ref' in json_data and isinstance(json_data['ticket_ref'], str):
+            kwargs['job_ticket_ref'] = json_data['ticket_ref']
+
         if 'start_at' in json_data:
             try:
                 time_start = datetime.strptime(json_data['start_at'],
                                                date_format)
-                time_now = datetime.now()
+                time_now = datetime.utcnow()
 
                 if time_start < time_now:
                     return empty_result(status='error',
                                         data='start_at must be in the future')
                 time_diff = time_start - time_now
-                seconds = time_diff.seconds
+                seconds = int(time_diff.total_seconds())
             except Exception as e:
                 logger.exception(f'Exception when scheduling job: {e}')
                 return empty_result(status='error',

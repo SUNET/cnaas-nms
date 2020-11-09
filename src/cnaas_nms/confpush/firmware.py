@@ -4,6 +4,7 @@ from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.device import DeviceType, Device
+from cnaas_nms.db.job import Job
 from cnaas_nms.scheduler.thread_data import set_thread_data
 
 from nornir.plugins.functions.text import print_result
@@ -33,6 +34,9 @@ def arista_pre_flight_check(task, job_id: Optional[str] = None) -> str:
     """
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Pre-flight aborted"
 
     flash_diskspace = 'bash timeout 5 df /mnt/flash | awk \'{print $4}\''
     flash_cleanup = 'bash timeout 30 ls -t /mnt/flash/*.swi | tail -n +2 | grep -v `cut -d"/" -f2 /mnt/flash/boot-config` | xargs rm -f'
@@ -70,6 +74,9 @@ def arista_post_flight_check(task, post_waittime: int, job_id: Optional[str] = N
     logger = get_logger()
     time.sleep(int(post_waittime))
     logger.info('Post-flight check wait ({}s) complete, starting check for {}'.format(post_waittime, task.host.name))
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Post-flight aborted"
 
     try:
         res = task.run(napalm_get, getters=["facts"])
@@ -106,6 +113,9 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
     """
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Firmware download aborted"
 
     url = httpd_url + '/' + filename
 
@@ -162,6 +172,10 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[str] = None) 
     """
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Firmware activate aborted"
+
     try:
         boot_file_cmd = 'boot system flash:{}'.format(filename)
 
@@ -217,6 +231,10 @@ def arista_device_reboot(task, job_id: Optional[str] = None) -> str:
     """
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:
+        if Job.check_job_abort_status(session, job_id):
+            return "Reboot aborted"
+
     try:
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#')

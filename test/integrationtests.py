@@ -4,6 +4,7 @@ import requests
 import time
 import unittest
 import os
+import datetime
 
 
 if 'CNAASURL' in os.environ:
@@ -280,6 +281,112 @@ class GetTests(unittest.TestCase):
         restore_job_id = r.json()['job_id']
         job = self.check_jobid(restore_job_id)
         self.assertFalse(job['result']['devices'][hostname]['failed'])
+
+    def test_12_abort_running_job(self):
+        data = {
+            'group': 'DIST',
+            'url': '',
+            'post_flight': True,
+            'post_waittime': 30
+        }
+        result = requests.post(
+            f"{URL}/api/v1.0/firmware/upgrade",
+            headers=AUTH_HEADER,
+            json=data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        self.assertEqual(type(result.json()['job_id']), int)
+        job_id: int = result.json()['job_id']
+        time.sleep(2)
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        self.assertEqual(len(result.json()['data']['jobs']), 1, "One job should be found")
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "RUNNING",
+                         "Job should be in RUNNING state at start")
+        abort_data = {
+            'action': 'ABORT',
+            'abort_reason': 'unit test abort_running_job'
+        }
+        result = requests.put(
+            f"{URL}/api/v1.0/job/{job_id}",
+            headers=AUTH_HEADER,
+            json=abort_data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "ABORTING",
+                         "Job should be in ABORTING state after abort action")
+        time.sleep(30)
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "ABORTED",
+                         "Job should be in ABORTED state at end")
+
+    def test_13_abort_scheduled_job(self):
+        start_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=30)
+        data = {
+            'group': 'DIST',
+            'url': '',
+            'post_flight': True,
+            'post_waittime': 30,
+            'start_at': start_time.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        result = requests.post(
+            f"{URL}/api/v1.0/firmware/upgrade",
+            headers=AUTH_HEADER,
+            json=data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        self.assertEqual(type(result.json()['job_id']), int)
+        job_id: int = result.json()['job_id']
+        time.sleep(2)
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        self.assertEqual(len(result.json()['data']['jobs']), 1, "One job should be found")
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "SCHEDULED",
+                         "Job should be in SCHEDULED state at start")
+        abort_data = {
+            'action': 'ABORT',
+            'abort_reason': 'unit test abort_scheduled_job'
+        }
+        result = requests.put(
+            f"{URL}/api/v1.0/job/{job_id}",
+            headers=AUTH_HEADER,
+            json=abort_data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "ABORTED",
+                         "Job should be in ABORTED state at end")
 
 
 if __name__ == '__main__':

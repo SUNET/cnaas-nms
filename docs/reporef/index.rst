@@ -258,6 +258,7 @@ Contains base system settings like:
 
 - ntp_servers
 - snmp_servers
+- dns_servers
 - syslog_servers
 - dhcp_relays
 
@@ -271,6 +272,9 @@ Example of base_system.yml:
      - host: 10.255.0.2
    snmp_servers:
      - host: 10.255.0.11
+   dns_servers:
+     - host: 10.255.0.1
+     - host: 10.255.0.2
    syslog_servers:
      - host: 10.255.0.21
      - host: 10.255.0.22

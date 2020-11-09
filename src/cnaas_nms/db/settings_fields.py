@@ -87,6 +87,10 @@ class f_snmp_server(BaseModel):
     host: str = host_schema
 
 
+class f_dns_server(BaseModel):
+    host: str = host_schema
+
+
 class f_dhcp_relay(BaseModel):
     host: str = host_schema
 
@@ -204,6 +208,7 @@ class f_root(BaseModel):
     radius_servers: List[f_radius_server] = []
     syslog_servers: List[f_syslog_server] = []
     snmp_servers: List[f_snmp_server] = []
+    dns_servers: List[f_dns_server] = []
     dhcp_relays: Optional[List[f_dhcp_relay]]
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []

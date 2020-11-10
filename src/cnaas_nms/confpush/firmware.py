@@ -86,9 +86,12 @@ def arista_post_flight_check(task, post_waittime: int, job_id: Optional[str] = N
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
             prev_os_version = dev.os_version
             dev.os_version = os_version
-        if prev_os_version == os_version:
-            logger.error("OS version did not change, activation failed on {}".format(task.host.name))
-            raise Exception("OS version did not change, activation failed")
+            if prev_os_version == os_version:
+                logger.error("OS version did not change, activation failed on {}".format(task.host.name))
+                raise Exception("OS version did not change, activation failed")
+            else:
+                dev.confhash = None
+                dev.synchronized = False
     except Exception as e:
         logger.exception("Could not update OS version on device {}: {}".format(task.host.name, str(e)))
         return 'Post-flight failed, could not update OS version: {}'.format(str(e))

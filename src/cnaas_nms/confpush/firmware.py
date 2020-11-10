@@ -11,6 +11,7 @@ from nornir.plugins.functions.text import print_result
 from nornir.plugins.tasks.networking import napalm_cli, napalm_get
 from nornir.plugins.tasks.networking import netmiko_send_command
 from nornir.core.task import MultiResult
+from nornir.core.exceptions import NornirSubTaskError
 
 from typing import Optional
 
@@ -153,6 +154,14 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
                 ', '.join(filter(lambda x: x.startswith('get:'), res.result.splitlines()))
             ))
 
+    except NornirSubTaskError as e:
+        subtask_result = e.result[0]
+        logger.error('{} failed to download firmware: {}'.format(
+            task.host.name, subtask_result))
+        logger.debug('{} download subtask result: {}'.format(
+            task.host.name, subtask_result.result
+        ))
+        raise Exception('Failed to download firmware: {}'.format(subtask_result))
     except Exception as e:
         logger.error('{} failed to download firmware: {}'.format(
             task.host.name, e))

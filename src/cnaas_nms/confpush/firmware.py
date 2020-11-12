@@ -134,15 +134,11 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
         else:
             firmware_download_cmd = 'copy {} vrf MGMT flash:'.format(url)
 
-        res = task.run(netmiko_send_command, command_string='enable',
-                       expect_string='.*#')
-        print_result(res)
-
         res = task.run(netmiko_send_command,
                        command_string=firmware_download_cmd.replace("//", "/"),
+                       enable=True,
                        delay_factor=30,
-                       max_loops=200,
-                       expect_string='.*#')
+                       max_loops=200)
         print_result(res)
 
         if 'Copy completed successfully' in res.result:
@@ -222,7 +218,8 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[str] = None) 
 
         if res.result != filename:
             raise Exception('Firmware not activated properly on {}'.format(task.host.name))
-
+    except FirmwareAlreadyActiveException as e:
+        raise e
     except Exception as e:
         logger.exception('Failed to activate firmware on {}: {}'.format(task.host.name, str(e)))
         raise Exception('Failed to activate firmware')
@@ -321,9 +318,27 @@ def device_upgrade_task(task, job_id: str,
         except FirmwareAlreadyActiveException as e:
             already_active = True
             logger.debug("Firmware already active, skipping reboot and post_flight: {}".format(e))
+        except NornirSubTaskError as e:
+            subtask_result = e.result[0]
+            logger.error('Exception while activating firmware for {}: {}'.format(
+                task.host.name, subtask_result))
+            if subtask_result.exception:
+                if isinstance(subtask_result.exception, FirmwareAlreadyActiveException):
+                    already_active = True
+                    logger.debug("Firmware already active, skipping reboot and post_flight: {}".format(e))
+                else:
+                    logger.exception('Activate subtask exception for {}: {}'.format(
+                        task.host.name, str(subtask_result.exception)
+                    ))
+                    raise e
+            else:
+                logger.debug('Activate subtask result for {}: {}'.format(
+                    task.host.name, subtask_result.result
+                ))
+                raise e
         except Exception as e:
-            logger.exception('Exception while activating firmware: {}'.format(
-                str(e)))
+            logger.exception('Exception while activating firmware for {}: {}'.format(
+                task.host.name, str(e)))
             raise e
 
     # Reboot the device if needed, we will then lose the connection.

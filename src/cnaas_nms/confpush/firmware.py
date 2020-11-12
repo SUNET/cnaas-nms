@@ -315,24 +315,22 @@ def device_upgrade_task(task, job_id: str,
         try:
             res = task.run(task=arista_firmware_activate, filename=filename, job_id=job_id)
             print_result(res)
-        except FirmwareAlreadyActiveException as e:
-            already_active = True
-            logger.debug("Firmware already active, skipping reboot and post_flight: {}".format(e))
         except NornirSubTaskError as e:
             subtask_result = e.result[0]
-            logger.error('Exception while activating firmware for {}: {}'.format(
+            logger.debug('Exception while activating firmware for {}: {}'.format(
                 task.host.name, subtask_result))
             if subtask_result.exception:
                 if isinstance(subtask_result.exception, FirmwareAlreadyActiveException):
                     already_active = True
-                    logger.debug("Firmware already active, skipping reboot and post_flight: {}".format(e))
+                    logger.info("Firmware already active, skipping reboot and post_flight: {}".
+                                format(subtask_result.exception))
                 else:
-                    logger.exception('Activate subtask exception for {}: {}'.format(
+                    logger.exception('Firmware activate subtask exception for {}: {}'.format(
                         task.host.name, str(subtask_result.exception)
                     ))
                     raise e
             else:
-                logger.debug('Activate subtask result for {}: {}'.format(
+                logger.error('Activate subtask result for {}: {}'.format(
                     task.host.name, subtask_result.result
                 ))
                 raise e

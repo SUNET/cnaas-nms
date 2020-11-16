@@ -21,6 +21,7 @@ RUN /opt/cnaas/cnaas-setup.sh $BUILDBRANCH
 COPY nosetests.sh /opt/cnaas/
 COPY exec-pre-app.sh /opt/cnaas/
 COPY config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
+RUN chown www-data /opt/cnaas/venv/cnaas-nms/uwsgi.ini
 COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY config/nginx_app.conf /etc/nginx/sites-available/
 COPY config/nginx.conf /etc/nginx/
@@ -34,17 +35,18 @@ COPY client.html /opt/cnaas/static
 RUN unlink /etc/nginx/sites-enabled/default
 RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
 RUN chown www-data:www-data /var/log/nginx
-RUN chown www-data:www-data /etc/cnaas-nms/repository.yml
+RUN chown www-data:www-data /etc/cnaas-nms/*.yml
 RUN chown -R  www-data:www-data /var/log/nginx/
 RUN chown -R www-data:www-data /var/lib/nginx
 RUN chown www-data:www-data /var/lib/nginx/
+RUN chown -R www-data:www-data /etc/nginx/
 # Give permission for API to clone/sync repos
-RUN chown www-data:www-data /opt/cnaas
+RUN chown www-data:www-data -R /opt/cnaas
 RUN chown -R www-data:www-data /opt/cnaas/templates
 RUN chown -R www-data:www-data /opt/cnaas/settings
 # Give permission for unittests
-RUN chown root:www-data /opt/cnaas/nosetests.sh
-RUN chmod g+rx /opt/cnaas/nosetests.sh
+RUN chown root:www-data /opt/cnaas/*.sh
+RUN chmod g+rx /opt/cnaas/*.sh
 RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src
 
 

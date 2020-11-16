@@ -19,7 +19,15 @@ export PASSWORD_MANAGED="abc123abc123"
 export COVERAGE=1
 export JWT_AUTH_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw"
 
+docker volume create cnaas-templates
+docker volume create cnaas-settings
+docker volume create cnaas-postgres-data
+docker volume create cnaas-jwtcert
+
 docker-compose up -d
+
+docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
+docker-compose exec cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
 
 # go back to test dir
 popd

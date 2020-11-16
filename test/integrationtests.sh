@@ -3,7 +3,7 @@
 pushd .
 cd ../docker/
 # if running selinux on host this is required: chcon -Rt svirt_sandbox_file_t coverage/
-mkdir coverage/
+mkdir -p coverage/
 
 export GITREPO_TEMPLATES="git://gitops.sunet.se/cnaas-lab-templates"
 export GITREPO_SETTINGS="git://gitops.sunet.se/cnaas-lab-settings"

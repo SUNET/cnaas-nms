@@ -36,12 +36,14 @@ RUN unlink /etc/nginx/sites-enabled/default
 RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
 RUN chown www-data:www-data /var/log/nginx
 RUN chown www-data:www-data /etc/cnaas-nms/*.yml
-RUN chown -R  www-data:www-data /var/log/nginx/
-RUN chown -R www-data:www-data /var/lib/nginx
+RUN chown -R www-data:www-data /var/log/nginx/
+RUN chown -R www-data:www-data /var/lib/nginx/
 RUN chown www-data:www-data /var/lib/nginx/
-RUN chown -R www-data:www-data /etc/nginx/
+RUN chown -R root:www-data /etc/nginx/ && \
+    chmod -R u=rwX,g=rX,o= /etc/nginx
 # Give permission for API to clone/sync repos
-RUN chown www-data:www-data -R /opt/cnaas
+RUN chown -R root:www-data /opt/cnaas && \
+    chmod -R u=rwX,g=rX,o= /opt/cnaas
 RUN chown -R www-data:www-data /opt/cnaas/templates
 RUN chown -R www-data:www-data /opt/cnaas/settings
 # Give permission for unittests

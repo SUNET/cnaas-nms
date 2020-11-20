@@ -7,7 +7,6 @@ from cnaas_nms.db.device import DeviceType, Device
 from cnaas_nms.db.job import Job
 from cnaas_nms.scheduler.thread_data import set_thread_data
 
-from nornir.plugins.functions.text import print_result
 from nornir.plugins.tasks.networking import napalm_cli, napalm_get
 from nornir.plugins.tasks.networking import netmiko_send_command
 from nornir.core.task import MultiResult
@@ -52,7 +51,6 @@ def arista_pre_flight_check(task, job_id: Optional[str] = None) -> str:
     if int(free_bytes) < 2500000:
         logger.info('Cleaning up old firmware images on {}'.format(task.host.name))
         res = task.run(napalm_cli, commands=[flash_cleanup])
-        print_result(res)
     else:
         logger.info('Enough free space ({}b), no cleanup'.format(free_bytes))
 
@@ -139,7 +137,6 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
                        enable=True,
                        delay_factor=30,
                        max_loops=200)
-        print_result(res)
 
         if 'Copy completed successfully' in res.result:
             return "Firmware download done."
@@ -189,29 +186,23 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[str] = None) 
 
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#')
-        print_result(res)
 
         res = task.run(netmiko_send_command,
                        command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
-        print_result(res)
         if res.result == filename:
             raise FirmwareAlreadyActiveException(
                 'Firmware already activated in boot-config on {}'.format(task.host.name))
 
         res = task.run(netmiko_send_command, command_string='conf t',
                        expect_string='.*config.*#')
-        print_result(res)
 
         res = task.run(netmiko_send_command, command_string=boot_file_cmd)
-        print_result(res)
 
         res = task.run(netmiko_send_command, command_string='end',
                        expect_string='.*#')
-        print_result(res)
 
         res = task.run(netmiko_send_command,
                        command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
-        print_result(res)
 
         if not isinstance(res, MultiResult):
             raise Exception('Could not check boot-config on {}'.format(task.host.name))
@@ -247,11 +238,9 @@ def arista_device_reboot(task, job_id: Optional[str] = None) -> str:
     try:
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#')
-        print_result(res)
 
         res = task.run(netmiko_send_command, command_string='write',
                        expect_string='.*#')
-        print_result(res)
 
         res = task.run(netmiko_send_command, command_string='reload force',
                        max_loops=2,
@@ -300,7 +289,6 @@ def device_upgrade_task(task, job_id: str,
         try:
             res = task.run(task=arista_firmware_download, filename=filename,
                            httpd_url=url, job_id=job_id)
-            print_result(res)
         except Exception as e:
             logger.exception('Exception while downloading firmware: {}'.format(
                 str(e)))
@@ -314,7 +302,6 @@ def device_upgrade_task(task, job_id: str,
             filename, task.host.name))
         try:
             res = task.run(task=arista_firmware_activate, filename=filename, job_id=job_id)
-            print_result(res)
         except NornirSubTaskError as e:
             subtask_result = e.result[0]
             logger.debug('Exception while activating firmware for {}: {}'.format(

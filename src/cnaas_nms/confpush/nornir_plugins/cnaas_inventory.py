@@ -85,6 +85,7 @@ class CnaasInventory(Inventory):
         groups['S_UNMANAGED']['username'] = username
         groups['S_UNMANAGED']['password'] = password
 
-        defaults = {'data': {'k': 'v'}}
+        # Force netmiko to not use fast_cli since it causes issues with firmware copy
+        defaults = {'connection_options': {'netmiko': {'extras': {'fast_cli': False}}}}
         super().__init__(hosts=hosts, groups=groups, defaults=defaults,
                          **kwargs)

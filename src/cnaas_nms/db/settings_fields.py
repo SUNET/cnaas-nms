@@ -56,6 +56,7 @@ IFCLASS_REGEX = r'(custom|downlink|fabric)'
 ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$",
                        description="Interface class: custom, downlink or uplink")
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
+ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
@@ -154,6 +155,10 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
+    bfd: bool = False
+    ebgp_multihop: Optional[int] = ebgp_multihop_schema
+    auth_type: Optional[str] = None
+    auth_string: Optional[str] = None
     cli_append_str: str = ""
 
 
@@ -163,6 +168,10 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
+    bfd: bool = False
+    ebgp_multihop: Optional[int] = ebgp_multihop_schema
+    auth_type: Optional[str] = None
+    auth_string: Optional[str] = None
     cli_append_str: str = ""
 
 
@@ -186,6 +195,7 @@ class f_vxlan(BaseModel):
     ipv4_gw: Optional[str] = ipv4_if_schema
     dhcp_relays: Optional[List[f_dhcp_relay]]
     mtu: Optional[int] = mtu_schema
+    vxlan_host_route: bool = True
     groups: List[str] = []
     devices: List[str] = []
 

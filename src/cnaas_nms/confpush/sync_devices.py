@@ -611,17 +611,29 @@ def sync_devices(hostnames: Optional[List[str]] = None, device_type: Optional[st
             logger.debug("Empty diff for host {}, 0 change score".format(
                 host))
 
-    if not dry_run:
+    nr_confighash = None
+    if dry_run and force:
+        # update config hash for devices that had an empty diff because local
+        # changes on a device can cause reordering of CLI commands that results
+        # in config hash mismatch even if the calculated diff was empty
+        def include_filter(host, include_list=unchanged_hosts):
+            if host.name in include_list:
+                return True
+            else:
+                return False
+        nr_confighash = nr_filtered.filter(filter_func=include_filter)
+    elif not dry_run:
+        # set new config hash for devices that was successfully updated
         def exclude_filter(host, exclude_list=failed_hosts+unchanged_hosts):
             if host.name in exclude_list:
                 return False
             else:
                 return True
+        nr_confighash = nr_filtered.filter(filter_func=exclude_filter)
 
-        # set new config hash for devices that was successfully updated
-        nr_successful = nr_filtered.filter(filter_func=exclude_filter)
+    if nr_confighash:
         try:
-            nrresult_confighash = nr_successful.run(task=update_config_hash)
+            nrresult_confighash = nr_confighash.run(task=update_config_hash)
         except Exception as e:
             logger.exception("Exception while updating config hashes: {}".format(str(e)))
         else:

@@ -203,16 +203,43 @@ Can contain the following dictionaries with specified keys:
       * peer_ipv4: IPv4 address of peer
       * route_map_in: Route-map to filter incoming routes
       * route_map_out: Route-map to filter outgoing routes
+      * bfd: Set to true to enable Bidirectional Forward Detection (BFD)
+      * graceful_restart: Set to true to enable capability graceful restart
+      * next_hop_self: Set to true to always advertise this router's address as the BGP next hop
+      * maximum_routes: Maximum routes to receive from peer, integer 0-4294967294
+      * update_source: Specify local source interface for the BGP session
+      * auth_string: String used to calculate MD5 hash for authentication (password)
       * description: Description of remote peer (optional, defaults to "undefined")
       * cli_append_str: Custom configuration to append to this peer (optional)
     * neighbor_v6:
 
-      * peer_as: AS number the remote peer
       * peer_ipv6: IPv6 address of peer
-      * route_map_in: Route-map to filter incoming routes
-      * route_map_out: Route-map to filter outgoing routes
-      * description: Description of remote peer (optional, defaults to "undefined")
-      * cli_append_str: Custom configuration to append to this peer (optional)
+      * other options are the same as neighbor_v4
+
+routing.yml examples:
+
+::
+
+   ---
+   extroute_bgp:
+     vrfs:
+       - name: OUTSIDE
+         local_as: 64667
+         neighbor_v4:
+           - peer_ipv4: 10.0.255.1
+             peer_as: 64666
+             route_map_in: fw-lab-in
+             route_map_out: default-only-out
+             description: "fw-lab"
+             bfd: true
+             graceful_restart: true
+   extroute_static:
+     vrfs:
+       - name: MGMT
+         ipv4:
+           - destination: 172.12.0.0/24
+             nexthop: 10.0.254.1
+             name: cnaas-mgmt
 
 vxlans.yml:
 

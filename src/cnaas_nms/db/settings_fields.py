@@ -187,12 +187,12 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
 class f_extroute_bgp_vrf(BaseModel):
     name: str
     local_as: int = as_num_schema
-    neighbor_v4: Optional[List[f_extroute_bgp_neighbor_v4]]
-    neighbor_v6: Optional[List[f_extroute_bgp_neighbor_v6]]
+    neighbor_v4: List[f_extroute_bgp_neighbor_v4] = []
+    neighbor_v6: List[f_extroute_bgp_neighbor_v6] = []
 
 
 class f_extroute_bgp(BaseModel):
-    vrfs: List[f_extroute_bgp_vrf]
+    vrfs: List[f_extroute_bgp_vrf] = []
 
 
 class f_vxlan(BaseModel):

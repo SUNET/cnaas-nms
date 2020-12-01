@@ -9,7 +9,11 @@ gevent==20.6.2
 GitPython==3.1.7
 mypy==0.782
 mypy-extensions==0.4.3
-nornir==2.4.0
+nornir==3.0.0
+nornir-jinja2==0.1.0
+nornir-napalm==0.1.1
+nornir-netmiko==0.1.1
+nornir-utils==0.1.1
 napalm==3.1.0
 nose==1.3.7
 pluggy==0.13.1

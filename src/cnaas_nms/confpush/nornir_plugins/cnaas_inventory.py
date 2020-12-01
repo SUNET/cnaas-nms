@@ -1,23 +1,43 @@
 import os
 import ipaddress
 
-from nornir.core.deserializer.inventory import Inventory
+from nornir.core.inventory import (
+    Inventory,
+    Group,
+    Groups,
+    Host,
+    Hosts,
+    Defaults,
+    ConnectionOptions,
+    ParentGroups,
+)
 
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.settings import get_groups
 import cnaas_nms.db.session
 
 
-class CnaasInventory(Inventory):
-    def _get_credentials(self, devicestate):
+class CnaasInventory:
+    @staticmethod
+    def _get_credentials(devicestate):
+        if devicestate == 'UNKNOWN':
+            return None, None
+        elif devicestate in ['UNMANAGED', 'MANAGED_NOIF']:
+            env_var = 'MANAGED'
+        elif devicestate == 'PRE_CONFIGURED':
+            env_var = 'DHCP_BOOT'
+        else:
+            env_var = devicestate
+
         try:
-            username = os.environ['USERNAME_' + devicestate]
-            password = os.environ['PASSWORD_' + devicestate]
+            username = os.environ['USERNAME_' + env_var]
+            password = os.environ['PASSWORD_' + env_var]
         except Exception:
             raise ValueError('Could not find credentials for state ' + devicestate)
         return username, password
 
-    def _get_management_ip(self, management_ip, dhcp_ip):
+    @staticmethod
+    def _get_management_ip(management_ip, dhcp_ip):
         if issubclass(management_ip.__class__, ipaddress.IPv4Address):
             return str(management_ip)
         elif issubclass(dhcp_ip.__class__, ipaddress.IPv4Address):
@@ -25,67 +45,46 @@ class CnaasInventory(Inventory):
         else:
             return None
 
-    def __init__(self, **kwargs):
-        hosts = {}
+    def load(self) -> Inventory:
+        hosts = Hosts()
         with cnaas_nms.db.session.sqla_session() as session:
             instance: Device
             for instance in session.query(Device):
-                hosts[instance.hostname] = {
-                    'platform': instance.platform,
-                    'groups': [
-                        'T_'+instance.device_type.name,
-                        'S_'+instance.state.name
-                    ],
-                    'data': {
+                hostname = self._get_management_ip(instance.management_ip,
+                                                   instance.dhcp_ip)
+                port = None
+                if instance.port and isinstance(instance.port, int):
+                    port = instance.port
+                host_groups = [
+                    'T_' + instance.device_type.name,
+                    'S_' + instance.state.name
+                ]
+                for member_group in get_groups(instance.hostname):
+                    host_groups.append(member_group)
+                hosts[instance.hostname] = Host(
+                    name=instance.hostname,
+                    hostname=hostname,
+                    platform=instance.platform,
+                    groups=host_groups,
+                    port=port,
+                    data={
                         'synchronized': instance.synchronized,
                         'managed': (True if instance.state == DeviceState.MANAGED else False)
                     }
-                }
-                for group in get_groups(instance.hostname):
-                    hosts[instance.hostname]['groups'].append(group)
-                hostname = self._get_management_ip(instance.management_ip,
-                                                   instance.dhcp_ip)
-                if hostname:
-                    hosts[instance.hostname]['hostname'] = hostname
-                if instance.port and isinstance(instance.port, int):
-                    hosts[instance.hostname]['port'] = instance.port
-        groups = {
-            'global': {
-                'data': {
-                    'k': 'v'
-                }
-            }
-        }
+                )
+        groups = Groups()
         for device_type in list(DeviceType.__members__):
-            groups['T_'+device_type] = {}
-        for device_type in list(DeviceState.__members__):
-            groups['S_'+device_type] = {}
-        for group in get_groups():
-            groups[group] = {}
+            group_name = 'T_'+device_type
+            groups[group_name] = Group(name=group_name)
+        for device_state in list(DeviceState.__members__):
+            username, password = self._get_credentials(device_state)
+            group_name = 'S_'+device_state
+            groups[group_name] = Group(name=group_name, username=username, password=password)
+        for group_name in get_groups():
+            groups[group_name] = Group(name=group_name)
 
-        # Get credentials for device in state DHCP_BOOT
-        username, password = self._get_credentials('DHCP_BOOT')
-        groups['S_DHCP_BOOT']['username'] = username
-        groups['S_DHCP_BOOT']['password'] = password
+        defaults = Defaults(
+            connection_options={'netmiko': ConnectionOptions(extras={'fast_cli': False})}
+        )
 
-        # Get credentials for device in state DISCOVERED
-        username, password = self._get_credentials('DISCOVERED')
-        groups['S_DISCOVERED']['username'] = username
-        groups['S_DISCOVERED']['password'] = password
-
-        # Get credentials for device in state INIT
-        username, password = self._get_credentials('INIT')
-        groups['S_INIT']['username'] = username
-        groups['S_INIT']['password'] = password
-
-        # Get credentials for device in state MANAGED
-        username, password = self._get_credentials('MANAGED')
-        groups['S_MANAGED']['username'] = username
-        groups['S_MANAGED']['password'] = password
-        groups['S_UNMANAGED']['username'] = username
-        groups['S_UNMANAGED']['password'] = password
-
-        # Force netmiko to not use fast_cli since it causes issues with firmware copy
-        defaults = {'connection_options': {'netmiko': {'extras': {'fast_cli': False}}}}
-        super().__init__(hosts=hosts, groups=groups, defaults=defaults,
-                         **kwargs)
+        return Inventory(hosts=hosts, groups=groups, defaults=defaults)

@@ -65,7 +65,7 @@ class CnaasInventory:
                     name=instance.hostname,
                     hostname=hostname,
                     platform=instance.platform,
-                    groups=host_groups,
+                    groups=ParentGroups(host_groups),
                     port=port,
                     data={
                         'synchronized': instance.synchronized,

@@ -1,8 +1,8 @@
 from typing import List
 
 import yaml
-from nornir.plugins.tasks.networking import napalm_get, napalm_configure
-from nornir.plugins.tasks.text import template_file
+from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
+from nornir_jinja2.plugins.tasks import template_file
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType

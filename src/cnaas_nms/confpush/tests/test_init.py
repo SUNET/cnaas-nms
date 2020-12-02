@@ -1,12 +1,11 @@
-import pprint
 import unittest
 import pkg_resources
 import yaml
 import os
 import time
 
-from nornir.plugins.tasks import networking
-from nornir.plugins.functions.text import print_result
+from nornir_napalm.plugins.tasks import napalm_configure
+from nornir_utils.plugins.functions import print_result
 from nornir.core.inventory import ConnectionOptions
 
 import cnaas_nms.confpush.init_device
@@ -69,7 +68,7 @@ class InitTests(unittest.TestCase):
             config = f_reset_config.read()
             print(config)
             nrresult = nr_filtered.run(
-                         task=networking.napalm_configure,
+                         task=napalm_configure,
                          name="Reset config",
                          replace=False,
                          configuration=config,

@@ -2,12 +2,12 @@ import os
 import yaml
 from typing import Optional, List
 from ipaddress import IPv4Interface, IPv4Address
-from statistics import median
 from hashlib import sha256
 
-from nornir.plugins.tasks import networking, text
-from nornir.plugins.functions.text import print_result
 from nornir.core.task import MultiResult
+from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
+from nornir_jinja2.plugins.tasks import template_file
+from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
@@ -25,7 +25,6 @@ from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.scheduler.thread_data import set_thread_data
 
 from cnaas_nms.scheduler.scheduler import Scheduler
-from nornir.plugins.tasks.networking import napalm_get
 
 
 AUTOPUSH_MAX_SCORE = 10
@@ -354,7 +353,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
         template = mapping[devtype.name]['entrypoint']
 
     logger.debug("Generate config for host: {}".format(task.host.name))
-    r = task.run(task=text.template_file,
+    r = task.run(task=template_file,
                  name="Generate device config",
                  template=template,
                  path=f"{local_repo_path}/{task.host.platform}",
@@ -373,7 +372,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
             task.host.name, task.host.hostname, task.host.port))
 
         task.host.open_connection("napalm", configuration=task.nornir.config)
-        task.run(task=networking.napalm_configure,
+        task.run(task=napalm_configure,
                  name="Sync device config",
                  replace=True,
                  configuration=task.host["config"],
@@ -696,7 +695,7 @@ def push_static_config(task, config: str, dry_run: bool = True,
 
     logger.debug("Push static config to device: {}".format(task.host.name))
 
-    task.run(task=networking.napalm_configure,
+    task.run(task=napalm_configure,
              name="Push static config",
              replace=True,
              configuration=config,

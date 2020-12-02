@@ -80,7 +80,7 @@ def main_loop():
         if 'scheduler_action' in data:
             if data['scheduler_action'] == "remove":
                 action = "remove"
-        if data['when'] and isinstance(data['when'], int):
+        if 'when' in data and isinstance(data['when'], int):
             data['run_date'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=data['when'])
             del data['when']
         kwargs = {}

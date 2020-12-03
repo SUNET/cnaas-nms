@@ -43,7 +43,7 @@ source bin/activate
 git clone https://github.com/SUNET/cnaas-nms.git
 cd cnaas-nms/
 git checkout develop
-#python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 
 # Temporary for testing new branch
 if [ "$1" != "develop" ] ; then

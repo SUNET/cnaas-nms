@@ -84,8 +84,6 @@ class CnaasInventory:
                     }
                 )
 
-        defaults = Defaults(
-            connection_options={'netmiko': ConnectionOptions(extras={'fast_cli': False})}
-        )
+        defaults = Defaults()
 
         return Inventory(hosts=hosts, groups=groups, defaults=defaults)

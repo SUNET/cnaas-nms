@@ -119,6 +119,8 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
             return "Firmware download aborted"
 
     url = httpd_url + '/' + filename
+    # Make sure netmiko doesn't use fast_cli because it will change delay_factor
+    # that is set in task.run below and cause early timeouts
     net_connect = task.host.get_connection("netmiko", task.nornir.config)
     net_connect.fast_cli = False
 

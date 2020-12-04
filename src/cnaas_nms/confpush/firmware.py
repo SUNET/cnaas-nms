@@ -119,6 +119,8 @@ def arista_firmware_download(task, filename: str, httpd_url: str,
             return "Firmware download aborted"
 
     url = httpd_url + '/' + filename
+    net_connect = task.host.get_connection("netmiko", task.nornir.config)
+    net_connect.fast_cli = False
 
     try:
         with sqla_session() as session:

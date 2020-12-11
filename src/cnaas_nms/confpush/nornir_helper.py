@@ -6,6 +6,8 @@ from nornir.core import Nornir
 from nornir.core.task import AggregatedResult, MultiResult
 from nornir.core.filter import F
 from nornir.core.plugins.inventory import InventoryPluginRegister
+from jinja2 import Environment as JinjaEnvironment
+
 from cnaas_nms.confpush.nornir_plugins.cnaas_inventory import CnaasInventory
 from cnaas_nms.scheduler.jobresult import JobResult
 
@@ -14,6 +16,12 @@ from cnaas_nms.scheduler.jobresult import JobResult
 class NornirJobResult(JobResult):
     nrresult: Optional[MultiResult] = None
     change_score: Optional[float] = None
+
+
+cnaas_jinja_env = JinjaEnvironment(
+    trim_blocks=True,
+    lstrip_blocks=True,
+    keep_trailing_newline=True)
 
 
 def cnaas_init() -> Nornir:

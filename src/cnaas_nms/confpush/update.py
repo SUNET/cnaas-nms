@@ -1,6 +1,6 @@
 from typing import Optional, List
 
-from nornir.plugins.tasks import networking
+from nornir_napalm.plugins.tasks import napalm_get
 
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
@@ -116,7 +116,7 @@ def update_facts(hostname: str,
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
-    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
+    nrresult = nr_filtered.run(task=napalm_get, getters=["facts"])
 
     if nrresult.failed:
         logger.error("Could not contact device with hostname {}".format(hostname))

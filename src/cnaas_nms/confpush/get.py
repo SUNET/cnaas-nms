@@ -4,12 +4,10 @@ import hashlib
 
 from typing import Optional, Tuple, List, Dict
 
-from nornir.core.deserializer.inventory import Inventory
 from nornir.core.filter import F
-from nornir.plugins.tasks import networking
-from nornir.plugins.functions.text import print_result
 from nornir.core.task import AggregatedResult
-from nornir.plugins.tasks.networking import napalm_get
+from nornir_napalm.plugins.tasks import napalm_get
+from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.db.session import sqla_session
@@ -23,7 +21,7 @@ from cnaas_nms.db.settings import get_settings
 
 def get_inventory():
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    return Inventory.serialize(nr.inventory).dict()
+    return nr.dict()
 
 
 def get_running_config(hostname):
@@ -64,7 +62,7 @@ def get_facts(hostname: Optional[str] = None, group: Optional[str] = None)\
     else:
         nr_filtered = nr
 
-    result = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
+    result = nr_filtered.run(task=napalm_get, getters=["facts"])
     print_result(result)
 
     return result
@@ -89,7 +87,7 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
     else:
         nr_filtered = nr
 
-    result = nr_filtered.run(task=networking.napalm_get, getters=["lldp_neighbors"])
+    result = nr_filtered.run(task=napalm_get, getters=["lldp_neighbors"])
     print_result(result)
 
     return result
@@ -153,7 +151,7 @@ def get_interfaces(hostname: str) -> AggregatedResult:
     nr_filtered = nr.filter(name=hostname)
     if len(nr_filtered.inventory) != 1:
         raise ValueError(f"Hostname {hostname} not found in inventory")
-    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["interfaces"])
+    nrresult = nr_filtered.run(task=napalm_get, getters=["interfaces"])
     return nrresult
 
 

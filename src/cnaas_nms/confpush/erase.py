@@ -1,14 +1,13 @@
 import cnaas_nms.confpush.nornir_helper
 
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import DeviceType, Device
 
-from nornir.plugins.functions.text import print_result
-from nornir.plugins.tasks.networking import netmiko_send_command
+from nornir_netmiko.tasks import netmiko_send_command
+from nornir_utils.plugins.functions import print_result
 
 
 logger = get_logger()

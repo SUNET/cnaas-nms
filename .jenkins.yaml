@@ -35,7 +35,7 @@ extra_jobs:
     docker_name: cnaas/dhcpd
     docker_context_dir: docker/dhcpd
     docker_tags:
-      - "v0.1.0"
+      - "v1.0"
 
   - name: cnaas-api
     git:
@@ -45,7 +45,8 @@ extra_jobs:
     docker_name: cnaas/api
     docker_context_dir: docker/api
     docker_tags:
-      - "v0.1.0"
+      - "v1.2"
+      - "develop"
 
   - name: cnaas-api-master
     git:
@@ -65,4 +66,4 @@ extra_jobs:
     docker_name: cnaas/postgres
     docker_context_dir: docker/postgres
     docker_tags:
-      - "v0.1.0"
+      - "v1.0"

@@ -203,6 +203,7 @@ Can contain the following dictionaries with specified keys:
       * peer_ipv4: IPv4 address of peer
       * route_map_in: Route-map to filter incoming routes
       * route_map_out: Route-map to filter outgoing routes
+      * ebgp_multihop: Configure eBGP multihop/TTL security, integer 1-255
       * bfd: Set to true to enable Bidirectional Forward Detection (BFD)
       * graceful_restart: Set to true to enable capability graceful restart
       * next_hop_self: Set to true to always advertise this router's address as the BGP next hop

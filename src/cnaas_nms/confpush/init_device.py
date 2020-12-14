@@ -1,8 +1,9 @@
 from typing import Optional, List
 from ipaddress import IPv4Interface
 
-from nornir.plugins.tasks import networking, text
-from nornir.plugins.functions.text import print_result
+from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
+from nornir_jinja2.plugins.tasks import template_file
+from nornir_utils.plugins.functions import print_result
 from nornir.core.inventory import ConnectionOptions
 from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
@@ -18,7 +19,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateExce
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_jinja_env
 from cnaas_nms.confpush.update import update_interfacedb_worker
 from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
     sync_devices
@@ -61,9 +62,10 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
         mapping = yaml.safe_load(f)
         template = mapping[devtype.name]['entrypoint']
 
-    r = task.run(task=text.template_file,
+    r = task.run(task=template_file,
                  name="Generate initial device config",
                  template=template,
+                 jinja_env=cnaas_jinja_env,
                  path=f"{local_repo_path}/{task.host.platform}",
                  **device_variables)
 
@@ -74,14 +76,14 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
     task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 30})
 
     try:
-        task.run(task=networking.napalm_configure,
+        task.run(task=napalm_configure,
                  name="Push base management config",
                  replace=True,
                  configuration=task.host["config"],
                  dry_run=False
                  )
     except Exception:
-        task.run(task=networking.napalm_get, getters=["facts"])
+        task.run(task=napalm_get, getters=["facts"])
         if not task.results[-1].failed:
             raise InitError("Device {} did not commit new base management config".format(
                 task.host.name
@@ -102,7 +104,7 @@ def pre_init_checks(session, device_id) -> Device:
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_old_filtered = nr.filter(name=old_hostname)
     try:
-        nrresult_old = nr_old_filtered.run(task=networking.napalm_get, getters=["facts"])
+        nrresult_old = nr_old_filtered.run(task=napalm_get, getters=["facts"])
     except Exception as e:
         raise ConnectionCheckError(f"Failed to connect to device_id {device_id}: {str(e)}")
     if nrresult_old.failed:
@@ -527,7 +529,7 @@ def init_device_step2(device_id: int, iteration: int = -1,
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
-    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
+    nrresult = nr_filtered.run(task=napalm_get, getters=["facts"])
 
     if nrresult.failed:
         next_job_id = schedule_init_device_step2(device_id, iteration, scheduled_by)
@@ -598,15 +600,16 @@ def set_hostname_task(task, new_hostname: str):
         local_repo_path = repo_config['templates_local']
     template_vars = {}  # host is already set by nornir
     r = task.run(
-        task=text.template_file,
+        task=template_file,
         name="Generate hostname config",
         template="hostname.j2",
+        jinja_env=cnaas_jinja_env,
         path=f"{local_repo_path}/{task.host.platform}",
         **template_vars
     )
     task.host["config"] = r.result
     task.run(
-        task=networking.napalm_configure,
+        task=napalm_configure,
         name="Configure hostname",
         replace=False,
         configuration=task.host["config"],
@@ -634,7 +637,7 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
-    nrresult = nr_filtered.run(task=networking.napalm_get, getters=["facts"])
+    nrresult = nr_filtered.run(task=napalm_get, getters=["facts"])
 
     if nrresult.failed:
         logger.info("Could not contact device with ztp_mac {} (attempt {})".format(

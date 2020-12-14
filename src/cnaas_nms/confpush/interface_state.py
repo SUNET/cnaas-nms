@@ -1,10 +1,10 @@
 from typing import List
 
 import yaml
-from nornir.plugins.tasks.networking import napalm_get, napalm_configure
-from nornir.plugins.tasks.text import template_file
+from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
+from nornir_jinja2.plugins.tasks import template_file
 
-import cnaas_nms.confpush.nornir_helper
+from cnaas_nms.confpush.nornir_helper import cnaas_init, cnaas_jinja_env
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
@@ -14,7 +14,7 @@ from cnaas_nms.tools.log import get_logger
 def get_interface_states(hostname) -> dict:
     logger = get_logger()
 
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     if len(nr_filtered.inventory) != 1:
         raise ValueError(f"Hostname {hostname} not found in inventory")
@@ -67,6 +67,7 @@ def bounce_task(task, interfaces: List[str]):
         task=template_file,
         name="Generate port bounce down config",
         template="bounce-down.j2",
+        jinja_env=cnaas_jinja_env,
         path=f"{local_repo_path}/{task.host.platform}",
         **template_vars
     )
@@ -81,6 +82,7 @@ def bounce_task(task, interfaces: List[str]):
         task=template_file,
         name="Generate port bounce up config",
         template="bounce-up.j2",
+        jinja_env=cnaas_jinja_env,
         path=f"{local_repo_path}/{task.host.platform}",
         **template_vars
     )
@@ -98,7 +100,7 @@ def bounce_interfaces(hostname: str, interfaces: List[str]) -> bool:
     Returns false if config did not change, and raises Exception if an
     error was encountered."""
     pre_bounce_check(hostname, interfaces)
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     if len(nr_filtered.inventory) != 1:
         raise ValueError(f"Hostname {hostname} not found in inventory")

@@ -48,9 +48,13 @@ def get_device_details(hostname):
 
 
 def render_template(platform, device_type, variables):
+    # Jinja env should match nornir_helper.cnaas_ninja_env
     jinjaenv = jinja2.Environment(
         loader=jinja2.FileSystemLoader(platform),
-        undefined=jinja2.StrictUndefined, trim_blocks=True
+        undefined=jinja2.StrictUndefined,
+        trim_blocks=True,
+        lstrip_blocks=True,
+        keep_trailing_newline=True
     )
     template_secrets = {}
     for env in os.environ:

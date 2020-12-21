@@ -1,5 +1,6 @@
 import os
 import ipaddress
+import ssl
 
 from nornir.core.inventory import (
     Inventory,
@@ -46,16 +47,31 @@ class CnaasInventory:
             return None
 
     def load(self) -> Inventory:
+        # TODO: use cnaas-nms root CA
+        ssl_context = ssl._create_unverified_context()
+
+        defaults = Defaults(
+            connection_options={
+                "napalm": ConnectionOptions(extras={
+                    "optional_args": {
+                        # args to eAPI HttpsEapiConnection for EOS
+                        "enforce_verification": True,
+                        "context": ssl_context
+                    }
+                })
+            }
+        )
+
         groups = Groups()
         for device_type in list(DeviceType.__members__):
             group_name = 'T_'+device_type
-            groups[group_name] = Group(name=group_name)
+            groups[group_name] = Group(name=group_name, defaults=defaults)
         for device_state in list(DeviceState.__members__):
             username, password = self._get_credentials(device_state)
             group_name = 'S_'+device_state
-            groups[group_name] = Group(name=group_name, username=username, password=password)
+            groups[group_name] = Group(name=group_name, username=username, password=password, defaults=defaults)
         for group_name in get_groups():
-            groups[group_name] = Group(name=group_name)
+            groups[group_name] = Group(name=group_name, defaults=defaults)
 
         hosts = Hosts()
         with cnaas_nms.db.session.sqla_session() as session:
@@ -81,9 +97,8 @@ class CnaasInventory:
                     data={
                         'synchronized': instance.synchronized,
                         'managed': (True if instance.state == DeviceState.MANAGED else False)
-                    }
+                    },
+                    defaults=defaults
                 )
-
-        defaults = Defaults()
 
         return Inventory(hosts=hosts, groups=groups, defaults=defaults)

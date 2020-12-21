@@ -1,6 +1,5 @@
 import os
 import ipaddress
-import ssl
 
 from nornir.core.inventory import (
     Inventory,
@@ -15,6 +14,7 @@ from nornir.core.inventory import (
 
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.settings import get_groups
+from cnaas_nms.tools.pki import ssl_context
 import cnaas_nms.db.session
 
 
@@ -47,9 +47,6 @@ class CnaasInventory:
             return None
 
     def load(self) -> Inventory:
-        # TODO: use cnaas-nms root CA
-        ssl_context = ssl._create_unverified_context()
-
         defaults = Defaults(
             connection_options={
                 "napalm": ConnectionOptions(extras={
@@ -61,6 +58,15 @@ class CnaasInventory:
                 })
             }
         )
+        insecure_device_states = [
+            DeviceState.INIT,
+            DeviceState.DHCP_BOOT,
+            DeviceState.PRE_CONFIGURED,
+            DeviceState.DISCOVERED
+        ]
+        insecure_connection_options = ConnectionOptions(extras={
+            "optional_args": {"enforce_verification": False}
+        })
 
         groups = Groups()
         for device_type in list(DeviceType.__members__):
@@ -69,7 +75,8 @@ class CnaasInventory:
         for device_state in list(DeviceState.__members__):
             username, password = self._get_credentials(device_state)
             group_name = 'S_'+device_state
-            groups[group_name] = Group(name=group_name, username=username, password=password, defaults=defaults)
+            groups[group_name] = Group(
+                name=group_name, username=username, password=password, defaults=defaults)
         for group_name in get_groups():
             groups[group_name] = Group(name=group_name, defaults=defaults)
 
@@ -88,6 +95,11 @@ class CnaasInventory:
                 ]
                 for member_group in get_groups(instance.hostname):
                     host_groups.append(member_group)
+
+                if instance.state in insecure_device_states:
+                    host_connection_options = insecure_connection_options
+                else:
+                    host_connection_options = None
                 hosts[instance.hostname] = Host(
                     name=instance.hostname,
                     hostname=hostname,
@@ -98,6 +110,7 @@ class CnaasInventory:
                         'synchronized': instance.synchronized,
                         'managed': (True if instance.state == DeviceState.MANAGED else False)
                     },
+                    connection_options=host_connection_options,
                     defaults=defaults
                 )
 

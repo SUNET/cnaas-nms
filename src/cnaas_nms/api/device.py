@@ -42,6 +42,8 @@ device_discover_api = Namespace('device_discover', description='API to discover 
 device_update_facts_api = Namespace('device_update_facts',
                                     description='API to update facts about devices',
                                     prefix='/api/{}'.format(__api_version__))
+device_cert_api = Namespace('device_cert', description='API to handle device certificates',
+                            prefix='/api/{}'.format(__api_version__))
 
 
 device_model = device_api.model('device', {
@@ -97,6 +99,15 @@ device_restore_model = device_api.model('device_restore', {
 device_apply_config_model = device_api.model('device_apply_config', {
     'dry_run': fields.Boolean(required=False),
     'full_config': fields.String(required=True),
+})
+
+device_cert_model = device_syncto_api.model('device_cert', {
+    'hostname': fields.String(required=True,
+                              description="Device hostname",
+                              example="myhostname"),
+    'action': fields.String(required=True,
+                            description="Action to execute, one of: RENEW",
+                            example="RENEW")
 })
 
 
@@ -749,6 +760,80 @@ class DeviceApplyConfigApi(Resource):
         return res, 200
 
 
+class DeviceCertApi(Resource):
+    @jwt_required
+    @device_api.expect(device_cert_model)
+    def put(self):
+        """Execute certificate related actions on device"""
+        json_data = request.get_json()
+        # default args
+        kwargs: dict = {}
+
+        if 'action' in json_data and isinstance(json_data['action'], str):
+            action = json_data['action'].upper()
+        else:
+            return empty_result(
+                status='error',
+                data=f"Required field 'action' was not specified"
+            ), 400
+
+        if 'comment' in json_data and isinstance(json_data['comment'], str):
+            kwargs['job_comment'] = json_data['comment']
+        if 'ticket_ref' in json_data and isinstance(json_data['ticket_ref'], str):
+            kwargs['job_ticket_ref'] = json_data['ticket_ref']
+
+        total_count: Optional[int] = None
+        nr = cnaas_init()
+
+        if 'hostname' in json_data:
+            hostname = str(json_data['hostname'])
+            if not Device.valid_hostname(hostname):
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' is not a valid hostname"
+                ), 400
+            _, total_count, _ = inventory_selector(nr, hostname=hostname)
+            if total_count != 1:
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' not found or is not a managed device"
+                ), 400
+            kwargs['hostname'] = hostname
+        elif 'group' in json_data:
+            group_name = str(json_data['group'])
+            if group_name not in get_groups():
+                return empty_result(status='error', data='Could not find a group with name {}'.format(group_name))
+            kwargs['group'] = group_name
+            _, total_count, _ = inventory_selector(nr, group=group_name)
+        else:
+            return empty_result(
+                status='error',
+                data=f"No devices were specified"
+            ), 400
+
+        if action == 'RENEW':
+            scheduler = Scheduler()
+            job_id = scheduler.add_onetime_job(
+                'cnaas_nms.confpush.cert:renew_cert',
+                when=1,
+                scheduled_by=get_jwt_identity(),
+                kwargs=kwargs)
+
+            res = empty_result(data=f"Scheduled job to renew certificates")
+            res['job_id'] = job_id
+
+            resp = make_response(json.dumps(res), 200)
+            if total_count:
+                resp.headers['X-Total-Count'] = total_count
+            resp.headers['Content-Type'] = "application/json"
+            return resp
+        else:
+            return empty_result(
+                status='error',
+                data=f"Unknown action specified: {action}"
+            ), 400
+
+
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
 device_api.add_resource(DeviceByHostnameApi, '/<string:hostname>')
@@ -762,4 +847,5 @@ device_initcheck_api.add_resource(DeviceInitCheckApi, '/<int:device_id>')
 device_discover_api.add_resource(DeviceDiscoverApi, '')
 device_syncto_api.add_resource(DeviceSyncApi, '')
 device_update_facts_api.add_resource(DeviceUpdateFactsApi, '')
+device_cert_api.add_resource(DeviceCertApi, '')
 # device/<string:hostname>/current_config

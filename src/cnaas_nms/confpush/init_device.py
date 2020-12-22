@@ -28,6 +28,9 @@ from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.thread_data import set_thread_data
+from cnaas_nms.tools.pki import generate_device_cert
+from cnaas_nms.confpush.cert import arista_copy_cert
+from cnaas_nms.tools.get_apidata import get_apidata
 
 
 class ConnectionCheckError(Exception):
@@ -183,6 +186,42 @@ def pre_init_check_mlag(session, dev, mlag_peer_dev):
             ))
 
 
+def ztp_device_cert(task, job_id: str, new_hostname: str, management_ip) -> str:
+    set_thread_data(job_id)
+    logger = get_logger()
+
+    try:
+        generate_device_cert(new_hostname, ipv4_address=management_ip)
+    except Exception as e:
+        raise Exception("Could not generate certificate for device {}: {}".format(
+            new_hostname, e
+        ))
+
+    if task.host.platform == "eos":
+        try:
+            # TODO: subtaskerror?
+            res = task.run(task=arista_copy_cert,
+                           job_id=job_id)
+        except Exception as e:
+            logger.exception('Exception while copying certificates: {}'.format(
+                str(e)))
+            raise e
+    else:
+        return "Install device certificate not supported on platform: {}".format(
+            task.host.platform
+        )
+    return "Device certificate installed for {}".format(new_hostname)
+
+
+def device_cert_required() -> bool:
+    apidata = get_apidata()
+    if 'verify_tls' in apidata and type(apidata['verify_tls']) == bool and \
+            not apidata['verify_tls']:
+        return False
+    else:
+        return True
+
+
 @job_wrapper
 def init_access_device_step1(device_id: int, new_hostname: str,
                              mlag_peer_id: Optional[int] = None,
@@ -278,6 +317,22 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
+
+    # TODO: install device certificate, using new hostname and reserved IP.
+    #       exception on fail if tls_verify!=False
+    device_cert_res = nr_filtered.run(
+        task=ztp_device_cert,
+        job_id=job_id,
+        new_hostname=new_hostname,
+        management_ip=mgmt_ip
+    )
+    # handle exception from ztp_device_cert -> arista_copy_cert
+    if device_cert_res.failed:
+        if device_cert_required():
+            logger.error("Unable to install device certificate for {}".format(new_hostname))
+            raise Exception(device_cert_res[0].exception)
+        else:
+            logger.debug("Unable to install device certificate for {}".format(new_hostname))
 
     # step2. push management config
     nrresult = nr_filtered.run(task=push_base_management,
@@ -444,6 +499,8 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
+
+    # TODO: certicate
 
     # step2. push management config
     nrresult = nr_filtered.run(task=push_base_management,

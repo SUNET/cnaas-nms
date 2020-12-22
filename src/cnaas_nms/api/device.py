@@ -102,9 +102,12 @@ device_apply_config_model = device_api.model('device_apply_config', {
 })
 
 device_cert_model = device_syncto_api.model('device_cert', {
-    'hostname': fields.String(required=True,
+    'hostname': fields.String(required=False,
                               description="Device hostname",
                               example="myhostname"),
+    'group': fields.String(required=False,
+                           description="Device group",
+                           example="mygroup"),
     'action': fields.String(required=True,
                             description="Action to execute, one of: RENEW",
                             example="RENEW")
@@ -763,7 +766,7 @@ class DeviceApplyConfigApi(Resource):
 class DeviceCertApi(Resource):
     @jwt_required
     @device_api.expect(device_cert_model)
-    def put(self):
+    def post(self):
         """Execute certificate related actions on device"""
         json_data = request.get_json()
         # default args

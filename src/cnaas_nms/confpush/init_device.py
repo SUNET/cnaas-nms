@@ -70,7 +70,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
         device_cert_res = task.run(
             task=ztp_device_cert,
             job_id=job_id,
-            new_hostname=device_variables['host'],
+            new_hostname=task.host.name,
             management_ip=device_variables['mgmt_ip']
         )
     # TODO: handle exception from ztp_device_cert -> arista_copy_cert

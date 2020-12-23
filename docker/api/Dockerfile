@@ -40,6 +40,10 @@ RUN chown -R root:www-data /opt/cnaas/ && \
     chmod -R u=rwX,g=rX,o= /opt/cnaas/
 RUN chown -R www-data:www-data /opt/cnaas/templates/
 RUN chown -R www-data:www-data /opt/cnaas/settings/
+# Give permission for devicecert store
+RUN mkdir /tmp/devicecerts
+RUN chown -R www-data:www-data /tmp/devicecerts && \
+    chmod -R u=rwX,g=,o= /tmp/devicecerts
 # Give permission for unittests
 RUN chown root:www-data /opt/cnaas/*.sh && \
     chmod g+rx /opt/cnaas/*.sh

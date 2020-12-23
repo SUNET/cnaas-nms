@@ -215,8 +215,8 @@ def ztp_device_cert(task, job_id: str, new_hostname: str, management_ip) -> str:
 
 def device_cert_required() -> bool:
     apidata = get_apidata()
-    if 'verify_tls' in apidata and type(apidata['verify_tls']) == bool and \
-            not apidata['verify_tls']:
+    if 'verify_tls_device' in apidata and type(apidata['verify_tls_device']) == bool and \
+            not apidata['verify_tls_device']:
         return False
     else:
         return True

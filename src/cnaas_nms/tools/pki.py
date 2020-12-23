@@ -26,7 +26,8 @@ def get_ssl_context():
         else:
             logger.error("Specified cafile is not a file: {}".format(apidata['cafile']))
 
-    if 'verify_tls' in apidata and type(apidata['verify_tls']) == bool and not apidata['verify_tls']:
+    if 'verify_tls_device' in apidata and type(apidata['verify_tls_device']) == bool and \
+            not apidata['verify_tls_device']:
         logger.warning("Accepting unverified TLS certificates")
         new_ssl_context = ssl._create_unverified_context()
 

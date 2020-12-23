@@ -64,6 +64,28 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
         mapping = yaml.safe_load(f)
         template = mapping[devtype.name]['entrypoint']
 
+    # TODO: install device certificate, using new hostname and reserved IP.
+    #       exception on fail if tls_verify!=False
+    try:
+        device_cert_res = task.run(
+            task=ztp_device_cert,
+            job_id=job_id,
+            new_hostname=device_variables['host'],
+            management_ip=device_variables['mgmt_ip']
+        )
+    # TODO: handle exception from ztp_device_cert -> arista_copy_cert
+    except Exception as e:
+        logger.exception(e)
+    else:
+        if device_cert_res.failed:
+            if device_cert_required():
+                logger.error("Unable to install device certificate for {}, aborting".format(
+                    device_variables['host']))
+                raise Exception(device_cert_res[0].exception)
+            else:
+                logger.debug("Unable to install device certificate for {}".format(
+                    device_variables['host']))
+
     r = task.run(task=template_file,
                  name="Generate initial device config",
                  template=template,
@@ -317,26 +339,6 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
-
-    # TODO: install device certificate, using new hostname and reserved IP.
-    #       exception on fail if tls_verify!=False
-    try:
-        device_cert_res = nr_filtered.run(
-            task=ztp_device_cert,
-            job_id=job_id,
-            new_hostname=new_hostname,
-            management_ip=mgmt_ip
-        )
-    # TODO: handle exception from ztp_device_cert -> arista_copy_cert
-    except Exception as e:
-        logger.exception(e)
-    else:
-        if device_cert_res.failed:
-            if device_cert_required():
-                logger.error("Unable to install device certificate for {}".format(new_hostname))
-                raise Exception(device_cert_res[0].exception)
-            else:
-                logger.debug("Unable to install device certificate for {}".format(new_hostname))
 
     # step2. push management config
     nrresult = nr_filtered.run(task=push_base_management,

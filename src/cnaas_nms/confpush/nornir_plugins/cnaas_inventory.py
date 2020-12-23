@@ -65,7 +65,9 @@ class CnaasInventory:
             DeviceState.DISCOVERED
         ]
         insecure_connection_options = {
-            "napalm": ConnectionOptions(extras={})
+            "napalm": ConnectionOptions(extras={
+                "optional_args": {"enforce_verification": False}
+            })
         }
 
         groups = Groups()

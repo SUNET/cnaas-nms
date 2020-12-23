@@ -4,7 +4,6 @@ from ipaddress import IPv4Interface
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
-from nornir.core.inventory import ConnectionOptions
 from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
 import yaml
@@ -76,7 +75,8 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
 
     task.host["config"] = r.result
     # Use extra low timeout for this since we expect to loose connectivity after changing IP
-    task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 30})
+    connopts_napalm = task.host.connection_options["napalm"]
+    connopts_napalm.extras["timeout"] = 30
 
     try:
         task.run(task=napalm_configure,

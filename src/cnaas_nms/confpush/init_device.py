@@ -320,19 +320,23 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
     # TODO: install device certificate, using new hostname and reserved IP.
     #       exception on fail if tls_verify!=False
-    device_cert_res = nr_filtered.run(
-        task=ztp_device_cert,
-        job_id=job_id,
-        new_hostname=new_hostname,
-        management_ip=mgmt_ip
-    )
-    # handle exception from ztp_device_cert -> arista_copy_cert
-    if device_cert_res.failed:
-        if device_cert_required():
-            logger.error("Unable to install device certificate for {}".format(new_hostname))
-            raise Exception(device_cert_res[0].exception)
-        else:
-            logger.debug("Unable to install device certificate for {}".format(new_hostname))
+    try:
+        device_cert_res = nr_filtered.run(
+            task=ztp_device_cert,
+            job_id=job_id,
+            new_hostname=new_hostname,
+            management_ip=mgmt_ip
+        )
+    # TODO: handle exception from ztp_device_cert -> arista_copy_cert
+    except Exception as e:
+        logger.exception(e)
+    else:
+        if device_cert_res.failed:
+            if device_cert_required():
+                logger.error("Unable to install device certificate for {}".format(new_hostname))
+                raise Exception(device_cert_res[0].exception)
+            else:
+                logger.debug("Unable to install device certificate for {}".format(new_hostname))
 
     # step2. push management config
     nrresult = nr_filtered.run(task=push_base_management,

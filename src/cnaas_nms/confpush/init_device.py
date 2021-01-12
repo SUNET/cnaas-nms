@@ -1,5 +1,5 @@
 from typing import Optional, List
-from ipaddress import IPv4Interface
+from ipaddress import IPv4Interface, IPv4Address
 
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
@@ -208,12 +208,13 @@ def pre_init_check_mlag(session, dev, mlag_peer_dev):
             ))
 
 
-def ztp_device_cert(task, job_id: str, new_hostname: str, management_ip) -> str:
+def ztp_device_cert(task, job_id: str, new_hostname: str, management_ip: str) -> str:
     set_thread_data(job_id)
     logger = get_logger()
 
     try:
-        generate_device_cert(new_hostname, ipv4_address=management_ip)
+        ipv4: IPv4Address = IPv4Address(management_ip)
+        generate_device_cert(new_hostname, ipv4_address=ipv4)
     except Exception as e:
         raise Exception("Could not generate certificate for device {}: {}".format(
             new_hostname, e

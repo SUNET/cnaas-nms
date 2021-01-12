@@ -17,6 +17,7 @@ RUN /opt/cnaas/cnaas-setup.sh $BUILDBRANCH
 # Prepare for supervisord, uwsgi, ngninx
 COPY nosetests.sh /opt/cnaas/
 COPY exec-pre-app.sh /opt/cnaas/
+COPY createca.sh /opt/cnaas/
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY config/nginx_app.conf /etc/nginx/sites-available/

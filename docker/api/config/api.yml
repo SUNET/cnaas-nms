@@ -3,6 +3,6 @@ httpd_url: "https://cnaas_httpd:1443/api/v1.0/firmware"
 verify_tls: False
 jwtcert: /opt/cnaas/jwtcert/public.pem
 verify_tls_device: False
-cafile: /opt/cnaas/jwtcert/rootCA.crt
-cakeyfile: /opt/cnaas/jwtcert/rootCA.key
+cafile: /opt/cnaas/cacert/rootCA.crt
+cakeyfile: /opt/cnaas/cacert/rootCA.key
 certpath: /tmp/devicecerts/

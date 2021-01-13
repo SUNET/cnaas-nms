@@ -1,10 +1,9 @@
 from typing import Optional, List
-from ipaddress import IPv4Interface
+from ipaddress import IPv4Interface, IPv4Address
 
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
-from nornir.core.inventory import ConnectionOptions
 from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
 import yaml
@@ -28,6 +27,9 @@ from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.thread_data import set_thread_data
+from cnaas_nms.tools.pki import generate_device_cert
+from cnaas_nms.confpush.cert import arista_copy_cert
+from cnaas_nms.tools.get_apidata import get_apidata
 
 
 class ConnectionCheckError(Exception):
@@ -62,6 +64,28 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
         mapping = yaml.safe_load(f)
         template = mapping[devtype.name]['entrypoint']
 
+    # TODO: install device certificate, using new hostname and reserved IP.
+    #       exception on fail if tls_verify!=False
+    try:
+        device_cert_res = task.run(
+            task=ztp_device_cert,
+            job_id=job_id,
+            new_hostname=task.host.name,
+            management_ip=device_variables['mgmt_ip']
+        )
+    # TODO: handle exception from ztp_device_cert -> arista_copy_cert
+    except Exception as e:
+        logger.exception(e)
+    else:
+        if device_cert_res.failed:
+            if device_cert_required():
+                logger.error("Unable to install device certificate for {}, aborting".format(
+                    device_variables['host']))
+                raise Exception(device_cert_res[0].exception)
+            else:
+                logger.debug("Unable to install device certificate for {}".format(
+                    device_variables['host']))
+
     r = task.run(task=template_file,
                  name="Generate initial device config",
                  template=template,
@@ -73,7 +97,8 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
 
     task.host["config"] = r.result
     # Use extra low timeout for this since we expect to loose connectivity after changing IP
-    task.host.connection_options["napalm"] = ConnectionOptions(extras={"timeout": 30})
+    connopts_napalm = task.host.connection_options["napalm"]
+    connopts_napalm.extras["timeout"] = 30
 
     try:
         task.run(task=napalm_configure,
@@ -181,6 +206,43 @@ def pre_init_check_mlag(session, dev, mlag_peer_dev):
             raise Exception("Inconsistent MLAG peer {} detected for device {}".format(
                 intf.data['neighbor'], dev.hostname
             ))
+
+
+def ztp_device_cert(task, job_id: str, new_hostname: str, management_ip: str) -> str:
+    set_thread_data(job_id)
+    logger = get_logger()
+
+    try:
+        ipv4: IPv4Address = IPv4Address(management_ip)
+        generate_device_cert(new_hostname, ipv4_address=ipv4)
+    except Exception as e:
+        raise Exception("Could not generate certificate for device {}: {}".format(
+            new_hostname, e
+        ))
+
+    if task.host.platform == "eos":
+        try:
+            # TODO: subtaskerror?
+            res = task.run(task=arista_copy_cert,
+                           job_id=job_id)
+        except Exception as e:
+            logger.exception('Exception while copying certificates: {}'.format(
+                str(e)))
+            raise e
+    else:
+        return "Install device certificate not supported on platform: {}".format(
+            task.host.platform
+        )
+    return "Device certificate installed for {}".format(new_hostname)
+
+
+def device_cert_required() -> bool:
+    apidata = get_apidata()
+    if 'verify_tls_device' in apidata and type(apidata['verify_tls_device']) == bool and \
+            not apidata['verify_tls_device']:
+        return False
+    else:
+        return True
 
 
 @job_wrapper
@@ -444,6 +506,8 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
+
+    # TODO: certicate
 
     # step2. push management config
     nrresult = nr_filtered.run(task=push_base_management,

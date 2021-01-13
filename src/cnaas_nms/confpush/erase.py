@@ -18,7 +18,6 @@ def device_erase_task(task, hostname: str) -> str:
         res = task.run(netmiko_send_command, command_string='enable',
                        expect_string='.*#',
                        name='Enable')
-        print_result(res)
 
         res = task.run(netmiko_send_command,
                        command_string='write erase now',
@@ -29,6 +28,19 @@ def device_erase_task(task, hostname: str) -> str:
         logger.info('Failed to factory default device {}, reason: {}'.format(
             task.host.name, e))
         raise Exception('Factory default device')
+
+    # Remove cnaas device certificates if they are found
+    try:
+        task.run(netmiko_send_command,
+                 command_string='delete certificate:cnaasnms.crt',
+                 expect_string='.*#',
+                 name='Remove device certificate')
+        task.run(netmiko_send_command,
+                 command_string='delete sslkey:cnaasnms.key',
+                 expect_string='.*#',
+                 name='Remove device key')
+    except Exception as e:
+        pass
 
     try:
         res = task.run(netmiko_send_command, command_string='reload force',

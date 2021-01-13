@@ -14,6 +14,7 @@ from nornir.core.inventory import (
 
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.settings import get_groups
+from cnaas_nms.tools.pki import ssl_context
 import cnaas_nms.db.session
 
 
@@ -46,16 +47,40 @@ class CnaasInventory:
             return None
 
     def load(self) -> Inventory:
+        defaults = Defaults(
+            connection_options={
+                "napalm": ConnectionOptions(extras={
+                    "optional_args": {
+                        # args to eAPI HttpsEapiConnection for EOS
+                        "enforce_verification": True,
+                        "context": ssl_context
+                    }
+                })
+            }
+        )
+        insecure_device_states = [
+            DeviceState.INIT,
+            DeviceState.DHCP_BOOT,
+            DeviceState.PRE_CONFIGURED,
+            DeviceState.DISCOVERED
+        ]
+        insecure_connection_options = {
+            "napalm": ConnectionOptions(extras={
+                "optional_args": {"enforce_verification": False}
+            })
+        }
+
         groups = Groups()
         for device_type in list(DeviceType.__members__):
             group_name = 'T_'+device_type
-            groups[group_name] = Group(name=group_name)
+            groups[group_name] = Group(name=group_name, defaults=defaults)
         for device_state in list(DeviceState.__members__):
             username, password = self._get_credentials(device_state)
             group_name = 'S_'+device_state
-            groups[group_name] = Group(name=group_name, username=username, password=password)
+            groups[group_name] = Group(
+                name=group_name, username=username, password=password, defaults=defaults)
         for group_name in get_groups():
-            groups[group_name] = Group(name=group_name)
+            groups[group_name] = Group(name=group_name, defaults=defaults)
 
         hosts = Hosts()
         with cnaas_nms.db.session.sqla_session() as session:
@@ -72,6 +97,11 @@ class CnaasInventory:
                 ]
                 for member_group in get_groups(instance.hostname):
                     host_groups.append(member_group)
+
+                if instance.state in insecure_device_states:
+                    host_connection_options = insecure_connection_options
+                else:
+                    host_connection_options = None
                 hosts[instance.hostname] = Host(
                     name=instance.hostname,
                     hostname=hostname,
@@ -81,9 +111,9 @@ class CnaasInventory:
                     data={
                         'synchronized': instance.synchronized,
                         'managed': (True if instance.state == DeviceState.MANAGED else False)
-                    }
+                    },
+                    connection_options=host_connection_options,
+                    defaults=defaults
                 )
-
-        defaults = Defaults()
 
         return Inventory(hosts=hosts, groups=groups, defaults=defaults)

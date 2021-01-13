@@ -321,3 +321,20 @@ This will schedule a job to log in to the device, get the facts and update the
 database. You can perform this action on both MANAGED and UNMANAGED devices.
 UNMANAGED devices might not be reachable so this could be a good test-call
 before moving the device back to the MANAGED state.
+
+Renew certificates
+------------------
+
+To manually request installation/renewal of a new device certificate use
+the device_cert API:
+
+::
+
+   curl https://localhost/api/v1.0/device_cert -d '{"hostname": "eosdist1", "action": "RENEW"}' -X POST -H "Content-Type: application/json"
+
+This will schedule a job to generate a new key and certificate for the specified
+device(s) and copy them to the device(s). The certificate will be signed by the
+NMS CA (specified in api.yml).
+
+Either one of "hostname" or "group" arguments must be specified. The "action"
+argument must be specified and the only valid action for now is "RENEW".

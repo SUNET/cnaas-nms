@@ -17,6 +17,7 @@ RUN /opt/cnaas/cnaas-setup.sh $BUILDBRANCH
 # Prepare for supervisord, uwsgi, ngninx
 COPY nosetests.sh /opt/cnaas/
 COPY exec-pre-app.sh /opt/cnaas/
+COPY createca.sh /opt/cnaas/
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY config/nginx_app.conf /etc/nginx/sites-available/
@@ -40,6 +41,10 @@ RUN chown -R root:www-data /opt/cnaas/ && \
     chmod -R u=rwX,g=rX,o= /opt/cnaas/
 RUN chown -R www-data:www-data /opt/cnaas/templates/
 RUN chown -R www-data:www-data /opt/cnaas/settings/
+# Give permission for devicecert store
+RUN mkdir /tmp/devicecerts
+RUN chown -R www-data:www-data /tmp/devicecerts && \
+    chmod -R u=rwX,g=,o= /tmp/devicecerts
 # Give permission for unittests
 RUN chown root:www-data /opt/cnaas/*.sh && \
     chmod g+rx /opt/cnaas/*.sh

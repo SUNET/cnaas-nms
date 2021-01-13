@@ -16,7 +16,8 @@ from cnaas_nms.version import __api_version__
 from cnaas_nms.tools.log import get_logger
 
 from cnaas_nms.api.device import device_api, devices_api, device_init_api, \
-    device_initcheck_api, device_syncto_api, device_discover_api, device_update_facts_api
+    device_initcheck_api, device_syncto_api, device_discover_api, \
+    device_update_facts_api, device_cert_api
 from cnaas_nms.api.linknet import api as links_api
 from cnaas_nms.api.firmware import api as firmware_api
 from cnaas_nms.api.interface import api as interfaces_api
@@ -101,6 +102,7 @@ api.add_namespace(device_initcheck_api)
 api.add_namespace(device_syncto_api)
 api.add_namespace(device_discover_api)
 api.add_namespace(device_update_facts_api)
+api.add_namespace(device_cert_api)
 api.add_namespace(links_api)
 api.add_namespace(firmware_api)
 api.add_namespace(interfaces_api)

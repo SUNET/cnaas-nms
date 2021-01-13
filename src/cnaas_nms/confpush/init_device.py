@@ -644,15 +644,15 @@ def init_device_step2(device_id: int, iteration: int = -1,
 
 def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
                              scheduled_by: str) -> Optional[Job]:
-    max_iterations = 5
-    if iteration > 0 and iteration < max_iterations:
+    max_iterations = 3
+    if 0 < iteration <= max_iterations:
         scheduler = Scheduler()
         next_job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.init_device:discover_device',
             when=(60*iteration),
             scheduled_by=scheduled_by,
             kwargs={'ztp_mac': ztp_mac, 'dhcp_ip': dhcp_ip,
-                    'iteration': iteration+1})
+                    'iteration': iteration})
         return next_job_id
     else:
         return None
@@ -682,7 +682,7 @@ def set_hostname_task(task, new_hostname: str):
 
 
 @job_wrapper
-def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
+def discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
                     job_id: Optional[str] = None,
                     scheduled_by: Optional[str] = None):
     logger = get_logger()
@@ -707,15 +707,15 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
         logger.info("Could not contact device with ztp_mac {} (attempt {})".format(
             ztp_mac, iteration
         ))
-        next_job_id = schedule_discover_device(ztp_mac, dhcp_ip, iteration,
+        next_job_id = schedule_discover_device(ztp_mac, dhcp_ip, iteration+1,
                                                scheduled_by)
         if next_job_id:
             return NornirJobResult(
-                nrresult = nrresult,
-                next_job_id = next_job_id
+                nrresult=nrresult,
+                next_job_id=next_job_id
             )
         else:
-            return NornirJobResult(nrresult = nrresult)
+            return NornirJobResult(nrresult=nrresult)
     try:
         facts = nrresult[hostname][0].result['facts']
         with sqla_session() as session:
@@ -726,8 +726,8 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration=-1,
             dev.os_version = facts['os_version']
             dev.state = DeviceState.DISCOVERED
             new_hostname = dev.hostname
-            logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned, " +
-                        "moving to DISCOVERED state")
+            logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned" +
+                        f"(attempt {iteration}), moving to DISCOVERED state")
     except Exception as e:
         logger.exception("Could not update device with ztp_mac {} with new facts: {}".format(
             ztp_mac, str(e)

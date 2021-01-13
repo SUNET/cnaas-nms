@@ -289,6 +289,19 @@ def check_settings_collisions(unique_vlans: bool = True):
     check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
 
 
+def get_internal_vlan_range(settings) -> range:
+    if "internal_vlans" not in settings or not isinstance(settings["internal_vlans"], dict):
+        return range(0)
+    if ("vlan_id_low" in settings["internal_vlans"] and
+            "vlan_id_high" in settings["internal_vlans"] and
+            type(settings["internal_vlans"]["vlan_id_low"]) == int and
+            type(settings["internal_vlans"]["vlan_id_high"]) == int):
+        return range(settings["internal_vlans"]["vlan_id_low"],
+                     settings["internal_vlans"]["vlan_id_high"]+1)
+    else:
+        return range(0)
+
+
 def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
                           unique_vlans: bool = True):
     logger = get_logger()
@@ -338,6 +351,11 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
                 device_vlan_ids[hostname].add(vxlan_data['vlan_id'])
             else:
                 device_vlan_ids[hostname] = {vxlan_data['vlan_id']}
+            if vxlan_data['vlan_id'] in get_internal_vlan_range(settings):
+                raise VlanConflictError(
+                    "VLAN id {} is overlapping with internal VLAN range".format(
+                        vxlan_data['vlan_id'])
+                )
             global_vlans[vxlan_data['vlan_id']] = vxlan_name
             # VLAN name checks
             if 'vlan_name' not in vxlan_data or not isinstance(vxlan_data['vlan_name'], str):

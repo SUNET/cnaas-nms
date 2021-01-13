@@ -261,6 +261,7 @@ Contains base system settings like:
 - dns_servers
 - syslog_servers
 - dhcp_relays
+- internal_vlans
 
 Example of base_system.yml:
 
@@ -281,9 +282,19 @@ Example of base_system.yml:
    dhcp_relays:
      - host: 10.255.1.1
      - host: 10.255.1.2
+   internal_vlans:
+     vlan_id_low: 3006
+     vlan_id_high: 4094
+
 
 syslog_servers and radius_severs can optionally have the key "port" specified
 to indicate a non-defalut layer4 (TCP/UDP) port number.
+
+internal_vlans can optionally be specified if you want to manually define
+the range of internal VLANs on L3 switches. You can also specify the option
+"allocation_order" under internal_vlans which is a custom string that defaults
+to "ascending". If internal_vlans is specified then a collision check will
+be performed for any defined vlan_ids in vxlans settings.
 
 etc
 ---

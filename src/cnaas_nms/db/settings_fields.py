@@ -177,6 +177,19 @@ class f_extroute_bgp(BaseModel):
     vrfs: List[f_extroute_bgp_vrf]
 
 
+class f_internal_vlans(BaseModel):
+    vlan_id_low: int = vlan_id_schema
+    vlan_id_high: int = vlan_id_schema
+    allocation_order: str = "ascending"
+
+    @validator('vlan_id_high')
+    def vlan_id_high_greater_than_low(cls, v, values, **kwargs):
+        if v:
+            if values['vlan_id_low'] >= v:
+                raise ValueError("vlan_id_high must be greater than vlan_id_low")
+        return v
+
+
 class f_vxlan(BaseModel):
     description: str = None
     vni: int = vxlan_vni_schema
@@ -218,6 +231,7 @@ class f_root(BaseModel):
     extroute_static: Optional[f_extroute_static]
     extroute_ospfv3: Optional[f_extroute_ospfv3]
     extroute_bgp: Optional[f_extroute_bgp]
+    internal_vlans: Optional[f_internal_vlans]
     cli_prepend_str: str = ""
     cli_append_str: str = ""
 

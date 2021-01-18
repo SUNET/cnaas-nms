@@ -8,6 +8,7 @@ from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
 import yaml
 import os
+import logging
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
@@ -345,7 +346,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     nrresult = nr_filtered.run(task=push_base_management,
                                device_variables=device_variables,
                                devtype=DeviceType.ACCESS,
-                               job_id=job_id)
+                               job_id=job_id,
+                               severity_level=logging.NOTSET)
 
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()

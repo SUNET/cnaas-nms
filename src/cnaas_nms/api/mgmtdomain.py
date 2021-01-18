@@ -43,12 +43,15 @@ class MgmtdomainByIdApi(Resource):
     def delete(self, mgmtdomain_id):
         """ Remove management domain """
         with sqla_session() as session:
-            instance = session.query(Mgmtdomain).\
+            instance: Mgmtdomain = session.query(Mgmtdomain).\
                 filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
+                instance.device_a.synchronized = False
+                instance.device_b.synchronized = False
                 session.delete(instance)
                 session.commit()
-                return empty_result(), 204
+                return empty_result(status="success",
+                                    data={"deleted_mgmtdomain": instance.as_dict()}), 200
             else:
                 return empty_result('error', "Management domain not found"), 404
 
@@ -79,8 +82,11 @@ class MgmtdomainByIdApi(Resource):
                     errors.append("Bad prefix length for management network: {}".format(
                         prefix_len))
         with sqla_session() as session:
-            instance = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+            instance: Mgmtdomain = session.query(Mgmtdomain).\
+                filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
+                instance.device_a.synchronized = False
+                instance.device_b.synchronized = False
                 #TODO: auto loop through class members and match
                 if 'vlan' in data:
                     instance.vlan = data['vlan']
@@ -119,7 +125,7 @@ class MgmtdomainsApi(Resource):
                 if not Device.valid_hostname(hostname_a):
                     errors.append(f"Invalid hostname for device_a: {hostname_a}")
                 else:
-                    device_a = session.query(Device).\
+                    device_a: Device = session.query(Device).\
                         filter(Device.hostname == hostname_a).one_or_none()
                     if not device_a:
                         errors.append(f"Device with hostname {hostname_a} not found")
@@ -130,7 +136,7 @@ class MgmtdomainsApi(Resource):
                 if not Device.valid_hostname(hostname_b):
                     errors.append(f"Invalid hostname for device_b: {hostname_b}")
                 else:
-                    device_b = session.query(Device).\
+                    device_b: Device = session.query(Device).\
                         filter(Device.hostname == hostname_b).one_or_none()
                     if not device_b:
                         errors.append(f"Device with hostname {hostname_b} not found")
@@ -163,8 +169,11 @@ class MgmtdomainsApi(Resource):
                 new_mgmtd.device_b = data['device_b']
                 new_mgmtd.ipv4_gw = data['ipv4_gw']
                 new_mgmtd.vlan = data['vlan']
-                result = session.add(new_mgmtd)
-                return empty_result(result, 200)
+                session.add(new_mgmtd)
+                session.flush()
+                device_a.synchronized = False
+                device_b.synchronized = False
+                return empty_result(status='success', data={"added_mgmtdomain": new_mgmtd.as_dict()}), 200
             else:
                 errors.append("Not all required inputs were found: {}".\
                               format(', '.join(required_keys)))

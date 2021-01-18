@@ -618,10 +618,10 @@ def init_device_step2(device_id: int, iteration: int = -1,
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
         dev.synchronized = False
-        dev.serial = facts['serial_number']
-        dev.vendor = facts['vendor']
-        dev.model = facts['model']
-        dev.os_version = facts['os_version']
+        dev.serial = facts['serial_number'][:64]
+        dev.vendor = facts['vendor'][:64]
+        dev.model = facts['model'][:64]
+        dev.os_version = facts['os_version'][:64]
         management_ip = dev.management_ip
         dev.dhcp_ip = None
 
@@ -722,10 +722,10 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
         facts = nrresult[hostname][0].result['facts']
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.ztp_mac == ztp_mac).one()
-            dev.serial = facts['serial_number']
-            dev.vendor = facts['vendor']
-            dev.model = facts['model']
-            dev.os_version = facts['os_version']
+            dev.serial = facts['serial_number'][:64]
+            dev.vendor = facts['vendor'][:64]
+            dev.model = facts['model'][:64]
+            dev.os_version = facts['os_version'][:64]
             dev.state = DeviceState.DISCOVERED
             new_hostname = dev.hostname
             logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned" +

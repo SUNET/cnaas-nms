@@ -125,10 +125,10 @@ def update_facts(hostname: str,
         facts = nrresult[hostname][0].result['facts']
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-            dev.serial = facts['serial_number']
-            dev.vendor = facts['vendor']
-            dev.model = facts['model']
-            dev.os_version = facts['os_version']
+            dev.serial = facts['serial_number'][:64]
+            dev.vendor = facts['vendor'][:64]
+            dev.model = facts['model'][:64]
+            dev.os_version = facts['os_version'][:64]
         logger.debug("Updating facts for device {}: {}, {}, {}, {}".format(
             hostname, facts['serial_number'], facts['vendor'], facts['model'], facts['os_version']
         ))

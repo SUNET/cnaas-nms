@@ -96,6 +96,8 @@ device_update_facts_model = device_syncto_api.model('device_update_facts', {
 
 device_update_interfaces_model = device_syncto_api.model('device_update_interfaces', {
     'hostname': fields.String(required=True),
+    'replace': fields.Boolean(required=False),
+    'delete_all': fields.Boolean(required=False),
 })
 
 device_restore_model = device_api.model('device_restore', {
@@ -601,7 +603,7 @@ class DeviceUpdateInterfacesApi(Resource):
         json_data = request.get_json()
         kwargs: dict = {
             "replace": False,
-            "delete": False
+            "delete_all": False
         }
 
         total_count: Optional[int] = None
@@ -635,6 +637,13 @@ class DeviceUpdateInterfacesApi(Resource):
                 data="No target to be updated was specified"
             ), 400
 
+        if 'replace' in json_data and isinstance(json_data['replace'], bool) \
+                and json_data['replace']:
+            kwargs['replace'] = True
+
+        if 'delete_all' in json_data and isinstance(json_data['delete_all'], bool) \
+                and json_data['delete_all']:
+            kwargs['delete_all'] = True
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(

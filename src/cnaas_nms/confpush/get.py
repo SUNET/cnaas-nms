@@ -93,13 +93,28 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
     return result
 
 
-def get_uplinks(session, hostname: str) -> Dict[str, str]:
+def get_uplinks(session, hostname: str, recheck: bool = False) -> Dict[str, str]:
     """Returns dict with mapping of interface -> neighbor hostname"""
     logger = get_logger()
-    # TODO: check if uplinks are already saved in database?
     uplinks = {}
 
-    dev = session.query(Device).filter(Device.hostname == hostname).one()
+    dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+    if not recheck:
+        current_uplinks: List[Interface] = session.query(Interface).\
+            filter(Interface.device == dev).\
+            filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK).all()
+        uplink_intf: Interface
+        for uplink_intf in current_uplinks:
+            try:
+                uplinks[uplink_intf.name] = uplink_intf.data['neighbor']
+            except Exception as e:
+                continue
+        if len(uplinks) == 2:
+            logger.debug("Existing uplinks for device {} found: {}".
+                         format(hostname, ', '.join(["{}: {}".format(ifname, hostname)
+                                                     for ifname, hostname in uplinks.items()])))
+            return uplinks
+
     neighbor_d: Device
     for neighbor_d in dev.get_neighbors(session):
         if neighbor_d.device_type == DeviceType.DIST:
@@ -109,10 +124,17 @@ def get_uplinks(session, hostname: str) -> Dict[str, str]:
             if local_if:
                 uplinks[local_if] = neighbor_d.hostname
         elif neighbor_d.device_type == DeviceType.ACCESS:
-            intfs: Interface = session.query(Interface).filter(Interface.device == neighbor_d). \
+            intfs: Interface = session.query(Interface).filter(Interface.device == neighbor_d).\
                 filter(Interface.configtype == InterfaceConfigType.ACCESS_DOWNLINK).all()
-            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-            remote_if = neighbor_d.get_neighbor_local_ifname(session, dev)
+            if not intfs:
+                continue
+            try:
+                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+                remote_if = neighbor_d.get_neighbor_local_ifname(session, dev)
+            except ValueError as e:
+                logger.debug("Ignoring possible uplinks to neighbor {}: {}".format(
+                    neighbor_d.hostname, e))
+                continue
 
             intf: Interface
             for intf in intfs:

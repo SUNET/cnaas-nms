@@ -20,7 +20,7 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete: bool,
     ret = []
 
     iflist = get_interfaces_names(dev.hostname)
-    uplinks = get_uplinks(session, dev.hostname)
+    uplinks = get_uplinks(session, dev.hostname, recheck=replace)
     if mlag_peer_hostname:
         mlag_ifs = get_mlag_ifs(session, dev.hostname, mlag_peer_hostname)
     else:

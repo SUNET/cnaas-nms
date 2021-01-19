@@ -10,6 +10,7 @@ from cnaas_nms.confpush.get import get_interfaces_names, get_uplinks, \
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.scheduler.jobresult import DictJobResult
 import cnaas_nms.confpush.nornir_helper
 
 
@@ -63,8 +64,10 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete: bool,
     return ret
 
 
-def update_interfacedb(hostname: str, replace: bool = False, delete: bool = False) \
-        -> List[dict]:
+@job_wrapper
+def update_interfacedb(hostname: str, replace: bool = False, delete: bool = False,
+                       job_id: Optional[str] = None,
+                       scheduled_by: Optional[str] = None) -> DictJobResult:
     """Update interface DB with any new physical interfaces for specified device.
     If replace is set, any existing records in the database will get overwritten.
     If delete is set, all entries in database for this device will be removed.
@@ -85,7 +88,7 @@ def update_interfacedb(hostname: str, replace: bool = False, delete: bool = Fals
 
         if result:
             dev.synchronized = False
-    return result
+    return DictJobResult(result={"interfaces": result})
 
 
 def reset_interfacedb(hostname: str):

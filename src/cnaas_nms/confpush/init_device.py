@@ -109,7 +109,9 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
                  dry_run=False
                  )
     except Exception:
-        task.run(task=napalm_get, getters=["facts"])
+        task.run(task=napalm_get,
+                 getters=["facts"],
+                 severity_level=logging.NOTSET)
         if not task.results[-1].failed:
             raise InitError("Device {} did not commit new base management config".format(
                 task.host.name

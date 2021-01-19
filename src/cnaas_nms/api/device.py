@@ -603,7 +603,8 @@ class DeviceUpdateInterfacesApi(Resource):
         json_data = request.get_json()
         kwargs: dict = {
             "replace": False,
-            "delete_all": False
+            "delete_all": False,
+            "mlag_peer_hostname": None
         }
 
         total_count: Optional[int] = None
@@ -636,6 +637,29 @@ class DeviceUpdateInterfacesApi(Resource):
                 status='error',
                 data="No target to be updated was specified"
             ), 400
+
+        if 'mlag_peer_hostname' in json_data:
+            mlag_peer_hostname = str(json_data['mlag_peer_hostname'])
+            if not Device.valid_hostname(mlag_peer_hostname):
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{mlag_peer_hostname}' is not a valid hostname"
+                ), 400
+            with sqla_session() as session:
+                dev: Device = session.query(Device). \
+                    filter(Device.hostname == mlag_peer_hostname).one_or_none()
+                if not dev or (dev.state != DeviceState.MANAGED and
+                               dev.state != DeviceState.UNMANAGED):
+                    return empty_result(
+                        status='error',
+                        data=f"Hostname '{mlag_peer_hostname}' not found or is in invalid state"
+                    ), 400
+                if dev.device_type != DeviceType.ACCESS:
+                    return empty_result(
+                        status='error',
+                        data=f"Only devices of type ACCESS has interface database to update"
+                    ), 400
+            kwargs['mlag_peer_hostname'] = mlag_peer_hostname
 
         if 'replace' in json_data and isinstance(json_data['replace'], bool) \
                 and json_data['replace']:

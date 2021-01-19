@@ -45,10 +45,14 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete_all: b
     else:
         mlag_ifs = {}
     phy_interfaces = filter_interfaces(iflist, platform=dev.platform, include='physical')
+    if not phy_interfaces:
+        raise Exception("Could not find any physical interfaces for device {}".format(dev.hostname))
 
     for intf_name in phy_interfaces:
         intf: Interface = session.query(Interface).filter(Interface.device == dev). \
             filter(Interface.name == intf_name).one_or_none()
+        if intf in unmatched_iflist:
+            unmatched_iflist.remove(intf)
         if intf:
             new_intf = False
         else:
@@ -72,18 +76,27 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete_all: b
         if new_intf:
             session.add(intf)
         ret.append(intf.as_dict())
-        if intf in unmatched_iflist:
-            unmatched_iflist.remove(intf)
 
     # Remove interfaces that no longer exist on device
     for unmatched_intf in unmatched_iflist:
-        session.delete(unmatched_intf)
+        protected_interfaces = [InterfaceConfigType.ACCESS_UPLINK,
+                                InterfaceConfigType.MLAG_PEER]
+        if unmatched_intf.configtype in protected_interfaces:
+            logger.warn("Interface of protected type disappeared from {} ignoring: {}".format(
+                dev.hostname, unmatched_intf.name
+            ))
+        else:
+            logger.info("Deleting interface {} from {} because it disappeared on device".format(
+                unmatched_intf.name, dev.hostname
+            ))
+            session.delete(unmatched_intf)
     session.commit()
     return ret
 
 
 @job_wrapper
 def update_interfacedb(hostname: str, replace: bool = False, delete_all: bool = False,
+                       mlag_peer_hostname: Optional[str] = None,
                        job_id: Optional[str] = None,
                        scheduled_by: Optional[str] = None) -> DictJobResult:
     """Update interface DB with any new physical interfaces for specified device.
@@ -102,7 +115,7 @@ def update_interfacedb(hostname: str, replace: bool = False, delete_all: bool = 
         if dev.device_type != DeviceType.ACCESS:
             raise ValueError("This function currently only supports access devices")
 
-        result = update_interfacedb_worker(session, dev, replace, delete_all)
+        result = update_interfacedb_worker(session, dev, replace, delete_all, mlag_peer_hostname)
 
         if result:
             dev.synchronized = False

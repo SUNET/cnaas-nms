@@ -93,7 +93,9 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
     return result
 
 
-def get_uplinks(session, hostname: str, recheck: bool = False) -> Dict[str, str]:
+def get_uplinks(session, hostname: str, recheck: bool = False,
+                neighbors: Optional[List[Device]] = None,
+                linknets = None) -> Dict[str, str]:
     """Returns dict with mapping of interface -> neighbor hostname"""
     logger = get_logger()
     uplinks = {}
@@ -116,7 +118,10 @@ def get_uplinks(session, hostname: str, recheck: bool = False) -> Dict[str, str]
             return uplinks
 
     neighbor_d: Device
-    for neighbor_d in dev.get_neighbors(session):
+    if not neighbors:
+        neighbors = dev.get_neighbors(session)
+
+    for neighbor_d in neighbors:
         if neighbor_d.device_type == DeviceType.DIST:
             local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
             # Neighbor interface ifclass is already verified in
@@ -317,7 +322,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
     logger = get_logger()
     result = get_neighbors(hostname=hostname)[hostname][0]
     if result.failed:
-        raise Exception
+        raise Exception("Could not get LLDP neighbors for {}".format(hostname))
     neighbors = result.result['lldp_neighbors']
     if ztp_hostname:
         settings_hostname = ztp_hostname

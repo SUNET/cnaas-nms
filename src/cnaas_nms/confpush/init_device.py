@@ -141,7 +141,18 @@ def pre_init_checks(session, device_id) -> Device:
 def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                              linknets: List[dict],
                              expected_neighbors: Optional[List[str]] = None) -> List[str]:
+    """Check for compatible neighbors
+    Args:
+        session: SQLAlchemy session
+        dev: Device object to check
+        devtype: The target device type (not the same as current during init)
+        linknets: List of linknets to check for compatible neighbors
+        expected_neighbors: Optional list to manually specify neighbors
+    Returns:
+        List of compatible neighbor hostnames
+    """
     logger = get_logger()
+    verified_neighbors = []
     if expected_neighbors is not None and len(expected_neighbors) == 0:
         logger.debug("expected_neighbors explicitly set to empty list, skipping neighbor checks")
         return []
@@ -149,9 +160,23 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
         raise Exception("No linknets were specified to check_neighbors")
 
     if devtype == DeviceType.ACCESS:
-        pass
+        neighbors = []
+        for linknet in linknets:
+            if linknet['device_a_hostname'] == dev.hostname:
+                neighbor = linknet['device_b_hostname']
+            elif linknet['device_b_hostname'] == dev.hostname:
+                neighbor = linknet['device_a_hostname']
+            else:
+                raise Exception("Own hostname not found in linknet")
+            neighbors.append(neighbor)
+
+        try:
+            cnaas_nms.db.helper.find_mgmtdomain(session, neighbors)
+        except Exception as e:
+            raise InitVerificationError(str(e))
+        else:
+            verified_neighbors = neighbors
     elif devtype in [DeviceType.CORE, DeviceType.DIST]:
-        verified_neighbors = []
         for linknet in linknets:
             if linknet['device_a_hostname'] == dev.hostname:
                 neighbor = linknet['device_b_hostname']

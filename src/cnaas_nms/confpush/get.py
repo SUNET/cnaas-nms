@@ -316,7 +316,7 @@ def verify_peer_iftype(local_hostname: str, local_devtype: DeviceType,
 
 
 def update_linknets(session, hostname: str, devtype: DeviceType,
-                    ztp_hostname: Optional[str] = None, dry_run: bool = False):
+                    ztp_hostname: Optional[str] = None, dry_run: bool = False) -> List[dict]:
     """Update linknet data for specified device using LLDP neighbor data.
     """
     logger = get_logger()

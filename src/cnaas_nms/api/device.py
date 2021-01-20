@@ -387,24 +387,29 @@ class DeviceInitCheckApi(Resource):
                 mlag_peer_target_hostname = parsed_args['mlag_peer_new_hostname']
                 mlag_peer_id = parsed_args['mlag_peer_id']
         except ValueError as e:
-            return empty_result(status='error', data=str(e)), 400
+            return empty_result(status='error',
+                                data="Error parsing arguments: ".format(e)), 400
 
         with sqla_session() as session:
             try:
                 dev = cnaas_nms.confpush.init_device.pre_init_checks(session, device_id)
             except ValueError as e:
-                return empty_result(status='error', data=str(e)), 400
+                return empty_result(status='error',
+                                    data="ValueError in pre_init_checks: {}".format(e)), 400
             except Exception as e:
-                return empty_result(status='error', data=str(e)), 500
+                return empty_result(status='error',
+                                    data="Exception in pre_init_checks: {}".format(e)), 500
 
             if mlag_peer_id:
                 try:
                     dev_mlag_peer = cnaas_nms.confpush.init_device.pre_init_checks(
                         session, mlag_peer_id)
                 except ValueError as e:
-                    return empty_result(status='error', data=str(e)), 400
+                    return empty_result(status='error',
+                                        data="ValueError in pre_init_checks: {}".format(e)), 400
                 except Exception as e:
-                    return empty_result(status='error', data=str(e)), 500
+                    return empty_result(status='error',
+                                        data="Exception in pre_init_checks: {}".format(e)), 500
 
             try:
                 ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
@@ -415,19 +420,20 @@ class DeviceInitCheckApi(Resource):
                     dry_run=True
                 )
                 if dev_mlag_peer:
-                    ret['linknets'].append(cnaas_nms.confpush.get.update_linknets(
+                    ret['linknets'] += cnaas_nms.confpush.get.update_linknets(
                         session,
                         hostname=dev_mlag_peer.hostname,
                         devtype=target_devtype,
                         ztp_hostname=mlag_peer_target_hostname,
                         dry_run=True
-                    ))
+                    )
                 ret['linknets_compatible'] = True
             except ValueError as e:
                 ret['linknets_compatible'] = False
                 ret['linknets_error'] = str(e)
             except Exception as e:
-                return empty_result(status='error', data=str(e)), 500
+                return empty_result(status='error',
+                                    data="Exception in update_linknets: {}".format(e)), 500
 
             # TODO: pre_init_check_mlag
 
@@ -444,7 +450,9 @@ class DeviceInitCheckApi(Resource):
                 ret['neighbors_compatible'] = False
                 ret['neighbors_error'] = str(e)
             except Exception as e:
-                return empty_result(status='error', data=str(e)), 500
+                return empty_result(
+                    status='error',
+                    data="Exception in pre_init_check_neighbors: {}".format(e)), 500
 
         ret['parsed_args'] = parsed_args
         if ret['linknets_compatible'] and ret['neighbors_compatible']:

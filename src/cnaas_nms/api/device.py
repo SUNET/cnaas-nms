@@ -380,6 +380,12 @@ class DeviceInitCheckApi(Resource):
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
             target_devtype = DeviceType[parsed_args['device_type']]
             target_hostname = parsed_args['new_hostname']
+            if 'mlag_peer_id' in parsed_args and 'mlag_peer_new_hostname' in parsed_args:
+                mlag_peer_target_hostname = parsed_args['mlag_peer_new_hostname']
+                mlag_peer_id = parsed_args['mlag_peer_id']
+            else:
+                mlag_peer_target_hostname = None
+                mlag_peer_id = None
         except ValueError as e:
             return empty_result(status='error', data=str(e)), 400
 
@@ -391,6 +397,15 @@ class DeviceInitCheckApi(Resource):
             except Exception as e:
                 return empty_result(status='error', data=str(e)), 500
 
+            if mlag_peer_id:
+                try:
+                    dev_mlag_peer = cnaas_nms.confpush.init_device.pre_init_checks(
+                        session, mlag_peer_id)
+                except ValueError as e:
+                    return empty_result(status='error', data=str(e)), 400
+                except Exception as e:
+                    return empty_result(status='error', data=str(e)), 500
+
             try:
                 ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
                     session,
@@ -399,6 +414,14 @@ class DeviceInitCheckApi(Resource):
                     ztp_hostname=target_hostname,
                     dry_run=True
                 )
+                if dev_mlag_peer:
+                    ret['linknets'].append(cnaas_nms.confpush.get.update_linknets(
+                        session,
+                        hostname=dev_mlag_peer.hostname,
+                        devtype=target_devtype,
+                        ztp_hostname=mlag_peer_target_hostname,
+                        dry_run=True
+                    ))
                 ret['linknets_compatible'] = True
             except ValueError as e:
                 ret['linknets_compatible'] = False

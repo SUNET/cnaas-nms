@@ -435,8 +435,6 @@ class DeviceInitCheckApi(Resource):
                 return empty_result(status='error',
                                     data="Exception in update_linknets: {}".format(e)), 500
 
-            # TODO: pre_init_check_mlag
-
             try:
                 if 'linknets' in ret:
                     ret['neighbors'] = cnaas_nms.confpush.init_device.pre_init_check_neighbors(
@@ -453,6 +451,12 @@ class DeviceInitCheckApi(Resource):
                 return empty_result(
                     status='error',
                     data="Exception in pre_init_check_neighbors: {}".format(e)), 500
+
+            if mlag_peer_dev:
+                try:
+                    ret['mlag_compatible'] = mlag_peer_dev.hostname in ret['neighbors']
+                except Exception:
+                    ret['mlag_compatible'] = False
 
         ret['parsed_args'] = parsed_args
         if ret['linknets_compatible'] and ret['neighbors_compatible']:

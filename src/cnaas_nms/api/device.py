@@ -380,12 +380,12 @@ class DeviceInitCheckApi(Resource):
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
             target_devtype = DeviceType[parsed_args['device_type']]
             target_hostname = parsed_args['new_hostname']
+            mlag_peer_target_hostname: Optional[str] = None
+            mlag_peer_id: Optional[int] = None
+            dev_mlag_peer: Optional[Device] = None
             if 'mlag_peer_id' in parsed_args and 'mlag_peer_new_hostname' in parsed_args:
                 mlag_peer_target_hostname = parsed_args['mlag_peer_new_hostname']
                 mlag_peer_id = parsed_args['mlag_peer_id']
-            else:
-                mlag_peer_target_hostname = None
-                mlag_peer_id = None
         except ValueError as e:
             return empty_result(status='error', data=str(e)), 400
 

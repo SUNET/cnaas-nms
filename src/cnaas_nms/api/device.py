@@ -429,6 +429,8 @@ class DeviceInitCheckApi(Resource):
             except Exception as e:
                 return empty_result(status='error', data=str(e)), 500
 
+            # TODO: pre_init_check_mlag
+
             try:
                 if 'linknets' in ret:
                     ret['neighbors'] = cnaas_nms.confpush.init_device.pre_init_check_neighbors(

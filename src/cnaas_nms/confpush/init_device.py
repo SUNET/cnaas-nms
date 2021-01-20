@@ -166,7 +166,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
         for linknet in linknets:
             if linknet['device_a_hostname'] == dev.hostname:
                 if mlag_peer_dev and linknet['device_b_hostname'] == mlag_peer_dev.hostname:
-                    pass  # only add mlag peer linknet in one direction to avoid duplicate
+                    continue  # only add mlag peer linknet in one direction to avoid duplicate
                 else:
                     neighbor = linknet['device_b_hostname']
             elif linknet['device_b_hostname'] == dev.hostname:

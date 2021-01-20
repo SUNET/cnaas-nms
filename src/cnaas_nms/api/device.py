@@ -388,7 +388,7 @@ class DeviceInitCheckApi(Resource):
                 mlag_peer_id = parsed_args['mlag_peer_id']
         except ValueError as e:
             return empty_result(status='error',
-                                data="Error parsing arguments: ".format(e)), 400
+                                data="Error parsing arguments: {}".format(e)), 400
 
         with sqla_session() as session:
             try:

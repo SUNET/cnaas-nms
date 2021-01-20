@@ -459,6 +459,8 @@ class DeviceInitCheckApi(Resource):
                     ret['mlag_compatible'] = False
 
         ret['parsed_args'] = parsed_args
+        if mlag_peer_id and not ret['mlag_compatible']:
+            ret['compatible'] = False
         if ret['linknets_compatible'] and ret['neighbors_compatible']:
             ret['compatible'] = True
         else:

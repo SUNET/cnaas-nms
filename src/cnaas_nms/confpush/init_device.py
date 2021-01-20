@@ -140,7 +140,8 @@ def pre_init_checks(session, device_id) -> Device:
 
 def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                              linknets: List[dict],
-                             expected_neighbors: Optional[List[str]] = None) -> List[str]:
+                             expected_neighbors: Optional[List[str]] = None,
+                             mlag_peer_dev: Optional[Device] = None) -> List[str]:
     """Check for compatible neighbors
     Args:
         session: SQLAlchemy session
@@ -164,9 +165,17 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
         uplinks = []
         for linknet in linknets:
             if linknet['device_a_hostname'] == dev.hostname:
-                neighbor = linknet['device_b_hostname']
+                if mlag_peer_dev and linknet['device_b_hostname'] == mlag_peer_dev.hostname:
+                    pass  # only add mlag peer linknet in one direction to avoid duplicate
+                else:
+                    neighbor = linknet['device_b_hostname']
             elif linknet['device_b_hostname'] == dev.hostname:
                 neighbor = linknet['device_a_hostname']
+            elif mlag_peer_dev:
+                if linknet['device_a_hostname'] == mlag_peer_dev.hostname:
+                    neighbor = linknet['device_b_hostname']
+                elif linknet['device_b_hostname'] == mlag_peer_dev.hostname:
+                    neighbor = linknet['device_a_hostname']
             else:
                 raise Exception("Own hostname not found in linknet")
             neighbor_dev: Device = session.query(Device). \

@@ -388,6 +388,19 @@ class GetTests(unittest.TestCase):
         self.assertEqual(result.json()['data']['jobs'][0]['status'], "ABORTED",
                          "Job should be in ABORTED state at end")
 
+    def test_11_update_interfaces_access(self):
+        hostname = "eosaccess"
+        r = requests.post(
+            f'{URL}/api/v1.0/device_update_interfaces',
+            headers=AUTH_HEADER,
+            json={"hostname": hostname},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do update interfaces for dist")
+        restore_job_id = r.json()['job_id']
+        job = self.check_jobid(restore_job_id)
+        self.assertEqual(job['status'], "FINISHED")
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, List, Union
+import os
 
 from nornir import InitNornir
 from nornir.core import Nornir
@@ -36,7 +37,7 @@ def cnaas_init() -> Nornir:
         inventory={
             "plugin": "CnaasInventory"
         },
-        logging={"log_file": "/tmp/nornir.log", "level": "DEBUG"}
+        logging={"log_file": "/tmp/nornir-pid{}.log".format(os.getpid()), "level": "DEBUG"}
     )
     return nr
 

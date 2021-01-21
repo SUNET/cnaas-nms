@@ -153,6 +153,5 @@ class DeviceTests(unittest.TestCase):
                         json={'state': 'MANAGED'})
 
 
-
 if __name__ == '__main__':
     unittest.main()

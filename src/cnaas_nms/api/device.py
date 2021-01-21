@@ -42,6 +42,9 @@ device_discover_api = Namespace('device_discover', description='API to discover 
 device_update_facts_api = Namespace('device_update_facts',
                                     description='API to update facts about devices',
                                     prefix='/api/{}'.format(__api_version__))
+device_update_interfaces_api = Namespace('device_update_interfaces',
+                                         description='API to update/scan device interfaces',
+                                         prefix='/api/{}'.format(__api_version__))
 device_cert_api = Namespace('device_cert', description='API to handle device certificates',
                             prefix='/api/{}'.format(__api_version__))
 
@@ -88,7 +91,13 @@ device_syncto_model = device_syncto_api.model('device_sync', {
 })
 
 device_update_facts_model = device_syncto_api.model('device_update_facts', {
-    'hostname': fields.String(required=False),
+    'hostname': fields.String(required=True),
+})
+
+device_update_interfaces_model = device_syncto_api.model('device_update_interfaces', {
+    'hostname': fields.String(required=True),
+    'replace': fields.Boolean(required=False),
+    'delete_all': fields.Boolean(required=False),
 })
 
 device_restore_model = device_api.model('device_restore', {
@@ -586,6 +595,97 @@ class DeviceUpdateFactsApi(Resource):
         return resp
 
 
+class DeviceUpdateInterfacesApi(Resource):
+    @jwt_required
+    @device_update_interfaces_api.expect(device_update_interfaces_model)
+    def post(self):
+        """Update/scan interfaces of device"""
+        json_data = request.get_json()
+        kwargs: dict = {
+            "replace": False,
+            "delete_all": False,
+            "mlag_peer_hostname": None
+        }
+
+        total_count: Optional[int] = None
+
+        if 'hostname' in json_data:
+            hostname = str(json_data['hostname'])
+            if not Device.valid_hostname(hostname):
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{hostname}' is not a valid hostname"
+                ), 400
+            with sqla_session() as session:
+                dev: Device = session.query(Device). \
+                    filter(Device.hostname == hostname).one_or_none()
+                if not dev or (dev.state != DeviceState.MANAGED and
+                               dev.state != DeviceState.UNMANAGED):
+                    return empty_result(
+                        status='error',
+                        data=f"Hostname '{hostname}' not found or is in invalid state"
+                    ), 400
+                if dev.device_type != DeviceType.ACCESS:
+                    return empty_result(
+                        status='error',
+                        data=f"Only devices of type ACCESS has interface database to update"
+                    ), 400
+            kwargs['hostname'] = hostname
+            total_count = 1
+        else:
+            return empty_result(
+                status='error',
+                data="No target to be updated was specified"
+            ), 400
+
+        if 'mlag_peer_hostname' in json_data:
+            mlag_peer_hostname = str(json_data['mlag_peer_hostname'])
+            if not Device.valid_hostname(mlag_peer_hostname):
+                return empty_result(
+                    status='error',
+                    data=f"Hostname '{mlag_peer_hostname}' is not a valid hostname"
+                ), 400
+            with sqla_session() as session:
+                dev: Device = session.query(Device). \
+                    filter(Device.hostname == mlag_peer_hostname).one_or_none()
+                if not dev or (dev.state != DeviceState.MANAGED and
+                               dev.state != DeviceState.UNMANAGED):
+                    return empty_result(
+                        status='error',
+                        data=f"Hostname '{mlag_peer_hostname}' not found or is in invalid state"
+                    ), 400
+                if dev.device_type != DeviceType.ACCESS:
+                    return empty_result(
+                        status='error',
+                        data=f"Only devices of type ACCESS has interface database to update"
+                    ), 400
+            kwargs['mlag_peer_hostname'] = mlag_peer_hostname
+
+        if 'replace' in json_data and isinstance(json_data['replace'], bool) \
+                and json_data['replace']:
+            kwargs['replace'] = True
+
+        if 'delete_all' in json_data and isinstance(json_data['delete_all'], bool) \
+                and json_data['delete_all']:
+            kwargs['delete_all'] = True
+
+        scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            'cnaas_nms.confpush.update:update_interfacedb',
+            when=1,
+            scheduled_by=get_jwt_identity(),
+            kwargs=kwargs)
+
+        res = empty_result(data=f"Scheduled job to update interfaces for {hostname}")
+        res['job_id'] = job_id
+
+        resp = make_response(json.dumps(res), 200)
+        if total_count:
+            resp.headers['X-Total-Count'] = total_count
+        resp.headers['Content-Type'] = "application/json"
+        return resp
+
+
 class DeviceConfigApi(Resource):
     @jwt_required
     def get(self, hostname: str):
@@ -850,5 +950,6 @@ device_initcheck_api.add_resource(DeviceInitCheckApi, '/<int:device_id>')
 device_discover_api.add_resource(DeviceDiscoverApi, '')
 device_syncto_api.add_resource(DeviceSyncApi, '')
 device_update_facts_api.add_resource(DeviceUpdateFactsApi, '')
+device_update_interfaces_api.add_resource(DeviceUpdateInterfacesApi, '')
 device_cert_api.add_resource(DeviceCertApi, '')
 # device/<string:hostname>/current_config

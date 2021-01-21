@@ -10,38 +10,55 @@ from cnaas_nms.confpush.get import get_interfaces_names, get_uplinks, \
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.scheduler.jobresult import DictJobResult
 import cnaas_nms.confpush.nornir_helper
 
 
-def update_interfacedb_worker(session, dev: Device, replace: bool, delete: bool,
+def update_interfacedb_worker(session, dev: Device, replace: bool, delete_all: bool,
                               mlag_peer_hostname: Optional[str] = None) -> List[dict]:
-    """Perform actual work of updating database for update_interfacedb"""
+    """Perform actual work of updating database for update_interfacedb.
+    If replace is set to true, configtype and data will get overwritten.
+    If delete_all is set to true, delete all interfaces from database.
+    Return list of new/updated interfaces, or empty if delete_all was set."""
     logger = get_logger()
     ret = []
 
-    iflist = get_interfaces_names(dev.hostname)
-    uplinks = get_uplinks(session, dev.hostname)
+    current_iflist = session.query(Interface).filter(Interface.device == dev).all()
+    unmatched_iflist = []
+    current_intf: Interface
+    for current_intf in current_iflist:
+        if delete_all:
+            logger.debug("Deleting interface {} on device {} from interface DB".format(
+                current_intf.name, dev.hostname
+            ))
+            session.delete(current_intf)
+        else:
+            unmatched_iflist.append(current_intf)
+    if delete_all:
+        session.commit()
+        return ret
+
+    iflist = get_interfaces_names(dev.hostname)  # query nornir for current interfaces
+    uplinks = get_uplinks(session, dev.hostname, recheck=replace)
     if mlag_peer_hostname:
         mlag_ifs = get_mlag_ifs(session, dev.hostname, mlag_peer_hostname)
     else:
         mlag_ifs = {}
     phy_interfaces = filter_interfaces(iflist, platform=dev.platform, include='physical')
+    if not phy_interfaces:
+        raise Exception("Could not find any physical interfaces for device {}".format(dev.hostname))
 
     for intf_name in phy_interfaces:
         intf: Interface = session.query(Interface).filter(Interface.device == dev). \
             filter(Interface.name == intf_name).one_or_none()
+        if intf in unmatched_iflist:
+            unmatched_iflist.remove(intf)
         if intf:
             new_intf = False
         else:
             new_intf = True
             intf: Interface = Interface()
-        if not new_intf and delete:  # 'not new_intf' means interface exists in database
-            logger.debug("Deleting interface {} on device {} from interface DB".format(
-                intf_name, dev.hostname
-            ))
-            session.delete(intf)
-            continue
-        elif not new_intf and not replace:
+        if not new_intf and not replace:
             continue
         logger.debug("New/updated physical interface found on device {}: {}".format(
             dev.hostname, intf_name
@@ -59,15 +76,32 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete: bool,
         if new_intf:
             session.add(intf)
         ret.append(intf.as_dict())
+
+    # Remove interfaces that no longer exist on device
+    for unmatched_intf in unmatched_iflist:
+        protected_interfaces = [InterfaceConfigType.ACCESS_UPLINK,
+                                InterfaceConfigType.MLAG_PEER]
+        if unmatched_intf.configtype in protected_interfaces:
+            logger.warn("Interface of protected type disappeared from {} ignoring: {}".format(
+                dev.hostname, unmatched_intf.name
+            ))
+        else:
+            logger.info("Deleting interface {} from {} because it disappeared on device".format(
+                unmatched_intf.name, dev.hostname
+            ))
+            session.delete(unmatched_intf)
     session.commit()
     return ret
 
 
-def update_interfacedb(hostname: str, replace: bool = False, delete: bool = False) \
-        -> List[dict]:
+@job_wrapper
+def update_interfacedb(hostname: str, replace: bool = False, delete_all: bool = False,
+                       mlag_peer_hostname: Optional[str] = None,
+                       job_id: Optional[str] = None,
+                       scheduled_by: Optional[str] = None) -> DictJobResult:
     """Update interface DB with any new physical interfaces for specified device.
     If replace is set, any existing records in the database will get overwritten.
-    If delete is set, all entries in database for this device will be removed.
+    If delete_all is set, all entries in database for this device will be removed.
 
     Returns:
         List of interfaces that was added to DB
@@ -81,11 +115,11 @@ def update_interfacedb(hostname: str, replace: bool = False, delete: bool = Fals
         if dev.device_type != DeviceType.ACCESS:
             raise ValueError("This function currently only supports access devices")
 
-        result = update_interfacedb_worker(session, dev, replace, delete)
+        result = update_interfacedb_worker(session, dev, replace, delete_all, mlag_peer_hostname)
 
         if result:
             dev.synchronized = False
-    return result
+    return DictJobResult(result={"interfaces": result})
 
 
 def reset_interfacedb(hostname: str):

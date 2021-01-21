@@ -322,6 +322,25 @@ database. You can perform this action on both MANAGED and UNMANAGED devices.
 UNMANAGED devices might not be reachable so this could be a good test-call
 before moving the device back to the MANAGED state.
 
+Update interfaces
+-----------------
+
+To update the list of available interfaces on an ACCESS device use this API call:
+
+::
+
+   curl https://localhost/api/v1.0/device_update_interfaces -d '{"hostname": "eosaccess"}' -X POST -H "Content-Type: application/json"
+
+This will schedule a job to log in to the device and get a list of physical
+interfaces and put them in the interface database. Existing interfaces will
+not be changed unless you specify "replace": true. Interfaces that no longer
+exists on the device will be deleted from the interface database,
+except for UPLINK and MLAG_PEER ports which will not be deleted automatically.
+If you specify "delete_all": true then all interfaces will be removed,
+including UPLINK and MLAG_PEER ports (dangerous!). If you want to re-populate
+MLAG_PEER ports you have to specify the argument "mlag_peer_hostname" to
+indicate what peer device you expect to see.
+
 Renew certificates
 ------------------
 

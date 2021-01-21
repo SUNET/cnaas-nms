@@ -57,6 +57,8 @@ The configtype field must use some of these pre-defined values:
 - ACCESS_UNTAGGED: Use a static VLAN defined by name in the data field
 - ACCESS_TAGGED: Use a static list of VLANs defined by names in the data field
 - ACCESS_UPLINK: Uplink from access switch to dist switch
+- ACCESS_DOWNLINK: Downlink from this access switch to another access switch
+- MLAG_PEER: MLAG peer interface
 
 Update interface
 ----------------
@@ -156,6 +158,8 @@ To re-enable and unset description:
 
   curl https://hostname/api/v1.0/device/eosaccess/interfaces -d '{"interfaces": {"Ethernet1": {"data": {"enabled": true, "description": null}}}}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
 
+If the list of interfaces does not match what currently exists on the device
+you need to run the device_update_interfaces API call (see device API).
 
 Show interface states
 ---------------------

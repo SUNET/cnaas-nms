@@ -604,7 +604,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
 
 
 def schedule_init_device_step2(device_id: int, iteration: int,
-                               scheduled_by: str) -> Optional[Job]:
+                               scheduled_by: str) -> Optional[int]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()

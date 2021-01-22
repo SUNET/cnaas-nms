@@ -11,6 +11,7 @@ import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
 import cnaas_nms.confpush.get
+import cnaas_nms.confpush.update
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -412,7 +413,7 @@ class DeviceInitCheckApi(Resource):
                                         data="Exception in pre_init_checks: {}".format(e)), 500
 
             try:
-                ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
+                ret['linknets'] = cnaas_nms.confpush.update.update_linknets(
                     session,
                     hostname=dev.hostname,
                     devtype=target_devtype,
@@ -420,7 +421,7 @@ class DeviceInitCheckApi(Resource):
                     dry_run=True
                 )
                 if mlag_peer_dev:
-                    ret['linknets'] += cnaas_nms.confpush.get.update_linknets(
+                    ret['linknets'] += cnaas_nms.confpush.update.update_linknets(
                         session,
                         hostname=mlag_peer_dev.hostname,
                         devtype=target_devtype,

@@ -6,6 +6,7 @@ import pkg_resources
 import yaml
 import os
 
+import cnaas_nms.confpush.update
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import DeviceType
 
@@ -38,7 +39,7 @@ class GetTests(unittest.TestCase):
 
     def test_update_links(self):
         with sqla_session() as session:
-            new_links = cnaas_nms.confpush.get.update_linknets(
+            new_links = cnaas_nms.confpush.update.update_linknets(
                 session, self.testdata['update_hostname'], DeviceType.ACCESS)
         pprint.pprint(new_links)
 

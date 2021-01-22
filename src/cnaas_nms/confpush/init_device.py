@@ -4,7 +4,6 @@ from ipaddress import IPv4Interface, IPv4Address
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
-from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
 import yaml
 import os
@@ -19,7 +18,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_jinja_env
-from cnaas_nms.confpush.update import update_interfacedb_worker
+from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets
 from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
     sync_devices
 from cnaas_nms.db.git import RepoStructureException
@@ -321,13 +320,12 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         dev = pre_init_checks(session, device_id)
 
         # update linknets using LLDP data
-        cnaas_nms.confpush.get.update_linknets(session, dev.hostname, DeviceType.ACCESS)
+        update_linknets(session, dev.hostname, DeviceType.ACCESS)
 
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
-            cnaas_nms.confpush.get.update_linknets(session, mlag_peer_dev.hostname,
-                                                   DeviceType.ACCESS)
+            update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
@@ -494,7 +492,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
         dev = pre_init_checks(session, device_id)
 
         # Test update of linknets using LLDP data
-        linknets = cnaas_nms.confpush.get.update_linknets(
+        linknets = update_linknets(
             session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=True)
 
         try:
@@ -512,7 +510,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
             session.commit()
             # If neighbor check works, commit new linknets
             # This will also mark neighbors as unsynced
-            linknets = cnaas_nms.confpush.get.update_linknets(
+            linknets = update_linknets(
                 session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=False)
             logger.debug("New linknets for INIT of {} created: {}".format(
                 new_hostname, linknets

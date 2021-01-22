@@ -278,9 +278,9 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do update facts for dist")
-        restore_job_id = r.json()['job_id']
-        job = self.check_jobid(restore_job_id)
-        self.assertFalse(job['result']['devices'][hostname]['failed'])
+        update_facts_job_id = r.json()['job_id']
+        job = self.check_jobid(update_facts_job_id)
+        self.assertIn("diff", job['result'])
 
     def test_12_abort_running_job(self):
         data = {

@@ -219,48 +219,6 @@ def get_interfacedb_ifs(session, hostname: str) -> List[str]:
     return ret
 
 
-def update_inventory(hostname: str, site='default') -> dict:
-    """Update CMDB inventory with information gathered from device.
-
-    Args:
-        hostname (str): Hostname of device to update
-
-    Returns:
-        python dict with any differances of update
-
-    Raises:
-        napalm.base.exceptions.ConnectionException: Can't connect to specified device
-    """
-    # TODO: Handle napalm.base.exceptions.ConnectionException ?
-    result = get_facts(hostname=hostname)[hostname][0]
-    if result.failed:
-        raise Exception
-    facts = result.result['facts']
-    with sqla_session() as session:
-        d = session.query(Device).\
-            filter(Device.hostname == hostname).\
-            one()
-        attr_map = {
-            # Map NAPALM getfacts name -> device.Device member name
-            'vendor': 'vendor',
-            'model': 'model',
-            'os_version': 'os_version',
-            'serial_number': 'serial',
-        }
-        diff = {}
-        # Update any attributes that has changed, save diff
-        for dict_key, obj_mem in attr_map.items():
-            obj_data = d.__getattribute__(obj_mem)
-            if facts[dict_key] and obj_data != facts[dict_key]:
-                diff[obj_mem] = {'old': obj_data,
-                                 'new': facts[dict_key]
-                                 }
-                d.__setattr__(obj_mem, facts[dict_key])
-        d.last_seen = datetime.datetime.now()
-        session.commit()
-        return diff
-
-
 def verify_peer_iftype(local_hostname: str, local_devtype: DeviceType,
                        local_device_settings: dict, local_if: str,
                        remote_hostname: str, remote_devtype: DeviceType,

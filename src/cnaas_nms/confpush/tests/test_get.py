@@ -33,10 +33,6 @@ class GetTests(unittest.TestCase):
         result = cnaas_nms.confpush.get.get_facts(group='S_DHCP_BOOT')
         pprint.pprint(result)
 
-    def test_update_inventory(self):
-        diff = cnaas_nms.confpush.get.update_inventory(self.testdata['update_hostname'])
-        pprint.pprint(diff)
-
     def test_update_links(self):
         with sqla_session() as session:
             new_links = cnaas_nms.confpush.update.update_linknets(

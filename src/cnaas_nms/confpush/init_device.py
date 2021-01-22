@@ -18,7 +18,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_jinja_env
-from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets
+from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets, set_facts
 from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
     sync_devices
 from cnaas_nms.db.git import RepoStructureException
@@ -657,10 +657,7 @@ def init_device_step2(device_id: int, iteration: int = -1,
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
         dev.synchronized = False
-        dev.serial = facts['serial_number'][:64]
-        dev.vendor = facts['vendor'][:64]
-        dev.model = facts['model'][:64]
-        dev.os_version = facts['os_version'][:64]
+        set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None
 

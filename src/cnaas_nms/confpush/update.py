@@ -135,6 +135,29 @@ def reset_interfacedb(hostname: str):
         return ret
 
 
+def set_facts(dev: Device, facts: dict) -> dict:
+    attr_map = {
+        # Map NAPALM getfacts name -> device.Device member name
+        'vendor': 'vendor',
+        'model': 'model',
+        'os_version': 'os_version',
+        'serial_number': 'serial',
+    }
+    diff = {}
+    # Update any attributes that has changed
+    for dict_key, obj_member in attr_map.items():
+        obj_data = dev.__getattribute__(obj_member)
+        maxlen = Device.__dict__[obj_member].property.columns[0].type.length
+        fact_data = facts[dict_key][:maxlen]
+        if fact_data and obj_data != fact_data:
+            diff[obj_member] = {
+                'old': obj_data,
+                'new': fact_data
+            }
+            dev.__setattr__(obj_member, fact_data)
+    return diff
+
+
 @job_wrapper
 def update_facts(hostname: str,
                  job_id: Optional[str] = None,
@@ -162,11 +185,9 @@ def update_facts(hostname: str,
         facts = nrresult[hostname][0].result['facts']
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-            dev.serial = facts['serial_number'][:64]
-            dev.vendor = facts['vendor'][:64]
-            dev.model = facts['model'][:64]
-            dev.os_version = facts['os_version'][:64]
-        logger.debug("Updating facts for device {}: {}, {}, {}, {}".format(
+            diff = set_facts(dev, facts)
+
+        logger.debug("Updating facts for device {}, new values: {}, {}, {}, {}".format(
             hostname, facts['serial_number'], facts['vendor'], facts['model'], facts['os_version']
         ))
     except Exception as e:
@@ -176,7 +197,7 @@ def update_facts(hostname: str,
         logger.debug("Get facts nrresult for hostname {}: {}".format(hostname, nrresult))
         raise e
 
-    return NornirJobResult(nrresult=nrresult)
+    return DictJobResult(result={"diff": diff})
 
 
 def update_linknets(session, hostname: str, devtype: DeviceType,

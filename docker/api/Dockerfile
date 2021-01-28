@@ -24,10 +24,6 @@ COPY config/nginx_app.conf /etc/nginx/sites-available/
 COPY config/nginx.conf /etc/nginx/
 COPY cert/* /etc/nginx/conf.d/
 
-# Websocket test client
-RUN mkdir /opt/cnaas/static/
-COPY client.html /opt/cnaas/static/
-
 # Give nginx some special treatment
 RUN unlink /etc/nginx/sites-enabled/default
 RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default

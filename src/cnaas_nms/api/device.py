@@ -11,6 +11,7 @@ import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
 import cnaas_nms.confpush.get
+import cnaas_nms.confpush.update
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -380,45 +381,87 @@ class DeviceInitCheckApi(Resource):
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
             target_devtype = DeviceType[parsed_args['device_type']]
             target_hostname = parsed_args['new_hostname']
+            mlag_peer_target_hostname: Optional[str] = None
+            mlag_peer_id: Optional[int] = None
+            mlag_peer_dev: Optional[Device] = None
+            if 'mlag_peer_id' in parsed_args and 'mlag_peer_new_hostname' in parsed_args:
+                mlag_peer_target_hostname = parsed_args['mlag_peer_new_hostname']
+                mlag_peer_id = parsed_args['mlag_peer_id']
         except ValueError as e:
-            return empty_result(status='error', data=str(e)), 400
+            return empty_result(status='error',
+                                data="Error parsing arguments: {}".format(e)), 400
 
         with sqla_session() as session:
             try:
                 dev = cnaas_nms.confpush.init_device.pre_init_checks(session, device_id)
             except ValueError as e:
-                return empty_result(status='error', data=str(e)), 400
+                return empty_result(status='error',
+                                    data="ValueError in pre_init_checks: {}".format(e)), 400
             except Exception as e:
-                return empty_result(status='error', data=str(e)), 500
+                return empty_result(status='error',
+                                    data="Exception in pre_init_checks: {}".format(e)), 500
+
+            if mlag_peer_id:
+                try:
+                    mlag_peer_dev = cnaas_nms.confpush.init_device.pre_init_checks(
+                        session, mlag_peer_id)
+                except ValueError as e:
+                    return empty_result(status='error',
+                                        data="ValueError in pre_init_checks: {}".format(e)), 400
+                except Exception as e:
+                    return empty_result(status='error',
+                                        data="Exception in pre_init_checks: {}".format(e)), 500
 
             try:
-                ret['linknets'] = cnaas_nms.confpush.get.update_linknets(
+                ret['linknets'] = cnaas_nms.confpush.update.update_linknets(
                     session,
                     hostname=dev.hostname,
                     devtype=target_devtype,
                     ztp_hostname=target_hostname,
                     dry_run=True
                 )
+                if mlag_peer_dev:
+                    ret['linknets'] += cnaas_nms.confpush.update.update_linknets(
+                        session,
+                        hostname=mlag_peer_dev.hostname,
+                        devtype=target_devtype,
+                        ztp_hostname=mlag_peer_target_hostname,
+                        dry_run=True
+                    )
                 ret['linknets_compatible'] = True
             except ValueError as e:
                 ret['linknets_compatible'] = False
                 ret['linknets_error'] = str(e)
             except Exception as e:
-                return empty_result(status='error', data=str(e)), 500
+                return empty_result(status='error',
+                                    data="Exception in update_linknets: {}".format(e)), 500
 
             try:
                 if 'linknets' in ret:
                     ret['neighbors'] = cnaas_nms.confpush.init_device.pre_init_check_neighbors(
                         session, dev, target_devtype,
-                        ret['linknets'], parsed_args['neighbors'])
+                        ret['linknets'], parsed_args['neighbors'], mlag_peer_dev)
                     ret['neighbors_compatible'] = True
+                else:
+                    ret['neighbors_compatible'] = False
+                    ret['neighbors_error'] = "No linknets found"
             except (ValueError, cnaas_nms.confpush.init_device.InitVerificationError) as e:
                 ret['neighbors_compatible'] = False
                 ret['neighbors_error'] = str(e)
             except Exception as e:
-                return empty_result(status='error', data=str(e)), 500
+                return empty_result(
+                    status='error',
+                    data="Exception in pre_init_check_neighbors: {}".format(e)), 500
+
+            if mlag_peer_dev:
+                try:
+                    ret['mlag_compatible'] = mlag_peer_dev.hostname in ret['neighbors']
+                except Exception:
+                    ret['mlag_compatible'] = False
 
         ret['parsed_args'] = parsed_args
+        if mlag_peer_id and not ret['mlag_compatible']:
+            ret['compatible'] = False
         if ret['linknets_compatible'] and ret['neighbors_compatible']:
             ret['compatible'] = True
         else:

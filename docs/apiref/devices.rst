@@ -230,10 +230,12 @@ This will schedule a job to send the configuration to the device.
 Initialize check
 ----------------
 
-Before initializing a new CORE or DIST device you can run a pre-check API call.
-This will check that compatible LLDP neighbors are found and that the
-interfaces facing these neighbors are set to the correct ifclass as well as
-some basic device state checks.
+Before initializing a new device you can run a pre-check API call. This will
+perform some basic device state checks and check that compatible LLDP
+neighbors are found. For access devices it will try and find a compatible
+mgmtdomain and for core/dist devices it will check that interfaces facing
+neighbors are set to the correct ifclass. It is possible that the init will
+fail even if the initcheck passed.
 
 To test if a device is compatible for DIST ZTP run:
 
@@ -280,7 +282,9 @@ actually not compatible for DIST ZTP at the moment. We did find a compatible
 linknet, but there were not enough neighboring devices of the correct device
 type found. If you want to perform some non-standard configuration like trying
 ZTP with just one neighbor you can manually specify what neighbors you expect
-to see instead.
+to see instead ("neighbors": ["core1"]). Other arguments that can be passed
+to device_init should also be valid here, like "mlag_peer_id" and
+"mlag_peer_hostname" for access MLAG pairs.
 
 If the checks can not be performed at all, like when the device is not found
 or an invalid device type is specified the API call will return a 400 or 500

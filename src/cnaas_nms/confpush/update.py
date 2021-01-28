@@ -2,11 +2,14 @@ from typing import Optional, List
 
 from nornir_napalm.plugins.tasks import napalm_get
 
+from cnaas_nms.confpush.underlay import find_free_infra_linknet
+from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.confpush.get import get_interfaces_names, get_uplinks, \
-    filter_interfaces, get_mlag_ifs
+    filter_interfaces, get_mlag_ifs, get_neighbors, verify_peer_iftype
+from cnaas_nms.db.settings import get_settings
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
@@ -132,6 +135,29 @@ def reset_interfacedb(hostname: str):
         return ret
 
 
+def set_facts(dev: Device, facts: dict) -> dict:
+    attr_map = {
+        # Map NAPALM getfacts name -> device.Device member name
+        'vendor': 'vendor',
+        'model': 'model',
+        'os_version': 'os_version',
+        'serial_number': 'serial',
+    }
+    diff = {}
+    # Update any attributes that has changed
+    for dict_key, obj_member in attr_map.items():
+        obj_data = dev.__getattribute__(obj_member)
+        maxlen = Device.__dict__[obj_member].property.columns[0].type.length
+        fact_data = facts[dict_key][:maxlen]
+        if fact_data and obj_data != fact_data:
+            diff[obj_member] = {
+                'old': obj_data,
+                'new': fact_data
+            }
+            dev.__setattr__(obj_member, fact_data)
+    return diff
+
+
 @job_wrapper
 def update_facts(hostname: str,
                  job_id: Optional[str] = None,
@@ -159,11 +185,9 @@ def update_facts(hostname: str,
         facts = nrresult[hostname][0].result['facts']
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-            dev.serial = facts['serial_number'][:64]
-            dev.vendor = facts['vendor'][:64]
-            dev.model = facts['model'][:64]
-            dev.os_version = facts['os_version'][:64]
-        logger.debug("Updating facts for device {}: {}, {}, {}, {}".format(
+            diff = set_facts(dev, facts)
+
+        logger.debug("Updating facts for device {}, new values: {}, {}, {}, {}".format(
             hostname, facts['serial_number'], facts['vendor'], facts['model'], facts['os_version']
         ))
     except Exception as e:
@@ -173,4 +197,132 @@ def update_facts(hostname: str,
         logger.debug("Get facts nrresult for hostname {}: {}".format(hostname, nrresult))
         raise e
 
-    return NornirJobResult(nrresult=nrresult)
+    return DictJobResult(result={"diff": diff})
+
+
+def update_linknets(session, hostname: str, devtype: DeviceType,
+                    ztp_hostname: Optional[str] = None, dry_run: bool = False) -> List[dict]:
+    """Update linknet data for specified device using LLDP neighbor data.
+    """
+    logger = get_logger()
+    result = get_neighbors(hostname=hostname)[hostname][0]
+    if result.failed:
+        raise Exception("Could not get LLDP neighbors for {}".format(hostname))
+    neighbors = result.result['lldp_neighbors']
+    if ztp_hostname:
+        settings_hostname = ztp_hostname
+    else:
+        settings_hostname = hostname
+
+    ret = []
+
+    local_device_inst: Device = session.query(Device).filter(Device.hostname == hostname).one()
+    logger.debug("Updating linknets for device {} of type {}...".format(
+        local_device_inst.id, devtype.name))
+
+    for local_if, data in neighbors.items():
+        logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
+        remote_device_inst: Device = session.query(Device).\
+            filter(Device.hostname == data[0]['hostname']).one_or_none()
+        if not remote_device_inst:
+            logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
+            continue
+        if remote_device_inst.state in [DeviceState.DISCOVERED, DeviceState.INIT]:
+            # In case of MLAG init the peer does not have the correct devtype set yet,
+            # use same devtype as local device instead
+            remote_devtype = devtype
+        elif remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
+            logger.debug("Neighbor device has invalid state, ignoring: {}".format(
+                data[0]['hostname']))
+            continue
+        else:
+            remote_devtype = remote_device_inst.device_type
+
+        logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
+
+        local_device_settings, _ = get_settings(settings_hostname,
+                                                devtype,
+                                                local_device_inst.model
+                                                )
+        remote_device_settings, _ = get_settings(remote_device_inst.hostname,
+                                                 remote_devtype,
+                                                 remote_device_inst.model
+                                                 )
+
+        verify_peer_iftype(hostname, devtype,
+                           local_device_settings, local_if,
+                           remote_device_inst.hostname, remote_device_inst.device_type,
+                           remote_device_settings, data[0]['port'])
+
+        # Check if linknet object already exists in database
+        local_devid = local_device_inst.id
+        check_linknet = session.query(Linknet).\
+            filter(
+                ((Linknet.device_a_id == local_devid) & (Linknet.device_a_port == local_if))
+                |
+                ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
+                |
+                ((Linknet.device_a_id == remote_device_inst.id) &
+                 (Linknet.device_a_port == data[0]['port']))
+                |
+                ((Linknet.device_b_id == remote_device_inst.id) &
+                 (Linknet.device_b_port == data[0]['port']))
+            ).one_or_none()
+        if check_linknet:
+            logger.debug(f"Found existing linknet id: {check_linknet.id}")
+            if (
+                    (
+                        check_linknet.device_a_id == local_devid
+                        and check_linknet.device_a_port == local_if
+                        and check_linknet.device_b_id == remote_device_inst.id
+                        and check_linknet.device_b_port == data[0]['port']
+                    )
+                    or
+                    (
+                        check_linknet.device_a_id == local_devid
+                        and check_linknet.device_a_port == local_if
+                        and check_linknet.device_b_id == remote_device_inst.id
+                        and check_linknet.device_b_port == data[0]['port']
+                    )
+            ):
+                # All info is the same, no update required
+                continue
+            else:
+                # TODO: update instead of delete+new insert?
+                if not dry_run:
+                    session.delete(check_linknet)
+                    session.commit()
+
+        if devtype in [DeviceType.CORE, DeviceType.DIST] and \
+                remote_device_inst.device_type in [DeviceType.CORE, DeviceType.DIST]:
+            ipv4_network = find_free_infra_linknet(session)
+        else:
+            ipv4_network = None
+        new_link = Linknet.create_linknet(
+            session,
+            hostname_a=local_device_inst.hostname,
+            interface_a=local_if,
+            hostname_b=remote_device_inst.hostname,
+            interface_b=data[0]['port'],
+            ipv4_network=ipv4_network,
+            strict_check=not dry_run  # Don't do strict check if this is a dry_run
+        )
+        if not dry_run:
+            local_device_inst.synchronized = False
+            remote_device_inst.synchronized = False
+            session.add(new_link)
+            session.commit()
+        else:
+            # Make sure linknet object is not added to session because of foreign key load
+            session.expunge(new_link)
+        # Make return data pretty
+        ret_dict = {
+            'device_a_hostname': local_device_inst.hostname,
+            'device_b_hostname': remote_device_inst.hostname,
+            **new_link.as_dict()
+        }
+        del ret_dict['id']
+        del ret_dict['device_a_id']
+        del ret_dict['device_b_id']
+        ret.append({k: ret_dict[k] for k in sorted(ret_dict)})
+    return ret

@@ -132,10 +132,23 @@ class GetTests(unittest.TestCase):
         hostname, device_id = self.wait_for_discovered_device()
         print("Discovered hostname, id: {}, {}".format(hostname, device_id))
         self.assertTrue(hostname, "No device in state discovered found for ZTP")
+        data = {"hostname": "eosaccess", "device_type": "ACCESS"}
+        r = requests.post(
+            f'{URL}/api/v1.0/device_initcheck/{device_id}',
+            headers=AUTH_HEADER,
+            json=data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed device_initcheck, http status")
+        self.assertEqual(r.json()['status'], 'success',
+                         "Failed device_initcheck, returned unsuccessful")
+#       this check fails when running integrationtests with one dist because of faked neighbor:
+#        self.assertTrue(r.json()['data']['compatible'], "initcheck was not compatible")
+
         r = requests.post(
             f'{URL}/api/v1.0/device_init/{device_id}',
             headers=AUTH_HEADER,
-            json={"hostname": "eosaccess", "device_type": "ACCESS"},
+            json=data,
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to start device_init")
@@ -278,9 +291,9 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do update facts for dist")
-        restore_job_id = r.json()['job_id']
-        job = self.check_jobid(restore_job_id)
-        self.assertFalse(job['result']['devices'][hostname]['failed'])
+        update_facts_job_id = r.json()['job_id']
+        job = self.check_jobid(update_facts_job_id)
+        self.assertIn("diff", job['result'])
 
     def test_12_abort_running_job(self):
         data = {

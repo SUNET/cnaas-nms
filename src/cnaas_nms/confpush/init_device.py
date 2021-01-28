@@ -4,7 +4,6 @@ from ipaddress import IPv4Interface, IPv4Address
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
-from napalm.base.exceptions import SessionLockedException
 from apscheduler.job import Job
 import yaml
 import os
@@ -19,7 +18,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_jinja_env
-from cnaas_nms.confpush.update import update_interfacedb_worker
+from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets, set_facts
 from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
     sync_devices
 from cnaas_nms.db.git import RepoStructureException
@@ -140,8 +139,20 @@ def pre_init_checks(session, device_id) -> Device:
 
 def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                              linknets: List[dict],
-                             expected_neighbors: Optional[List[str]] = None) -> List[str]:
+                             expected_neighbors: Optional[List[str]] = None,
+                             mlag_peer_dev: Optional[Device] = None) -> List[str]:
+    """Check for compatible neighbors
+    Args:
+        session: SQLAlchemy session
+        dev: Device object to check
+        devtype: The target device type (not the same as current during init)
+        linknets: List of linknets to check for compatible neighbors
+        expected_neighbors: Optional list to manually specify neighbors
+    Returns:
+        List of compatible neighbor hostnames
+    """
     logger = get_logger()
+    verified_neighbors = []
     if expected_neighbors is not None and len(expected_neighbors) == 0:
         logger.debug("expected_neighbors explicitly set to empty list, skipping neighbor checks")
         return []
@@ -149,9 +160,40 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
         raise Exception("No linknets were specified to check_neighbors")
 
     if devtype == DeviceType.ACCESS:
-        pass
+        neighbors = []
+        uplinks = []
+        for linknet in linknets:
+            if linknet['device_a_hostname'] == linknet['device_b_hostname']:
+                continue  # don't add loopback cables as neighbors
+            elif linknet['device_a_hostname'] == dev.hostname:
+                if mlag_peer_dev and linknet['device_b_hostname'] == mlag_peer_dev.hostname:
+                    continue  # only add mlag peer linknet in one direction to avoid duplicate
+                else:
+                    neighbor = linknet['device_b_hostname']
+            elif linknet['device_b_hostname'] == dev.hostname:
+                neighbor = linknet['device_a_hostname']
+            elif mlag_peer_dev:
+                if linknet['device_a_hostname'] == mlag_peer_dev.hostname:
+                    neighbor = linknet['device_b_hostname']
+                elif linknet['device_b_hostname'] == mlag_peer_dev.hostname:
+                    neighbor = linknet['device_a_hostname']
+            else:
+                raise Exception("Own hostname not found in linknet")
+            neighbor_dev: Device = session.query(Device). \
+                filter(Device.hostname == neighbor).one_or_none()
+            if not neighbor_dev:
+                raise Exception("Neighbor device {} not found in database".format(neighbor))
+            if neighbor_dev.device_type in [DeviceType.ACCESS, DeviceType.DIST]:
+                uplinks.append(neighbor)
+
+            neighbors.append(neighbor)
+        try:
+            cnaas_nms.db.helper.find_mgmtdomain(session, uplinks)
+        except Exception as e:
+            raise InitVerificationError(str(e))
+        else:
+            verified_neighbors = neighbors
     elif devtype in [DeviceType.CORE, DeviceType.DIST]:
-        verified_neighbors = []
         for linknet in linknets:
             if linknet['device_a_hostname'] == dev.hostname:
                 neighbor = linknet['device_b_hostname']
@@ -278,13 +320,12 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         dev = pre_init_checks(session, device_id)
 
         # update linknets using LLDP data
-        cnaas_nms.confpush.get.update_linknets(session, dev.hostname, DeviceType.ACCESS)
+        update_linknets(session, dev.hostname, DeviceType.ACCESS)
 
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
-            cnaas_nms.confpush.get.update_linknets(session, mlag_peer_dev.hostname,
-                                                   DeviceType.ACCESS)
+            update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
@@ -451,7 +492,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
         dev = pre_init_checks(session, device_id)
 
         # Test update of linknets using LLDP data
-        linknets = cnaas_nms.confpush.get.update_linknets(
+        linknets = update_linknets(
             session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=True)
 
         try:
@@ -469,7 +510,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
             session.commit()
             # If neighbor check works, commit new linknets
             # This will also mark neighbors as unsynced
-            linknets = cnaas_nms.confpush.get.update_linknets(
+            linknets = update_linknets(
                 session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=False)
             logger.debug("New linknets for INIT of {} created: {}".format(
                 new_hostname, linknets
@@ -561,7 +602,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
 
 
 def schedule_init_device_step2(device_id: int, iteration: int,
-                               scheduled_by: str) -> Optional[Job]:
+                               scheduled_by: str) -> Optional[int]:
     max_iterations = 2
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
@@ -616,10 +657,7 @@ def init_device_step2(device_id: int, iteration: int = -1,
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
         dev.synchronized = False
-        dev.serial = facts['serial_number'][:64]
-        dev.vendor = facts['vendor'][:64]
-        dev.model = facts['model'][:64]
-        dev.os_version = facts['os_version'][:64]
+        set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None
 

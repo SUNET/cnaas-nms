@@ -112,9 +112,11 @@ container at the initial steps of the process, and also logs from the API
 container at later stages of the process. If the device gets stuck in the
 DHCP_BOOT process for example, it probably means the API can not log in to the
 device using the credentials and IP address saved in the database. The API
-will retry connecting to the device 5 times with increasing delay between
-each attempt. If you want to trigger more retries at a later point you can manually
-call the discover_device API call and send the MAC and DHCP IP of the device.
+will retry connecting to the device 3 times with increasing delay between
+each attempt. If you want to trigger more retries at a later point you can
+manually call the discover_device API call and send the MAC and DHCP IP of the
+device. New attempts to discover the device will also be made when the DHCP
+lease is renewed or reaquired.
 
 
 Zero-touch provisioning of fabric switch

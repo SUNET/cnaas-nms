@@ -132,10 +132,22 @@ class GetTests(unittest.TestCase):
         hostname, device_id = self.wait_for_discovered_device()
         print("Discovered hostname, id: {}, {}".format(hostname, device_id))
         self.assertTrue(hostname, "No device in state discovered found for ZTP")
+        data = {"hostname": "eosaccess", "device_type": "ACCESS"}
+        r = requests.post(
+            f'{URL}/api/v1.0/device_initcheck/{device_id}',
+            headers=AUTH_HEADER,
+            json=data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed device_initcheck, http status")
+        self.assertEqual(r.json()['status'], 'success',
+                         "Failed device_initcheck, returned unsuccessful")
+        self.assertTrue(r.json()['data']['compatible'], "initcheck was not compatible")
+
         r = requests.post(
             f'{URL}/api/v1.0/device_init/{device_id}',
             headers=AUTH_HEADER,
-            json={"hostname": "eosaccess", "device_type": "ACCESS"},
+            json=data,
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to start device_init")

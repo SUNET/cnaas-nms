@@ -44,8 +44,8 @@ docker volume create cnaas-cacert
 docker-compose up -d
 
 docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
-docker-compose exec cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
-docker-compose exec cnaas_api /opt/cnaas/createca.sh
+docker-compose exec -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
+docker-compose exec -T cnaas_api /opt/cnaas/createca.sh
 
 if [ ! -z "$PRE_TEST_SCRIPT" ]
 then

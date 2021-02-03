@@ -204,7 +204,10 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
-        self.check_jobid(r.json()['job_id'])
+        auto_job1 = self.check_jobid(r.json()['job_id'])
+        self.assertEqual(type(auto_job1['next_job_id']), int, "No auto-push commit job found")
+        self.check_jobid(auto_job1['next_job_id'])
+
 
     def test_05_syncto_dist(self):
         r = requests.post(
@@ -247,7 +250,7 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         # TODO: not working
-        #self.assertEqual(r.status_code, 200, "Failed to list firmware")
+        self.assertEqual(r.status_code, 200, "Failed to list firmware")
 
     def test_09_sysversion(self):
         r = requests.get(

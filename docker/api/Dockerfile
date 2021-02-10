@@ -12,7 +12,8 @@ COPY config/*.yml /etc/cnaas-nms/
 
 # Setup script
 COPY cnaas-setup.sh /opt/cnaas/
-RUN /opt/cnaas/cnaas-setup.sh $BUILDBRANCH
+COPY cnaas-setup-branch.sh /opt/cnaas/
+RUN /opt/cnaas/cnaas-setup.sh
 
 # Prepare for supervisord, uwsgi, ngninx
 COPY nosetests.sh /opt/cnaas/
@@ -23,10 +24,6 @@ COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY config/nginx_app.conf /etc/nginx/sites-available/
 COPY config/nginx.conf /etc/nginx/
 COPY cert/* /etc/nginx/conf.d/
-
-# Websocket test client
-RUN mkdir /opt/cnaas/static/
-COPY client.html /opt/cnaas/static/
 
 # Give nginx some special treatment
 RUN unlink /etc/nginx/sites-enabled/default
@@ -49,6 +46,10 @@ RUN chown -R www-data:www-data /tmp/devicecerts && \
 RUN chown root:www-data /opt/cnaas/*.sh && \
     chmod g+rx /opt/cnaas/*.sh
 RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+
+# Branch specific, don't cache
+ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
+RUN /opt/cnaas/cnaas-setup-branch.sh $BUILDBRANCH
 
 
 # Expose HTTPS

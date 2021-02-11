@@ -5,8 +5,6 @@ set -x
 
 export DEBIAN_FRONTEND noninteractive
 
-/bin/sed -i s/deb.debian.org/ftp.se.debian.org/g /etc/apt/sources.list
-
 
 apt-get update && \
     apt-get -y dist-upgrade && \

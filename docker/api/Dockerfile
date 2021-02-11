@@ -1,5 +1,5 @@
 FROM debian:buster
-ARG BUILDBRANCH=develop
+ARG BUILDBRANCH
 
 # Create directories
 RUN mkdir -p /opt/cnaas/templates/
@@ -12,7 +12,7 @@ COPY config/*.yml /etc/cnaas-nms/
 
 # Setup script
 COPY cnaas-setup.sh /opt/cnaas/
-RUN /opt/cnaas/cnaas-setup.sh $BUILDBRANCH
+RUN /opt/cnaas/cnaas-setup.sh ${BUILDBRANCH}
 
 # Prepare for supervisord, uwsgi, ngninx
 COPY nosetests.sh /opt/cnaas/

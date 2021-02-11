@@ -39,9 +39,9 @@ source bin/activate
 /opt/cnaas/venv/bin/pip install -U pip
 
 # Fetch the code and install dependencies
-git clone https://github.com/SUNET/cnaas-nms.git
+git clone $1 cnaas-nms
 cd cnaas-nms/
-git checkout $1
+git checkout $2
 python3 -m pip install -r requirements.txt
 
 chown -R www-data:www-data /opt/cnaas/settings

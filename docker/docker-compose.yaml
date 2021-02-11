@@ -10,6 +10,7 @@ services:
       context: ./api/
       args:
         - BUILDBRANCH=develop
+        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
     ports:
       - 443:1443
     networks:
@@ -62,6 +63,7 @@ services:
       context: ./dhcpd/
       args:
         - BUILDBRANCH=develop
+        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
     ports:
       - 67:67/udp
     networks:

@@ -31,7 +31,7 @@ cd /opt/cnaas/venv/
 source bin/activate
 git clone https://github.com/SUNET/cnaas-nms.git
 cd cnaas-nms/
-git checkout develop
+git checkout $1
 #python3 -m pip install -r requirements.txt
 #minimal requirements for just dhcp-hook:
 python3 -m pip install requests pyyaml netaddr jinja2

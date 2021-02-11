@@ -6,7 +6,10 @@ services:
   #
   
   cnaas_api:
-    build: ./api/
+    build:
+      context: ./api/
+      args:
+        - BUILDBRANCH=develop
     ports:
       - 443:1443
     networks:

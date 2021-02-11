@@ -56,8 +56,12 @@ services:
       - cnaas
     environment:
       - GITREPO_TEMPLATES
+
   cnaas_dhcpd:
-    build: ./dhcpd/
+    build:
+      context: ./dhcpd/
+      args:
+        - BUILDBRANCH=develop
     ports:
       - 67:67/udp
     networks:

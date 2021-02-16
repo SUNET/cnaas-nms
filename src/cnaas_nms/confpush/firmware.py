@@ -42,7 +42,7 @@ def arista_pre_flight_check(task, job_id: Optional[str] = None) -> str:
 
     # Get amount of free disk space
     res = task.run(napalm_cli, commands=[flash_diskspace])
-    if not isinstance(res, MultiResult) or len(res.result.keys()) is not 1:
+    if not isinstance(res, MultiResult) or len(res.result.keys()) != 1:
         raise Exception('Could not check free space')
 
     # Remove old firmware images if needed

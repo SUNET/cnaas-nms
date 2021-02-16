@@ -5,7 +5,6 @@ set -x
 
 export DEBIAN_FRONTEND noninteractive
 
-/bin/sed -i s/deb.debian.org/ftp.se.debian.org/g /etc/apt/sources.list
 
 apt-get update && \
     apt-get -y dist-upgrade && \
@@ -40,9 +39,9 @@ source bin/activate
 /opt/cnaas/venv/bin/pip install -U pip
 
 # Fetch the code and install dependencies
-git clone https://github.com/SUNET/cnaas-nms.git
+git clone $1 cnaas-nms
 cd cnaas-nms/
-git checkout develop
+git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"
 python3 -m pip install -r requirements.txt
 
 chown -R www-data:www-data /opt/cnaas/settings

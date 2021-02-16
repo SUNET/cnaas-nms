@@ -1,5 +1,6 @@
 FROM debian:buster
-ARG BUILDBRANCH=develop
+ARG BUILDBRANCH
+ARG GITREPO_BASE
 
 # Create directories
 RUN mkdir -p /opt/cnaas/templates/
@@ -12,8 +13,7 @@ COPY config/*.yml /etc/cnaas-nms/
 
 # Setup script
 COPY cnaas-setup.sh /opt/cnaas/
-COPY cnaas-setup-branch.sh /opt/cnaas/
-RUN /opt/cnaas/cnaas-setup.sh
+RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
 
 # Prepare for supervisord, uwsgi, ngninx
 COPY nosetests.sh /opt/cnaas/

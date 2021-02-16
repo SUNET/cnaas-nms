@@ -5,8 +5,6 @@ set -x
 
 export DEBIAN_FRONTEND noninteractive
 
-/bin/sed -i s/deb.debian.org/ftp.se.debian.org/g /etc/apt/sources.list
-
 
 apt-get update && \
     apt-get -y dist-upgrade && \
@@ -31,9 +29,9 @@ python3 -m venv /opt/cnaas/venv
 
 cd /opt/cnaas/venv/
 source bin/activate
-git clone https://github.com/SUNET/cnaas-nms.git
+git clone $1 cnaas-nms
 cd cnaas-nms/
-git checkout develop
+git checkout $2
 #python3 -m pip install -r requirements.txt
 #minimal requirements for just dhcp-hook:
 python3 -m pip install requests pyyaml netaddr jinja2

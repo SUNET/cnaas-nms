@@ -20,7 +20,7 @@ IPV6_REGEX = (
     r':((:[0-9a-fA-F]{1,4}){1,7}|:))'
 )
 FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+'
-HOST_REGEX = f"^({IPV4_REGEX}|{FQDN_REGEX})$"
+HOST_REGEX = f"^({IPV4_REGEX}|{IPV4_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
 host_schema = Field(..., regex=HOST_REGEX, max_length=253,
                     description="Hostname, FQDN or IP address")

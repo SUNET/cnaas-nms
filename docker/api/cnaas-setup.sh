@@ -42,7 +42,7 @@ source bin/activate
 # Fetch the code and install dependencies
 git clone https://github.com/SUNET/cnaas-nms.git
 cd cnaas-nms/
-git checkout develop
+git checkout master
 python3 -m pip install -r requirements.txt
 
 chown -R www-data:www-data /opt/cnaas/settings

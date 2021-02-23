@@ -42,6 +42,7 @@ source bin/activate
 # Fetch the code and install dependencies
 git clone https://github.com/SUNET/cnaas-nms.git
 cd cnaas-nms/
+#git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"
 git checkout master
 python3 -m pip install -r requirements.txt
 

@@ -48,8 +48,8 @@ RUN chown root:www-data /opt/cnaas/*.sh && \
 RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 
 # Branch specific, don't cache
-ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
-RUN /opt/cnaas/cnaas-setup-branch.sh $BUILDBRANCH
+#ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
+#RUN /opt/cnaas/cnaas-setup-branch.sh $BUILDBRANCH
 
 
 # Expose HTTPS

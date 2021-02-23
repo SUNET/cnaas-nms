@@ -1,6 +1,6 @@
 FROM debian:buster
-ARG BUILDBRANCH
-ARG GITREPO_BASE
+ARG BUILDBRANCH=develop
+ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 
 # Create directories
 RUN mkdir -p /opt/cnaas/templates/

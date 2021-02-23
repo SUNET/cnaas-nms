@@ -1,5 +1,5 @@
 FROM debian:buster
-ARG BUILDBRANCH=develop
+ARG BUILDBRANCH=master
 
 # Create directories
 RUN mkdir -p /opt/cnaas/templates/

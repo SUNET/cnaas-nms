@@ -29,7 +29,7 @@ def find_mgmtdomain(session, hostnames: List[str]) -> Optional[Mgmtdomain]:
     """
     if not isinstance(hostnames, list) or not len(hostnames) == 2:
         raise ValueError(
-            "hostnames argument must be a list with two device hostnames, got: {}".format(
+            "Two uplink devices are required to find a compatible mgmtdomain, got: {}".format(
                 hostnames
             ))
     for hostname in hostnames:

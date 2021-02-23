@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/bash -e
 
 pushd .
 cd ../docker/
 # if running selinux on host this is required: chcon -Rt svirt_sandbox_file_t coverage/
-mkdir coverage/
+mkdir -p coverage/
 
 export GITREPO_TEMPLATES="git://gitops.sunet.se/cnaas-lab-templates"
 export GITREPO_SETTINGS="git://gitops.sunet.se/cnaas-lab-settings"
@@ -19,7 +19,42 @@ export PASSWORD_MANAGED="abc123abc123"
 export COVERAGE=1
 export JWT_AUTH_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw"
 
+docker-compose down
+
+if docker volume ls | egrep -q "cnaas-postgres-data$"
+then
+	if [ -z "$AUTOTEST" ]
+	then
+		read -p "Do you want to continue and reset existing SQL database? [y/N]" ans
+		case $ans in
+			[Yy]* ) docker volume rm cnaas-postgres-data;;
+			* ) exit 1;;
+		esac
+	else
+		docker volume rm cnaas-postgres-data
+	fi
+fi
+
+docker volume create cnaas-templates
+docker volume create cnaas-settings
+docker volume create cnaas-postgres-data
+docker volume create cnaas-jwtcert
+docker volume create cnaas-cacert
+
 docker-compose up -d
+
+docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
+docker-compose exec -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
+docker-compose exec -T cnaas_api /opt/cnaas/createca.sh
+
+if [ ! -z "$PRE_TEST_SCRIPT" ]
+then
+	if [ -x "$PRE_TEST_SCRIPT" ]
+	then
+		echo "Running PRE_TEST_SCRIPT..."
+		bash -c $PRE_TEST_SCRIPT
+	fi
+fi
 
 # go back to test dir
 popd

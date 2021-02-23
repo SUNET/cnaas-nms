@@ -20,7 +20,7 @@ IPV6_REGEX = (
     r':((:[0-9a-fA-F]{1,4}){1,7}|:))'
 )
 FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+'
-HOST_REGEX = f"^({IPV4_REGEX}|{FQDN_REGEX})$"
+HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
 host_schema = Field(..., regex=HOST_REGEX, max_length=253,
                     description="Hostname, FQDN or IP address")
@@ -34,7 +34,7 @@ ipv4_if_schema = Field(None, regex=f"^{IPV4_IF_REGEX}$",
 ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$",
                     description="IPv6 address")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
-ipv6_if_schema = Field(..., regex=f"^{IPV6_IF_REGEX}$",
+ipv6_if_schema = Field(None, regex=f"^{IPV6_IF_REGEX}$",
                        description="IPv6 address in CIDR/prefix notation (::/0)")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
@@ -52,10 +52,12 @@ as_num_schema = Field(..., gt=0, lt=4294967296, description="BGP Autonomous Syst
 IFNAME_REGEX = r'([a-zA-Z0-9\/\.:-])+'
 ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$",
                       description="Interface name")
-IFCLASS_REGEX = r'(custom|downlink|uplink)'
+IFCLASS_REGEX = r'(custom|downlink|fabric)'
 ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$",
                        description="Interface class: custom, downlink or uplink")
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
+ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
+maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer")
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
@@ -84,6 +86,10 @@ class f_syslog_server(BaseModel):
 
 
 class f_snmp_server(BaseModel):
+    host: str = host_schema
+
+
+class f_dns_server(BaseModel):
     host: str = host_schema
 
 
@@ -150,6 +156,14 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
+    bfd: Optional[bool] = None
+    graceful_restart: Optional[bool] = None
+    next_hop_self: Optional[bool] = None
+    update_source: Optional[str] = ifname_schema
+    ebgp_multihop: Optional[int] = ebgp_multihop_schema
+    maximum_routes: Optional[int] = maximum_routes_schema
+    auth_type: Optional[str] = None
+    auth_string: Optional[str] = None
     cli_append_str: str = ""
 
 
@@ -159,18 +173,39 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
+    bfd: Optional[bool] = None
+    graceful_restart: Optional[bool] = None
+    next_hop_self: Optional[bool] = None
+    update_source: Optional[str] = ifname_schema
+    ebgp_multihop: Optional[int] = ebgp_multihop_schema
+    maximum_routes: Optional[int] = maximum_routes_schema
+    auth_type: Optional[str] = None
+    auth_string: Optional[str] = None
     cli_append_str: str = ""
 
 
 class f_extroute_bgp_vrf(BaseModel):
     name: str
     local_as: int = as_num_schema
-    neighbor_v4: Optional[List[f_extroute_bgp_neighbor_v4]]
-    neighbor_v6: Optional[List[f_extroute_bgp_neighbor_v6]]
+    neighbor_v4: List[f_extroute_bgp_neighbor_v4] = []
+    neighbor_v6: List[f_extroute_bgp_neighbor_v6] = []
 
 
 class f_extroute_bgp(BaseModel):
-    vrfs: List[f_extroute_bgp_vrf]
+    vrfs: List[f_extroute_bgp_vrf] = []
+
+
+class f_internal_vlans(BaseModel):
+    vlan_id_low: int = vlan_id_schema
+    vlan_id_high: int = vlan_id_schema
+    allocation_order: str = "ascending"
+
+    @validator('vlan_id_high')
+    def vlan_id_high_greater_than_low(cls, v, values, **kwargs):
+        if v:
+            if values['vlan_id_low'] >= v:
+                raise ValueError("vlan_id_high must be greater than vlan_id_low")
+        return v
 
 
 class f_vxlan(BaseModel):
@@ -180,8 +215,10 @@ class f_vxlan(BaseModel):
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
     ipv4_gw: Optional[str] = ipv4_if_schema
+    ipv6_gw: Optional[str] = ipv6_if_schema
     dhcp_relays: Optional[List[f_dhcp_relay]]
     mtu: Optional[int] = mtu_schema
+    vxlan_host_route: bool = True
     groups: List[str] = []
     devices: List[str] = []
 
@@ -190,6 +227,13 @@ class f_vxlan(BaseModel):
         if v:
             if 'vrf' not in values or not values['vrf']:
                 raise ValueError('VRF is required when specifying ipv4_gw')
+        return v
+
+    @validator('ipv6_gw')
+    def vrf_required_if_ipv6_gw_set(cls, v, values, **kwargs):
+        if v:
+            if 'vrf' not in values or not values['vrf']:
+                raise ValueError('VRF is required when specifying ipv6_gw')
         return v
 
 
@@ -204,6 +248,7 @@ class f_root(BaseModel):
     radius_servers: List[f_radius_server] = []
     syslog_servers: List[f_syslog_server] = []
     snmp_servers: List[f_snmp_server] = []
+    dns_servers: List[f_dns_server] = []
     dhcp_relays: Optional[List[f_dhcp_relay]]
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
@@ -213,6 +258,7 @@ class f_root(BaseModel):
     extroute_static: Optional[f_extroute_static]
     extroute_ospfv3: Optional[f_extroute_ospfv3]
     extroute_bgp: Optional[f_extroute_bgp]
+    internal_vlans: Optional[f_internal_vlans]
     cli_prepend_str: str = ""
     cli_append_str: str = ""
 

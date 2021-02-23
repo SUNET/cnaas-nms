@@ -227,6 +227,69 @@ to allow apply config live run as well.
 
 This will schedule a job to send the configuration to the device.
 
+Initialize check
+----------------
+
+Before initializing a new device you can run a pre-check API call. This will
+perform some basic device state checks and check that compatible LLDP
+neighbors are found. For access devices it will try and find a compatible
+mgmtdomain and for core/dist devices it will check that interfaces facing
+neighbors are set to the correct ifclass. It is possible that the init will
+fail even if the initcheck passed.
+
+To test if a device is compatible for DIST ZTP run:
+
+::
+
+   curl https://localhost/api/v1.0/device_initcheck/45 -d '{"hostname": "dist3", "device_type": "DIST"}' -X POST -H "Content-Type: application/json"
+
+Example output:
+
+::
+
+   {
+       "status": "success",
+       "data": {
+           "linknets": [
+               {
+                   "description": null,
+                   "device_a_hostname": "dist3",
+                   "device_a_ip": "10.198.0.0",
+                   "device_a_port": "Ethernet3",
+                   "device_b_hostname": "core1",
+                   "device_b_ip": "10.198.0.1",
+                   "device_b_port": "Ethernet3",
+                   "ipv4_network": "10.198.0.0/31",
+                   "site_id": null
+               }
+           ],
+           "linknets_compatible": true,
+           "neighbors_compatible": false,
+           "neighbors_error": "Not enough linknets (1 of 2) were detected",
+           "parsed_args": {
+               "device_id": 2,
+               "new_hostname": "dist3",
+               "device_type": "DIST",
+               "neighbors": null
+           },
+           "compatible": false
+       }
+   }
+
+Status success in this case means all checks were able to complete, but if
+you check the "compatible" key it says false which means this device is
+actually not compatible for DIST ZTP at the moment. We did find a compatible
+linknet, but there were not enough neighboring devices of the correct device
+type found. If you want to perform some non-standard configuration like trying
+ZTP with just one neighbor you can manually specify what neighbors you expect
+to see instead ("neighbors": ["core1"]). Other arguments that can be passed
+to device_init should also be valid here, like "mlag_peer_id" and
+"mlag_peer_hostname" for access MLAG pairs.
+
+If the checks can not be performed at all, like when the device is not found
+or an invalid device type is specified the API call will return a 400 or 500
+error instead.
+
 Initialize device
 -----------------
 
@@ -262,3 +325,39 @@ This will schedule a job to log in to the device, get the facts and update the
 database. You can perform this action on both MANAGED and UNMANAGED devices.
 UNMANAGED devices might not be reachable so this could be a good test-call
 before moving the device back to the MANAGED state.
+
+Update interfaces
+-----------------
+
+To update the list of available interfaces on an ACCESS device use this API call:
+
+::
+
+   curl https://localhost/api/v1.0/device_update_interfaces -d '{"hostname": "eosaccess"}' -X POST -H "Content-Type: application/json"
+
+This will schedule a job to log in to the device and get a list of physical
+interfaces and put them in the interface database. Existing interfaces will
+not be changed unless you specify "replace": true. Interfaces that no longer
+exists on the device will be deleted from the interface database,
+except for UPLINK and MLAG_PEER ports which will not be deleted automatically.
+If you specify "delete_all": true then all interfaces will be removed,
+including UPLINK and MLAG_PEER ports (dangerous!). If you want to re-populate
+MLAG_PEER ports you have to specify the argument "mlag_peer_hostname" to
+indicate what peer device you expect to see.
+
+Renew certificates
+------------------
+
+To manually request installation/renewal of a new device certificate use
+the device_cert API:
+
+::
+
+   curl https://localhost/api/v1.0/device_cert -d '{"hostname": "eosdist1", "action": "RENEW"}' -X POST -H "Content-Type: application/json"
+
+This will schedule a job to generate a new key and certificate for the specified
+device(s) and copy them to the device(s). The certificate will be signed by the
+NMS CA (specified in api.yml).
+
+Either one of "hostname" or "group" arguments must be specified. The "action"
+argument must be specified and the only valid action for now is "RENEW".

@@ -2,6 +2,6 @@
 ntp_servers: []
 radius_servers: []
 snmp_servers: []
-evpn_spines: []
+dns_servers: []
 vrfs: []
 vxlans: {}

@@ -1,14 +1,17 @@
 import json
+import time
+
 from flask import request, make_response
 from flask_restx import Resource, Namespace, fields
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func
 
 from cnaas_nms.api.generic import empty_result, build_filter
-from cnaas_nms.db.job import Job
+from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.version import __api_version__
+from cnaas_nms.scheduler.scheduler import Scheduler
 
 
 job_api = Namespace('job', description='API for handling jobs',
@@ -55,7 +58,51 @@ class JobByIdApi(Resource):
             if job:
                 return empty_result(data={'jobs': [job.as_dict()]})
             else:
-                return empty_result(status='error', data="No job with id {} found".format(job_id)), 400
+                return empty_result(status='error',
+                                    data="No job with id {} found".format(job_id)), 400
+
+    @jwt_required
+    def put(self, job_id):
+        json_data = request.get_json()
+        if 'action' not in json_data:
+            return empty_result(status='error', data="Action must be specified"), 400
+
+        with sqla_session() as session:
+            job = session.query(Job).filter(Job.id == job_id).one_or_none()
+            if not job:
+                return empty_result(status='error',
+                                    data="No job with id {} found".format(job_id)), 400
+            job_status = job.status
+
+        action = str(json_data['action']).upper()
+        if action == 'ABORT':
+            allowed_jobstates = [JobStatus.SCHEDULED, JobStatus.RUNNING]
+            if job_status not in allowed_jobstates:
+                return empty_result(
+                    status='error',
+                    data="Job id {} is in state {}, must be {} to abort".format(
+                        job_id, job_status, (" or ".join([x.name for x in allowed_jobstates]))
+                    )), 400
+            abort_reason = "Aborted via API call"
+            if 'abort_reason' in json_data and isinstance(json_data['abort_reason'], str):
+                abort_reason = json_data['abort_reason'][:255]
+
+            abort_reason += " (aborted by {})".format(get_jwt_identity())
+
+            if job_status == JobStatus.SCHEDULED:
+                scheduler = Scheduler()
+                scheduler.remove_scheduled_job(job_id=job_id, abort_message=abort_reason)
+                time.sleep(2)
+            elif job_status == JobStatus.RUNNING:
+                with sqla_session() as session:
+                    job = session.query(Job).filter(Job.id == job_id).one_or_none()
+                    job.status = JobStatus.ABORTING
+
+            with sqla_session() as session:
+                job = session.query(Job).filter(Job.id == job_id).one_or_none()
+                return empty_result(data={"jobs": [job.as_dict()]})
+        else:
+            return empty_result(status='error', data="Unknown action: {}".format(action)), 400
 
 
 class JobLockApi(Resource):

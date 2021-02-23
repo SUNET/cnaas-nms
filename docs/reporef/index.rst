@@ -64,7 +64,7 @@ Additional variables available for distribution switches:
   Populated from the links database table.
 
 - bgp_evpn_peers: A list of dictionaries with the keys: "peer_hostname", "peer_infra_lo", "peer_asn".
-  Contains one entry per hostname specified in settings->evpn_spines. Used to build
+  Contains one entry per hostname specified in settings->evpn_peers. Used to build
   eBGP peering for EVPN between loopbacks.
 
 - mgmtdomains: A list of dictionaries with the keys: "ipv4_gw", "vlan", "description", "esi_mac".
@@ -74,6 +74,8 @@ Additional variables available for distribution switches:
   of the infra_lo IP address on the device.
  
 All settings configured in the settings repository are also exposed to the templates.
+
+.. _settings_repo_ref:
 
 settings
 --------
@@ -87,17 +89,19 @@ The directory structure looks like this:
 - global
 
   * groups.yml: Definition of custom device groups
-  * vxlans.yml: Definition of VXLAN/VLANs
   * routing.yml: Definition of global routing settings like fabric underlay and VRFs
+  * vxlans.yml: Definition of VXLAN/VLANs
   * base_system.yml: Base system settings
 
 - core
 
   * base_system.yml: Base system settings
+  * interfaces_<model>.yml: Model specific default interface settings
 
 - dist
 
   * base_system.yml: Base system settings
+  * interfaces_<model>.yml: Model specific default interface settings
 
 - access:
 
@@ -110,6 +114,34 @@ The directory structure looks like this:
     + base_system.yml
     + interfaces.yml
     + routing.yml
+
+groups.yml:
+
+Contains a dictionary named "groups", that contains a list of groups.
+Each group is defined as a dictionary with a single key named "group",
+and that key contains a dictionary with two keys:
+
+- name: A string representing a name. No spaces.
+- regex: A Python style regex that matches on device hostnames
+
+All devices that matches the regex will be included in the group.
+
+::
+
+   ---
+   groups:
+     - group:
+         name: 'ALL'
+         regex: '.*'
+     - group:
+         name: 'BORDER_DIST'
+         regex: '(south-dist0[1-2]|north-dist0[1-2])'
+     - group:
+         name: 'DIST_EVEN'
+         regex: '.*-dist[0-9][02468]'
+     - group:
+         name: 'DIST_ODD'
+         regex: '.*-dist[0-9][13579]'
 
 routing.yml:
 
@@ -127,7 +159,8 @@ Can contain the following dictionaries with specified keys:
 
   * hostname: A hostname of a CORE (or DIST) device from the device database.
     The other DIST switches participating in the VXLAN/EVPN fabric will establish
-    eBGP connections to these devices.
+    eBGP connections to these devices. If an empty list is provided all CORE
+    devices will be added as evpn_peers instead.
 
 - vrfs:
 
@@ -148,6 +181,12 @@ Can contain the following dictionaries with specified keys:
       * interface: Exiting interface (optional)
       * name: Name/description of route (optional, defaults to "undefined")
       * cli_append_str: Custom configuration to append to this route (optional)
+
+    * ipv6:
+
+      * destination: IPv6 prefix
+      * nexthop: IPv6 nexthop address
+      * other options are the same as ipv4
 
 * extroute_ospfv3:
 
@@ -170,16 +209,44 @@ Can contain the following dictionaries with specified keys:
       * peer_ipv4: IPv4 address of peer
       * route_map_in: Route-map to filter incoming routes
       * route_map_out: Route-map to filter outgoing routes
+      * ebgp_multihop: Configure eBGP multihop/TTL security, integer 1-255
+      * bfd: Set to true to enable Bidirectional Forward Detection (BFD)
+      * graceful_restart: Set to true to enable capability graceful restart
+      * next_hop_self: Set to true to always advertise this router's address as the BGP next hop
+      * maximum_routes: Maximum routes to receive from peer, integer 0-4294967294
+      * update_source: Specify local source interface for the BGP session
+      * auth_string: String used to calculate MD5 hash for authentication (password)
       * description: Description of remote peer (optional, defaults to "undefined")
       * cli_append_str: Custom configuration to append to this peer (optional)
     * neighbor_v6:
 
-      * peer_as: AS number the remote peer
       * peer_ipv6: IPv6 address of peer
-      * route_map_in: Route-map to filter incoming routes
-      * route_map_out: Route-map to filter outgoing routes
-      * description: Description of remote peer (optional, defaults to "undefined")
-      * cli_append_str: Custom configuration to append to this peer (optional)
+      * other options are the same as neighbor_v4
+
+routing.yml examples:
+
+::
+
+   ---
+   extroute_bgp:
+     vrfs:
+       - name: OUTSIDE
+         local_as: 64667
+         neighbor_v4:
+           - peer_ipv4: 10.0.255.1
+             peer_as: 64666
+             route_map_in: fw-lab-in
+             route_map_out: default-only-out
+             description: "fw-lab"
+             bfd: true
+             graceful_restart: true
+   extroute_static:
+     vrfs:
+       - name: MGMT
+         ipv4:
+           - destination: 172.12.0.0/24
+             nexthop: 10.0.254.1
+             name: cnaas-mgmt
 
 vxlans.yml:
 
@@ -191,9 +258,78 @@ name is the dictionary key and dictionaly values are:
   * vlan_id: VLAN ID, 1-4095
   * vlan_name: VLAN name, single word/no spaces, max 31 characters
   * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24. Optional.
+  * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
   * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
     access switch the parent dist switch should be automatically provisioned.
 
+interfaces.yml:
+
+For dist and core devices interfaces are configured in YAML files. The
+interface configuration can either be done per device, or per device model.
+If there is a device specific folder under devices/ then the model
+interface settings will be ignored. Model specific YAML files
+should be named like the device model as listed in the devices API, but in
+all lower-case and with all whitespaces replaced with underscore ("_").
+
+Keys for interfaces.yml or interfaces_<model>.yml:
+
+* interfaces: List of dicctionaries with keys:
+
+  * name: Interface name, like "Ethernet1"
+  * ifclass: Interface class, one of: downlink, fabric, custom
+  * config: Optional. Raw CLI config used in case "custom" ifclass was selected
+
+The "downlink" ifclass is used on DIST devices to specify that this interface
+is used to connect access devices. The "fabric" ifclass is used to specify that
+this interface is used to connect DIST or CORE devices with each other to form
+the switch (vxlan) fabric. Linknet data will only be configured on interfaces
+specified as "fabric". If no linknet data is available in the database then
+the fabric interface will be configured for ZTP of DIST/CORE devices by
+providing DHCP (relay) access.
+
+base_system.yml:
+
+Contains base system settings like:
+
+- ntp_servers
+- snmp_servers
+- dns_servers
+- syslog_servers
+- dhcp_relays
+- internal_vlans
+
+Example of base_system.yml:
+
+::
+
+   ---
+   ntp_servers:
+     - host: 10.255.0.1
+     - host: 10.255.0.2
+   snmp_servers:
+     - host: 10.255.0.11
+   dns_servers:
+     - host: 10.255.0.1
+     - host: 10.255.0.2
+   syslog_servers:
+     - host: 10.255.0.21
+     - host: 10.255.0.22
+   dhcp_relays:
+     - host: 10.255.1.1
+     - host: 10.255.1.2
+   internal_vlans:
+     vlan_id_low: 3006
+     vlan_id_high: 4094
+
+
+syslog_servers and radius_severs can optionally have the key "port" specified
+to indicate a non-defalut layer4 (TCP/UDP) port number.
+
+internal_vlans can optionally be specified if you want to manually define
+the range of internal VLANs on L3 switches. You can also specify the option
+"allocation_order" under internal_vlans which is a custom string that defaults
+to "ascending". If internal_vlans is specified then a collision check will
+be performed for any defined vlan_ids in vxlans settings.
 
 etc
 ---

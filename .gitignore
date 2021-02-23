@@ -25,6 +25,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+lib64
 lib64/
 parts/
 sdist/
@@ -36,6 +37,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+bin/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -59,6 +61,7 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+docker/coverage/
 
 # Translations
 *.mo
@@ -106,6 +109,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+pyvenv.cfg
 
 x# Spyder project settings
 .spyderproject

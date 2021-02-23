@@ -3,7 +3,6 @@ import coverage
 import atexit
 import signal
 import threading
-import time
 from typing import List
 from gevent import monkey, signal as gevent_signal
 from redis import StrictRedis
@@ -13,6 +12,7 @@ from cnaas_nms.tools.get_apidata import get_apidata
 
 
 os.environ['PYTHONPATH'] = os.getcwd()
+stop_websocket_threads = False
 
 
 print("Code coverage collection for worker in pid {}: {}".format(
@@ -112,6 +112,8 @@ def thread_websocket_events():
                 if not event:
                     continue
                 emit_redis_event(event)
+            if stop_websocket_threads:
+                break
 
 
 if __name__ == '__main__':
@@ -127,9 +129,13 @@ if __name__ == '__main__':
 
     apidata = get_apidata()
     if isinstance(apidata, dict) and 'host' in apidata:
-        app.socketio.run(get_app(), debug=True, host=apidata['host'])
+        host = apidata['host']
     else:
-        app.socketio.run(get_app(), debug=True)
+        host = None
+
+    app.socketio.run(get_app(), debug=True, host=host)
+    stop_websocket_threads = True
+    t_websocket_events.join()
 
     if 'COVERAGE' in os.environ:
         save_coverage()

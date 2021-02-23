@@ -4,6 +4,7 @@ import requests
 import time
 import unittest
 import os
+import datetime
 
 
 if 'CNAASURL' in os.environ:
@@ -131,10 +132,23 @@ class GetTests(unittest.TestCase):
         hostname, device_id = self.wait_for_discovered_device()
         print("Discovered hostname, id: {}, {}".format(hostname, device_id))
         self.assertTrue(hostname, "No device in state discovered found for ZTP")
+        data = {"hostname": "eosaccess", "device_type": "ACCESS"}
+        r = requests.post(
+            f'{URL}/api/v1.0/device_initcheck/{device_id}',
+            headers=AUTH_HEADER,
+            json=data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed device_initcheck, http status")
+        self.assertEqual(r.json()['status'], 'success',
+                         "Failed device_initcheck, returned unsuccessful")
+#       this check fails when running integrationtests with one dist because of faked neighbor:
+#        self.assertTrue(r.json()['data']['compatible'], "initcheck was not compatible")
+
         r = requests.post(
             f'{URL}/api/v1.0/device_init/{device_id}',
             headers=AUTH_HEADER,
-            json={"hostname": "eosaccess", "device_type": "ACCESS"},
+            json=data,
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to start device_init")
@@ -190,7 +204,10 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to access")
-        self.check_jobid(r.json()['job_id'])
+        auto_job1 = self.check_jobid(r.json()['job_id'])
+        self.assertEqual(type(auto_job1['next_job_id']), int, "No auto-push commit job found")
+        self.check_jobid(auto_job1['next_job_id'])
+
 
     def test_05_syncto_dist(self):
         r = requests.post(
@@ -233,7 +250,7 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         # TODO: not working
-        #self.assertEqual(r.status_code, 200, "Failed to list firmware")
+        self.assertEqual(r.status_code, 200, "Failed to list firmware")
 
     def test_09_sysversion(self):
         r = requests.get(
@@ -277,9 +294,128 @@ class GetTests(unittest.TestCase):
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to do update facts for dist")
+        update_facts_job_id = r.json()['job_id']
+        job = self.check_jobid(update_facts_job_id)
+        self.assertIn("diff", job['result'])
+
+    def test_12_abort_running_job(self):
+        data = {
+            'group': 'DIST',
+            'url': '',
+            'post_flight': True,
+            'post_waittime': 30
+        }
+        result = requests.post(
+            f"{URL}/api/v1.0/firmware/upgrade",
+            headers=AUTH_HEADER,
+            json=data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        self.assertEqual(type(result.json()['job_id']), int)
+        job_id: int = result.json()['job_id']
+        time.sleep(2)
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        self.assertEqual(len(result.json()['data']['jobs']), 1, "One job should be found")
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "RUNNING",
+                         "Job should be in RUNNING state at start")
+        abort_data = {
+            'action': 'ABORT',
+            'abort_reason': 'unit test abort_running_job'
+        }
+        result = requests.put(
+            f"{URL}/api/v1.0/job/{job_id}",
+            headers=AUTH_HEADER,
+            json=abort_data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "ABORTING",
+                         "Job should be in ABORTING state after abort action")
+        time.sleep(30)
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "ABORTED",
+                         "Job should be in ABORTED state at end")
+
+    def test_13_abort_scheduled_job(self):
+        start_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=30)
+        data = {
+            'group': 'DIST',
+            'url': '',
+            'post_flight': True,
+            'post_waittime': 30,
+            'start_at': start_time.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        result = requests.post(
+            f"{URL}/api/v1.0/firmware/upgrade",
+            headers=AUTH_HEADER,
+            json=data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        self.assertEqual(type(result.json()['job_id']), int)
+        job_id: int = result.json()['job_id']
+        time.sleep(2)
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        self.assertEqual(len(result.json()['data']['jobs']), 1, "One job should be found")
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "SCHEDULED",
+                         "Job should be in SCHEDULED state at start")
+        abort_data = {
+            'action': 'ABORT',
+            'abort_reason': 'unit test abort_scheduled_job'
+        }
+        result = requests.put(
+            f"{URL}/api/v1.0/job/{job_id}",
+            headers=AUTH_HEADER,
+            json=abort_data,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['status'], 'success')
+        result = requests.get(
+            f'{URL}/api/v1.0/job/{job_id}',
+            headers=AUTH_HEADER,
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(result.json()['data']['jobs'][0]['status'], "ABORTED",
+                         "Job should be in ABORTED state at end")
+
+    def test_11_update_interfaces_access(self):
+        hostname = "eosaccess"
+        r = requests.post(
+            f'{URL}/api/v1.0/device_update_interfaces',
+            headers=AUTH_HEADER,
+            json={"hostname": hostname},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do update interfaces for dist")
         restore_job_id = r.json()['job_id']
         job = self.check_jobid(restore_job_id)
-        self.assertFalse(job['result']['devices'][hostname]['failed'])
+        self.assertEqual(job['status'], "FINISHED")
 
 
 if __name__ == '__main__':

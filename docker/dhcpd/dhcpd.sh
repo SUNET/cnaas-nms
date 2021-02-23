@@ -19,6 +19,14 @@ then
 	fi
 fi
 
+if [ -e "/opt/cnaas/etc/dhcpd/gen-dhcpd.py" ] && \
+       [ -e "/opt/cnaas/etc/dhcpd/dhcpd.j2" ] && \
+       [ -e "/opt/cnaas/etc/dhcpd/dhcpd.yaml" ]; then
+    source /opt/cnaas/venv/bin/activate
+    cd /opt/cnaas/etc/dhcpd/
+    python3 gen-dhcpd.py > /opt/cnaas/dhcpd.conf
+fi
+
 #cd /opt/cnaas/venv/cnaas-nms
 #git pull
 

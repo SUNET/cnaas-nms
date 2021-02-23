@@ -1,6 +1,29 @@
 Changelog
 =========
 
+Version 1.2.0
+-------------
+
+New features:
+
+- ZTP support for core and diste devices (#137)
+- Init check API call to test if device is compatible for ZTP without commit (#136, #156)
+- Option to have model-specific default interface settings (#135)
+- Post-flight check for firmware upgrade (#139)
+- Abort scheduled jobs, best-effort abort of running jobs (#142)
+- API call to update existing interfaces on device after ZTP (#155)
+- More settings for external BGP routing, DNS servers, internal VLANs (#143, #146, #152)
+- Install NMS issued certificate on new devices during ZTP (#149)
+- Switch to Nornir 3.0, improved whitespace rendering in templates (#148)
+
+Bug fixes:
+
+- Fix blocking websockets (#138)
+- Fix access downlink port detection (#141)
+- Post upgrade confighash mismatch (#145)
+- Discover device duplicate jobs improvements (#151)
+- Trim facts fields before saving in database (#153)
+
 Version 1.1.0
 -------------
 

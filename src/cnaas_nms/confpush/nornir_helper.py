@@ -1,10 +1,15 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Union
+import os
 
 from nornir import InitNornir
 from nornir.core import Nornir
 from nornir.core.task import AggregatedResult, MultiResult
 from nornir.core.filter import F
+from nornir.core.plugins.inventory import InventoryPluginRegister
+from jinja2 import Environment as JinjaEnvironment
+
+from cnaas_nms.confpush.nornir_plugins.cnaas_inventory import CnaasInventory
 from cnaas_nms.scheduler.jobresult import JobResult
 
 
@@ -14,13 +19,25 @@ class NornirJobResult(JobResult):
     change_score: Optional[float] = None
 
 
+cnaas_jinja_env = JinjaEnvironment(
+    trim_blocks=True,
+    lstrip_blocks=True,
+    keep_trailing_newline=True)
+
+
 def cnaas_init() -> Nornir:
+    InventoryPluginRegister.register("CnaasInventory", CnaasInventory)
     nr = InitNornir(
-        core={"num_workers": 50},
-        inventory={
-            "plugin": "cnaas_nms.confpush.nornir_plugins.cnaas_inventory.CnaasInventory"
+        runner={
+            "plugin": "threaded",
+            "options": {
+                "num_workers": 50
+            }
         },
-        logging={"file": "/tmp/nornir.log", "level": "debug"}
+        inventory={
+            "plugin": "CnaasInventory"
+        },
+        logging={"log_file": "/tmp/nornir-pid{}.log".format(os.getpid()), "level": "DEBUG"}
     )
     return nr
 
@@ -45,7 +62,7 @@ def nr_result_serialize(result: AggregatedResult):
 
 
 def inventory_selector(nr: Nornir, resync: bool = True,
-                       hostname: Optional[str] = None,
+                       hostname: Optional[Union[str, List[str]]] = None,
                        device_type: Optional[str] = None,
                        group: Optional[str] = None) -> Tuple[Nornir, int, List[str]]:
     """Return a filtered Nornir inventory with only the selected devices
@@ -53,7 +70,7 @@ def inventory_selector(nr: Nornir, resync: bool = True,
     Args:
         nr: Nornir object
         resync: Set to false if you want to filter out devices that are synchronized
-        hostname: Select device by hostname (string)
+        hostname: Select device by hostname (string) or list of hostnames (list)
         device_type: Select device by device_type (string)
         group: Select device by group (string)
 
@@ -63,7 +80,12 @@ def inventory_selector(nr: Nornir, resync: bool = True,
     """
     skipped_devices = []
     if hostname:
-        nr_filtered = nr.filter(name=hostname).filter(managed=True)
+        if isinstance(hostname, str):
+            nr_filtered = nr.filter(name=hostname).filter(managed=True)
+        elif isinstance(hostname, list):
+            nr_filtered = nr.filter(filter_func=lambda h: h.name in hostname).filter(managed=True)
+        else:
+            raise ValueError("Can't select hostname based on type {}".type(hostname))
     elif device_type:
         nr_filtered = nr.filter(F(groups__contains='T_'+device_type)).filter(managed=True)
     elif group:

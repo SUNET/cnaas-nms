@@ -15,6 +15,7 @@ import cnaas_nms.db.device
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.reservedip import ReservedIP
 
+
 class Mgmtdomain(cnaas_nms.db.base.Base):
     __tablename__ = 'mgmtdomain'
     __table_args__ = (

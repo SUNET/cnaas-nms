@@ -50,7 +50,7 @@ def update_device_progress_thread(stop_event: threading.Event, job_id: int):
 
 def job_wrapper(func):
     """Decorator to save job status in job tracker database."""
-    def wrapper(job_id: int, scheduled_by: str, *args, **kwargs):
+    def wrapper(job_id: int, scheduled_by: str, kwargs={}):
         if not job_id or not type(job_id) == int:
             errmsg = "Missing job_id when starting job for {}".format(func.__name__)
             logger.error(errmsg)
@@ -62,25 +62,12 @@ def job_wrapper(func):
                 errmsg = "Could not find job_id {} in database".format(job_id)
                 logger.error(errmsg)
                 raise ValueError(errmsg)
-            kwargs['kwargs']['job_id'] = job_id
-            if scheduled_by is None:
-                scheduled_by = 'unknown'
-            # Append (dry_run) to function name if set, so we can distinguish dry_run jobs
-            try:
-                if kwargs['kwargs']['dry_run']:
-                    function_name = "{} (dry_run)".format(func.__name__)
-                else:
-                    function_name = func.__name__
-            except Exception:
+            kwargs['job_id'] = job_id
+            # Don't send new function name unless it was set to "wrapper"
+            function_name = None
+            if job.function_name == "wrapper":
                 function_name = func.__name__
-            job_comment = kwargs['kwargs'].pop('job_comment', None)
-            if job_comment and isinstance(job_comment, str):
-                job.comment = job_comment[:255]
-            job_ticket_ref = kwargs['kwargs'].pop('job_ticket_ref', None)
-            if job_ticket_ref and isinstance(job_comment, str):
-                job.ticket_ref = job_ticket_ref[:32]
-            job.start_job(function_name=function_name,
-                          scheduled_by=scheduled_by)
+            job.start_job(function_name=function_name)
             if func.__name__ in progress_funcitons:
                 stop_event = threading.Event()
                 device_thread = threading.Thread(target=update_device_progress_thread,
@@ -89,7 +76,7 @@ def job_wrapper(func):
         try:
             set_thread_data(job_id)
             # kwargs is contained in an item called kwargs because of the apscheduler.add_job call
-            res = func(*args, **kwargs['kwargs'])
+            res = func(**kwargs)
             if job_id:
                 res = insert_job_id(res, job_id)
             del thread_data.job_id

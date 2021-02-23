@@ -23,6 +23,11 @@ Defines parameters for the API:
 - jwtcert: Defines the path to the public JWT certificate used to verify JWT tokens
 - httpd_url: URL to the httpd container containing firmware images
 - verify_tls: Verify certificate for connections to httpd/firmware server
+- verify_tls_device: Verify TLS connections to devices, defaults to True
+- cafile: Path to CA certificate used to verify device certificates.
+  If no path is specified then the system default CAs will be used.
+- cakeyfile: Path to CA key, used to sign device certificates after generation.
+- certpath: Path to store generated device certificates in.
 - allow_apply_config_liverun: Allow liverun on apply_config API call. Defaults to False.
 
 /etc/cnaas-nms/repository.yml

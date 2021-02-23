@@ -13,6 +13,7 @@ COPY config/*.yml /etc/cnaas-nms/
 
 # Setup script
 COPY cnaas-setup.sh /opt/cnaas/
+COPY cnaas-setup-branch.sh /opt/cnaas/
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
 
 # Prepare for supervisord, uwsgi, ngninx

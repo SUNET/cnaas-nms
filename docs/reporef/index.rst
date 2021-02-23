@@ -182,6 +182,12 @@ Can contain the following dictionaries with specified keys:
       * name: Name/description of route (optional, defaults to "undefined")
       * cli_append_str: Custom configuration to append to this route (optional)
 
+    * ipv6:
+
+      * destination: IPv6 prefix
+      * nexthop: IPv6 nexthop address
+      * other options are the same as ipv4
+
 * extroute_ospfv3:
 
   * vrfs:
@@ -252,6 +258,7 @@ name is the dictionary key and dictionaly values are:
   * vlan_id: VLAN ID, 1-4095
   * vlan_name: VLAN name, single word/no spaces, max 31 characters
   * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24. Optional.
+  * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
   * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
     access switch the parent dist switch should be automatically provisioned.
 

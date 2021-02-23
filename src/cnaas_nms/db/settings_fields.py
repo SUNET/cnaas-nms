@@ -20,7 +20,7 @@ IPV6_REGEX = (
     r':((:[0-9a-fA-F]{1,4}){1,7}|:))'
 )
 FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+'
-HOST_REGEX = f"^({IPV4_REGEX}|{FQDN_REGEX})$"
+HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
 host_schema = Field(..., regex=HOST_REGEX, max_length=253,
                     description="Hostname, FQDN or IP address")
@@ -34,7 +34,7 @@ ipv4_if_schema = Field(None, regex=f"^{IPV4_IF_REGEX}$",
 ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$",
                     description="IPv6 address")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
-ipv6_if_schema = Field(..., regex=f"^{IPV6_IF_REGEX}$",
+ipv6_if_schema = Field(None, regex=f"^{IPV6_IF_REGEX}$",
                        description="IPv6 address in CIDR/prefix notation (::/0)")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
@@ -215,6 +215,7 @@ class f_vxlan(BaseModel):
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
     ipv4_gw: Optional[str] = ipv4_if_schema
+    ipv6_gw: Optional[str] = ipv6_if_schema
     dhcp_relays: Optional[List[f_dhcp_relay]]
     mtu: Optional[int] = mtu_schema
     vxlan_host_route: bool = True
@@ -226,6 +227,13 @@ class f_vxlan(BaseModel):
         if v:
             if 'vrf' not in values or not values['vrf']:
                 raise ValueError('VRF is required when specifying ipv4_gw')
+        return v
+
+    @validator('ipv6_gw')
+    def vrf_required_if_ipv6_gw_set(cls, v, values, **kwargs):
+        if v:
+            if 'vrf' not in values or not values['vrf']:
+                raise ValueError('VRF is required when specifying ipv6_gw')
         return v
 
 

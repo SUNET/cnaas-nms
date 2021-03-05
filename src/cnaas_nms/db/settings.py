@@ -623,7 +623,7 @@ def get_group_settings():
 
 
 @redis_lru_cache
-def get_groups(hostname=''):
+def get_groups(hostname: Optional[str] = None) -> List[str]:
     groups = []
     settings, origin = get_group_settings()
     if settings is None:
@@ -635,10 +635,11 @@ def get_groups(hostname=''):
     for group in settings['groups']:
         if 'name' not in group['group']:
             continue
-        if 'regex' not in group['group']:
-            continue
-        if hostname and not re.match(group['group']['regex'], hostname):
-            continue
+        if hostname:
+            if 'regex' not in group['group']:
+                continue
+            if not re.match(group['group']['regex'], hostname):
+                continue
         groups.append(group['group']['name'])
     return groups
 

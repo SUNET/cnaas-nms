@@ -16,19 +16,17 @@ api = Namespace('groups', description='API for handling groups',
 
 
 def groups_populate(group_name: Optional[str] = None):
-    tmpgroups: dict = {}
+    if group_name:
+        tmpgroups: dict = {group_name: []}
+    else:
+        tmpgroups: dict = {key: [] for key in get_groups()}
     with sqla_session() as session:
         devices: List[Device] = session.query(Device).all()
         for dev in devices:
             groups = get_groups(dev.hostname)
-            if not groups:
-                continue
             for group in groups:
-                if group_name and group != group_name:
-                    continue
-                if group not in tmpgroups:
-                    tmpgroups[group] = []
-                tmpgroups[group].append(dev.hostname)
+                if group in tmpgroups:
+                    tmpgroups[group].append(dev.hostname)
     return tmpgroups
 
 

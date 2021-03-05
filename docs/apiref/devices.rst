@@ -145,10 +145,13 @@ To modify a device, use the same JSON data as for adding new devices:
 
 ::
 
-   curl --header "Content-Type: application/json" -X PUT --data
-   "state":"UNKNOWN","device_type":"DIST"'
+   curl -H "Content-Type: application/json" -X PUT -d
+   '{"state": "UNMANAGED", "device_type": "DIST"}'
    https://hostname/api/v1.0/device/10
 
+Warning: changing of management_ip or infra_ip can result in unreachable devices that
+is not recoverable via API! Changing of hostname is possible but a resync of
+all neighbor devices will be needed.
 
 Remove devices
 --------------

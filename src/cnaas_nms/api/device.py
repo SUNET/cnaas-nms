@@ -437,7 +437,7 @@ class DeviceInitCheckApi(Resource):
                                     data="Exception in update_linknets: {}".format(e)), 500
 
             try:
-                if 'linknets' in ret:
+                if 'linknets' in ret and ret['linknets']:
                     ret['neighbors'] = cnaas_nms.confpush.init_device.pre_init_check_neighbors(
                         session, dev, target_devtype,
                         ret['linknets'], parsed_args['neighbors'], mlag_peer_dev)

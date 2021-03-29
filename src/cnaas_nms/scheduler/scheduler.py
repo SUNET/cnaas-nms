@@ -77,12 +77,6 @@ class Scheduler(object, metaclass=SingletonType):
             )
             logger.info("Scheduler started with in-memory jobstore, {} threads".format(threads))
 
-    def __del__(self):
-        if self.lock_f:
-            fcntl.lockf(self.lock_f, fcntl.LOCK_UN)
-            self.lock_f.close()
-            os.unlink('/tmp/scheduler.lock')
-
     def get_scheduler(self):
         return self._scheduler
 
@@ -109,6 +103,10 @@ class Scheduler(object, metaclass=SingletonType):
             return self._scheduler.start()
 
     def shutdown(self):
+        if self.lock_f:
+            fcntl.lockf(self.lock_f, fcntl.LOCK_UN)
+            self.lock_f.close()
+            os.unlink('/tmp/scheduler.lock')
         if self._scheduler and not self.use_mule:
             return self._scheduler.shutdown()
 

@@ -63,6 +63,15 @@ def get_app():
     return app.app
 
 
+def close_app():
+    from cnaas_nms.scheduler.scheduler import Scheduler
+    try:
+        import uwsgi
+    except (ModuleNotFoundError, ImportError):
+        scheduler = Scheduler()
+        scheduler.shutdown()
+
+
 def socketio_emit(message: str, rooms: List[str]):
     if not app.socketio:
         return
@@ -136,6 +145,7 @@ if __name__ == '__main__':
     app.socketio.run(get_app(), debug=True, host=host)
     stop_websocket_threads = True
     t_websocket_events.join()
+    close_app()
 
     if 'COVERAGE' in os.environ:
         save_coverage()

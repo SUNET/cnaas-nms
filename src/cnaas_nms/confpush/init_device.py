@@ -530,6 +530,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
 
         mgmt_variables = {
             'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
+            'mgmt_ip': str(mgmt_ip),
             'mgmt_prefixlen': 32,
             'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
             'infra_ip': str(infra_ip),

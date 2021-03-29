@@ -505,6 +505,9 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
         except Exception as e:
             raise e
 
+        dev.device_type = devtype
+        session.commit()
+
         # If neighbor check works, commit new linknets
         # This will also mark neighbors as unsynced
         linknets = update_linknets(
@@ -555,7 +558,6 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.management_ip = mgmt_ip
         dev.state = DeviceState.INIT
-        dev.device_type = devtype
         # Remove the reserved IP since it's now saved in the device database instead
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:

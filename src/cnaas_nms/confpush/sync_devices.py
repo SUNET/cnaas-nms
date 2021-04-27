@@ -14,7 +14,7 @@ from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector, cna
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.confpush.get import calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
-from cnaas_nms.confpush.jinja_filters import increment_ip
+from cnaas_nms.confpush.jinja_filters import increment_if, increment_ip
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -355,6 +355,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
 
     logger.debug("Generate config for host: {}".format(task.host.name))
     cnaas_jinja_env.filters['increment_ip'] = increment_ip
+    cnaas_jinja_env.filters['increment_if'] = increment_if
     r = task.run(task=template_file,
                  name="Generate device config",
                  template=template,

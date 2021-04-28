@@ -355,7 +355,6 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
 
     logger.debug("Generate config for host: {}".format(task.host.name))
     cnaas_jinja_env.filters['increment_ip'] = jinja_filters.increment_ip
-    cnaas_jinja_env.filters['increment_if'] = jinja_filters.increment_if
     r = task.run(task=template_file,
                  name="Generate device config",
                  template=template,

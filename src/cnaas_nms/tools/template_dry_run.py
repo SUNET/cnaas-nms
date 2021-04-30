@@ -47,6 +47,17 @@ def get_device_details(hostname):
         config_data['available_variables'], config_data['generated_config']
 
 
+def load_jinja_filters():
+    try:
+        import jinja_filters
+        jf = jinja_filters.__dict__
+        functions = {f: jf[f] for f in jf if callable(jf[f])}
+        return functions
+    except ModuleNotFoundError:
+        print('No jinja_filters.py file in PYTHONPATH, proceeding without filters')
+        return {}
+
+
 def render_template(platform, device_type, variables):
     # Jinja env should match nornir_helper.cnaas_ninja_env
     jinjaenv = jinja2.Environment(
@@ -56,6 +67,10 @@ def render_template(platform, device_type, variables):
         lstrip_blocks=True,
         keep_trailing_newline=True
     )
+    jfilters = load_jinja_filters()
+    for f in jfilters:
+        jinjaenv.filters[f] = jfilters[f]
+    print("Jinja filters added: {}".format([*jfilters]))
     template_secrets = {}
     for env in os.environ:
         if env.startswith('TEMPLATE_SECRET_'):

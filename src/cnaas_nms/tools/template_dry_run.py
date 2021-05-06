@@ -2,6 +2,7 @@
 
 import sys
 import os
+import argparse
 try:
     import requests
     import jinja2
@@ -16,7 +17,7 @@ if 'CNAASURL' not in os.environ or 'JWT_AUTH_TOKEN' not in os.environ:
 
 api_url = os.environ['CNAASURL']
 headers = {"Authorization": "Bearer "+os.environ['JWT_AUTH_TOKEN']}
-
+verify_tls = True
 
 def get_entrypoint(platform, device_type):
     mapfile = os.path.join(platform, 'mapping.yml')
@@ -31,6 +32,7 @@ def get_entrypoint(platform, device_type):
 def get_device_details(hostname):
     r = requests.get(
         f"{api_url}/api/v1.0/device/{hostname}",
+        verify=verify_tls,
         headers=headers)
     if r.status_code != 200:
         raise Exception("Could not query device API")
@@ -38,6 +40,7 @@ def get_device_details(hostname):
 
     r = requests.get(
         f"{api_url}/api/v1.0/device/{hostname}/generate_config",
+        verify=verify_tls,
         headers=headers)
     if r.status_code != 200:
         raise Exception("Could not query generate_config API")
@@ -88,6 +91,7 @@ def schedule_apply_dryrun(hostname, config):
     r = requests.post(
         f"{api_url}/api/v1.0/device/{hostname}/apply_config",
         headers=headers,
+        verify=verify_tls,
         json=data
     )
     if r.status_code != 200:
@@ -96,11 +100,15 @@ def schedule_apply_dryrun(hostname, config):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: template_dry_run.py <hostname>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("hostname")
+    parser.add_argument("-k", "--skip-verify", help="skip TLS cert verification", action="store_true")
+    args = parser.parse_args()
 
-    hostname = sys.argv[1]
+    hostname = args.hostname
+    if args.skip_verify:
+        global verify_tls
+        verify_tls = False
     try:
         device_type, platform, variables, old_config = get_device_details(hostname)
     except Exception as e:
@@ -114,7 +122,7 @@ def main():
     print(new_config)
 
     try:
-        input("Start apply_config dry run? Ctrl-c to abort or enter to continue...")
+        input("Start apply_config dry run? Ctrl-C to abort or enter to continue...")
     except KeyboardInterrupt:
         print("Exiting...")
     else:

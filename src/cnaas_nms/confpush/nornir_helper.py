@@ -23,8 +23,7 @@ cnaas_jinja_env = JinjaEnvironment(
     trim_blocks=True,
     lstrip_blocks=True,
     keep_trailing_newline=True,
-    cache_size=0,
-    enable_async=True
+    cache_size=0
 )
 
 

@@ -11,6 +11,7 @@ from jinja2 import Environment as JinjaEnvironment
 
 from cnaas_nms.confpush.nornir_plugins.cnaas_inventory import CnaasInventory
 from cnaas_nms.scheduler.jobresult import JobResult
+from cnaas_nms.tools import jinja_filters
 
 
 @dataclass
@@ -23,6 +24,10 @@ cnaas_jinja_env = JinjaEnvironment(
     trim_blocks=True,
     lstrip_blocks=True,
     keep_trailing_newline=True)
+
+cnaas_jinja_env.filters['increment_ip'] = jinja_filters.increment_ip
+cnaas_jinja_env.filters['isofy_ipv4'] = jinja_filters.isofy_ipv4
+cnaas_jinja_env.filters['ipv4_to_ipv6'] = jinja_filters.ipv4_to_ipv6
 
 
 def cnaas_init() -> Nornir:

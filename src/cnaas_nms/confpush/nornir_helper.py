@@ -26,6 +26,8 @@ cnaas_jinja_env = JinjaEnvironment(
     keep_trailing_newline=True)
 
 cnaas_jinja_env.filters['increment_ip'] = jinja_filters.increment_ip
+cnaas_jinja_env.filters['isofy_ipv4'] = jinja_filters.isofy_ipv4
+cnaas_jinja_env.filters['ipv4_to_ipv6'] = jinja_filters.ipv4_to_ipv6
 
 
 def cnaas_init() -> Nornir:

@@ -638,6 +638,7 @@ def get_groups(hostname: Optional[str] = None) -> List[str]:
         if hostname:
             if 'regex' not in group['group']:
                 continue
+            # TODO: try and catch, report what regex failed
             if not re.match(group['group']['regex'], hostname):
                 continue
         groups.append(group['group']['name'])

@@ -412,7 +412,7 @@ class GetTests(unittest.TestCase):
             json={"hostname": hostname},
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to do update interfaces for dist")
+        self.assertEqual(r.status_code, 200, "Failed to do update interfaces for access")
         restore_job_id = r.json()['job_id']
         job = self.check_jobid(restore_job_id)
         self.assertEqual(job['status'], "FINISHED")

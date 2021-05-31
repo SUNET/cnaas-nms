@@ -145,6 +145,16 @@ class InterfaceApi(Resource):
                                 errors.append(
                                     "Enabled must be a bool, true or false, got: {}".
                                     format(if_dict['data']['enabled']))
+                        if 'aggregate_id' in if_dict['data']:
+                            if type(if_dict['data']['aggregate_id']) == int:
+                                intfdata['aggregate_id'] = if_dict['data']['aggregate_id']
+                            elif if_dict['data']['aggregate_id'] is None:
+                                if 'aggregate_id' in intfdata:
+                                    del intfdata['aggregate_id']
+                            else:
+                                errors.append(
+                                    "Aggregate ID must be an integer: {}".
+                                    format(if_dict['data']['aggregate_id']))
 
                     if intfdata != intfdata_original:
                         intf.data = intfdata

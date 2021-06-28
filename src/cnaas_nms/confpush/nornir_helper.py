@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple, List, Union
+from functools import lru_cache
 import os
 
 from nornir import InitNornir
@@ -7,7 +8,7 @@ from nornir.core import Nornir
 from nornir.core.task import AggregatedResult, MultiResult
 from nornir.core.filter import F
 from nornir.core.plugins.inventory import InventoryPluginRegister
-from jinja2 import Environment as JinjaEnvironment
+from jinja2 import Environment as JinjaEnvironment, FileSystemLoader
 
 from cnaas_nms.confpush.nornir_plugins.cnaas_inventory import CnaasInventory
 from cnaas_nms.scheduler.jobresult import JobResult
@@ -26,15 +27,18 @@ class RelativeJinjaEnvironment(JinjaEnvironment):
         return os.path.join(os.path.dirname(parent), template)
 
 
-cnaas_jinja_env = RelativeJinjaEnvironment(
-    trim_blocks=True,
-    lstrip_blocks=True,
-    keep_trailing_newline=True
-)
-
-cnaas_jinja_env.filters['increment_ip'] = jinja_filters.increment_ip
-cnaas_jinja_env.filters['isofy_ipv4'] = jinja_filters.isofy_ipv4
-cnaas_jinja_env.filters['ipv4_to_ipv6'] = jinja_filters.ipv4_to_ipv6
+@lru_cache
+def get_jinja_env(path):
+    jinja_env = RelativeJinjaEnvironment(
+        trim_blocks=True,
+        lstrip_blocks=True,
+        keep_trailing_newline=True,
+        loader=FileSystemLoader(path),
+    )
+    jinja_env.filters['increment_ip'] = jinja_filters.increment_ip
+    jinja_env.filters['isofy_ipv4'] = jinja_filters.isofy_ipv4
+    jinja_env.filters['ipv4_to_ipv6'] = jinja_filters.ipv4_to_ipv6
+    return jinja_env
 
 
 def cnaas_init() -> Nornir:

@@ -17,7 +17,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateExce
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_jinja_env
+from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets, set_facts
 from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
     sync_devices
@@ -88,7 +88,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
     r = task.run(task=template_file,
                  name="Generate initial device config",
                  template=template,
-                 jinja_env=cnaas_jinja_env,
+                 jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
                  path=f"{local_repo_path}/{task.host.platform}",
                  **device_variables)
 
@@ -705,7 +705,7 @@ def set_hostname_task(task, new_hostname: str):
         task=template_file,
         name="Generate hostname config",
         template="hostname.j2",
-        jinja_env=cnaas_jinja_env,
+        jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
         path=f"{local_repo_path}/{task.host.platform}",
         **template_vars
     )

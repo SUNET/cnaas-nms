@@ -10,7 +10,7 @@ from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector, cnaas_jinja_env
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector, get_jinja_env
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.confpush.get import calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
@@ -356,7 +356,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
     r = task.run(task=template_file,
                  name="Generate device config",
                  template=template,
-                 jinja_env=cnaas_jinja_env,
+                 jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
                  path=f"{local_repo_path}/{task.host.platform}",
                  **template_vars)
 

@@ -27,7 +27,7 @@ class RelativeJinjaEnvironment(JinjaEnvironment):
         return os.path.join(os.path.dirname(parent), template)
 
 
-@lru_cache
+@lru_cache(maxsize=8)
 def get_jinja_env(path):
     jinja_env = RelativeJinjaEnvironment(
         trim_blocks=True,

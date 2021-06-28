@@ -80,6 +80,7 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
         if attribute not in f_class.__table__._columns.keys():
             raise ValueError("{} is not a valid attribute to filter on".format(attribute))
         # Special handling from Enum type, check valid enum names
+        allowed_names = None
         if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Enum):
             value = value.upper()
             allowed_names = set(item.name for item in \
@@ -90,7 +91,14 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
                 ))
         f_class_field = getattr(f_class, attribute)
         if operator == 'contains':
-            f_class_op = getattr(f_class_field, 'contains')
+            if allowed_names:
+                raise ValueError("Cannot use 'contains' operator for enum types")
+            if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Integer):
+                raise ValueError("Cannot use 'contains' operator for integer types")
+            if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.DateTime):
+                raise ValueError("Cannot use 'contains' operator for datetime types")
+            f_class_op = getattr(f_class_field, 'ilike')
+            value = '%'+value+'%'
         else:
             f_class_op = getattr(f_class_field, '__eq__')
 

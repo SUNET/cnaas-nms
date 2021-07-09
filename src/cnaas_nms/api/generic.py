@@ -1,7 +1,10 @@
 import re
+from typing import List
 
 from flask import request
 import sqlalchemy
+
+from cnaas_nms.db.settings import get_pydantic_error_value, get_pydantic_field_descr
 
 
 FILTER_RE = re.compile(r"^filter\[([a-zA-Z0-9_.]+)\](\[[a-z]+\])?$")
@@ -127,3 +130,40 @@ def empty_result(status='success', data=None):
             'status': status,
             'message': data if data else "Unknown error"
         }
+
+
+def parse_pydantic_error(e: Exception, schema, data: dict) -> List[str]:
+    errors = []
+    for num, error in enumerate(e.errors()):
+        loc = error['loc']
+        origin = 'unknown'
+        errors.append("Validation error for setting {}, bad value: {}".format(
+            '->'.join(str(x) for x in loc),
+            get_pydantic_error_value(data, loc)
+        ))
+        try:
+            pydantic_descr = get_pydantic_field_descr(schema.schema(), loc)
+            if pydantic_descr:
+                pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
+            else:
+                pydantic_descr_msg = ""
+        except Exception as e_pydantic_descr:
+            pydantic_descr_msg = ", exception while getting pydantic description"
+        errors.append("Message: {}{}".format(error['msg'], pydantic_descr_msg))
+    return errors
+
+
+def update_sqla_object(instance, new_data: dict) -> bool:
+    """Update SQLalchemy object instance with data dict.
+    Returns:
+        Returns True if any values were changed
+    """
+    changed = False
+    for k, v in new_data.items():
+        try:
+            if getattr(instance, k) != v:
+                setattr(instance, k, v)
+                changed = True
+        except AttributeError:
+            continue
+    return changed

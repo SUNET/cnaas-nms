@@ -25,14 +25,14 @@ apt-get update && \
 
 python3 -m venv /opt/cnaas/venv
 
-/opt/cnaas/venv/bin/pip install -U pip
+source /opt/cnaas/venv/bin/activate
+python3 -m pip install -U pip
 
 cd /opt/cnaas/venv/
-source bin/activate
-git clone $1 cnaas-nms
+git clone "$1" cnaas-nms
 cd cnaas-nms/
-git checkout $2
+git checkout "$2"
 #python3 -m pip install -r requirements.txt
+
 #minimal requirements for just dhcp-hook:
 python3 -m pip install requests pyyaml netaddr jinja2
-

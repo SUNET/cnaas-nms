@@ -42,6 +42,7 @@ Arguments:
  - hostname: Optional, the hostname of a device
  - device_type: Optional, a device type (access, dist or core)
  - group: Optional, a device group. A group can contain multiple devices.
+ - all: Optional, bool. Synchronize all devices (that are not already in sync, see resync option)
  - dry_run: Dry run does not commit any configuration to the device. Boolean, defaults to true.
  - force: If a device configuration has been changed outside of CNaaS the configuration hash
    will differ from the last known hash in the database and this will normally make CNaaS

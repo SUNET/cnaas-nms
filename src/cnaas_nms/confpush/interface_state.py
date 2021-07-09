@@ -4,7 +4,7 @@ import yaml
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 
-from cnaas_nms.confpush.nornir_helper import cnaas_init, cnaas_jinja_env
+from cnaas_nms.confpush.nornir_helper import cnaas_init, get_jinja_env
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
@@ -67,7 +67,7 @@ def bounce_task(task, interfaces: List[str]):
         task=template_file,
         name="Generate port bounce down config",
         template="bounce-down.j2",
-        jinja_env=cnaas_jinja_env,
+        jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
         path=f"{local_repo_path}/{task.host.platform}",
         **template_vars
     )
@@ -82,7 +82,7 @@ def bounce_task(task, interfaces: List[str]):
         task=template_file,
         name="Generate port bounce up config",
         template="bounce-up.j2",
-        jinja_env=cnaas_jinja_env,
+        jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
         path=f"{local_repo_path}/{task.host.platform}",
         **template_vars
     )

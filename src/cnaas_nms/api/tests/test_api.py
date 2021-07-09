@@ -58,6 +58,40 @@ class ApiTests(unittest.TestCase):
         # The one result should have the same ID we asked for
         self.assertIsInstance(result.json['data']['mgmtdomains'][0]['id'], int)
 
+    def test_update_managementdomain(self):
+        result = self.client.get('/api/v1.0/mgmtdomains?per_page=1')
+        self.assertIsInstance(result.json['data']['mgmtdomains'][0]['id'], int)
+        id = result.json['data']['mgmtdomains'][0]['id']
+        data = {"vlan": 601}
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertIn('updated_mgmtdomain', result.json['data'])
+        # Make sure returned data inclueds new vlan
+        self.assertEqual(result.json['data']['updated_mgmtdomain']['vlan'], data['vlan'])
+        # Change back to old vlan
+        data["vlan"] = 600
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertIn('updated_mgmtdomain', result.json['data'])
+        # Check that no change is made when applying same vlan twice
+        data["vlan"] = 600
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertIn('unchanged_mgmtdomain', result.json['data'])
+
+    def test_validate_managementdomain(self):
+        result = self.client.get('/api/v1.0/mgmtdomains?per_page=1')
+        self.assertIsInstance(result.json['data']['mgmtdomains'][0]['id'], int)
+        id = result.json['data']['mgmtdomains'][0]['id']
+        # Check that you get error if using invalid gw
+        data = {"ipv4_gw": "10.0.6.0/24"}
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 400)
+        # Check that you get error if using invalid vlan id
+        data = {"vlan": 5000}
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 400)
+
     def test_repository_refresh(self):
         data = {"action": "refresh"}
         result = self.client.put('/api/v1.0/repository/settings', json=data)

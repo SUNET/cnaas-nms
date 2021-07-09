@@ -44,6 +44,7 @@ vlan_name_schema = Field(None, regex=VLAN_NAME_REGEX,
                          description="Max 32 alphanumeric chars, " +
                                      "beginning with a non-numeric character")
 vlan_id_schema = Field(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
+vlan_id_schema_optional = Field(None, gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
 vxlan_vni_schema = Field(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
 vrf_id_schema = Field(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
 mtu_schema = Field(None, ge=68, le=9214,

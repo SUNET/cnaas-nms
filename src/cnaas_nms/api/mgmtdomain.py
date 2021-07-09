@@ -1,7 +1,11 @@
+from typing import Optional
+
+from sqlalchemy.exc import IntegrityError
 from flask import request
 from flask_restx import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required
-
+from pydantic import BaseModel, validator
+from pydantic.error_wrappers import ValidationError
 from ipaddress import IPv4Interface
 
 from cnaas_nms.api.generic import build_filter, empty_result, limit_results
@@ -9,6 +13,8 @@ from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.version import __api_version__
+from cnaas_nms.db.settings_fields import vlan_id_schema_optional
+from cnaas_nms.api.generic import parse_pydantic_error, update_sqla_object
 
 
 mgmtdomains_api = Namespace('mgmtdomains', description='API for handling management domains',
@@ -21,7 +27,31 @@ mgmtdomain_model = mgmtdomain_api.model('mgmtdomain', {
     'device_b': fields.String(required=True),
     'vlan': fields.Integer(required=True),
     'ipv4_gw': fields.String(required=True),
+    'description': fields.String(required=False),
 })
+
+
+class f_mgmtdomain(BaseModel):
+    vlan: Optional[int] = vlan_id_schema_optional
+    ipv4_gw: Optional[str] = None
+    description: Optional[str] = None
+
+    @validator('ipv4_gw')
+    def ipv4_gw_valid_address(cls, v, values, **kwargs):
+        try:
+            addr = IPv4Interface(v)
+            prefix_len = int(addr.network.prefixlen)
+        except:
+            raise ValueError('Invalid ipv4_gw received. Must be correct IPv4 address with mask')
+        else:
+            if addr.ip == addr.network.network_address:
+                raise ValueError("Specify gateway address, not subnet address")
+            if addr.ip == addr.network.broadcast_address:
+                raise ValueError("Specify gateway address, not broadcast address")
+            if prefix_len >= 31 or prefix_len <= 16:
+                raise ValueError("Bad prefix length {} for management network".format(prefix_len))
+
+        return v
 
 
 class MgmtdomainByIdApi(Resource):
@@ -60,38 +90,28 @@ class MgmtdomainByIdApi(Resource):
     def put(self, mgmtdomain_id):
         """ Modify management domain """
         json_data = request.get_json()
-        data = {}
         errors = []
-        if 'vlan' in json_data:
-            try:
-                vlan_id_int = int(json_data['vlan'])
-            except:
-                errors.append('Invalid VLAN received.')
-            else:
-                data['vlan'] = vlan_id_int
-        if 'ipv4_gw' in json_data:
-            try:
-                addr = IPv4Interface(json_data['ipv4_gw'])
-                prefix_len = int(addr.network.prefixlen)
-            except:
-                errors.append('Invalid ipv4_gw received. Must be correct IPv4 address with mask')
-            else:
-                if prefix_len <= 31 and prefix_len >= 16:
-                    data['ipv4_gw'] = str(addr)
-                else:
-                    errors.append("Bad prefix length for management network: {}".format(
-                        prefix_len))
+        try:
+            f_mgmtdomain(**json_data).dict()
+        except ValidationError as e:
+            errors += parse_pydantic_error(e, f_mgmtdomain, json_data)
+
+        if errors:
+            return empty_result('error', errors), 400
+
         with sqla_session() as session:
             instance: Mgmtdomain = session.query(Mgmtdomain).\
                 filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
-                instance.device_a.synchronized = False
-                instance.device_b.synchronized = False
-                #TODO: auto loop through class members and match
-                if 'vlan' in data:
-                    instance.vlan = data['vlan']
-                if 'ipv4_gw' in data:
-                    instance.ipv4_gw = data['ipv4_gw']
+                changed: bool = update_sqla_object(instance, json_data)
+                if changed:
+                    instance.device_a.synchronized = False
+                    instance.device_b.synchronized = False
+                    return empty_result(status='success', data={"updated_mgmtdomain": instance.as_dict()}), 200
+                else:
+                    return empty_result(status='success', data={"unchanged_mgmtdomain": instance.as_dict()}), 200
+            else:
+                return empty_result(status='error', data="mgmtdomain not found"), 400
 
 
 class MgmtdomainsApi(Resource):
@@ -142,35 +162,30 @@ class MgmtdomainsApi(Resource):
                         errors.append(f"Device with hostname {hostname_b} not found")
                     else:
                         data['device_b'] = device_b
-            if 'vlan' in json_data:
-                try:
-                    vlan_id_int = int(json_data['vlan'])
-                except:
-                    errors.append('Invalid VLAN received.')
-                else:
-                    data['vlan'] = vlan_id_int
-            if 'ipv4_gw' in json_data:
-                try:
-                    addr = IPv4Interface(json_data['ipv4_gw'])
-                    prefix_len = int(addr.network.prefixlen)
-                except:
-                    errors.append(('Invalid ipv4_gw received. '
-                                   'Must be correct IPv4 address with mask'))
-                else:
-                    if prefix_len <= 31 and prefix_len >= 16:
-                        data['ipv4_gw'] = str(addr)
-                    else:
-                        errors.append("Bad prefix length for management network: {}".format(
-                            prefix_len))
+
+            try:
+                data = {**data, **f_mgmtdomain(**json_data).dict()}
+            except ValidationError as e:
+                errors += parse_pydantic_error(e, f_mgmtdomain, json_data)
+
             required_keys = ['device_a', 'device_b', 'vlan', 'ipv4_gw']
-            if all([key in data for key in required_keys]):
+            if all([key in data for key in required_keys]) and \
+                    all([key in json_data for key in required_keys]):
                 new_mgmtd = Mgmtdomain()
                 new_mgmtd.device_a = data['device_a']
                 new_mgmtd.device_b = data['device_b']
                 new_mgmtd.ipv4_gw = data['ipv4_gw']
                 new_mgmtd.vlan = data['vlan']
-                session.add(new_mgmtd)
-                session.flush()
+                try:
+                    session.add(new_mgmtd)
+                    session.flush()
+                except IntegrityError as e:
+                    session.rollback()
+                    if 'duplicate' in str(e):
+                        return empty_result('error', "Duplicate value: {}".format(e.orig.args[0])), 400
+                    else:
+                        return empty_result('error', "Integrity error: {}".format(e)), 400
+
                 device_a.synchronized = False
                 device_b.synchronized = False
                 return empty_result(status='success', data={"added_mgmtdomain": new_mgmtd.as_dict()}), 200

@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# uwsgi exec-pre-app file, runs before each start of the application server
+
 if [ -f "/tmp/pre-exec.lock" ]
 then
 	exit 0

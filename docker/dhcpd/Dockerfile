@@ -7,8 +7,8 @@ RUN mkdir -p /opt/cnaas /etc/cnaas-nms
 COPY cnaas-setup.sh /opt/cnaas/
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 
-COPY dhcp-hook.sh dhcpd.sh dhcpd.conf /opt/cnaas/
-COPY apiclient.yml db_config.yml /etc/cnaas-nms/
+COPY config/dhcp-hook.sh config/dhcpd.sh config/dhcpd.conf /opt/cnaas/
+COPY config/apiclient.yml config/db_config.yml /etc/cnaas-nms/
 COPY config/supervisord_app.conf /etc/supervisor/
 
 EXPOSE 67/udp

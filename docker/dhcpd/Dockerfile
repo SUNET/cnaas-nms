@@ -2,18 +2,14 @@ FROM debian:buster
 ARG BUILDBRANCH
 ARG GITREPO_BASE
 
-RUN mkdir -p /opt/cnaas
-RUN mkdir /etc/cnaas-nms
+RUN mkdir -p /opt/cnaas /etc/cnaas-nms
 
-COPY cnaas-setup.sh /opt/cnaas/cnaas-setup.sh
+COPY cnaas-setup.sh /opt/cnaas/
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 
-COPY dhcp-hook.sh /opt/cnaas/dhcp-hook.sh
-COPY db_config.yml /etc/cnaas-nms/db_config.yml
-COPY apiclient.yml /etc/cnaas-nms/apiclient.yml
-COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
-COPY dhcpd.sh /opt/cnaas/dhcpd.sh
-COPY dhcpd.conf /opt/cnaas/dhcpd.conf
+COPY dhcp-hook.sh dhcpd.sh dhcpd.conf /opt/cnaas/
+COPY apiclient.yml db_config.yml /etc/cnaas-nms/
+COPY config/supervisord_app.conf /etc/supervisor/
 
 EXPOSE 67/udp
 

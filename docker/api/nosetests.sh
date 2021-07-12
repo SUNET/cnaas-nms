@@ -1,9 +1,10 @@
 #!/bin/bash
 
-cd /opt/cnaas
-source venv/bin/activate
+set -ex
 
-cd venv/cnaas-nms/src
+source /opt/cnaas/venv/bin/activate
+
+cd /opt/cnaas/venv/cnaas-nms/src
 
 export USERNAME_DHCP_BOOT="admin"
 export PASSWORD_DHCP_BOOT="abc123abc123"

@@ -7,6 +7,6 @@ set -x
 if [ "$1" != "develop" ] ; then
 	cd /opt/cnaas/venv/cnaas-nms/
 	git fetch --all
-	git checkout --track origin/$1
+	git checkout --track origin/"$1"
 	python3 -m pip install -r requirements.txt
 fi

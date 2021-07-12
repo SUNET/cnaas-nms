@@ -86,6 +86,11 @@ class f_syslog_server(BaseModel):
     port: Optional[int] = tcpudp_port_schema
 
 
+class f_flow_collector(BaseModel):
+    host: str = host_schema
+    port: Optional[int] = tcpudp_port_schema
+
+
 class f_snmp_server(BaseModel):
     host: str = host_schema
 
@@ -250,6 +255,7 @@ class f_root(BaseModel):
     syslog_servers: List[f_syslog_server] = []
     snmp_servers: List[f_snmp_server] = []
     dns_servers: List[f_dns_server] = []
+    flow_collectors: List[f_flow_collector] = []
     dhcp_relays: Optional[List[f_dhcp_relay]]
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []

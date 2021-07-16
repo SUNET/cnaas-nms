@@ -88,7 +88,9 @@ if ls -lh coverage/.coverage-* 2> /dev/null
 then
 	cp coverage/.coverage-* ../src/
 	echo "Starting unit tests..."
+	docker exec docker_cnaas_api_1 chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 	docker exec docker_cnaas_api_1 su -s /bin/bash -c /opt/cnaas/nosetests.sh - www-data
+	docker exec docker_cnaas_api_1 chown -R root:www-data /opt/cnaas/venv/cnaas-nms/src/
 	echo "Gathering coverage reports from unit tests:"
 	ls -lh coverage/.coverage-* 2> /dev/null
 	cp coverage/.coverage-nosetests ../src/

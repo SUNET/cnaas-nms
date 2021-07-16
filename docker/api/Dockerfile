@@ -46,7 +46,6 @@ RUN chown -R www-data:www-data /tmp/devicecerts && \
 # Give permission for unittests
 RUN chown root:www-data /opt/cnaas/*.sh && \
     chmod g+rx /opt/cnaas/*.sh
-RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 
 # Branch specific, don't cache
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit

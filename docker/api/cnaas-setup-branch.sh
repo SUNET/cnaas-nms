@@ -10,6 +10,6 @@ if [ "$1" != "develop" ] ; then
 	git checkout --track origin/$1
 	source /opt/cnaas/venv/bin/activate
 	python3 -m pip install -r requirements.txt
-	chown -R root:www-data /opt/cnaas/venv/cnaas/
-	chmod -R u=rwX,g=rX,o= /opt/cnaas/venv/cnaas/
+	chown -R root:www-data /opt/cnaas/venv/cnaas-nms/
+	chmod -R u=rwX,g=rX,o= /opt/cnaas/venv/cnaas-nms/
 fi

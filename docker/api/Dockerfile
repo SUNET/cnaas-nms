@@ -25,9 +25,18 @@ COPY nosetests.sh /opt/cnaas/
 RUN chown root:www-data /opt/cnaas/*.sh \
     && chmod g+rx /opt/cnaas/*.sh
 
-
 # Create directories
 RUN mkdir -p /opt/cnaas/templates/ /opt/cnaas/settings/ /etc/cnaas-nms/
+
+# Give permission for API to clone/sync repos
+RUN chown -R root:www-data /opt/cnaas/ \
+    && chmod -R u=rwX,g=rX,o= /opt/cnaas/ \
+    && chown -R www-data:www-data /opt/cnaas/templates/ \
+    && chown -R www-data:www-data /opt/cnaas/settings/
+# Give permission for devicecert store
+RUN mkdir -p /tmp/devicecerts \
+    && chown -R www-data:www-data /tmp/devicecerts \
+    && chmod -R u=rwX,g=,o= /tmp/devicecerts
 
 # Copy configuration files
 # db_config.yml, api.yml, repository.yml, plugins.yml
@@ -42,15 +51,6 @@ RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 COPY config/exec-pre-app.sh createca.sh /opt/cnaas/
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 
-# Give permission for API to clone/sync repos
-RUN chown -R root:www-data /opt/cnaas/ \
-    && chmod -R u=rwX,g=rX,o= /opt/cnaas/ \
-    && chown -R www-data:www-data /opt/cnaas/templates/ \
-    && chown -R www-data:www-data /opt/cnaas/settings/
-# Give permission for devicecert store
-RUN mkdir -p /tmp/devicecerts \
-    && chown -R www-data:www-data /tmp/devicecerts \
-    && chmod -R u=rwX,g=,o= /tmp/devicecerts
 RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 
 # Expose HTTPS

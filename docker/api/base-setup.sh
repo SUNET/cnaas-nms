@@ -7,10 +7,14 @@ export DEBIAN_FRONTEND noninteractive
 
 apt-get update && \
     apt-get -y dist-upgrade && \
-    apt-get install -y \
+    apt-get install -y --no-install-recommends \
       git \
-      python3-venv \
+      build-essential \
+      python3-dev \
       python3-pip \
+      python3-setuptools \
+      python3-venv \
+      python3-wheel \
       python3-yaml \
       iputils-ping \
       procps \

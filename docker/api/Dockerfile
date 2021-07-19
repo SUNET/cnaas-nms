@@ -20,6 +20,11 @@ RUN unlink /etc/nginx/sites-enabled/default \
     && chown -R www-data:www-data /var/log/nginx/ \
     && chown -R www-data:www-data /var/lib/nginx/
 
+COPY nosetests.sh /opt/cnaas/
+# Give permission for unittests
+RUN chown root:www-data /opt/cnaas/*.sh \
+    && chmod g+rx /opt/cnaas/*.sh
+
 
 # Create directories
 RUN mkdir -p /opt/cnaas/templates/ /opt/cnaas/settings/ /etc/cnaas-nms/
@@ -33,7 +38,6 @@ ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
 # Setup script
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 
-COPY nosetests.sh /opt/cnaas/
 # Prepare for uwsgi
 COPY config/exec-pre-app.sh createca.sh /opt/cnaas/
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
@@ -47,10 +51,7 @@ RUN chown -R root:www-data /opt/cnaas/ \
 RUN mkdir -p /tmp/devicecerts \
     && chown -R www-data:www-data /tmp/devicecerts \
     && chmod -R u=rwX,g=,o= /tmp/devicecerts
-# Give permission for unittests
-RUN chown root:www-data /opt/cnaas/*.sh \
-    && chmod g+rx /opt/cnaas/*.sh \
-    && chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 
 # Expose HTTPS
 EXPOSE 1443

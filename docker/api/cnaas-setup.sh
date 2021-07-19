@@ -16,6 +16,8 @@ source bin/activate
 # Fetch the code and install dependencies
 git clone "$1" cnaas-nms
 cd cnaas-nms/
+# Checkout branch
+git checkout --track origin/"$2"
 git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"
 python3 -m pip install -r requirements.txt
 

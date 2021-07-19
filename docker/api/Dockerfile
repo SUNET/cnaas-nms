@@ -16,7 +16,7 @@ RUN mkdir -p /opt/cnaas/templates/ /opt/cnaas/settings/ /etc/cnaas-nms/
 COPY --chown=www-data:www-data config/*.yml /etc/cnaas-nms/
 
 # Setup script
-RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
+RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 
 COPY nosetests.sh /opt/cnaas/
 # Prepare for supervisord, uwsgi, ngninx

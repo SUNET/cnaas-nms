@@ -15,6 +15,8 @@ RUN mkdir -p /opt/cnaas/templates/ /opt/cnaas/settings/ /etc/cnaas-nms/
 # db_config.yml, api.yml, repository.yml, plugins.yml
 COPY --chown=www-data:www-data config/*.yml /etc/cnaas-nms/
 
+# Branch specific, don't cache
+ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
 # Setup script
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 
@@ -47,9 +49,6 @@ RUN mkdir -p /tmp/devicecerts \
 RUN chown root:www-data /opt/cnaas/*.sh \
     && chmod g+rx /opt/cnaas/*.sh \
     && chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
-
-# Branch specific, don't cache
-ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
 
 # Expose HTTPS
 EXPOSE 1443

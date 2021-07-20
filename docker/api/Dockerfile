@@ -2,6 +2,12 @@ FROM debian:buster
 ARG BUILDBRANCH=develop
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 
+# Base setup
+USER root
+RUN mkdir -p /opt/cnaas
+COPY base-setup.sh cnaas-setup.sh cnaas-setup-branch.sh /opt/cnaas/
+RUN /opt/cnaas/base-setup.sh
+
 # Create directories
 RUN mkdir -p /opt/cnaas/templates/ /opt/cnaas/settings/ /etc/cnaas-nms/
 
@@ -10,7 +16,6 @@ RUN mkdir -p /opt/cnaas/templates/ /opt/cnaas/settings/ /etc/cnaas-nms/
 COPY --chown=www-data:www-data config/*.yml /etc/cnaas-nms/
 
 # Setup script
-COPY cnaas-setup.sh cnaas-setup-branch.sh /opt/cnaas/
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
 
 COPY nosetests.sh /opt/cnaas/

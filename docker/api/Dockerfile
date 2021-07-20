@@ -5,7 +5,7 @@ ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 # Base setup
 USER root
 RUN mkdir -p /opt/cnaas
-COPY base-setup.sh cnaas-setup.sh cnaas-setup-branch.sh /opt/cnaas/
+COPY base-setup.sh cnaas-setup.sh /opt/cnaas/
 RUN /opt/cnaas/base-setup.sh
 
 # Create directories
@@ -50,8 +50,6 @@ RUN chown root:www-data /opt/cnaas/*.sh \
 
 # Branch specific, don't cache
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
-RUN /opt/cnaas/cnaas-setup-branch.sh $BUILDBRANCH
-
 
 # Expose HTTPS
 EXPOSE 1443

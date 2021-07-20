@@ -1,26 +1,21 @@
 #!/bin/bash
 
-set -e
-set -x
+set -xe
 
 export DEBIAN_FRONTEND noninteractive
 
 
-# Start venv
-python3 -m venv /opt/cnaas/venv
-cd /opt/cnaas/venv/
-source bin/activate
+# Create venv
+python3 -m venv "$CNAAS_VENV"
 
-/opt/cnaas/venv/bin/pip install -U pip
-
-# Fetch the code and install dependencies
-git clone "$1" cnaas-nms
-cd cnaas-nms/
+# Fetch cnaas-nms code
+git clone "$1" "$CNAAS_VENV"/cnaas-nms
+cd "$CNAAS_VENV"/cnaas-nms
 # Checkout branch
 git checkout --track origin/"$2"
 git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"
-python3 -m pip install -r requirements.txt
 
-#rm -rf /var/lib/apt/lists/*
-
-
+# Enable venv, install requirements for cnaas-nms
+PATH="$CNAAS_VENV/bin:$PATH"
+python3 -m pip install --no-cache-dir -U pip
+python3 -m pip install --no-cache-dir -r requirements.txt

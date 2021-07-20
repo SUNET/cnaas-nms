@@ -1,7 +1,7 @@
 FROM debian:buster
 ARG BUILDBRANCH=develop
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
-
+ENV CNAAS_VENV=/opt/cnaas/venv
 
 USER root
 

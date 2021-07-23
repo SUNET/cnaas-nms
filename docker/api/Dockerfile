@@ -46,10 +46,6 @@ RUN mkdir -p /opt/cnaas/templates/
 RUN mkdir /opt/cnaas/settings/
 RUN mkdir /etc/cnaas-nms/
 
-# Copy cnaas configuration files
-# db_config.yml, api.yml, repository.yml, plugins.yml
-COPY config/*.yml /etc/cnaas-nms/
-
 # Cnaas setup script
 COPY cnaas-setup.sh /opt/cnaas/
 COPY cnaas-setup-branch.sh /opt/cnaas/
@@ -63,7 +59,11 @@ COPY createca.sh /opt/cnaas/
 COPY exec-pre-app.sh /opt/cnaas/
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 
+# Copy cnaas configuration files
+# db_config.yml, api.yml, repository.yml, plugins.yml
+COPY config/*.yml /etc/cnaas-nms/
 RUN chown www-data:www-data /etc/cnaas-nms/*.yml
+
 # Give permission for API to clone/sync repos
 RUN chown -R root:www-data /opt/cnaas/ && \
     chmod -R u=rwX,g=rX,o= /opt/cnaas/

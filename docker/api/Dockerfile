@@ -28,6 +28,12 @@ RUN apt-get update && \
     && apt-get clean \
     && pip3 install uwsgi
 
+# Prepare for supervisord, ngninx
+COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
+COPY config/nginx_app.conf /etc/nginx/sites-available/
+COPY config/nginx.conf /etc/nginx/
+COPY cert/* /etc/nginx/conf.d/
+
 # Create cnaas directories
 RUN mkdir -p /opt/cnaas/templates/
 RUN mkdir /opt/cnaas/settings/
@@ -46,13 +52,9 @@ RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
 COPY nosetests.sh /opt/cnaas/
 COPY createca.sh /opt/cnaas/
 
-# Prepare for supervisord, uwsgi, ngninx
+# Prepare for uwsgi
 COPY exec-pre-app.sh /opt/cnaas/
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
-COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
-COPY config/nginx_app.conf /etc/nginx/sites-available/
-COPY config/nginx.conf /etc/nginx/
-COPY cert/* /etc/nginx/conf.d/
 
 # Prepare running nginx as www-data
 RUN unlink /etc/nginx/sites-enabled/default

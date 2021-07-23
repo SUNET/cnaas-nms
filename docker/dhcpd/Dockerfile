@@ -9,7 +9,6 @@ COPY cnaas-setup.sh /opt/cnaas/cnaas-setup.sh
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 
 COPY dhcp-hook.sh /opt/cnaas/dhcp-hook.sh
-COPY db_config.yml /etc/cnaas-nms/db_config.yml
 COPY apiclient.yml /etc/cnaas-nms/apiclient.yml
 COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY dhcpd.sh /opt/cnaas/dhcpd.sh

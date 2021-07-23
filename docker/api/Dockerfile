@@ -4,29 +4,33 @@ FROM debian:buster
 USER root
 
 # Install system packages
-RUN apt-get update && \
-    apt-get -y dist-upgrade && \
-    apt-get install -y \
-      git \
-      python3-venv \
-      python3-pip \
-      python3-yaml \
-      iputils-ping \
-      procps \
+RUN apt-get update \
+    && apt-get -y upgrade \
+    && apt-get install -y --no-install-recommends \
       bind9-host \
-      netcat-openbsd \
-      net-tools \
+      build-essential \
       curl \
-      netcat \
-      nginx \
-      supervisor \
-      libssl-dev \
-      libpq-dev \
+      git \
+      iputils-ping \
       libpcre2-dev \
       libpcre3-dev \
+      libpq-dev \
+      libssl-dev \
+      net-tools \
+      netcat \
+      netcat-openbsd \
+      nginx \
+      procps \
+      python3-dev \
+      python3-pip \
+      python3-setuptools \
+      python3-venv \
+      python3-wheel \
+      python3-yaml \
+      supervisor \
       uwsgi-plugin-python3 \
-    && apt-get clean \
-    && pip3 install uwsgi
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir uwsgi
 
 # Prepare for supervisord, ngninx
 COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf

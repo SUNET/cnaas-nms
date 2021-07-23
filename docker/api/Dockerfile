@@ -33,6 +33,13 @@ COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY config/nginx_app.conf /etc/nginx/sites-available/
 COPY config/nginx.conf /etc/nginx/
 COPY cert/* /etc/nginx/conf.d/
+# Prepare running nginx as www-data
+RUN unlink /etc/nginx/sites-enabled/default
+RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
+RUN chown -R www-data:www-data /var/log/nginx/
+RUN chown -R www-data:www-data /var/lib/nginx/
+RUN chown -R root:www-data /etc/nginx/ && \
+    chmod -R u=rwX,g=rX,o= /etc/nginx/
 
 # Create cnaas directories
 RUN mkdir -p /opt/cnaas/templates/
@@ -56,14 +63,7 @@ COPY createca.sh /opt/cnaas/
 COPY exec-pre-app.sh /opt/cnaas/
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 
-# Prepare running nginx as www-data
-RUN unlink /etc/nginx/sites-enabled/default
-RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
 RUN chown www-data:www-data /etc/cnaas-nms/*.yml
-RUN chown -R www-data:www-data /var/log/nginx/
-RUN chown -R www-data:www-data /var/lib/nginx/
-RUN chown -R root:www-data /etc/nginx/ && \
-    chmod -R u=rwX,g=rX,o= /etc/nginx/
 # Give permission for API to clone/sync repos
 RUN chown -R root:www-data /opt/cnaas/ && \
     chmod -R u=rwX,g=rX,o= /opt/cnaas/

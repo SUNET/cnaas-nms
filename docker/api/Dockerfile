@@ -2,6 +2,32 @@ FROM debian:buster
 ARG BUILDBRANCH=develop
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 
+
+# Install system packages
+RUN apt-get update && \
+    apt-get -y dist-upgrade && \
+    apt-get install -y \
+      git \
+      python3-venv \
+      python3-pip \
+      python3-yaml \
+      iputils-ping \
+      procps \
+      bind9-host \
+      netcat-openbsd \
+      net-tools \
+      curl \
+      netcat \
+      nginx \
+      supervisor \
+      libssl-dev \
+      libpq-dev \
+      libpcre2-dev \
+      libpcre3-dev \
+      uwsgi-plugin-python3 \
+    && apt-get clean \
+    && pip3 install uwsgi
+
 # Create directories
 RUN mkdir -p /opt/cnaas/templates/
 RUN mkdir /opt/cnaas/settings/

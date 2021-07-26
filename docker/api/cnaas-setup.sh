@@ -18,6 +18,3 @@ git clone $1 cnaas-nms
 cd cnaas-nms/
 git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"
 python3 -m pip install -r requirements.txt
-
-chown -R www-data:www-data /opt/cnaas/settings
-chown -R www-data:www-data /opt/cnaas/templates

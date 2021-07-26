@@ -40,27 +40,22 @@ RUN unlink /etc/nginx/sites-enabled/default \
     && chmod -R u=rwX,g=rX,o= /etc/nginx/
 
 # Create cnaas directories
-RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /etc/cnaas-nms
+RUN mkdir -p /opt/cnaas /etc/cnaas-nms \
+    && chown -R root:www-data /opt/cnaas /etc/cnaas-nms \
+    && chmod -R u=rwX,g=rX,o= /opt/cnaas
+RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings \
+    && chown www-data:www-data /opt/cnaas/templates /opt/cnaas/settings
 
 # Copy cnaas scripts
-COPY cnaas-setup.sh cnaas-setup-branch.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
+COPY --chown=root:www-data cnaas-setup.sh cnaas-setup-branch.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
 
 # Copy cnaas configuration files
-COPY config/api.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/
-RUN chown www-data:www-data /etc/cnaas-nms/*.yml
+COPY --chown=www-data:www-data config/api.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/
 
-# Give permission for API to clone/sync repos
-RUN chown -R root:www-data /opt/cnaas/ \
-    && chmod -R u=rwX,g=rX,o= /opt/cnaas/ \
-    && chown -R www-data:www-data /opt/cnaas/templates/ \
-    && chown -R www-data:www-data /opt/cnaas/settings/
 # Give permission for devicecert store
 RUN mkdir /tmp/devicecerts \
     && chown -R www-data:www-data /tmp/devicecerts \
     && chmod -R u=rwX,g=,o= /tmp/devicecerts
-# Give permission for unittests
-RUN chown root:www-data /opt/cnaas/*.sh \
-    && chmod g+rx /opt/cnaas/*.sh
 
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}

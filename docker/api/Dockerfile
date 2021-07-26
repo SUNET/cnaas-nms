@@ -32,46 +32,35 @@ COPY config/nginx_app.conf /etc/nginx/sites-available/
 COPY config/nginx.conf /etc/nginx/
 COPY cert/* /etc/nginx/conf.d/
 # Prepare running nginx as www-data
-RUN unlink /etc/nginx/sites-enabled/default
-RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
-RUN chown -R www-data:www-data /var/log/nginx/
-RUN chown -R www-data:www-data /var/lib/nginx/
-RUN chown -R root:www-data /etc/nginx/ && \
-    chmod -R u=rwX,g=rX,o= /etc/nginx/
+RUN unlink /etc/nginx/sites-enabled/default \
+    && ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default \
+    && chown -R www-data:www-data /var/log/nginx/ \
+    && chown -R www-data:www-data /var/lib/nginx/ \
+    && chown -R root:www-data /etc/nginx/ \
+    && chmod -R u=rwX,g=rX,o= /etc/nginx/
 
 # Create cnaas directories
-RUN mkdir -p /opt/cnaas/templates/
-RUN mkdir /opt/cnaas/settings/
-RUN mkdir /etc/cnaas-nms/
+RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /etc/cnaas-nms
 
-# Cnaas setup script
-COPY cnaas-setup.sh /opt/cnaas/
-COPY cnaas-setup-branch.sh /opt/cnaas/
-
-# Prepare for tests
-COPY nosetests.sh /opt/cnaas/
-COPY createca.sh /opt/cnaas/
-
-# Prepare for uwsgi
-COPY exec-pre-app.sh /opt/cnaas/
+# Copy cnaas scripts
+COPY cnaas-setup.sh cnaas-setup-branch.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
 
 # Copy cnaas configuration files
-# db_config.yml, api.yml, repository.yml, plugins.yml
-COPY config/*.yml /etc/cnaas-nms/
+COPY config/api.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/
 RUN chown www-data:www-data /etc/cnaas-nms/*.yml
 
 # Give permission for API to clone/sync repos
-RUN chown -R root:www-data /opt/cnaas/ && \
-    chmod -R u=rwX,g=rX,o= /opt/cnaas/
-RUN chown -R www-data:www-data /opt/cnaas/templates/
-RUN chown -R www-data:www-data /opt/cnaas/settings/
+RUN chown -R root:www-data /opt/cnaas/ \
+    && chmod -R u=rwX,g=rX,o= /opt/cnaas/ \
+    && chown -R www-data:www-data /opt/cnaas/templates/ \
+    && chown -R www-data:www-data /opt/cnaas/settings/
 # Give permission for devicecert store
-RUN mkdir /tmp/devicecerts
-RUN chown -R www-data:www-data /tmp/devicecerts && \
-    chmod -R u=rwX,g=,o= /tmp/devicecerts
+RUN mkdir /tmp/devicecerts \
+    && chown -R www-data:www-data /tmp/devicecerts \
+    && chmod -R u=rwX,g=,o= /tmp/devicecerts
 # Give permission for unittests
-RUN chown root:www-data /opt/cnaas/*.sh && \
-    chmod g+rx /opt/cnaas/*.sh
+RUN chown root:www-data /opt/cnaas/*.sh \
+    && chmod g+rx /opt/cnaas/*.sh
 
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}

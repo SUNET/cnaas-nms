@@ -1,6 +1,8 @@
 FROM debian:buster
 
 
+USER root
+
 # Install system packages
 RUN apt-get update && \
     apt-get -y dist-upgrade && \
@@ -43,8 +45,8 @@ RUN unlink /etc/nginx/sites-enabled/default \
 RUN mkdir -p /opt/cnaas /etc/cnaas-nms \
     && chown -R root:www-data /opt/cnaas /etc/cnaas-nms \
     && chmod -R u=rwX,g=rX,o= /opt/cnaas
-RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings \
-    && chown www-data:www-data /opt/cnaas/templates /opt/cnaas/settings
+RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv \
+    && chown www-data:www-data /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv
 
 # Copy cnaas scripts
 COPY --chown=root:www-data cnaas-setup.sh cnaas-setup-branch.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
@@ -52,14 +54,15 @@ COPY --chown=root:www-data cnaas-setup.sh cnaas-setup-branch.sh createca.sh exec
 # Copy cnaas configuration files
 COPY --chown=www-data:www-data config/api.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/
 
+
+USER www-data
+
 # Give permission for devicecert store
 RUN mkdir /tmp/devicecerts \
-    && chown -R www-data:www-data /tmp/devicecerts \
     && chmod -R u=rwX,g=,o= /tmp/devicecerts
 
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
-RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 # Prepare for uwsgi
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 # Branch specific, don't cache

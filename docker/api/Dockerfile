@@ -53,7 +53,7 @@ RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv \
     && chown www-data:www-data /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv
 
 # Copy cnaas scripts
-COPY --chown=root:www-data cnaas-setup.sh cnaas-setup-branch.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
+COPY --chown=root:www-data cnaas-setup.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
 
 # Copy cnaas configuration files
 COPY --chown=www-data:www-data config/api.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/
@@ -65,14 +65,15 @@ USER www-data
 RUN mkdir /tmp/devicecerts \
     && chmod -R u=rwX,g=,o= /tmp/devicecerts
 
+ARG BUILDBRANCH=develop
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
-RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
-# Prepare for uwsgi
-COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 # Branch specific, don't cache
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
-ARG BUILDBRANCH=develop
-RUN /opt/cnaas/cnaas-setup-branch.sh $BUILDBRANCH
+# Cnaas setup script
+RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
+
+# Prepare for uwsgi
+COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 
 
 # Expose HTTPS

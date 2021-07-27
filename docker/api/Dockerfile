@@ -1,6 +1,4 @@
 FROM debian:buster
-ARG BUILDBRANCH=develop
-ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 
 
 # Install system packages
@@ -75,12 +73,14 @@ RUN chown -R www-data:www-data /tmp/devicecerts && \
 RUN chown root:www-data /opt/cnaas/*.sh && \
     chmod g+rx /opt/cnaas/*.sh
 
+ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
 RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 # Prepare for uwsgi
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 # Branch specific, don't cache
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
+ARG BUILDBRANCH=develop
 RUN /opt/cnaas/cnaas-setup-branch.sh $BUILDBRANCH
 
 

@@ -45,7 +45,7 @@ docker-compose up -d
 
 docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
 docker-compose exec -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
-docker-compose exec -T cnaas_api /opt/cnaas/createca.sh
+docker-compose exec -u root -T cnaas_api /opt/cnaas/createca.sh
 
 if [ ! -z "$PRE_TEST_SCRIPT" ]
 then
@@ -88,7 +88,7 @@ if ls -lh coverage/.coverage-* 2> /dev/null
 then
 	cp coverage/.coverage-* ../src/
 	echo "Starting unit tests..."
-	docker exec docker_cnaas_api_1 su -s /bin/bash -c /opt/cnaas/nosetests.sh - www-data
+	docker-compose exec -T cnaas_api /opt/cnaas/nosetests.sh
 	echo "Gathering coverage reports from unit tests:"
 	ls -lh coverage/.coverage-* 2> /dev/null
 	cp coverage/.coverage-nosetests ../src/

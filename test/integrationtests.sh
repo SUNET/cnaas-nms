@@ -21,12 +21,6 @@ then
 	fi
 fi
 
-docker volume create cnaas-templates
-docker volume create cnaas-settings
-docker volume create cnaas-postgres-data
-docker volume create cnaas-jwtcert
-docker volume create cnaas-cacert
-
 docker-compose -f docker-compose.yaml -f docker-compose.tests.yaml up -d
 
 docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem

@@ -5,20 +5,6 @@ cd ../docker/
 # if running selinux on host this is required: chcon -Rt svirt_sandbox_file_t coverage/
 mkdir -p coverage/
 
-export GITREPO_TEMPLATES="git://gitops.sunet.se/cnaas-lab-templates"
-export GITREPO_SETTINGS="git://gitops.sunet.se/cnaas-lab-settings"
-export GITREPO_ETC="https://github.com/indy-independence/cnaas-nms-lab-etc.git"
-export USERNAME_DHCP_BOOT="admin"
-export PASSWORD_DHCP_BOOT="abc123abc123"
-export USERNAME_DISCOVERED="admin"
-export PASSWORD_DISCOVERED="abc123abc123"
-export USERNAME_INIT="admin"
-export PASSWORD_INIT="abc123abc123"
-export USERNAME_MANAGED="admin"
-export PASSWORD_MANAGED="abc123abc123"
-export COVERAGE=1
-export JWT_AUTH_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw"
-
 docker-compose down
 
 if docker volume ls | egrep -q "cnaas-postgres-data$"
@@ -41,7 +27,7 @@ docker volume create cnaas-postgres-data
 docker volume create cnaas-jwtcert
 docker volume create cnaas-cacert
 
-docker-compose up -d
+docker-compose -f docker-compose.yaml -f docker-compose.tests.yaml up -d
 
 docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
 docker-compose exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/

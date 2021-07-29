@@ -1,0 +1,44 @@
+version: '3.7'
+services:
+
+  #
+  # CNaaS services -- test setup
+  #
+
+  cnaas_api:
+    environment:
+      - GITREPO_TEMPLATES=git://gitops.sunet.se/cnaas-lab-templates
+      - GITREPO_SETTINGS=git://gitops.sunet.se/cnaas-lab-settings
+      - COVERAGE=1
+      - USERNAME_DHCP_BOOT=admin
+      - PASSWORD_DHCP_BOOT=abc123abc123
+      - USERNAME_DISCOVERED=admin
+      - PASSWORD_DISCOVERED=abc123abc123
+      - USERNAME_INIT=admin
+      - PASSWORD_INIT=abc123abc123
+      - USERNAME_MANAGED=admin
+      - PASSWORD_MANAGED=abc123abc123
+    volumes:
+      - type: bind
+        source: ./coverage
+        target: /coverage
+
+  cnaas_httpd:
+    environment:
+      - GITREPO_TEMPLATES=git://gitops.sunet.se/cnaas-lab-templates
+
+  cnaas_dhcpd:
+    build:
+      context: ./dhcpd/
+      args:
+        - BUILDBRANCH=develop
+        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
+    ports:
+      - 67:67/udp
+    networks:
+      - cnaas
+    environment:
+      - GITREPO_ETC=https://github.com/indy-independence/cnaas-nms-lab-etc.git
+      - DB_PASSWORD=cnaas
+      - DB_HOSTNAME=docker_cnaas_postgres_1
+      - JWT_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw

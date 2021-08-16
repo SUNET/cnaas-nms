@@ -160,6 +160,9 @@ def populate_device_vars(session, dev: Device,
                 'interfaces': []
             }
 
+        # Check peer names for populating description on ACCESS_DOWNLINK ports
+        ifname_peer_map = dev.get_linknet_localif_mapping(session)
+
         intfs = session.query(Interface).filter(Interface.device == dev).all()
         intf: Interface
         for intf in intfs:
@@ -178,6 +181,9 @@ def populate_device_vars(session, dev: Device,
                     tagged_vlan_list = resolve_vlanid_list(intf.data['tagged_vlan_list'],
                                                            settings['vxlans'])
                 intfdata = dict(intf.data)
+            elif intf.name in ifname_peer_map:
+                intfdata = {'description': ifname_peer_map[intf.name]}
+
             access_device_variables['interfaces'].append({
                 'name': intf.name,
                 'ifclass': intf.configtype.name,

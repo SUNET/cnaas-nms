@@ -295,6 +295,7 @@ Contains base system settings like:
 - snmp_servers
 - dns_servers
 - syslog_servers
+- flow_collectors
 - dhcp_relays
 - internal_vlans
 
@@ -314,6 +315,9 @@ Example of base_system.yml:
    syslog_servers:
      - host: 10.255.0.21
      - host: 10.255.0.22
+   flow_collectors:
+     - host: 10.255.0.30
+       port: 6343
    dhcp_relays:
      - host: 10.255.1.1
      - host: 10.255.1.2

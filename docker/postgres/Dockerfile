@@ -1,6 +1,5 @@
 FROM postgres:11
 
-COPY nms.sql /docker-entrypoint-initdb.d/
-RUN chown postgres:postgres /docker-entrypoint-initdb.d/*.sql
+COPY --chown=postgres:postgres nms.sql /docker-entrypoint-initdb.d/
 
 EXPOSE 5432

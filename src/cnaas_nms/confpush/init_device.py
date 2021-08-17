@@ -318,14 +318,15 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     logger = get_logger()
     with sqla_session() as session:
         dev = pre_init_checks(session, device_id)
+        new_linknets = []
 
         # update linknets using LLDP data
-        update_linknets(session, dev.hostname, DeviceType.ACCESS)
+        new_linknets += update_linknets(session, dev.hostname, DeviceType.ACCESS)
 
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
-            update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
+            new_linknets += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
@@ -397,6 +398,12 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:
             session.delete(reserved_ip)
+        # Mark remote peers as unsynchronized so they can update interface descriptions
+        for linknet in new_linknets:
+            peer_hostname = linknet['device_b_hostname']
+            peer_dev: Device = session.query(Device).filter(Device.hostname == peer_hostname).one_or_none()
+            if peer_dev:
+                peer_dev.synchronized = False
 
     # Plugin hook, allocated IP
     try:

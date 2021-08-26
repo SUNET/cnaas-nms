@@ -1,56 +1,79 @@
 FROM debian:buster
-ARG BUILDBRANCH=develop
-ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 
-# Create directories
-RUN mkdir -p /opt/cnaas/templates/
-RUN mkdir /opt/cnaas/settings/
-RUN mkdir /etc/cnaas-nms/
 
-# Copy configuration files
-# db_config.yml, api.yml, repository.yml, plugins.yml
-COPY config/*.yml /etc/cnaas-nms/
+USER root
 
-# Setup script
-COPY cnaas-setup.sh /opt/cnaas/
-COPY cnaas-setup-branch.sh /opt/cnaas/
-RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE}
+# Install system packages
+RUN apt-get update \
+    && apt-get -y upgrade \
+    && apt-get install -y --no-install-recommends \
+      bind9-host \
+      build-essential \
+      curl \
+      git \
+      iputils-ping \
+      libpcre2-dev \
+      libpcre3-dev \
+      libpq-dev \
+      libssl-dev \
+      net-tools \
+      netcat \
+      netcat-openbsd \
+      nginx \
+      procps \
+      python3-dev \
+      python3-pip \
+      python3-setuptools \
+      python3-venv \
+      python3-wheel \
+      python3-yaml \
+      supervisor \
+      uwsgi-plugin-python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip3 install --no-cache-dir uwsgi
 
-# Prepare for supervisord, uwsgi, ngninx
-COPY nosetests.sh /opt/cnaas/
-COPY exec-pre-app.sh /opt/cnaas/
-COPY createca.sh /opt/cnaas/
-COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
+# Prepare for supervisord, ngninx
 COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY config/nginx_app.conf /etc/nginx/sites-available/
 COPY config/nginx.conf /etc/nginx/
 COPY cert/* /etc/nginx/conf.d/
+# Prepare running nginx as www-data
+RUN unlink /etc/nginx/sites-enabled/default \
+    && ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default \
+    && chown -R www-data:www-data /var/log/nginx/ \
+    && chown -R www-data:www-data /var/lib/nginx/ \
+    && chown -R root:www-data /etc/nginx/ \
+    && chmod -R u=rwX,g=rX,o= /etc/nginx/
 
-# Give nginx some special treatment
-RUN unlink /etc/nginx/sites-enabled/default
-RUN ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default
-RUN chown www-data:www-data /etc/cnaas-nms/*.yml
-RUN chown -R www-data:www-data /var/log/nginx/
-RUN chown -R www-data:www-data /var/lib/nginx/
-RUN chown -R root:www-data /etc/nginx/ && \
-    chmod -R u=rwX,g=rX,o= /etc/nginx/
-# Give permission for API to clone/sync repos
-RUN chown -R root:www-data /opt/cnaas/ && \
-    chmod -R u=rwX,g=rX,o= /opt/cnaas/
-RUN chown -R www-data:www-data /opt/cnaas/templates/
-RUN chown -R www-data:www-data /opt/cnaas/settings/
+# Create cnaas directories
+RUN mkdir -p /opt/cnaas /etc/cnaas-nms \
+    && chown -R root:www-data /opt/cnaas /etc/cnaas-nms \
+    && chmod -R u=rwX,g=rX,o= /opt/cnaas
+RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv \
+    && chown www-data:www-data /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv
+
+# Copy cnaas scripts
+COPY --chown=root:www-data cnaas-setup.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
+
+# Copy cnaas configuration files
+COPY --chown=www-data:www-data config/api.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/
+
+
+USER www-data
+
 # Give permission for devicecert store
-RUN mkdir /tmp/devicecerts
-RUN chown -R www-data:www-data /tmp/devicecerts && \
-    chmod -R u=rwX,g=,o= /tmp/devicecerts
-# Give permission for unittests
-RUN chown root:www-data /opt/cnaas/*.sh && \
-    chmod g+rx /opt/cnaas/*.sh
-RUN chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+RUN mkdir /tmp/devicecerts \
+    && chmod -R u=rwX,g=,o= /tmp/devicecerts
 
+ARG BUILDBRANCH=develop
+ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 # Branch specific, don't cache
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
-RUN /opt/cnaas/cnaas-setup-branch.sh $BUILDBRANCH
+# Cnaas setup script
+RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
+
+# Prepare for uwsgi
+COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 
 
 # Expose HTTPS

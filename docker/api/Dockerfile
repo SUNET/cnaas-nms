@@ -29,7 +29,6 @@ RUN apt-get update \
       python3-yaml \
       supervisor \
       uwsgi-plugin-python3 \
-    && rm -rf /var/lib/apt/lists/* \
     && pip3 install --no-cache-dir uwsgi
 
 # Prepare for supervisord, ngninx

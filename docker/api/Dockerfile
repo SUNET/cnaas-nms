@@ -70,6 +70,8 @@ ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
 # Cnaas setup script
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
+# Freeze source
+RUN -R root:www-data /opt/cnaas/venv/cnaas-nms/ && chmod -R u=rwX,g=rX,o= /opt/cnaas/venv/cnaas-nms/
 
 # Prepare for uwsgi
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/

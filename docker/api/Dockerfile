@@ -73,6 +73,7 @@ RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 # Freeze source
 USER root
 RUN chown -R root:www-data /opt/cnaas/venv/cnaas-nms/ && chmod -R u=rwX,g=rX,o= /opt/cnaas/venv/cnaas-nms/
+USER www-data
 
 # Prepare for uwsgi
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/

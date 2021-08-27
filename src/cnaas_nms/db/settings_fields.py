@@ -116,6 +116,10 @@ class f_interface(BaseModel):
 class f_vrf(BaseModel):
     name: str = None
     vrf_id: int = vrf_id_schema
+    import_route_targets: List[str] = []
+    export_route_targets: List[str] = []
+    import_policy: Optional[str] = None
+    export_policy: Optional[str] = None
     groups: List[str] = []
 
 

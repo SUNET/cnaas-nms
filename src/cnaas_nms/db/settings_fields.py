@@ -199,6 +199,7 @@ class f_extroute_bgp_vrf(BaseModel):
     local_as: int = as_num_schema
     neighbor_v4: List[f_extroute_bgp_neighbor_v4] = []
     neighbor_v6: List[f_extroute_bgp_neighbor_v6] = []
+    cli_append_str: str = ""
 
 
 class f_extroute_bgp(BaseModel):

@@ -53,7 +53,7 @@ as_num_schema = Field(..., gt=0, lt=4294967296, description="BGP Autonomous Syst
 IFNAME_REGEX = r'([a-zA-Z0-9\/\.:-])+'
 ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$",
                       description="Interface name")
-IFCLASS_REGEX = r'(custom|downlink|fabric)'
+IFCLASS_REGEX = r'(custom|downlink|fabric|port_template_[a-zA-Z0-9_]+)'
 ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$",
                        description="Interface class: custom, downlink or uplink")
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")

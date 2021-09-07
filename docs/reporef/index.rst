@@ -168,6 +168,14 @@ Can contain the following dictionaries with specified keys:
   * vrf_id: An integer between 1-65535. This ID can be used to generate unique VNI, RD and RT
     values for this VRF.
   * groups: A list of groups this VRF should be provisioned on.
+  * import_route_targets: A list of strings containing extra route targets to import
+    for route leaking (optional)
+  * export_route_targets: A list of strings containing extra route targets to export
+    for route leaking (optional)
+  * import_policy: A string containing route policy/route map to define import
+    behavior, useful in route leaking scenarios (optional)
+  * export_policy: A string containing route policy/route map to define export
+    behavior, useful in route leaking scenarios (optional)
 
 * extroute_static:
 
@@ -203,6 +211,7 @@ Can contain the following dictionaries with specified keys:
 
     * name: Name of the VRF
     * local_as: AS number that CNaaS NMS devices will present themselves as
+    * cli_append_str: Custom configuration to append to BGP VRF config (optional)
     * neighbor_v4:
 
       * peer_as: AS number the remote peer

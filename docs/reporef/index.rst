@@ -285,7 +285,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
 * interfaces: List of dicctionaries with keys:
 
   * name: Interface name, like "Ethernet1"
-  * ifclass: Interface class, one of: downlink, fabric, custom
+  * ifclass: Interface class, one of: downlink, fabric, custom, port_template_*
   * config: Optional. Raw CLI config used in case "custom" ifclass was selected
 
 The "downlink" ifclass is used on DIST devices to specify that this interface
@@ -295,6 +295,10 @@ the switch (vxlan) fabric. Linknet data will only be configured on interfaces
 specified as "fabric". If no linknet data is available in the database then
 the fabric interface will be configured for ZTP of DIST/CORE devices by
 providing DHCP (relay) access.
+"port_template_*" is used to specify a user defined port template. This can then
+be used to apply some site-specific configuration via Jinja templates. For
+example specify "port_template_hypervisor" and build a corresponding Jinja
+template by matching on that ifclass.
 
 base_system.yml:
 

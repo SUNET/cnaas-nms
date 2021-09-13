@@ -288,6 +288,15 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * ifclass: Interface class, one of: downlink, fabric, custom, port_template_*
   * config: Optional. Raw CLI config used in case "custom" ifclass was selected
 
+* Additional interface options for port_template type:
+
+  * untagged_vlan: Optional. Numeric VLAN ID for untagged frames.
+  * tagged_vlan_list: Optional. List of allowed numeric VLAN IDs for tagged frames.
+  * description: Optional. Description for the interface, this should be a string 0-64 characters.
+  * enabled: Optional. Set the administrative state of the interface. Defaults to true if not set.
+  * aggregate_id: Optional. Identifier for configuring LACP etc. Integer value.
+    Special value -1 means configure MLAG and use ID based on indexnum.
+
 The "downlink" ifclass is used on DIST devices to specify that this interface
 is used to connect access devices. The "fabric" ifclass is used to specify that
 this interface is used to connect DIST or CORE devices with each other to form

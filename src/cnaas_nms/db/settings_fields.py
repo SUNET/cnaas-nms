@@ -115,8 +115,13 @@ class f_interface(BaseModel):
     description: Optional[str] = ifdescr_schema
     enabled: Optional[bool] = None
     untagged_vlan: Optional[int] = vlan_id_schema_optional
-    tagged_vlan_list: List[vlan_id_schema] = []
+    tagged_vlan_list: Optional[List[int]] = None
     aggregate_id: Optional[int] = None
+
+    @validator("tagged_vlan_list", each_item=True)
+    def check_valid_vlan_ids(cls, v):
+        assert 0 < v < 4096
+        return v
 
 
 class f_vrf(BaseModel):

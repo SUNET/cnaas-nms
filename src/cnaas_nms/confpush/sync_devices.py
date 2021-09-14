@@ -281,6 +281,12 @@ def populate_device_vars(session, dev: Device,
                             'peer_ip': None,
                             'peer_asn': None
                         })
+                else:
+                    if_dict = {'indexnum': ifindexnum}
+                    for key, value in intf.items():
+                        if_dict[key] = value
+                    fabric_device_variables['interfaces'].append(if_dict)
+
         for local_if, data in fabric_interfaces.items():
             logger.warn(f"Interface {local_if} on device {hostname} not "
                         "configured as linknet because of wrong ifclass")

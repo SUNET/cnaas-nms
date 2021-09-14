@@ -282,6 +282,7 @@ class f_root(BaseModel):
     extroute_ospfv3: Optional[f_extroute_ospfv3]
     extroute_bgp: Optional[f_extroute_bgp]
     internal_vlans: Optional[f_internal_vlans]
+    dot1x_fail_vlan: Optional[int] = vlan_id_schema_optional
     cli_prepend_str: str = ""
     cli_append_str: str = ""
 

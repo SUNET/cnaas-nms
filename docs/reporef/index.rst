@@ -320,6 +320,7 @@ Contains base system settings like:
 - flow_collectors
 - dhcp_relays
 - internal_vlans
+- dot1x_fail_vlan: Numeric ID of authentication fail VLAN
 
 Example of base_system.yml:
 
@@ -346,6 +347,7 @@ Example of base_system.yml:
    internal_vlans:
      vlan_id_low: 3006
      vlan_id_high: 4094
+   dot1x_fail_vlan: 13
 
 
 syslog_servers and radius_severs can optionally have the key "port" specified

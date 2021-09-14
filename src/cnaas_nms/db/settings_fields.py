@@ -56,6 +56,7 @@ ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$",
 IFCLASS_REGEX = r'(custom|downlink|fabric|port_template_[a-zA-Z0-9_]+)'
 ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$",
                        description="Interface class: custom, downlink or uplink")
+ifdescr_schema = Field(None, max_length=64, description="Interface description, 0-64 characters")
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
 ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
 maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer")
@@ -111,6 +112,16 @@ class f_interface(BaseModel):
     name: str = ifname_schema
     ifclass: str = ifclass_schema
     config: Optional[str] = None
+    description: Optional[str] = ifdescr_schema
+    enabled: Optional[bool] = None
+    untagged_vlan: Optional[int] = vlan_id_schema_optional
+    tagged_vlan_list: Optional[List[int]] = None
+    aggregate_id: Optional[int] = None
+
+    @validator("tagged_vlan_list", each_item=True)
+    def check_valid_vlan_ids(cls, v):
+        assert 0 < v < 4096
+        return v
 
 
 class f_vrf(BaseModel):

@@ -243,6 +243,7 @@ class f_vxlan(BaseModel):
     vxlan_host_route: bool = True
     groups: List[str] = []
     devices: List[str] = []
+    tags: List[str] = []
 
     @validator('ipv4_gw')
     def vrf_required_if_ipv4_gw_set(cls, v, values, **kwargs):

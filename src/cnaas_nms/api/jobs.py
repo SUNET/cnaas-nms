@@ -38,7 +38,9 @@ def filter_job_dict(job_dict: dict, args: dict) -> dict:
         }
     }
     filter_items = []
-    if "result" not in job_dict or "devices" not in job_dict["result"]:
+    if not isinstance(job_dict, dict) or "result" not in job_dict or \
+            not isinstance(job_dict["result"], dict) or "devices" not in job_dict["result"] or \
+            "function_name" not in job_dict or not isinstance(job_dict["function_name"], str):
         return job_dict
 
     if job_dict["function_name"].startswith("sync_devices"):

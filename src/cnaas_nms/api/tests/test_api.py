@@ -47,6 +47,23 @@ class ApiTests(unittest.TestCase):
         # Exactly one result
         self.assertEqual(len(result.json['data']['jobs']), 1)
 
+    def test_filter_job(self):
+        result = self.client.get('/api/v1.0/jobs?filter[function.name][contains]=sync&filter_jobresult=config')
+
+        # 200 OK
+        self.assertEqual(result.status_code, 200)
+        # Succes in json
+        self.assertEqual(result.json['status'], 'success')
+        # At least one result
+        self.assertGreaterEqual(len(result.json['data']['jobs']), 1, "No jobs found")
+        # Exactly 2 task results
+        first_device_result = next(iter(result.json['data']['jobs'][0]['result']['devices'].values()))
+        self.assertEqual(len(first_device_result['job_tasks']), 2,
+                         "Job result output should only contain 2 tasks")
+        self.assertEqual(len(list(filter(lambda x: x["task_name"] != "Generate device config",
+                                         first_device_result['job_tasks']))),
+                         2, "Job result included 'Generate device config' task")
+
     def test_get_managementdomain(self):
         result = self.client.get('/api/v1.0/mgmtdomains?per_page=1')
         # 200 OK

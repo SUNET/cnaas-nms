@@ -86,9 +86,27 @@ The result will look like this:
     }
   }
 
+It is possible to filter out specific jobs by using query parameters in the
+same way as the devices API. In addition to filtering out entries you can also
+filter out parts of the job result for "syncto" type jobs, if you are only
+interested in the diffs and don't want to see the full generated config for
+example:
+
+::
+
+   curl "http://hostname/api/v1.0/jobs?filter\[function.name\]\[contains\]=sync&filter_jobresult=config"
+
 The finished_devices attribute will be populated as devices are finishing.
 This value will only be updated for every other second to not keep
 the database too busy.
+
+It's also possible to query a single job by job ID:
+
+::
+
+   curl http://hostname/api/v1.0/job/5
+
+
 
 Locks
 -----

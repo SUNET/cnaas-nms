@@ -12,6 +12,7 @@ from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.version import __api_version__
 from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.tools.log import get_logger
 
 
 job_api = Namespace('job', description='API for handling jobs',
@@ -26,12 +27,45 @@ joblock_api = Namespace('joblocks', description='API for handling jobs',
 job_model = job_api.model('jobs', {'name': fields.String(required=True)})
 
 
+def filter_job_dict(job_dict: dict, args: dict) -> dict:
+    """Filter out parts of job result dict based on query string arguments."""
+    logger = get_logger()
+    # Define order of nornir tasks in known types of jobs
+    filter_map = {
+        "syncto": {
+            "config": 1,
+            "diff": 2
+        }
+    }
+    filter_items = []
+    if "result" not in job_dict or "devices" not in job_dict["result"]:
+        return job_dict
+
+    if job_dict["function_name"].startswith("sync_devices"):
+        for arg, value in args.items():
+            if arg == 'filter_jobresult' and isinstance(value, str):
+                for item in value.split(','):
+                    if item in filter_map["syncto"].keys():
+                        filter_items.append(filter_map["syncto"][item])
+        # Remove items starting from the end of the list so indexes don't change
+        for filter_item in sorted(filter_items, reverse=True):
+            for hostname, value in job_dict["result"]["devices"].items():
+                try:
+                    del job_dict["result"]["devices"][hostname]["job_tasks"][filter_item]
+                except KeyError:
+                    pass
+                except Exception as e:
+                    logger.debug("job filter_response exception: {}".format(e))
+    return job_dict
+
+
 class JobsApi(Resource):
     @jwt_required
     def get(self):
         """ Get one or more jobs """
         data = {'jobs': []}
         total_count = 0
+        args = request.args
         with sqla_session() as session:
             query = session.query(Job, func.count(Job.id).over().label('total'))
             try:
@@ -40,7 +74,9 @@ class JobsApi(Resource):
                 return empty_result(status='error',
                                     data="Unable to filter jobs: {}".format(e)), 400
             for instance in query:
-                data['jobs'].append(instance.Job.as_dict())
+                job_dict = instance.Job.as_dict()
+                filtered_job_dict = filter_job_dict(job_dict, args)
+                data['jobs'].append(filtered_job_dict)
                 total_count = instance.total
 
         resp = make_response(json.dumps(empty_result(status='success', data=data)), 200)
@@ -53,10 +89,13 @@ class JobByIdApi(Resource):
     @jwt_required
     def get(self, job_id):
         """ Get job information by ID """
+        args = request.args
         with sqla_session() as session:
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             if job:
-                return empty_result(data={'jobs': [job.as_dict()]})
+                job_dict = job.as_dict()
+                filtered_job_dict = filter_job_dict(job_dict, args)
+                return empty_result(data={'jobs': [filtered_job_dict]})
             else:
                 return empty_result(status='error',
                                     data="No job with id {} found".format(job_id)), 400

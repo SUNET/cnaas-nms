@@ -268,8 +268,12 @@ name is the dictionary key and dictionaly values are:
   * vlan_name: VLAN name, single word/no spaces, max 31 characters
   * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24. Optional.
   * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
+  * dhcp_relays: DHCP relay address. Optional.
+  * mtu: Define custom MTU. Optional.
+  * tags: List of custom strings to tag this VXLAN with. Optional.
   * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
     access switch the parent dist switch should be automatically provisioned.
+  * devices: List of device names where this VXLAN/VLAN should be provisioned. Optional.
 
 interfaces.yml:
 

@@ -1,5 +1,6 @@
 import os
 import yaml
+import datetime
 from typing import Optional, List
 from ipaddress import IPv4Interface, IPv4Address
 from hashlib import sha256
@@ -659,12 +660,15 @@ def sync_devices(hostnames: Optional[List[str]] = None, device_type: Optional[st
             if dry_run:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = False
+                dev.last_seen = datetime.datetime.utcnow()
             else:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
+                dev.last_seen = datetime.datetime.utcnow()
         for hostname in unchanged_hosts:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
             dev.synchronized = True
+            dev.last_seen = datetime.datetime.utcnow()
         if not dry_run:
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)

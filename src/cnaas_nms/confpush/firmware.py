@@ -1,4 +1,5 @@
 import time
+import datetime
 from typing import Optional
 
 from nornir.core.task import MultiResult
@@ -90,6 +91,7 @@ def arista_post_flight_check(task, post_waittime: int, job_id: Optional[str] = N
             else:
                 dev.confhash = None
                 dev.synchronized = False
+                dev.last_seen = datetime.datetime.utcnow()
     except Exception as e:
         logger.exception("Could not update OS version on device {}: {}".format(task.host.name, str(e)))
         return 'Post-flight failed, could not update OS version: {}'.format(str(e))

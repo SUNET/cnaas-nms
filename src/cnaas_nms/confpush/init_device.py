@@ -1,3 +1,5 @@
+import datetime
+import os
 from typing import Optional, List
 from ipaddress import IPv4Interface, IPv4Address
 
@@ -6,7 +8,6 @@ from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
 from apscheduler.job import Job
 import yaml
-import os
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
@@ -667,6 +668,7 @@ def init_device_step2(device_id: int, iteration: int = -1,
         set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None
+        dev.last_seen = datetime.datetime.utcnow()
 
     # Plugin hook: new managed device
     # Send: hostname , device type , serial , platform , vendor , model , os version
@@ -770,6 +772,7 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
             dev.model = facts['model'][:64]
             dev.os_version = facts['os_version'][:64]
             dev.state = DeviceState.DISCOVERED
+            dev.last_seen = datetime.datetime.utcnow()
             new_hostname = dev.hostname
             logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned" +
                         f"(attempt {iteration}), moving to DISCOVERED state")

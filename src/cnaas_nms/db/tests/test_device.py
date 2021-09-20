@@ -11,6 +11,7 @@ from ipaddress import IPv4Address
 
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.linknet import Linknet
 
@@ -73,6 +74,31 @@ class DeviceTests(unittest.TestCase):
                 self.assertIsInstance(nei, Device)
                 pprint.pprint(nei.as_dict())
 
+    def test_add_stackmember(self):
+        with sqla_session() as session:
+            new_stack = Device()
+            new_stack.ztp_mac = '08002708a8be'
+            new_stack.hostname = 'unittest2'
+            new_stack.platform = 'eos'
+            new_stack.management_ip = IPv4Address('10.0.1.22')
+            new_stack.state = DeviceState.MANAGED
+            new_stack.device_type = DeviceType.ACCESS
+            session.add(new_stack)
+            session.commit()
+
+            stackmember1 = Stackmember()
+            stackmember1.device_id = new_stack.id
+            stackmember1.hardware_id = "DHWAJDJWADDWADWA"
+            stackmember1.member_no = "1"
+            stackmember1.priority = "1"
+            session.add(stackmember1)
+            session.commit()
+
+            self.assertEquals(stackmember1,
+                session.query(Stackmember).filter(Stackmember.device == new_stack).one())
+            session.delete(stackmember1)
+            session.delete(new_stack)
+            session.commit()
 
 if __name__ == '__main__':
     unittest.main()

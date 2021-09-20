@@ -4,7 +4,7 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import DeviceType, Device
+from cnaas_nms.db.device import DeviceType, DeviceState, Device
 
 from nornir_netmiko.tasks import netmiko_send_command
 from nornir_utils.plugins.functions import print_result
@@ -62,6 +62,7 @@ def device_erase(device_id: int = None, job_id: int = None) -> NornirJobResult:
         if dev:
             hostname = dev.hostname
             device_type = dev.device_type
+            device_state = dev.state
         else:
             raise Exception('Could not find a device with ID {}'.format(
                 device_id))
@@ -69,8 +70,11 @@ def device_erase(device_id: int = None, job_id: int = None) -> NornirJobResult:
     if device_type != DeviceType.ACCESS:
         raise Exception('Can only do factory default on access')
 
+    if device_state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
+        raise Exception('Can only do factory default on MANAGED or UNMANAGED devices')
+
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    nr_filtered = nr.filter(name=hostname).filter(managed=True)
+    nr_filtered = nr.filter(name=hostname)
 
     device_list = list(nr_filtered.inventory.hosts.keys())
     logger.info("Device selected: {}".format(

@@ -186,7 +186,15 @@ class GetTests(unittest.TestCase):
             json={"interfaces": {"Ethernet1": {"data": {"vxlan": "student1"}}}},
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to update interface")
+        self.assertEqual(r.status_code, 200, "Failed to update interface vxlan")
+
+        r = requests.put(
+            f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            headers=AUTH_HEADER,
+            json={"interfaces": {"Ethernet1": {"data": {"description": "test_03_interfaces"}}}},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to update interface description")
 
         r = requests.put(
             f'{URL}/api/v1.0/device/eosaccess/interfaces',
@@ -194,7 +202,7 @@ class GetTests(unittest.TestCase):
             json={"interfaces": {"Ethernet1": {"data": {"aggregate_id": -1}}}},
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to update interface")
+        self.assertEqual(r.status_code, 200, "Failed to update interface aggregate_id")
 
         r = requests.put(
             f'{URL}/api/v1.0/device/eosaccess/interfaces',
@@ -202,7 +210,7 @@ class GetTests(unittest.TestCase):
             json={"interfaces": {"Ethernet1": {"data": {"aggregate_id": None}}}},
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to update interface")
+        self.assertEqual(r.status_code, 200, "Failed to update interface aggregate_id")
 
     def test_04_syncto_access(self):
         r = requests.post(

@@ -18,6 +18,9 @@ Bug fixes:
    wrong template being used when syncing multiple different operating systems in same job (#168,#176)
  - Fix validation and return output for mgmtdomains API (#177)
  - Cleanup of docker images (#184,#185,#186,#191)
+ - Update device last_seen on syncto, update facts, firmware post flight, device discovered, init step2 (#198)
+ - Fix factory_default: false (#200)
+ - Fix assigning of vxlans etc to both groups and devices at same time (#201)
 
 Version 1.2.0
 -------------

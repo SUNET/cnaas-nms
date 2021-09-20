@@ -9,6 +9,7 @@ from cnaas_nms.db.settings import get_pydantic_error_value, get_pydantic_field_d
 
 FILTER_RE = re.compile(r"^filter\[([a-zA-Z0-9_.]+)\](\[[a-z]+\])?$")
 DEFAULT_PER_PAGE = 50
+MAX_PER_PAGE = 1000
 
 
 def limit_results() -> int:
@@ -20,9 +21,11 @@ def limit_results() -> int:
     if 'per_page' in args:
         try:
             per_page_arg = int(args['per_page'])
-            limit = max(1, min(100, per_page_arg))
-        except:
-            pass
+            assert 1 <= per_page_arg <= MAX_PER_PAGE
+            limit = per_page_arg
+        except (AssertionError, ValueError):
+            raise ValueError("per_page argument must be integer between 1-{}".
+                             format(MAX_PER_PAGE))
 
     return limit
 
@@ -37,9 +40,11 @@ def offset_results() -> int:
     if 'per_page' in args:
         try:
             per_page_arg = int(args['per_page'])
-            per_page = max(1, min(100, per_page_arg))
-        except:
-            pass
+            assert 1 <= per_page_arg <= MAX_PER_PAGE
+            per_page = per_page_arg
+        except (AssertionError, ValueError):
+            raise ValueError("per_page argument must be integer between 1-{}".
+                             format(MAX_PER_PAGE))
 
     if 'page' in args:
         try:

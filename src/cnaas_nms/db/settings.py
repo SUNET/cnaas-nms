@@ -438,10 +438,10 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
         return ret_l
     elif isinstance(data, dict):
         ret_d = {}
+        group_match = False
+        hostname_match = False
         for k, v in data.items():
             do_filter = False
-            group_match = False
-            hostname_match = False
             if not v:
                 ret_d[k] = v
                 continue

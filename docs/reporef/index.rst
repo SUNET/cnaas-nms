@@ -266,7 +266,8 @@ name is the dictionary key and dictionaly values are:
   * vrf: VRF name. Optional unless ipv4_gw is also specified.
   * vlan_id: VLAN ID, 1-4095
   * vlan_name: VLAN name, single word/no spaces, max 31 characters
-  * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24. Optional.
+  * ipv4_gw: IPv4 gateway address in CIDR notation, ex: 192.168.0.1/24. Optional.
+  * ipv4_secondaries: List of IPv4 addresses in CIDR notation. Optional.
   * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
   * dhcp_relays: DHCP relay address. Optional.
   * mtu: Define custom MTU. Optional.

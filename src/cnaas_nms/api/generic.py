@@ -152,8 +152,8 @@ def parse_pydantic_error(e: Exception, schema, data: dict) -> List[str]:
                 pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
             else:
                 pydantic_descr_msg = ""
-        except Exception as e_pydantic_descr:
-            pydantic_descr_msg = ", exception while getting pydantic description"
+        except Exception:
+            pydantic_descr_msg = ""
         errors.append("Message: {}{}".format(error['msg'], pydantic_descr_msg))
     return errors
 

@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict
+from ipaddress import IPv4Interface, AddressValueError
 
 from pydantic import BaseModel, Field, validator
 
@@ -63,6 +64,21 @@ maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum nu
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
+
+
+def validate_ipv4_if(ipv4if: str):
+    try:
+        assert ("/" in ipv4if), "Not a CIDR notation/no netmask"
+        addr = IPv4Interface(ipv4if)
+        assert (8 <= addr.network.prefixlen <= 32), "Invalid prefix size"
+        assert (not addr.is_multicast), "Multicast address is invalid"
+        if addr.network.prefixlen <= 30:
+            assert (str(addr.ip) != str(addr.network.network_address)), "Invalid interface address"
+            assert (str(addr.ip) != str(addr.network.broadcast_address)), "Invalid interface address"
+    except AddressValueError as e:
+        raise ValueError("Invalid IPv4 interface: {}".format(e))
+    except AssertionError as e:
+        raise ValueError("Invalid IPv4 interface: {}".format(e))
 
 
 # Note: If specifying a list of a BaseModel derived class anywhere else except
@@ -236,7 +252,8 @@ class f_vxlan(BaseModel):
     vrf: Optional[str] = vlan_name_schema
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
-    ipv4_gw: Optional[str] = ipv4_if_schema
+    ipv4_gw: Optional[str] = None
+    ipv4_secondaries: Optional[List[str]]
     ipv6_gw: Optional[str] = ipv6_if_schema
     dhcp_relays: Optional[List[f_dhcp_relay]]
     mtu: Optional[int] = mtu_schema
@@ -245,9 +262,15 @@ class f_vxlan(BaseModel):
     devices: List[str] = []
     tags: List[str] = []
 
+    @validator('ipv4_secondaries', each_item=True)
+    def ipv4_secondaries_regex(cls, v):
+        validate_ipv4_if(v)
+        return v
+
     @validator('ipv4_gw')
     def vrf_required_if_ipv4_gw_set(cls, v, values, **kwargs):
         if v:
+            validate_ipv4_if(v)
             if 'vrf' not in values or not values['vrf']:
                 raise ValueError('VRF is required when specifying ipv4_gw')
         return v

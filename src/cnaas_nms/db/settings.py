@@ -248,9 +248,9 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
                     pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
                 else:
                     pydantic_descr_msg = ""
-            except Exception as e_pydantic_descr:
-                logger.exception(e_pydantic_descr)
-                pydantic_descr_msg = ", exception while getting pydantic description"
+            except Exception as e:
+                logger.debug(e)
+                pydantic_descr_msg = ""
             error_msg += "Message: {}{}\n".format(error['msg'], pydantic_descr_msg)
             msg += error_msg
         raise SettingsSyntaxError(msg)

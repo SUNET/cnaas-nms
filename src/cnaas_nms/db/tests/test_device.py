@@ -125,5 +125,31 @@ class DeviceTests(unittest.TestCase):
             session.delete(new_stack)
             session.commit()
 
+    def test_get_stackmembers(self):
+        with sqla_session() as session:
+            new_stack = DeviceTests.create_test_device('unittest4')
+            session.add(new_stack)
+            session.commit()
+            self.assertIsNone(new_stack.get_stackmembers(session))
+
+            stackmember1 = Stackmember()
+            stackmember1.device_id = new_stack.id
+            stackmember1.hardware_id = "DHWAJDJWADDWADWC"
+            stackmember1.member_no = "1"
+            session.add(stackmember1)
+            stackmember2 = Stackmember()
+            stackmember2.device_id = new_stack.id
+            stackmember2.hardware_id = "DHWAJDJWADDWADWD"
+            stackmember2.member_no = "2"
+            session.add(stackmember2)
+            session.commit()
+
+            # lists have same elements, regardless of ordering
+            self.assertCountEqual([stackmember1, stackmember2],
+                new_stack.get_stackmembers(session))
+
+            session.delete(new_stack)
+            session.commit()
+
 if __name__ == '__main__':
     unittest.main()

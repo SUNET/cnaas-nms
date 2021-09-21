@@ -259,6 +259,13 @@ class Device(cnaas_nms.db.base.Base):
         else:
             return False
 
+    def get_stackmembers(self, session) -> Optional[Stackmember]:
+        members = session.query(Stackmember).filter(Stackmember.device == self).all()
+        if members:
+            return members
+        else:
+            return None
+
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:
         if not isinstance(hostname, str):

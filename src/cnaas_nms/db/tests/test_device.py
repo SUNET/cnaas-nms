@@ -27,26 +27,20 @@ class DeviceTests(unittest.TestCase):
     def tearDown(self):
         self.tmp_postgres.shutdown()
 
-    def create_test_device(hostname='unittest'):
-        td = Device()
-        td.ztp_mac = '08002708a8be'
-        td.hostname = hostname
-        td.platform = 'eos'
-        td.management_ip = IPv4Address('10.0.1.22')
-        td.state = DeviceState.MANAGED
-        td.device_type = DeviceType.ACCESS
-        return td
+    def create_test_device(hostname="unittest"):
+        return Device(
+            ztp_mac="08002708a8be",
+            hostname=hostname,
+            platform="eos",
+            management_ip=IPv4Address("10.0.1.22"),
+            state=DeviceState.MANAGED,
+            device_type=DeviceType.DIST,
+        )
 
     def test_add_dist_device(self):
         with sqla_session() as session:
             #TODO: get params from testdata.yml
-            new_device = Device()
-            new_device.ztp_mac = '08002708a8be'
-            new_device.hostname = 'unittest'
-            new_device.platform = 'eos'
-            new_device.management_ip = IPv4Address('10.0.1.22')
-            new_device.state = DeviceState.MANAGED
-            new_device.device_type = DeviceType.DIST
+            new_device = DeviceTests.create_test_device()
             result = session.add(new_device)
 
         pprint.pprint(result)
@@ -90,11 +84,12 @@ class DeviceTests(unittest.TestCase):
             session.add(new_stack)
             session.flush()
 
-            stackmember1 = Stackmember()
-            stackmember1.device_id = new_stack.id
-            stackmember1.hardware_id = "DHWAJDJWADDWADWA"
-            stackmember1.member_no = "1"
-            stackmember1.priority = "1"
+            stackmember1 = Stackmember(
+                device_id = new_stack.id,
+                hardware_id = "DHWAJDJWADDWADWA",
+                member_no = "1",
+                priority = "1",
+            )
             session.add(stackmember1)
             session.flush()
 
@@ -107,10 +102,11 @@ class DeviceTests(unittest.TestCase):
             session.add(new_stack)
             session.flush()
 
-            stackmember1 = Stackmember()
-            stackmember1.device_id = new_stack.id
-            stackmember1.hardware_id = "DHWAJDJWADDWADWB"
-            stackmember1.member_no = "1"
+            stackmember1 = Stackmember(
+                device_id = new_stack.id,
+                hardware_id = "DHWAJDJWADDWADWB",
+                member_no = "1",
+            )
             session.add(stackmember1)
             session.flush()
 
@@ -125,15 +121,18 @@ class DeviceTests(unittest.TestCase):
             session.add(new_stack)
             session.flush()
             self.assertIsNone(new_stack.get_stackmembers(session))
-            stackmember1 = Stackmember()
-            stackmember1.device_id = new_stack.id
-            stackmember1.hardware_id = "DHWAJDJWADDWADWC"
-            stackmember1.member_no = "1"
+
+            stackmember1 = Stackmember(
+                device_id = new_stack.id,
+                hardware_id = "DHWAJDJWADDWADWC",
+                member_no = "0",
+            )
             session.add(stackmember1)
-            stackmember2 = Stackmember()
-            stackmember2.device_id = new_stack.id
-            stackmember2.hardware_id = "DHWAJDJWADDWADWD"
-            stackmember2.member_no = "2"
+            stackmember2 = Stackmember(
+                device_id = new_stack.id,
+                hardware_id = "DHWAJDJWADDWADWD",
+                member_no = "1",
+            )
             session.add(stackmember2)
             session.flush()
 

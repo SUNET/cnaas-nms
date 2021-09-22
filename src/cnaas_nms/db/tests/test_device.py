@@ -12,7 +12,7 @@ from ipaddress import IPv4Address
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.stackmember import Stackmember
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, sqla_test_session
 from cnaas_nms.db.linknet import Linknet
 
 from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
@@ -85,10 +85,10 @@ class DeviceTests(unittest.TestCase):
                 pprint.pprint(nei.as_dict())
 
     def test_add_stackmember(self):
-        with sqla_session() as session:
+        with sqla_test_session() as session:
             new_stack = DeviceTests.create_test_device('unittest2')
             session.add(new_stack)
-            session.commit()
+            session.flush()
 
             stackmember1 = Stackmember()
             stackmember1.device_id = new_stack.id
@@ -96,42 +96,35 @@ class DeviceTests(unittest.TestCase):
             stackmember1.member_no = "1"
             stackmember1.priority = "1"
             session.add(stackmember1)
-            session.commit()
+            session.flush()
 
             self.assertEquals(stackmember1,
                 session.query(Stackmember).filter(Stackmember.device == new_stack).one())
-            session.delete(stackmember1)
-            session.delete(new_stack)
-            session.commit()
 
     def test_is_stack(self):
-        with sqla_session() as session:
+        with sqla_test_session() as session:
             new_stack = DeviceTests.create_test_device('unittest3')
             session.add(new_stack)
-            session.commit()
+            session.flush()
 
             stackmember1 = Stackmember()
             stackmember1.device_id = new_stack.id
             stackmember1.hardware_id = "DHWAJDJWADDWADWB"
             stackmember1.member_no = "1"
             session.add(stackmember1)
-            session.commit()
+            session.flush()
 
             self.assertTrue(new_stack.is_stack(session))
 
             session.delete(stackmember1)
             self.assertFalse(new_stack.is_stack(session))
 
-            session.delete(new_stack)
-            session.commit()
-
     def test_get_stackmembers(self):
-        with sqla_session() as session:
+        with sqla_test_session() as session:
             new_stack = DeviceTests.create_test_device('unittest4')
             session.add(new_stack)
-            session.commit()
+            session.flush()
             self.assertIsNone(new_stack.get_stackmembers(session))
-
             stackmember1 = Stackmember()
             stackmember1.device_id = new_stack.id
             stackmember1.hardware_id = "DHWAJDJWADDWADWC"
@@ -142,14 +135,11 @@ class DeviceTests(unittest.TestCase):
             stackmember2.hardware_id = "DHWAJDJWADDWADWD"
             stackmember2.member_no = "2"
             session.add(stackmember2)
-            session.commit()
+            session.flush()
 
             # lists have same elements, regardless of ordering
             self.assertCountEqual([stackmember1, stackmember2],
                 new_stack.get_stackmembers(session))
-
-            session.delete(new_stack)
-            session.commit()
 
 if __name__ == '__main__':
     unittest.main()

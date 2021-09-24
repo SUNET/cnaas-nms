@@ -37,38 +37,23 @@ class DeviceTests(unittest.TestCase):
             device_type=DeviceType.DIST,
         )
 
-    def test_add_dist_device(self):
-        with sqla_session() as session:
-            #TODO: get params from testdata.yml
-            new_device = DeviceTests.create_test_device()
-            result = session.add(new_device)
-
-        pprint.pprint(result)
-        # Inventory dict should contain these top level keys
-        #self.assertListEqual(
-        #    ['hosts', 'groups', 'defaults'],
-        #    list(result.keys()))
-        # Hosts key should include atleast 1 item
-        #self.assertLessEqual(
-        #    1,
-        #    len(result['hosts'].items()))
-
-    def test_delete_dist_device(self):
-        with sqla_session() as session:
+    def test_add_and_delete_dist_device(self):
+        new_device = DeviceTests.create_test_device()
+        with sqla_test_session() as session:
+            session.add(new_device)
             instance = session.query(Device).filter(Device.hostname == 'unittest').first()
-            if instance:
-                session.delete(instance)
-                session.commit()
-            else:
-                print('Device not found: ')
+            self.assertEquals(instance, new_device)
+            session.delete(instance)
+            deleted_instance = session.query(Device).filter(Device.hostname == 'unittest').first()
+            self.assertIsNone(deleted_instance)
 
     def test_get_device_linknets(self):
-        hostname = self.testdata['query_neighbor_device']
-        with sqla_session() as session:
-            d = session.query(Device).filter(Device.hostname == hostname).one()
+        new_device = DeviceTests.create_test_device()
+        with sqla_test_session() as session:
+            session.add(new_device)
+            d = session.query(Device).filter(Device.hostname == 'unittest').one()
             for linknet in d.get_linknets(session):
                 self.assertIsInstance(linknet, Linknet)
-                pprint.pprint(linknet.as_dict())
 
     def test_get_device_neighbors(self):
         hostname = self.testdata['query_neighbor_device']

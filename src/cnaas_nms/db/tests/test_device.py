@@ -48,12 +48,23 @@ class DeviceTests(unittest.TestCase):
             self.assertIsNone(deleted_instance)
 
     def test_get_device_linknets(self):
-        new_device = DeviceTests.create_test_device()
+        device1 = DeviceTests.create_test_device('test-device1')
+        device2 = DeviceTests.create_test_device('test-device2')
         with sqla_test_session() as session:
-            session.add(new_device)
-            d = session.query(Device).filter(Device.hostname == 'unittest').one()
+            session.add(device1)
+            session.add(device2)
+            test_linknet = Linknet(
+                device_a = device1,
+                device_b = device2
+            )
+            d = session.query(Device).filter(Device.hostname == 'test-device1').one()
+            n = session.query(Device).filter(Device.hostname == 'test-device2').one()
+            self.assertTrue(d.get_linknets(session))   # list is not empty
+            self.assertTrue(n.get_linknets(session))
             for linknet in d.get_linknets(session):
                 self.assertIsInstance(linknet, Linknet)
+            self.assertEquals([test_linknet], d.get_linknets(session))
+            self.assertEquals([test_linknet], n.get_linknets(session))
 
     def test_get_device_neighbors(self):
         new_device = DeviceTests.create_test_device('testdevice')

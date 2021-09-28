@@ -12,7 +12,7 @@ from ipaddress import IPv4Address
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.stackmember import Stackmember
-from cnaas_nms.db.session import sqla_session, sqla_test_session
+from cnaas_nms.db.session import sqla_test_session
 from cnaas_nms.db.linknet import Linknet
 
 from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
@@ -56,12 +56,24 @@ class DeviceTests(unittest.TestCase):
                 self.assertIsInstance(linknet, Linknet)
 
     def test_get_device_neighbors(self):
-        hostname = self.testdata['query_neighbor_device']
-        with sqla_session() as session:
-            d = session.query(Device).filter(Device.hostname == hostname).one()
+        new_device = DeviceTests.create_test_device('testdevice')
+        neighbour_device = DeviceTests.create_test_device('neighbourdevice')
+        with sqla_test_session() as session:
+            session.add(new_device)
+            session.add(neighbour_device)
+            test_linknet = Linknet(
+                device_a = new_device,
+                device_b = neighbour_device
+            )
+            # check neighbour relation one way
+            d = session.query(Device).filter(Device.hostname == 'testdevice').one()
+            self.assertEquals([neighbour_device], d.get_neighbors(session))
+            # check the other way
+            n = session.query(Device).filter(Device.hostname == 'neighbourdevice').one()
+            self.assertEquals([new_device], n.get_neighbors(session))
+            # check type
             for nei in d.get_neighbors(session):
                 self.assertIsInstance(nei, Device)
-                pprint.pprint(nei.as_dict())
 
     def test_add_stackmember(self):
         with sqla_test_session() as session:

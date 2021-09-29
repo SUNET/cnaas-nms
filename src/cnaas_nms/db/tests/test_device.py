@@ -27,6 +27,16 @@ class DeviceTests(unittest.TestCase):
     def tearDown(self):
         self.tmp_postgres.shutdown()
 
+    def create_test_device(hostname='unittest'):
+        td = Device()
+        td.ztp_mac = '08002708a8be'
+        td.hostname = hostname
+        td.platform = 'eos'
+        td.management_ip = IPv4Address('10.0.1.22')
+        td.state = DeviceState.MANAGED
+        td.device_type = DeviceType.ACCESS
+        return td
+
     def test_add_dist_device(self):
         with sqla_session() as session:
             #TODO: get params from testdata.yml
@@ -76,13 +86,7 @@ class DeviceTests(unittest.TestCase):
 
     def test_add_stackmember(self):
         with sqla_session() as session:
-            new_stack = Device()
-            new_stack.ztp_mac = '08002708a8be'
-            new_stack.hostname = 'unittest2'
-            new_stack.platform = 'eos'
-            new_stack.management_ip = IPv4Address('10.0.1.22')
-            new_stack.state = DeviceState.MANAGED
-            new_stack.device_type = DeviceType.ACCESS
+            new_stack = DeviceTests.create_test_device('unittest2')
             session.add(new_stack)
             session.commit()
 

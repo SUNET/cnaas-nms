@@ -104,5 +104,26 @@ class DeviceTests(unittest.TestCase):
             session.delete(new_stack)
             session.commit()
 
+    def test_is_stack(self):
+        with sqla_session() as session:
+            new_stack = DeviceTests.create_test_device('unittest3')
+            session.add(new_stack)
+            session.commit()
+
+            stackmember1 = Stackmember()
+            stackmember1.device_id = new_stack.id
+            stackmember1.hardware_id = "DHWAJDJWADDWADWB"
+            stackmember1.member_no = "1"
+            session.add(stackmember1)
+            session.commit()
+
+            self.assertTrue(new_stack.is_stack(session))
+
+            session.delete(stackmember1)
+            self.assertFalse(new_stack.is_stack(session))
+
+            session.delete(new_stack)
+            session.commit()
+
 if __name__ == '__main__':
     unittest.main()

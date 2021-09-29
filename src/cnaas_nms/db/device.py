@@ -19,6 +19,7 @@ import cnaas_nms.db.site
 import cnaas_nms.db.linknet
 
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.tools.event import add_event
 
 
@@ -250,6 +251,13 @@ class Device(cnaas_nms.db.base.Base):
             return next(iter(peers))
         else:
             return None
+
+    def is_stack(self, session):
+        """Check if this a stack device"""
+        if session.query(Stackmember).filter(Stackmember.device == self).count() > 0:
+            return True
+        else:
+            return False
 
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:

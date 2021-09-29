@@ -22,6 +22,7 @@ Bug fixes:
  - Fix factory_default: false (#200)
  - Fix assigning of vxlans etc to both groups and devices at same time (#201)
  - Possible fix for "weak object has gone away" (#205)
+ - Fixes for device synchranization status updating (#208,#209)
 
 Version 1.2.0
 -------------

@@ -610,7 +610,7 @@ def sync_devices(hostnames: Optional[List[str]] = None, device_type: Optional[st
     unchanged_hosts = []
     # calculate change impact score
     for host, results in nrresult.items():
-        if len(results) != 3:
+        if host in failed_hosts or len(results) != 3:
             logger.debug("Unable to calculate change score for failed device {}".format(host))
         elif results[2].diff:
             changed_hosts.append(host)

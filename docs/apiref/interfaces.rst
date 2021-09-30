@@ -140,11 +140,14 @@ You can check what VLAN names exist on a specific switch by using the /settings
 API call and specifying the hostname and then look for the vlan_name field
 under a specific vxlan.
 
-Data can also optionally contain a key called "description" to set a
-description for the interface, this should be a string 0-64 characters.
+Data can also contain any of these optional keys:
 
-Data can also optionally contain a key called "enabled" to set the
-administrative state of the interface. Defaults to enabled: true if not set.
+- description: Description for the interface, this should be a string 0-64 characters.
+- enabled: Set the administrative state of the interface. Defaults to true if not set.
+- aggregate_id: Identifier for configuring LACP etc. Integer value.
+  Special value -1 means configure MLAG and use ID based on indexnum.
+
+Setting an optional value to JSON null will remove it from the database.
 
 To disable a port:
 

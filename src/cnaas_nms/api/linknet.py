@@ -125,9 +125,11 @@ class LinknetsApi(Resource):
             return empty_result(status='error', data=errors), 400
 
         with sqla_session() as session:
-            cur_linknet = session.query(Linknet).filter(Linknet.id == json_data['id']).one_or_none()
+            cur_linknet: Linknet = session.query(Linknet).filter(Linknet.id == json_data['id']).one_or_none()
             if not cur_linknet:
                 return empty_result(status='error', data="No such linknet found in database"), 404
+            cur_linknet.device_a.synchronized = False
+            cur_linknet.device_b.synchronized = False
             session.delete(cur_linknet)
             session.commit()
             return empty_result(status="success", data={"deleted_linknet": cur_linknet.as_dict()}), 200

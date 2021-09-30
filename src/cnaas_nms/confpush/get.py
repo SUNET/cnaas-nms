@@ -18,7 +18,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 
 def get_inventory():
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    return nr.dict()
+    return nr.dict()['inventory']
 
 
 def get_running_config(hostname):

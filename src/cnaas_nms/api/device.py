@@ -152,25 +152,26 @@ class DeviceByIdApi(Resource):
                     scheduled_by=get_jwt_identity(),
                     kwargs={'device_id': device_id})
                 return empty_result(data='Scheduled job {} to factory default device'.format(job_id))
-        else:
-            with sqla_session() as session:
-                dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
-                if not dev:
-                    return empty_result('error', "Device not found"), 404
-                try:
-                    session.delete(dev)
-                    session.commit()
-                except IntegrityError as e:
-                    session.rollback()
-                    return empty_result(
-                        status='error',
-                        data="Could not remove device because existing references: {}".format(e))
-                except Exception as e:
-                    session.rollback()
-                    return empty_result(
-                        status='error',
-                        data="Could not remove device: {}".format(e))
-                return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
+            elif not isinstance(json_data['factory_default'], bool):
+                return empty_result(status='error', data="Argument factory_default must be boolean"), 400
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if not dev:
+                return empty_result('error', "Device not found"), 404
+            try:
+                session.delete(dev)
+                session.commit()
+            except IntegrityError as e:
+                session.rollback()
+                return empty_result(
+                    status='error',
+                    data="Could not remove device because existing references: {}".format(e))
+            except Exception as e:
+                session.rollback()
+                return empty_result(
+                    status='error',
+                    data="Could not remove device: {}".format(e))
+            return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
 
     @jwt_required
     @device_api.expect(device_model)

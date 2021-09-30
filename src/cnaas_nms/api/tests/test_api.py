@@ -47,6 +47,23 @@ class ApiTests(unittest.TestCase):
         # Exactly one result
         self.assertEqual(len(result.json['data']['jobs']), 1)
 
+    def test_filter_job(self):
+        result = self.client.get('/api/v1.0/jobs?filter[function.name][contains]=sync&filter_jobresult=config')
+
+        # 200 OK
+        self.assertEqual(result.status_code, 200)
+        # Succes in json
+        self.assertEqual(result.json['status'], 'success')
+        # At least one result
+        self.assertGreaterEqual(len(result.json['data']['jobs']), 1, "No jobs found")
+        # Exactly 2 task results
+        first_device_result = next(iter(result.json['data']['jobs'][0]['result']['devices'].values()))
+        self.assertEqual(len(first_device_result['job_tasks']), 2,
+                         "Job result output should only contain 2 tasks")
+        self.assertEqual(len(list(filter(lambda x: x["task_name"] != "Generate device config",
+                                         first_device_result['job_tasks']))),
+                         2, "Job result included 'Generate device config' task")
+
     def test_get_managementdomain(self):
         result = self.client.get('/api/v1.0/mgmtdomains?per_page=1')
         # 200 OK
@@ -57,6 +74,40 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(len(result.json['data']['mgmtdomains']), 1)
         # The one result should have the same ID we asked for
         self.assertIsInstance(result.json['data']['mgmtdomains'][0]['id'], int)
+
+    def test_update_managementdomain(self):
+        result = self.client.get('/api/v1.0/mgmtdomains?per_page=1')
+        self.assertIsInstance(result.json['data']['mgmtdomains'][0]['id'], int)
+        id = result.json['data']['mgmtdomains'][0]['id']
+        data = {"vlan": 601}
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertIn('updated_mgmtdomain', result.json['data'])
+        # Make sure returned data inclueds new vlan
+        self.assertEqual(result.json['data']['updated_mgmtdomain']['vlan'], data['vlan'])
+        # Change back to old vlan
+        data["vlan"] = 600
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertIn('updated_mgmtdomain', result.json['data'])
+        # Check that no change is made when applying same vlan twice
+        data["vlan"] = 600
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 200)
+        self.assertIn('unchanged_mgmtdomain', result.json['data'])
+
+    def test_validate_managementdomain(self):
+        result = self.client.get('/api/v1.0/mgmtdomains?per_page=1')
+        self.assertIsInstance(result.json['data']['mgmtdomains'][0]['id'], int)
+        id = result.json['data']['mgmtdomains'][0]['id']
+        # Check that you get error if using invalid gw
+        data = {"ipv4_gw": "10.0.6.0/24"}
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 400)
+        # Check that you get error if using invalid vlan id
+        data = {"vlan": 5000}
+        result = self.client.put('/api/v1.0/mgmtdomain/{}'.format(id), json=data)
+        self.assertEqual(result.status_code, 400)
 
     def test_repository_refresh(self):
         data = {"action": "refresh"}

@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict
+from ipaddress import IPv4Interface, AddressValueError
 
 from pydantic import BaseModel, Field, validator
 
@@ -44,6 +45,7 @@ vlan_name_schema = Field(None, regex=VLAN_NAME_REGEX,
                          description="Max 32 alphanumeric chars, " +
                                      "beginning with a non-numeric character")
 vlan_id_schema = Field(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
+vlan_id_schema_optional = Field(None, gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
 vxlan_vni_schema = Field(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
 vrf_id_schema = Field(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
 mtu_schema = Field(None, ge=68, le=9214,
@@ -52,15 +54,31 @@ as_num_schema = Field(..., gt=0, lt=4294967296, description="BGP Autonomous Syst
 IFNAME_REGEX = r'([a-zA-Z0-9\/\.:-])+'
 ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$",
                       description="Interface name")
-IFCLASS_REGEX = r'(custom|downlink|fabric)'
+IFCLASS_REGEX = r'(custom|downlink|fabric|port_template_[a-zA-Z0-9_]+)'
 ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$",
                        description="Interface class: custom, downlink or uplink")
+ifdescr_schema = Field(None, max_length=64, description="Interface description, 0-64 characters")
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
 ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
 maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer")
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
+
+
+def validate_ipv4_if(ipv4if: str):
+    try:
+        assert ("/" in ipv4if), "Not a CIDR notation/no netmask"
+        addr = IPv4Interface(ipv4if)
+        assert (8 <= addr.network.prefixlen <= 32), "Invalid prefix size"
+        assert (not addr.is_multicast), "Multicast address is invalid"
+        if addr.network.prefixlen <= 30:
+            assert (str(addr.ip) != str(addr.network.network_address)), "Invalid interface address"
+            assert (str(addr.ip) != str(addr.network.broadcast_address)), "Invalid interface address"
+    except AddressValueError as e:
+        raise ValueError("Invalid IPv4 interface: {}".format(e))
+    except AssertionError as e:
+        raise ValueError("Invalid IPv4 interface: {}".format(e))
 
 
 # Note: If specifying a list of a BaseModel derived class anywhere else except
@@ -85,6 +103,11 @@ class f_syslog_server(BaseModel):
     port: Optional[int] = tcpudp_port_schema
 
 
+class f_flow_collector(BaseModel):
+    host: str = host_schema
+    port: Optional[int] = tcpudp_port_schema
+
+
 class f_snmp_server(BaseModel):
     host: str = host_schema
 
@@ -105,11 +128,26 @@ class f_interface(BaseModel):
     name: str = ifname_schema
     ifclass: str = ifclass_schema
     config: Optional[str] = None
+    description: Optional[str] = ifdescr_schema
+    enabled: Optional[bool] = None
+    untagged_vlan: Optional[int] = vlan_id_schema_optional
+    tagged_vlan_list: Optional[List[int]] = None
+    aggregate_id: Optional[int] = None
+    cli_append_str: str = ""
+
+    @validator("tagged_vlan_list", each_item=True)
+    def check_valid_vlan_ids(cls, v):
+        assert 0 < v < 4096
+        return v
 
 
 class f_vrf(BaseModel):
     name: str = None
     vrf_id: int = vrf_id_schema
+    import_route_targets: List[str] = []
+    export_route_targets: List[str] = []
+    import_policy: Optional[str] = None
+    export_policy: Optional[str] = None
     groups: List[str] = []
 
 
@@ -189,6 +227,7 @@ class f_extroute_bgp_vrf(BaseModel):
     local_as: int = as_num_schema
     neighbor_v4: List[f_extroute_bgp_neighbor_v4] = []
     neighbor_v6: List[f_extroute_bgp_neighbor_v6] = []
+    cli_append_str: str = ""
 
 
 class f_extroute_bgp(BaseModel):
@@ -214,17 +253,25 @@ class f_vxlan(BaseModel):
     vrf: Optional[str] = vlan_name_schema
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
-    ipv4_gw: Optional[str] = ipv4_if_schema
+    ipv4_gw: Optional[str] = None
+    ipv4_secondaries: Optional[List[str]]
     ipv6_gw: Optional[str] = ipv6_if_schema
     dhcp_relays: Optional[List[f_dhcp_relay]]
     mtu: Optional[int] = mtu_schema
     vxlan_host_route: bool = True
     groups: List[str] = []
     devices: List[str] = []
+    tags: List[str] = []
+
+    @validator('ipv4_secondaries', each_item=True)
+    def ipv4_secondaries_regex(cls, v):
+        validate_ipv4_if(v)
+        return v
 
     @validator('ipv4_gw')
     def vrf_required_if_ipv4_gw_set(cls, v, values, **kwargs):
         if v:
+            validate_ipv4_if(v)
             if 'vrf' not in values or not values['vrf']:
                 raise ValueError('VRF is required when specifying ipv4_gw')
         return v
@@ -249,6 +296,7 @@ class f_root(BaseModel):
     syslog_servers: List[f_syslog_server] = []
     snmp_servers: List[f_snmp_server] = []
     dns_servers: List[f_dns_server] = []
+    flow_collectors: List[f_flow_collector] = []
     dhcp_relays: Optional[List[f_dhcp_relay]]
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
@@ -259,6 +307,7 @@ class f_root(BaseModel):
     extroute_ospfv3: Optional[f_extroute_ospfv3]
     extroute_bgp: Optional[f_extroute_bgp]
     internal_vlans: Optional[f_internal_vlans]
+    dot1x_fail_vlan: Optional[int] = vlan_id_schema_optional
     cli_prepend_str: str = ""
     cli_append_str: str = ""
 

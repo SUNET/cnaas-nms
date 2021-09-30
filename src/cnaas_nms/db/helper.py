@@ -56,6 +56,8 @@ def find_mgmtdomain(session, hostnames: List[str]) -> Optional[Mgmtdomain]:
                     |
                     ((Mgmtdomain.device_a == device1) & (Mgmtdomain.device_b == device0))
                 ).one_or_none()
+            # If no mgmtdomain has been found, check if there is exactly one mgmtdomain
+            # defined that has two core devices as members and use that instead
             if not mgmtdomain:
                 mgmtdomain: Mgmtdomain = session.query(Mgmtdomain).filter(
                     (Mgmtdomain.device_a.has(Device.device_type == DeviceType.CORE))

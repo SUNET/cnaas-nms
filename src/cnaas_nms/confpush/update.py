@@ -1,3 +1,4 @@
+import datetime
 from typing import Optional, List
 
 from nornir_napalm.plugins.tasks import napalm_get
@@ -186,6 +187,7 @@ def update_facts(hostname: str,
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
             diff = set_facts(dev, facts)
+            dev.last_seen = datetime.datetime.utcnow()
 
         logger.debug("Updating facts for device {}, new values: {}, {}, {}, {}".format(
             hostname, facts['serial_number'], facts['vendor'], facts['model'], facts['os_version']

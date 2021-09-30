@@ -168,6 +168,14 @@ Can contain the following dictionaries with specified keys:
   * vrf_id: An integer between 1-65535. This ID can be used to generate unique VNI, RD and RT
     values for this VRF.
   * groups: A list of groups this VRF should be provisioned on.
+  * import_route_targets: A list of strings containing extra route targets to import
+    for route leaking (optional)
+  * export_route_targets: A list of strings containing extra route targets to export
+    for route leaking (optional)
+  * import_policy: A string containing route policy/route map to define import
+    behavior, useful in route leaking scenarios (optional)
+  * export_policy: A string containing route policy/route map to define export
+    behavior, useful in route leaking scenarios (optional)
 
 * extroute_static:
 
@@ -203,6 +211,7 @@ Can contain the following dictionaries with specified keys:
 
     * name: Name of the VRF
     * local_as: AS number that CNaaS NMS devices will present themselves as
+    * cli_append_str: Custom configuration to append to BGP VRF config (optional)
     * neighbor_v4:
 
       * peer_as: AS number the remote peer
@@ -257,10 +266,15 @@ name is the dictionary key and dictionaly values are:
   * vrf: VRF name. Optional unless ipv4_gw is also specified.
   * vlan_id: VLAN ID, 1-4095
   * vlan_name: VLAN name, single word/no spaces, max 31 characters
-  * ipv4_gw: IPv4 address with CIDR netmask, ex: 192.168.0.1/24. Optional.
+  * ipv4_gw: IPv4 gateway address in CIDR notation, ex: 192.168.0.1/24. Optional.
+  * ipv4_secondaries: List of IPv4 addresses in CIDR notation. Optional.
   * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
+  * dhcp_relays: DHCP relay address. Optional.
+  * mtu: Define custom MTU. Optional.
+  * tags: List of custom strings to tag this VXLAN with. Optional.
   * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
     access switch the parent dist switch should be automatically provisioned.
+  * devices: List of device names where this VXLAN/VLAN should be provisioned. Optional.
 
 interfaces.yml:
 
@@ -276,8 +290,18 @@ Keys for interfaces.yml or interfaces_<model>.yml:
 * interfaces: List of dicctionaries with keys:
 
   * name: Interface name, like "Ethernet1"
-  * ifclass: Interface class, one of: downlink, fabric, custom
+  * ifclass: Interface class, one of: downlink, fabric, custom, port_template_*
   * config: Optional. Raw CLI config used in case "custom" ifclass was selected
+
+* Additional interface options for port_template type:
+
+  * untagged_vlan: Optional. Numeric VLAN ID for untagged frames.
+  * tagged_vlan_list: Optional. List of allowed numeric VLAN IDs for tagged frames.
+  * description: Optional. Description for the interface, this should be a string 0-64 characters.
+  * enabled: Optional. Set the administrative state of the interface. Defaults to true if not set.
+  * aggregate_id: Optional. Identifier for configuring LACP etc. Integer value.
+    Special value -1 means configure MLAG and use ID based on indexnum.
+  * cli_append_str: Optional. Custom configuration to append to this interface. 
 
 The "downlink" ifclass is used on DIST devices to specify that this interface
 is used to connect access devices. The "fabric" ifclass is used to specify that
@@ -286,6 +310,10 @@ the switch (vxlan) fabric. Linknet data will only be configured on interfaces
 specified as "fabric". If no linknet data is available in the database then
 the fabric interface will be configured for ZTP of DIST/CORE devices by
 providing DHCP (relay) access.
+"port_template_*" is used to specify a user defined port template. This can then
+be used to apply some site-specific configuration via Jinja templates. For
+example specify "port_template_hypervisor" and build a corresponding Jinja
+template by matching on that ifclass.
 
 base_system.yml:
 
@@ -295,8 +323,10 @@ Contains base system settings like:
 - snmp_servers
 - dns_servers
 - syslog_servers
+- flow_collectors
 - dhcp_relays
 - internal_vlans
+- dot1x_fail_vlan: Numeric ID of authentication fail VLAN
 
 Example of base_system.yml:
 
@@ -314,12 +344,16 @@ Example of base_system.yml:
    syslog_servers:
      - host: 10.255.0.21
      - host: 10.255.0.22
+   flow_collectors:
+     - host: 10.255.0.30
+       port: 6343
    dhcp_relays:
      - host: 10.255.1.1
      - host: 10.255.1.2
    internal_vlans:
      vlan_id_low: 3006
      vlan_id_high: 4094
+   dot1x_fail_vlan: 13
 
 
 syslog_servers and radius_severs can optionally have the key "port" specified

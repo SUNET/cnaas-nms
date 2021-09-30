@@ -248,9 +248,9 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
                     pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
                 else:
                     pydantic_descr_msg = ""
-            except Exception as e_pydantic_descr:
-                logger.exception(e_pydantic_descr)
-                pydantic_descr_msg = ", exception while getting pydantic description"
+            except Exception as e:
+                logger.debug(e)
+                pydantic_descr_msg = ""
             error_msg += "Message: {}{}\n".format(error['msg'], pydantic_descr_msg)
             msg += error_msg
         raise SettingsSyntaxError(msg)
@@ -438,43 +438,41 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
         return ret_l
     elif isinstance(data, dict):
         ret_d = {}
+        group_match = False
+        hostname_match = False
+        do_filter_group = False
+        do_filter_hostname = False
         for k, v in data.items():
-            do_filter = False
-            group_match = False
-            hostname_match = False
             if not v:
                 ret_d[k] = v
                 continue
             if k == 'groups':
-                if not v:
-                    continue
                 if not isinstance(v, list):  # Should already be checked by pydantic now
                     raise SettingsSyntaxError(
                         "Groups field must be a list or empty (currently {}) in: {}".
                         format(type(v).__name__, data))
-                do_filter = True
+                do_filter_group = True
+                ret_d[k] = v
                 for group in v:
                     if group in groups:
                         group_match = True
-                        ret_d[k] = v
             elif k == 'devices':
-                if not v:
-                    continue
                 if not isinstance(v, list):  # Should already be checked by pydantic now
                     raise SettingsSyntaxError(
                         "Devices field must be a list or empty (currently {}) in: {}".
                         format(type(v).__name__, data))
-                do_filter = True
+                do_filter_hostname = True
+                ret_d[k] = v
                 if hostname in v:
                     hostname_match = True
-                    ret_d[k] = v
-            if do_filter and not (group_match or hostname_match):
-                return None
             else:
                 ret_v = filter_yamldata(v, groups, hostname, recdepth - 1)
                 if ret_v:
                     ret_d[k] = ret_v
-        return ret_d
+        if (do_filter_group or do_filter_hostname) and not group_match and not hostname_match:
+            return None
+        else:
+            return ret_d
     else:
         return data
 
@@ -638,6 +636,7 @@ def get_groups(hostname: Optional[str] = None) -> List[str]:
         if hostname:
             if 'regex' not in group['group']:
                 continue
+            # TODO: try and catch, report what regex failed
             if not re.match(group['group']['regex'], hostname):
                 continue
         groups.append(group['group']['name'])

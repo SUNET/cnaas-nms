@@ -186,7 +186,31 @@ class GetTests(unittest.TestCase):
             json={"interfaces": {"Ethernet1": {"data": {"vxlan": "student1"}}}},
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to update interface")
+        self.assertEqual(r.status_code, 200, "Failed to update interface vxlan")
+
+        r = requests.put(
+            f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            headers=AUTH_HEADER,
+            json={"interfaces": {"Ethernet1": {"data": {"description": "test_03_interfaces"}}}},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to update interface description")
+
+        r = requests.put(
+            f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            headers=AUTH_HEADER,
+            json={"interfaces": {"Ethernet1": {"data": {"aggregate_id": -1}}}},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to update interface aggregate_id")
+
+        r = requests.put(
+            f'{URL}/api/v1.0/device/eosaccess/interfaces',
+            headers=AUTH_HEADER,
+            json={"interfaces": {"Ethernet1": {"data": {"aggregate_id": None}}}},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to update interface aggregate_id")
 
     def test_04_syncto_access(self):
         r = requests.post(
@@ -208,8 +232,20 @@ class GetTests(unittest.TestCase):
         self.assertEqual(type(auto_job1['next_job_id']), int, "No auto-push commit job found")
         self.check_jobid(auto_job1['next_job_id'])
 
+    def test_05_update_facts_dist(self):
+        hostname = "eosdist1"
+        r = requests.post(
+            f'{URL}/api/v1.0/device_update_facts',
+            headers=AUTH_HEADER,
+            json={"hostname": hostname},
+            verify=TLS_VERIFY
+        )
+        self.assertEqual(r.status_code, 200, "Failed to do update facts for dist")
+        update_facts_job_id = r.json()['job_id']
+        job = self.check_jobid(update_facts_job_id)
+        self.assertIn("diff", job['result'])
 
-    def test_05_syncto_dist(self):
+    def test_06_syncto_dist(self):
         r = requests.post(
             f'{URL}/api/v1.0/device_syncto',
             headers=AUTH_HEADER,
@@ -219,7 +255,7 @@ class GetTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")
         self.check_jobid(r.json()['job_id'])
 
-    def test_06_genconfig(self):
+    def test_07_genconfig(self):
         r = requests.get(
             f'{URL}/api/v1.0/device/eosdist1/generate_config',
             headers=AUTH_HEADER,
@@ -227,7 +263,7 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to generate config for eosdist1")
 
-    def test_07_plugins(self):
+    def test_08_plugins(self):
         r = requests.get(
             f'{URL}/api/v1.0/plugins',
             headers=AUTH_HEADER,
@@ -243,7 +279,7 @@ class GetTests(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 200, "Failed to run plugin selftests")
 
-    def test_08_firmware(self):
+    def test_09_firmware(self):
         r = requests.get(
             f'{URL}/api/v1.0/firmware',
             headers=AUTH_HEADER,
@@ -252,14 +288,14 @@ class GetTests(unittest.TestCase):
         # TODO: not working
         self.assertEqual(r.status_code, 200, "Failed to list firmware")
 
-    def test_09_sysversion(self):
+    def test_10_sysversion(self):
         r = requests.get(
             f'{URL}/api/v1.0/system/version',
             verify=TLS_VERIFY
         )
         self.assertEqual(r.status_code, 200, "Failed to get CNaaS-NMS version")
 
-    def test_10_get_prev_config(self):
+    def test_11_get_prev_config(self):
         hostname = "eosaccess"
         r = requests.get(
             f"{URL}/api/v1.0/device/{hostname}/previous_config?previous=0",
@@ -284,19 +320,6 @@ class GetTests(unittest.TestCase):
         restore_job_id = r.json()['job_id']
         job = self.check_jobid(restore_job_id)
         self.assertFalse(job['result']['devices'][hostname]['failed'])
-
-    def test_11_update_facts_dist(self):
-        hostname = "eosdist1"
-        r = requests.post(
-            f'{URL}/api/v1.0/device_update_facts',
-            headers=AUTH_HEADER,
-            json={"hostname": hostname},
-            verify=TLS_VERIFY
-        )
-        self.assertEqual(r.status_code, 200, "Failed to do update facts for dist")
-        update_facts_job_id = r.json()['job_id']
-        job = self.check_jobid(update_facts_job_id)
-        self.assertIn("diff", job['result'])
 
     def test_12_abort_running_job(self):
         data = {
@@ -412,7 +435,7 @@ class GetTests(unittest.TestCase):
             json={"hostname": hostname},
             verify=TLS_VERIFY
         )
-        self.assertEqual(r.status_code, 200, "Failed to do update interfaces for dist")
+        self.assertEqual(r.status_code, 200, "Failed to do update interfaces for access")
         restore_job_id = r.json()['job_id']
         job = self.check_jobid(restore_job_id)
         self.assertEqual(job['status'], "FINISHED")

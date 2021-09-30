@@ -55,7 +55,7 @@ class CnaasApi(Api):
         if isinstance(e, DecodeError):
             data = {'status': 'error', 'data': 'Could not deode JWT token'}
         elif isinstance(e, InvalidTokenError):
-            data = {'status': 'error', 'data': 'Invalid authentication header'}
+            data = {'status': 'error', 'data': 'Invalid authentication header: {}'.format(e)}
         elif isinstance(e, InvalidSignatureError):
             data = {'status': 'error', 'data': 'Invalid token signature'}
         elif isinstance(e, IndexError):

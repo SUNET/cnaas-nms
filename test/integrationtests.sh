@@ -44,8 +44,8 @@ docker volume create cnaas-cacert
 docker-compose up -d
 
 docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
-docker-compose exec -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
-docker-compose exec -T cnaas_api /opt/cnaas/createca.sh
+docker-compose exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
+docker-compose exec -u root -T cnaas_api /opt/cnaas/createca.sh
 
 if [ ! -z "$PRE_TEST_SCRIPT" ]
 then
@@ -80,7 +80,9 @@ sleep 120
 echo "Gathering coverage reports from integration tests:"
 MULE_PID="`docker logs docker_cnaas_api_1 | awk '/spawned uWSGI mule/{print $6}' | egrep -o "[0-9]+" | tail -n1`"
 echo "Found mule at pid $MULE_PID"
-docker exec docker_cnaas_api_1 kill $MULE_PID
+# Allow for code coverage files to be saved
+docker-compose exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+docker-compose exec -u root -T cnaas_api kill $MULE_PID
 curl -ks -H "Authorization: Bearer $JWT_AUTH_TOKEN" "https://localhost/api/v1.0/system/shutdown" -d "{}" -X POST -H "Content-Type: application/json"
 sleep 3
 
@@ -88,7 +90,7 @@ if ls -lh coverage/.coverage-* 2> /dev/null
 then
 	cp coverage/.coverage-* ../src/
 	echo "Starting unit tests..."
-	docker exec docker_cnaas_api_1 su -s /bin/bash -c /opt/cnaas/nosetests.sh - www-data
+	docker-compose exec -T cnaas_api /opt/cnaas/nosetests.sh
 	echo "Gathering coverage reports from unit tests:"
 	ls -lh coverage/.coverage-* 2> /dev/null
 	cp coverage/.coverage-nosetests ../src/
@@ -114,5 +116,8 @@ else
 	echo "ERROR: No coverage data found"
 	cd ../
 fi
+
+# Change owner back after code coverage is finished
+docker-compose exec -u root -T cnaas_api chown -R root:www-data /opt/cnaas/venv/cnaas-nms/src/
 
 docker-compose down

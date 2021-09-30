@@ -1,6 +1,29 @@
 Changelog
 =========
 
+Version 1.3.0
+-------------
+
+New features:
+
+ - CNaaS specific Jinja2 filters: increment_ip, ipv4_to_ipv6, isofy_ipv4 (#167)
+ - "aggregate_id" option for access ports to build link aggregates from access switches (#171)
+ - New settings for: flow_collectors, route leaking, port_template, dot1x_fail_vlan, vxlan tags, ipv4_secondaries (#178,#192,#193,#194,#195,#196,#203)
+ - Automatic descriptions for ACCESS_DOWNLINK type ports (#189)
+ - Option to filter job result output fields in API response (#197)
+
+Bug fixes:
+
+ - Fix race condition issue where different threads could sometimes cause issues with
+   wrong template being used when syncing multiple different operating systems in same job (#168,#176)
+ - Fix validation and return output for mgmtdomains API (#177)
+ - Cleanup of docker images (#184,#185,#186,#191)
+ - Update device last_seen on syncto, update facts, firmware post flight, device discovered, init step2 (#198)
+ - Fix factory_default: false (#200)
+ - Fix assigning of vxlans etc to both groups and devices at same time (#201)
+ - Possible fix for "weak object has gone away" (#205)
+ - Fixes for device synchranization status updating (#208,#209)
+
 Version 1.2.1
 -------------
 

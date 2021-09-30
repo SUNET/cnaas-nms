@@ -1,3 +1,5 @@
+import datetime
+import os
 from typing import Optional, List
 from ipaddress import IPv4Interface, IPv4Address
 
@@ -6,7 +8,6 @@ from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
 from apscheduler.job import Job
 import yaml
-import os
 
 import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
@@ -17,7 +18,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateExce
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_jinja_env
+from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets, set_facts
 from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
     sync_devices
@@ -88,7 +89,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
     r = task.run(task=template_file,
                  name="Generate initial device config",
                  template=template,
-                 jinja_env=cnaas_jinja_env,
+                 jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
                  path=f"{local_repo_path}/{task.host.platform}",
                  **device_variables)
 
@@ -318,14 +319,15 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     logger = get_logger()
     with sqla_session() as session:
         dev = pre_init_checks(session, device_id)
+        new_linknets = []
 
         # update linknets using LLDP data
-        update_linknets(session, dev.hostname, DeviceType.ACCESS)
+        new_linknets += update_linknets(session, dev.hostname, DeviceType.ACCESS)
 
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
-            update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
+            new_linknets += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
@@ -397,6 +399,12 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:
             session.delete(reserved_ip)
+        # Mark remote peers as unsynchronized so they can update interface descriptions
+        for linknet in new_linknets:
+            peer_hostname = linknet['device_b_hostname']
+            peer_dev: Device = session.query(Device).filter(Device.hostname == peer_hostname).one_or_none()
+            if peer_dev:
+                peer_dev.synchronized = False
 
     # Plugin hook, allocated IP
     try:
@@ -660,6 +668,7 @@ def init_device_step2(device_id: int, iteration: int = -1,
         set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None
+        dev.last_seen = datetime.datetime.utcnow()
 
     # Plugin hook: new managed device
     # Send: hostname , device type , serial , platform , vendor , model , os version
@@ -705,7 +714,7 @@ def set_hostname_task(task, new_hostname: str):
         task=template_file,
         name="Generate hostname config",
         template="hostname.j2",
-        jinja_env=cnaas_jinja_env,
+        jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
         path=f"{local_repo_path}/{task.host.platform}",
         **template_vars
     )
@@ -763,6 +772,7 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
             dev.model = facts['model'][:64]
             dev.os_version = facts['os_version'][:64]
             dev.state = DeviceState.DISCOVERED
+            dev.last_seen = datetime.datetime.utcnow()
             new_hostname = dev.hostname
             logger.info(f"Device with ztp_mac {ztp_mac} successfully scanned" +
                         f"(attempt {iteration}), moving to DISCOVERED state")

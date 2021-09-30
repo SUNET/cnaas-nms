@@ -1,11 +1,15 @@
 import re
+from typing import List
 
 from flask import request
 import sqlalchemy
 
+from cnaas_nms.db.settings import get_pydantic_error_value, get_pydantic_field_descr
+
 
 FILTER_RE = re.compile(r"^filter\[([a-zA-Z0-9_.]+)\](\[[a-z]+\])?$")
 DEFAULT_PER_PAGE = 50
+MAX_PER_PAGE = 1000
 
 
 def limit_results() -> int:
@@ -17,9 +21,11 @@ def limit_results() -> int:
     if 'per_page' in args:
         try:
             per_page_arg = int(args['per_page'])
-            limit = max(1, min(100, per_page_arg))
-        except:
-            pass
+            assert 1 <= per_page_arg <= MAX_PER_PAGE
+            limit = per_page_arg
+        except (AssertionError, ValueError):
+            raise ValueError("per_page argument must be integer between 1-{}".
+                             format(MAX_PER_PAGE))
 
     return limit
 
@@ -34,9 +40,11 @@ def offset_results() -> int:
     if 'per_page' in args:
         try:
             per_page_arg = int(args['per_page'])
-            per_page = max(1, min(100, per_page_arg))
-        except:
-            pass
+            assert 1 <= per_page_arg <= MAX_PER_PAGE
+            per_page = per_page_arg
+        except (AssertionError, ValueError):
+            raise ValueError("per_page argument must be integer between 1-{}".
+                             format(MAX_PER_PAGE))
 
     if 'page' in args:
         try:
@@ -80,6 +88,7 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
         if attribute not in f_class.__table__._columns.keys():
             raise ValueError("{} is not a valid attribute to filter on".format(attribute))
         # Special handling from Enum type, check valid enum names
+        allowed_names = None
         if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Enum):
             value = value.upper()
             allowed_names = set(item.name for item in \
@@ -90,7 +99,14 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
                 ))
         f_class_field = getattr(f_class, attribute)
         if operator == 'contains':
-            f_class_op = getattr(f_class_field, 'contains')
+            if allowed_names:
+                raise ValueError("Cannot use 'contains' operator for enum types")
+            if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Integer):
+                raise ValueError("Cannot use 'contains' operator for integer types")
+            if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.DateTime):
+                raise ValueError("Cannot use 'contains' operator for datetime types")
+            f_class_op = getattr(f_class_field, 'ilike')
+            value = '%'+value+'%'
         else:
             f_class_op = getattr(f_class_field, '__eq__')
 
@@ -119,3 +135,40 @@ def empty_result(status='success', data=None):
             'status': status,
             'message': data if data else "Unknown error"
         }
+
+
+def parse_pydantic_error(e: Exception, schema, data: dict) -> List[str]:
+    errors = []
+    for num, error in enumerate(e.errors()):
+        loc = error['loc']
+        origin = 'unknown'
+        errors.append("Validation error for setting {}, bad value: {}".format(
+            '->'.join(str(x) for x in loc),
+            get_pydantic_error_value(data, loc)
+        ))
+        try:
+            pydantic_descr = get_pydantic_field_descr(schema.schema(), loc)
+            if pydantic_descr:
+                pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
+            else:
+                pydantic_descr_msg = ""
+        except Exception:
+            pydantic_descr_msg = ""
+        errors.append("Message: {}{}".format(error['msg'], pydantic_descr_msg))
+    return errors
+
+
+def update_sqla_object(instance, new_data: dict) -> bool:
+    """Update SQLalchemy object instance with data dict.
+    Returns:
+        Returns True if any values were changed
+    """
+    changed = False
+    for k, v in new_data.items():
+        try:
+            if getattr(instance, k) != v:
+                setattr(instance, k, v)
+                changed = True
+        except AttributeError:
+            continue
+    return changed

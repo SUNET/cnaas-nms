@@ -1,5 +1,6 @@
 import os
 import yaml
+import datetime
 from typing import Optional, List
 from ipaddress import IPv4Interface, IPv4Address
 from hashlib import sha256
@@ -10,7 +11,7 @@ from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector, cnaas_jinja_env
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector, get_jinja_env
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.confpush.get import calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
@@ -160,6 +161,9 @@ def populate_device_vars(session, dev: Device,
                 'interfaces': []
             }
 
+        # Check peer names for populating description on ACCESS_DOWNLINK ports
+        ifname_peer_map = dev.get_linknet_localif_mapping(session)
+
         intfs = session.query(Interface).filter(Interface.device == dev).all()
         intf: Interface
         for intf in intfs:
@@ -178,6 +182,9 @@ def populate_device_vars(session, dev: Device,
                     tagged_vlan_list = resolve_vlanid_list(intf.data['tagged_vlan_list'],
                                                            settings['vxlans'])
                 intfdata = dict(intf.data)
+            elif intf.name in ifname_peer_map:
+                intfdata = {'description': ifname_peer_map[intf.name]}
+
             access_device_variables['interfaces'].append({
                 'name': intf.name,
                 'ifclass': intf.configtype.name,
@@ -275,6 +282,12 @@ def populate_device_vars(session, dev: Device,
                             'peer_ip': None,
                             'peer_asn': None
                         })
+                else:
+                    if_dict = {'indexnum': ifindexnum}
+                    for key, value in intf.items():
+                        if_dict[key] = value
+                    fabric_device_variables['interfaces'].append(if_dict)
+
         for local_if, data in fabric_interfaces.items():
             logger.warn(f"Interface {local_if} on device {hostname} not "
                         "configured as linknet because of wrong ifclass")
@@ -356,7 +369,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
     r = task.run(task=template_file,
                  name="Generate device config",
                  template=template,
-                 jinja_env=cnaas_jinja_env,
+                 jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
                  path=f"{local_repo_path}/{task.host.platform}",
                  **template_vars)
 
@@ -597,7 +610,7 @@ def sync_devices(hostnames: Optional[List[str]] = None, device_type: Optional[st
     unchanged_hosts = []
     # calculate change impact score
     for host, results in nrresult.items():
-        if len(results) != 3:
+        if host in failed_hosts or len(results) != 3:
             logger.debug("Unable to calculate change score for failed device {}".format(host))
         elif results[2].diff:
             changed_hosts.append(host)
@@ -647,12 +660,15 @@ def sync_devices(hostnames: Optional[List[str]] = None, device_type: Optional[st
             if dry_run:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = False
+                dev.last_seen = datetime.datetime.utcnow()
             else:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
+                dev.last_seen = datetime.datetime.utcnow()
         for hostname in unchanged_hosts:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
             dev.synchronized = True
+            dev.last_seen = datetime.datetime.utcnow()
         if not dry_run:
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)

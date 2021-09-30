@@ -49,7 +49,7 @@ class DeviceTests(unittest.TestCase):
             )
             d = session.query(Device).filter(Device.hostname == 'test-device1').one()
             n = session.query(Device).filter(Device.hostname == 'test-device2').one()
-            self.assertTrue(d.get_linknets(session))   # list is not empty
+            self.assertTrue(d.get_linknets(session))   # assert that list is not empty
             self.assertTrue(n.get_linknets(session))
             for linknet in d.get_linknets(session):
                 self.assertIsInstance(linknet, Linknet)
@@ -78,63 +78,53 @@ class DeviceTests(unittest.TestCase):
 
     def test_add_stackmember(self):
         with sqla_test_session() as session:
-            new_stack = DeviceTests.create_test_device('unittest2')
+            new_stack = DeviceTests.create_test_device()
             session.add(new_stack)
             session.flush()
-
             stackmember1 = Stackmember(
                 device_id = new_stack.id,
                 hardware_id = "DHWAJDJWADDWADWA",
-                member_no = "1",
-                priority = "1",
+                member_no = "0",
+                priority = "255",
             )
             session.add(stackmember1)
-            session.flush()
-
             self.assertEquals(stackmember1,
                 session.query(Stackmember).filter(Stackmember.device == new_stack).one())
 
     def test_is_stack(self):
         with sqla_test_session() as session:
-            new_stack = DeviceTests.create_test_device('unittest3')
+            new_stack = DeviceTests.create_test_device()
             session.add(new_stack)
             session.flush()
-
             stackmember1 = Stackmember(
                 device_id = new_stack.id,
-                hardware_id = "DHWAJDJWADDWADWB",
-                member_no = "1",
+                hardware_id = "DHWAJDJWADDWADWA",
+                member_no = "0",
             )
             session.add(stackmember1)
-            session.flush()
-
             self.assertTrue(new_stack.is_stack(session))
-
             session.delete(stackmember1)
             self.assertFalse(new_stack.is_stack(session))
 
     def test_get_stackmembers(self):
         with sqla_test_session() as session:
-            new_stack = DeviceTests.create_test_device('unittest4')
+            new_stack = DeviceTests.create_test_device()
             session.add(new_stack)
             session.flush()
             self.assertIsNone(new_stack.get_stackmembers(session))
-
             stackmember1 = Stackmember(
                 device_id = new_stack.id,
-                hardware_id = "DHWAJDJWADDWADWC",
+                hardware_id = "DHWAJDJWADDWADWA",
                 member_no = "0",
             )
             session.add(stackmember1)
             stackmember2 = Stackmember(
                 device_id = new_stack.id,
-                hardware_id = "DHWAJDJWADDWADWD",
+                hardware_id = "DHWAJDJWADDWADWB",
                 member_no = "1",
             )
             session.add(stackmember2)
-            session.flush()
-
-            # lists have same elements, regardless of ordering
+            # assert the 2 lists have the same elements (regardless of ordering)
             self.assertCountEqual([stackmember1, stackmember2],
                 new_stack.get_stackmembers(session))
 

@@ -253,18 +253,14 @@ class Device(cnaas_nms.db.base.Base):
             return None
 
     def is_stack(self, session):
-        """Check if this a stack device"""
-        if session.query(Stackmember).filter(Stackmember.device == self).count() > 0:
-            return True
-        else:
-            return False
+        """Check if this device is a stack"""
+        membercount = session.query(Stackmember).filter(Stackmember.device == self).count()
+        return membercount > 0
 
     def get_stackmembers(self, session) -> Optional[Stackmember]:
+        """Return all stackmembers belonging to a device (if any)"""
         members = session.query(Stackmember).filter(Stackmember.device == self).all()
-        if members:
-            return members
-        else:
-            return None
+        return members if members else None
 
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:

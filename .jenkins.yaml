@@ -58,7 +58,6 @@ extra_jobs:
     docker_tags:
       - "v1.3"
       - "master"
-      - "stable"
 
   - name: cnaas-postgres
     git:

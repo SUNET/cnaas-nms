@@ -1,6 +1,4 @@
 FROM debian:buster
-ARG BUILDBRANCH=master
-
 
 USER root
 

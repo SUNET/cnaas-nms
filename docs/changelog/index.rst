@@ -24,6 +24,19 @@ Bug fixes:
  - Possible fix for "weak object has gone away" (#205)
  - Fixes for device synchranization status updating (#208,#209)
 
+Version 1.2.1
+-------------
+
+Bugfix release.
+
+Bug fixes:
+
+- Fix for ZTP of fabric devices when INIT and DISCOVERED passwords are different
+- Fix for mgmt_ip variable at initial fabric device sync
+- Better init check error message
+- Documentation fix
+- Include groups with no devices in listing
+
 Version 1.2.0
 -------------
 

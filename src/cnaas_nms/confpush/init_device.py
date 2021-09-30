@@ -512,17 +512,17 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
             check_neighbor_sync(session, verified_neighbors)
         except Exception as e:
             raise e
-        else:
-            dev.state = DeviceState.INIT
-            dev.device_type = devtype
-            session.commit()
-            # If neighbor check works, commit new linknets
-            # This will also mark neighbors as unsynced
-            linknets = update_linknets(
-                session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=False)
-            logger.debug("New linknets for INIT of {} created: {}".format(
-                new_hostname, linknets
-            ))
+
+        dev.device_type = devtype
+        session.commit()
+
+        # If neighbor check works, commit new linknets
+        # This will also mark neighbors as unsynced
+        linknets = update_linknets(
+            session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=False)
+        logger.debug("New linknets for INIT of {} created: {}".format(
+            new_hostname, linknets
+        ))
 
         # Select and reserve a new management and infra IP for the device
         ReservedIP.clean_reservations(session, device=dev)
@@ -538,6 +538,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
 
         mgmt_variables = {
             'mgmt_ipif': str(IPv4Interface('{}/32'.format(mgmt_ip))),
+            'mgmt_ip': str(mgmt_ip),
             'mgmt_prefixlen': 32,
             'infra_ipif': str(IPv4Interface('{}/32'.format(infra_ip))),
             'infra_ip': str(infra_ip),
@@ -556,8 +557,6 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
-    # TODO: certicate
-
     # step2. push management config
     nrresult = nr_filtered.run(task=push_base_management,
                                device_variables=device_variables,
@@ -567,6 +566,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
     with sqla_session() as session:
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.management_ip = mgmt_ip
+        dev.state = DeviceState.INIT
         # Remove the reserved IP since it's now saved in the device database instead
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:

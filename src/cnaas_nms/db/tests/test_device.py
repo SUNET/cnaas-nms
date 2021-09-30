@@ -12,20 +12,10 @@ from ipaddress import IPv4Address
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.stackmember import Stackmember
-from cnaas_nms.db.session import sqla_test_session
 from cnaas_nms.db.linknet import Linknet
-
-from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
+from cnaas_nms.db.session import sqla_test_session
 
 class DeviceTests(unittest.TestCase):
-    def setUp(self):
-        data_dir = pkg_resources.resource_filename(__name__, 'data')
-        with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
-            self.testdata = yaml.safe_load(f_testdata)
-        self.tmp_postgres = PostgresTemporaryInstance()
-
-    def tearDown(self):
-        self.tmp_postgres.shutdown()
 
     def create_test_device(hostname="unittest"):
         return Device(

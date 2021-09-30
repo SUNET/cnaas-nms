@@ -27,6 +27,7 @@ RUN apt-get update \
       python3-venv \
       python3-wheel \
       python3-yaml \
+      psmisc \
       supervisor \
       uwsgi-plugin-python3 \
     && pip3 install --no-cache-dir uwsgi

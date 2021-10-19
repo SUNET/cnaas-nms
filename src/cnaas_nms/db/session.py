@@ -5,8 +5,8 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
+from sqlalchemy.sql.schema import MetaData
 from redis import StrictRedis
-
 
 def get_dbdata(config='/etc/cnaas-nms/db_config.yml'):
     with open(config, 'r') as db_file:
@@ -31,12 +31,23 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
         f"{db_data['hostname']}:{db_data['port']}/{db_data['database']}"
     )
 
-
 conn_str = get_sqlalchemy_conn_str()
 engine = create_engine(conn_str, pool_size=50, max_overflow=50)
 connection = engine.connect()
 Session = sessionmaker(bind=engine)
-
+    
+def clear_db():
+    """For clearing postgresql database"""
+    conn_str = get_sqlalchemy_conn_str()
+    engine = create_engine(conn_str, pool_size=50, max_overflow=50)
+    con = engine.connect()
+    trans = con.begin()
+    meta = MetaData(bind=engine, reflect=True)
+    for table in meta.sorted_tables:
+        con.execute(f'ALTER TABLE "{table.name}" DISABLE TRIGGER ALL;')
+        con.execute(table.delete())
+        con.execute(f'ALTER TABLE "{table.name}" ENABLE TRIGGER ALL;')
+    trans.commit()
 
 @contextmanager
 def sqla_session(**kwargs):

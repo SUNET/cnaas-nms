@@ -271,6 +271,11 @@ name is the dictionary key and dictionaly values are:
   * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
   * dhcp_relays: DHCP relay address. Optional.
   * mtu: Define custom MTU. Optional.
+  * acl_ipv4_in: Access control list to apply for ingress IPv4 traffic to routed interface. Optional.
+  * acl_ipv4_out: Access control list to apply for egress IPv4 traffic from routed interface. Optional.
+  * acl_ipv6_in: Access control list to apply for ingress IPv6 traffic to routed interface. Optional.
+  * acl_ipv6_out: Access control list to apply for egress IPv6 traffic from routed interface. Optional.
+  * cli_append_str: Optional. Custom configuration to append to this interface.
   * tags: List of custom strings to tag this VXLAN with. Optional.
   * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
     access switch the parent dist switch should be automatically provisioned.

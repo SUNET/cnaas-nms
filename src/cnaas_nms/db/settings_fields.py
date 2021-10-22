@@ -259,6 +259,11 @@ class f_vxlan(BaseModel):
     dhcp_relays: Optional[List[f_dhcp_relay]]
     mtu: Optional[int] = mtu_schema
     vxlan_host_route: bool = True
+    acl_ipv4_in: Optional[str] = None
+    acl_ipv4_out: Optional[str] = None
+    acl_ipv6_in: Optional[str] = None
+    acl_ipv6_out: Optional[str] = None
+    cli_append_str: str = ""
     groups: List[str] = []
     devices: List[str] = []
     tags: List[str] = []

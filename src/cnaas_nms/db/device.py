@@ -92,6 +92,7 @@ class Device(cnaas_nms.db.base.Base):
     confhash = Column(String(64))  # SHA256 = 64 characters
     last_seen = Column(DateTime, default=datetime.datetime.utcnow)  # onupdate=now
     port = Column(Integer)
+    is_stack = Column(Boolean, default=False)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -251,11 +252,6 @@ class Device(cnaas_nms.db.base.Base):
             return next(iter(peers))
         else:
             return None
-
-    def is_stack(self, session):
-        """Check if this device is a stack"""
-        membercount = session.query(Stackmember).filter(Stackmember.device == self).count()
-        return membercount > 0
 
     def get_stackmembers(self, session) -> Optional[Stackmember]:
         """Return all stackmembers belonging to a device (if any)"""
@@ -451,6 +447,11 @@ class Device(cnaas_nms.db.base.Base):
                     data['port'] = port
             else:
                 data['port'] = None
+        if 'is_stack' in kwargs:
+            if isinstance(kwargs['is_stack'], bool):
+                data['is_stack'] = kwargs['is_stack']
+            else:
+                errors.append("Invalid is_stack received, must be bool")
 
         for k, v in kwargs.items():
             if k not in cls.__table__.columns:

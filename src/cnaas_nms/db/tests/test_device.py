@@ -58,21 +58,6 @@ class DeviceTests(unittest.TestCase):
             self.assertEquals([device2], device1.get_neighbors(session))
             self.assertEquals([device1], device2.get_neighbors(session))
 
-    def test_is_stack(self):
-        with sqla_test_session() as session:
-            new_stack = DeviceTests.create_test_device()
-            session.add(new_stack)
-            session.flush()
-            stackmember1 = Stackmember(
-                device_id = new_stack.id,
-                hardware_id = "DHWAJDJWADDWADWA",
-                member_no = "0",
-            )
-            session.add(stackmember1)
-            self.assertTrue(new_stack.is_stack(session))
-            session.delete(stackmember1)
-            self.assertFalse(new_stack.is_stack(session))
-
     def test_get_stackmembers(self):
         with sqla_test_session() as session:
             new_stack = DeviceTests.create_test_device()

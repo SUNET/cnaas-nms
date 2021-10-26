@@ -1,6 +1,7 @@
 import os
 import re
 import pkg_resources
+import importlib
 from typing import List, Optional, Union, Tuple, Set, Dict
 
 import yaml
@@ -8,12 +9,32 @@ from pydantic.error_wrappers import ValidationError
 import redis
 from redis_lru import RedisLRU
 
-from cnaas_nms.db.settings_fields import f_root, f_groups
+from cnaas_nms.db.settings_fields import f_groups
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.session import sqla_session, get_dbdata
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.tools.log import get_logger
+
+
+def get_settings_root():
+    logger = get_logger()
+    try:
+        settings_fields = importlib.import_module(
+            os.getenv('PLUGIN_SETTINGS_FIELDS_MODULE', "cnaas_nms.plugins.settings_fields")
+        )
+        f_root_ret = settings_fields.f_root
+        logger.debug("Loaded settings_fields module from plugin")
+    except ModuleNotFoundError:
+        logger.debug("Loaded settings_fields module from bundled cnaas-nms")
+        f_root_ret = importlib.import_module("cnaas_nms.plugins.settings_fields")
+    except Exception as e:
+        logger.error("Unable to load plugin module for settings_fields: {}".format(e))
+        f_root_ret = importlib.import_module("cnaas_nms.plugins.settings_fields")
+    return f_root_ret
+
+
+f_root = get_settings_root()
 
 
 db_data = get_dbdata()

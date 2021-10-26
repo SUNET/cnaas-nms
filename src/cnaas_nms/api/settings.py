@@ -8,8 +8,11 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_settings, check_settings_syntax, SettingsSyntaxError
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.version import __api_version__
-from cnaas_nms.db.settings_fields import f_root as settings_root_model
+from cnaas_nms.db.settings import get_settings_root
 from cnaas_nms.tools.mergedict import merge_dict_origin
+
+
+settings_root_model = get_settings_root()
 
 
 api = Namespace('settings', description='Settings',

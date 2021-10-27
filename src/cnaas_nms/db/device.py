@@ -260,7 +260,7 @@ class Device(cnaas_nms.db.base.Base):
     def get_stackmembers(self, session) -> Optional[Stackmember]:
         """Return all stackmembers belonging to a device (if any)"""
         members = session.query(Stackmember).filter(Stackmember.device == self).all()
-        return members if members else None
+        return members
 
     @classmethod
     def valid_hostname(cls, hostname: str) -> bool:

@@ -78,7 +78,7 @@ class DeviceTests(unittest.TestCase):
             new_stack = DeviceTests.create_test_device()
             session.add(new_stack)
             session.flush()
-            self.assertIsNone(new_stack.get_stackmembers(session))
+            self.assertEqual(new_stack.get_stackmembers(session), [])
             stackmember1 = Stackmember(
                 device_id = new_stack.id,
                 hardware_id = "DHWAJDJWADDWADWA",

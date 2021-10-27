@@ -35,6 +35,8 @@ Defines parameters for the API:
 
 Defines paths to git repositories.
 
+.. _configuration_environment_ref:
+
 Environment variables
 ---------------------
 
@@ -62,6 +64,8 @@ cnaas_api
 - ``PASSWORD_INIT``
 - ``USERNAME_MANAGED`` -- user name for managed devices
 - ``PASSWORD_MANAGED``
+- ``PLUGIN_SETTINGS_FIELDS_MODULE`` - Use a custom module path to override
+  settings_fields, defaults to: cnaas_nms.plugins.settings_fields
 
 cnaas_httpd
 

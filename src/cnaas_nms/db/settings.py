@@ -20,14 +20,16 @@ from cnaas_nms.tools.log import get_logger
 def get_settings_root():
     logger = get_logger()
     try:
-        settings_fields = importlib.import_module(
-            os.getenv('PLUGIN_SETTINGS_FIELDS_MODULE', "cnaas_nms.plugins.settings_fields")
-        )
+        settings_fields_path = os.getenv('PLUGIN_SETTINGS_FIELDS_MODULE',
+                                         "cnaas_nms.plugins.settings_fields")
+        settings_fields = importlib.import_module(settings_fields_path)
         f_root_ret = settings_fields.f_root
-        logger.debug("Loaded settings_fields module from plugin")
+        logger.debug("Loaded settings_fields module from plugin: {}".format(
+            settings_fields_path
+        ))
     except ModuleNotFoundError:
-        logger.debug("Loaded settings_fields module from bundled cnaas-nms")
         f_root_ret = importlib.import_module("cnaas_nms.plugins.settings_fields")
+        logger.debug("Loaded settings_fields module from bundled cnaas-nms")
     except Exception as e:
         logger.error("Unable to load plugin module for settings_fields: {}".format(e))
         f_root_ret = importlib.import_module("cnaas_nms.plugins.settings_fields")

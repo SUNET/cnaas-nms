@@ -28,11 +28,11 @@ def get_settings_root():
             settings_fields_path
         ))
     except ModuleNotFoundError:
-        f_root_ret = importlib.import_module("cnaas_nms.plugins.settings_fields")
+        f_root_ret = importlib.import_module("cnaas_nms.db.settings_fields")
         logger.debug("Loaded settings_fields module from bundled cnaas-nms")
     except Exception as e:
         logger.error("Unable to load plugin module for settings_fields: {}".format(e))
-        f_root_ret = importlib.import_module("cnaas_nms.plugins.settings_fields")
+        f_root_ret = importlib.import_module("cnaas_nms.db.settings_fields")
     return f_root_ret
 
 

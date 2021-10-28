@@ -155,6 +155,26 @@ class InterfaceApi(Resource):
                                 errors.append(
                                     "Aggregate ID must be an integer: {}".
                                     format(if_dict['data']['aggregate_id']))
+                        if 'bpdu_filter' in if_dict['data']:
+                            if type(if_dict['data']['bpdu_filter']) == bool:
+                                intfdata['bpdu_filter'] = if_dict['data']['bpdu_filter']
+                            else:
+                                errors.append(
+                                    "bpdu_filter must be a bool, true or false, got: {}".
+                                    format(if_dict['data']['bpdu_filter']))
+                        if 'tags' in if_dict['data']:
+                            if isinstance(if_dict['data']['tags'], list):
+                                intfdata['tags'] = if_dict['data']['tags']
+                            else:
+                                errors.append("tags should be of type list, found {}".format(
+                                    type(if_dict['data']['tags'])
+                                ))
+                        if 'cli_append_str' in if_dict['data']:
+                            if isinstance(if_dict['data']['cli_append_str'], str):
+                                intfdata['cli_append_str'] = if_dict['data']['cli_append_str']
+                            else:
+                                errors.append("cli_append_str must be a string, got: {}".format(
+                                    if_dict['data']['cli_append_str']))
 
                     if intfdata != intfdata_original:
                         intf.data = intfdata

@@ -15,6 +15,7 @@ from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector, get
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.confpush.get import calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
+from cnaas_nms.tools.jinja_helpers import get_environment_secrets
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -316,10 +317,7 @@ def populate_device_vars(session, dev: Device,
     # Add all environment variables starting with TEMPLATE_SECRET_ to
     # the list of configuration variables. The idea is to store secret
     # configuration outside of the templates repository.
-    template_secrets = {}
-    for env in os.environ:
-        if env.startswith('TEMPLATE_SECRET_'):
-            template_secrets[env] = os.environ[env]
+    template_secrets = get_environment_secrets()
     # Merge all dicts with variables into one, later row overrides
     # Device variables override any names from settings, for example the
     # interfaces list from settings are replaced with an interface list from

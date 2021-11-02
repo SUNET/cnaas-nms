@@ -3,6 +3,9 @@
 import sys
 import os
 import argparse
+
+from jinja_helpers import get_environment_secrets
+
 try:
     import requests
     import jinja2
@@ -74,11 +77,7 @@ def render_template(platform, device_type, variables):
     for f in jfilters:
         jinjaenv.filters[f] = jfilters[f]
     print("Jinja filters added: {}".format([*jfilters]))
-    template_secrets = {}
-    for env in os.environ:
-        if env.startswith('TEMPLATE_SECRET_'):
-            template_secrets[env] = os.environ[env]
-    template_vars = {**variables, **template_secrets}
+    template_vars = {**variables, **get_environment_secrets()}
     template = jinjaenv.get_template(get_entrypoint(platform, device_type))
     return template.render(**template_vars)
 

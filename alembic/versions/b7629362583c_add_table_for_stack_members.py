@@ -27,7 +27,7 @@ def upgrade():
     sa.ForeignKeyConstraint(['device_id'], ['device.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('device_id', 'member_no'),
-    sa.UniqueConstraint('hardware_id', 'member_no')
+    sa.UniqueConstraint('device_id', 'hardware_id')
     )
     # ### end Alembic commands ###
 

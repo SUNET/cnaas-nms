@@ -3,9 +3,9 @@ import re
 
 from sqlalchemy import Column, Integer, Unicode
 from sqlalchemy import ForeignKey
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy import Enum
-from sqlalchemy_utils import JSONType
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device
@@ -43,7 +43,7 @@ class Interface(cnaas_nms.db.base.Base):
                           backref=backref("Interfaces", cascade="all, delete-orphan"))
     name = Column(Unicode(255), primary_key=True)
     configtype = Column(Enum(InterfaceConfigType), nullable=False)
-    data = Column(JSONType)
+    data = Column(JSONB)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""

@@ -6,7 +6,7 @@ from typing import Optional, Dict
 from sqlalchemy import Column, Integer, Unicode, SmallInteger
 from sqlalchemy import Enum, DateTime
 from sqlalchemy import ForeignKey
-from sqlalchemy_utils import JSONType
+from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import relationship
 from nornir.core.task import AggregatedResult
 
@@ -64,11 +64,11 @@ class Job(cnaas_nms.db.base.Base):
     ticket_ref = Column(Unicode(32), index=True)
     next_job_id = Column(Integer, ForeignKey('job.id'))
     next_job = relationship("Job", remote_side=[id])
-    result = Column(JSONType)
-    exception = Column(JSONType)
-    finished_devices = Column(JSONType)
+    result = Column(JSONB)
+    exception = Column(JSONB)
+    finished_devices = Column(JSONB)
     change_score = Column(SmallInteger)  # should be in range 0-100
-    start_arguments = Column(JSONType)
+    start_arguments = Column(JSONB)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""

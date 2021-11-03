@@ -5,13 +5,13 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
-from cnaas_nms.db.base import Base
 from redis import StrictRedis
 
 
 def get_dbdata(config='/etc/cnaas-nms/db_config.yml'):
     with open(config, 'r') as db_file:
         return yaml.safe_load(db_file)
+
 
 def get_sqlalchemy_conn_str(**kwargs) -> str:
     db_data = get_dbdata(**kwargs)
@@ -31,23 +31,16 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
         f"{db_data['hostname']}:{db_data['port']}/{db_data['database']}"
     )
 
-def create_session():
-    conn_str = get_sqlalchemy_conn_str()
-    engine = create_engine(conn_str, pool_size=50, max_overflow=50)
-    engine.connect()
-    Session = sessionmaker(bind=engine)
-    return Session()
 
-def create_test_session():
-    engine = create_engine('sqlite://')
-    Base.metadata.create_all(engine)
-    engine.connect()
-    Session = sessionmaker(bind=engine)
-    return Session()
+conn_str = get_sqlalchemy_conn_str()
+engine = create_engine(conn_str, pool_size=50, max_overflow=50)
+connection = engine.connect()
+Session = sessionmaker(bind=engine)
+
 
 @contextmanager
-def sqla_session():
-    session = create_session()
+def sqla_session(**kwargs):
+    session = Session()
     try:
         yield session
         session.commit()
@@ -58,11 +51,11 @@ def sqla_session():
         session.close()
 
 @contextmanager
-def sqla_test_session():
-    session = create_test_session()
+def sqla_test_session(**kwargs):
+    session = Session()
     try:
         yield session
-        session.commit()
+        session.flush()
     except:
         session.rollback()
         raise
@@ -82,4 +75,3 @@ def redis_session(**kwargs):
     db_data = get_dbdata(**kwargs)
     with StrictRedis(host=db_data['redis_hostname'], port=6379, charset="utf-8", decode_responses=True) as conn:
         yield conn
-

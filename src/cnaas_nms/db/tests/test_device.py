@@ -11,7 +11,7 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_test_session
 
 class DeviceTests(unittest.TestCase):
-    
+
     def create_test_device(hostname="unittest"):
         return Device(
             ztp_mac="08002708a8be",

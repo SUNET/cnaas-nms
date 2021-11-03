@@ -22,7 +22,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('device_id', sa.Integer(), nullable=False),
     sa.Column('hardware_id', sa.String(length=64), nullable=False),
-    sa.Column('member_no', sa.Integer(), nullable=False),
+    sa.Column('member_no', sa.Integer(), nullable=True),
     sa.Column('priority', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['device_id'], ['device.id'], ),
     sa.PrimaryKeyConstraint('id'),

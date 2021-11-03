@@ -66,9 +66,7 @@ device_model = device_api.model('device', {
     'synchronized': fields.Boolean(required=False),
     'state': fields.String(required=True),
     'device_type': fields.String(required=True),
-    'port': fields.Integer(required=False),
-    'is_stack': fields.Boolean(required=False),
-    })
+    'port': fields.Integer(required=False)})
 
 device_init_model = device_init_api.model('device_init', {
     'hostname': fields.String(required=False),

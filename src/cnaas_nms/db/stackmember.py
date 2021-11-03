@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Unicode, UniqueConstraint, String
+from sqlalchemy import Column, Integer, UniqueConstraint, String
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship, backref
 

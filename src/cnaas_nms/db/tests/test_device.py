@@ -65,7 +65,7 @@ class DeviceTests(unittest.TestCase):
             session.flush()
             stackmember1 = Stackmember(
                 device_id = new_stack.id,
-                hardware_id = "DHWAJDJWADDWADWA",
+                hardware_id = "FO64534",
                 member_no = "0",
             )
             session.add(stackmember1)
@@ -81,13 +81,13 @@ class DeviceTests(unittest.TestCase):
             self.assertEqual(new_stack.get_stackmembers(session), [])
             stackmember1 = Stackmember(
                 device_id = new_stack.id,
-                hardware_id = "DHWAJDJWADDWADWA",
+                hardware_id = "FO64534",
                 member_no = "0",
             )
             session.add(stackmember1)
             stackmember2 = Stackmember(
                 device_id = new_stack.id,
-                hardware_id = "DHWAJDJWADDWADWB",
+                hardware_id = "FO64534",
                 member_no = "1",
             )
             session.add(stackmember2)

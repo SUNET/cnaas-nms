@@ -93,13 +93,13 @@ def get_uplinks(session, hostname: str, recheck: bool = False,
 
     for neighbor_d in neighbors:
         if neighbor_d.device_type == DeviceType.DIST:
-            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-            # Neighbor interface ifclass is already verified in
-            # update_linknets -> verify_peer_iftype
-            if local_if:
+            for linknet in dev.get_links_to(session, neighbor_d):
+                local_if = linknet.get_port(dev.id)
+                # Neighbor interface ifclass is already verified in
+                # update_linknets -> verify_peer_iftype
                 uplinks[local_if] = neighbor_d.hostname
         elif neighbor_d.device_type == DeviceType.ACCESS:
-            intfs: Interface = session.query(Interface).filter(Interface.device == neighbor_d).\
+            intfs: List[Interface] = session.query(Interface).filter(Interface.device == neighbor_d).\
                 filter(Interface.configtype == InterfaceConfigType.ACCESS_DOWNLINK).all()
             if not intfs:
                 continue

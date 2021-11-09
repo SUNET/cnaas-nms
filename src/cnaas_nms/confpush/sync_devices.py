@@ -235,26 +235,26 @@ def populate_device_vars(session, dev: Device,
         fabric_interfaces = {}
         for neighbor_d in dev.get_neighbors(session):
             if neighbor_d.device_type == DeviceType.DIST or neighbor_d.device_type == DeviceType.CORE:
-                # TODO: support multiple links to the same neighbor?
-                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-                local_ipif = dev.get_neighbor_local_ipif(session, neighbor_d)
-                neighbor_ip = dev.get_neighbor_ip(session, neighbor_d)
-                if local_if:
-                    fabric_interfaces[local_if] = {
-                        'name': local_if,
-                        'ifclass': 'fabric',
-                        'ipv4if': local_ipif,
-                        'peer_hostname': neighbor_d.hostname,
-                        'peer_infra_lo': str(neighbor_d.infra_ip),
-                        'peer_ip': str(neighbor_ip),
-                        'peer_asn': generate_asn(neighbor_d.infra_ip)
-                    }
-                    fabric_device_variables['bgp_ipv4_peers'].append({
-                        'peer_hostname': neighbor_d.hostname,
-                        'peer_infra_lo': str(neighbor_d.infra_ip),
-                        'peer_ip': str(neighbor_ip),
-                        'peer_asn': generate_asn(neighbor_d.infra_ip)
-                    })
+                for linknet in dev.get_links_to(session, neighbor_d):
+                    local_if = linknet.get_port(dev.id)
+                    local_ipif = linknet.get_ipif(dev.id)
+                    neighbor_ip = linknet.get_ip(neighbor_d.id)
+                    if local_if:
+                        fabric_interfaces[local_if] = {
+                            'name': local_if,
+                            'ifclass': 'fabric',
+                            'ipv4if': local_ipif,
+                            'peer_hostname': neighbor_d.hostname,
+                            'peer_infra_lo': str(neighbor_d.infra_ip),
+                            'peer_ip': str(neighbor_ip),
+                            'peer_asn': generate_asn(neighbor_d.infra_ip)
+                        }
+                        fabric_device_variables['bgp_ipv4_peers'].append({
+                            'peer_hostname': neighbor_d.hostname,
+                            'peer_infra_lo': str(neighbor_d.infra_ip),
+                            'peer_ip': str(neighbor_ip),
+                            'peer_asn': generate_asn(neighbor_d.infra_ip)
+                        })
         ifname_peer_map = dev.get_linknet_localif_mapping(session)
         if 'interfaces' in settings and settings['interfaces']:
             for intf in settings['interfaces']:

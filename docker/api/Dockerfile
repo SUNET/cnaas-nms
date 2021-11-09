@@ -53,6 +53,7 @@ RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv \
 
 # Copy cnaas scripts
 COPY --chown=root:www-data cnaas-setup.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
+RUN cd /opt/cnaas && chmod g+x cnaas-setup.sh createca.sh exec-pre-app.sh nosetests.sh
 
 # Copy cnaas configuration files
 COPY --chown=www-data:www-data config/api.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/

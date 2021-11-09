@@ -103,18 +103,13 @@ def get_uplinks(session, hostname: str, recheck: bool = False,
                 filter(Interface.configtype == InterfaceConfigType.ACCESS_DOWNLINK).all()
             if not intfs:
                 continue
-            try:
-                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-                remote_if = neighbor_d.get_neighbor_local_ifname(session, dev)
-            except ValueError as e:
-                logger.debug("Ignoring possible uplinks to neighbor {}: {}".format(
-                    neighbor_d.hostname, e))
-                continue
-
-            intf: Interface
-            for intf in intfs:
-                if intf.name == remote_if:
-                    uplinks[local_if] = neighbor_d.hostname
+            for linknet in dev.get_links_to(session, neighbor_d):
+                local_if = linknet.get_port(dev.id)
+                remote_if = linknet.get_port(neighbor_d.id)
+                intf: Interface
+                for intf in intfs:
+                    if intf.name == remote_if:
+                        uplinks[local_if] = neighbor_d.hostname
 
     logger.debug("Uplinks for device {} detected: {}".
                  format(hostname, ', '.join(["{}: {}".format(ifname, hostname)

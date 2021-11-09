@@ -1,13 +1,13 @@
 import json
 import datetime
-from typing import Optional, List
+from typing import Optional
 
 from flask import request, make_response
 from flask_restx import Resource, Namespace, fields
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
-from pydantic import BaseModel, ValidationError, validator, parse_obj_as, conint
+from pydantic import ValidationError, parse_obj_as
 
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
@@ -26,6 +26,7 @@ from cnaas_nms.tools.log import get_logger
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from cnaas_nms.version import __api_version__
 from cnaas_nms.tools.get_apidata import get_apidata
+from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 
 
 logger = get_logger()
@@ -263,7 +264,7 @@ class DevicesApi(Resource):
         resp.headers['X-Total-Count'] = total_count
         resp.headers['Content-Type'] = 'application/json'
         return resp
-
+    
 
 class DeviceInitApi(Resource):
     @jwt_required
@@ -1026,37 +1027,6 @@ class DeviceStackmembersApi(Resource):
                 session.rollback()
                 return empty_result('error', str(e)), 400
         return result
-
-class StackmemberModel(BaseModel):
-    member_no: conint(gt=-1)
-    hardware_id: str
-    priority: Optional[conint(gt=-1)] = None
-
-    @validator('hardware_id')
-    def validate_non_empty_hardware_id(cls, hardware_id):
-        """Validates that hardware_id is not an empty string"""
-        if not hardware_id:
-            raise ValueError("hardware_id cannot be an empty string")
-        return hardware_id
-
-class StackmembersModel(BaseModel):
-    stackmembers: List[StackmemberModel]
-
-    @validator('stackmembers')
-    def validate_unique_member_no(cls, stackmembers):
-        """Validates that all StackmemberModel in stackmembers have unique member_no compared to each other"""
-        member_no_count = len(set([stackmember.member_no for stackmember in stackmembers]))
-        if member_no_count != len(stackmembers):
-            raise ValueError("member_no must be unique for stackmembers belonging to the same device")
-        return stackmembers
-
-    @validator('stackmembers')
-    def validate_unique_hardware_id(cls, stackmembers):
-        """Validates that all StackmemberModel in stackmembers have unique hardware_id compared to each other"""
-        hardware_id_count = len(set([stackmember.hardware_id for stackmember in stackmembers]))
-        if hardware_id_count != len(stackmembers):
-            raise ValueError("hardware_id must be unique for stackmembers belonging to the same device")
-        return stackmembers
 
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')

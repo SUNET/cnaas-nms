@@ -93,6 +93,7 @@ class Linknet(cnaas_nms.db.base.Base):
             new_linknet.device_a_ip = ip_a
             new_linknet.device_b_ip = ip_b
             new_linknet.ipv4_network = str(ipv4_network)
-        dev_a.synchronized = False
-        dev_b.synchronized = False
+        if strict_check:
+            dev_a.synchronized = False
+            dev_b.synchronized = False
         return new_linknet

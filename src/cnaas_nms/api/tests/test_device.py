@@ -18,6 +18,14 @@ class DeviceTests(unittest.TestCase):
             self.testdata = yaml.safe_load(f_testdata)
             if 'jwt_auth_token' in self.testdata:
                 self.jwt_auth_token = self.testdata['jwt_auth_token']
+        os.environ["USERNAME_DHCP_BOOT"] = "cnaas"
+        os.environ["PASSWORD_DHCP_BOOT"] = "cnaas"
+        os.environ["USERNAME_DISCOVERED"] = "cnaas"
+        os.environ["PASSWORD_DISCOVERED"] = "cnaas"
+        os.environ["USERNAME_INIT"] = "cnaas"
+        os.environ["PASSWORD_INIT"] = "cnaas"
+        os.environ["USERNAME_MANAGED"] = "cnaas"
+        os.environ["PASSWORD_MANAGED"] = "cnaas"
         self.app = app.app
         self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
         self.client = self.app.test_client()

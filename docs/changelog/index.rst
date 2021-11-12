@@ -1,6 +1,13 @@
 Changelog
 =========
 
+Version 1.3.2
+-------------
+
+Bug fixes:
+
+ - Fix for ZTP init of dist devices (#219,#218)
+
 Version 1.3.1
 -------------
 

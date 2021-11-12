@@ -8,6 +8,7 @@ from ipaddress import IPv4Address
 from cnaas_nms.api import app
 from cnaas_nms.db.session import clear_db, sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 
@@ -117,6 +118,107 @@ class DeviceTests(unittest.TestCase):
         json_data = json.loads(result.data.decode())
         self.assertEqual(json_data['data']['compatible'], False)
 
+    def test_get_stackmembers_invalid_device(self):
+        result = self.client.get(f'/api/v1.0/device/{1}/stackmember')
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 404, msg=json_data)
+
+    def test_get_stackmembers_no_stackmembers(self):
+        new_device = self.create_test_device(device_id=1)
+        with sqla_session() as session:
+            session.add(new_device)
+        result = self.client.get(f'/api/v1.0/device/{1}/stackmember')
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 200, msg=json_data)
+        self.assertEqual(json_data['data']['stackmembers'], [], msg=json_data)
+
+    def test_get_stackmembers(self):
+        new_device = self.create_test_device(device_id=1)
+        with sqla_session() as session:
+            session.add(new_device)
+            stackmember = Stackmember(device_id=1, hardware_id="AB1234", member_no=1, priority=3)
+            session.add(stackmember)
+        result = self.client.get(f'/api/v1.0/device/{1}/stackmember')
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 200, msg=json_data)
+        self.assertEqual(len(json_data['data']['stackmembers']), 1, msg=json_data)
+        self.assertEqual(json_data['data']['stackmembers'][0]["hardware_id"], "AB1234", msg=json_data)
+
+    def test_put_stackmembers_valid(self):
+        new_device = self.create_test_device(device_id=1)
+        with sqla_session() as session:
+            session.add(new_device)
+            stackmember = Stackmember(device_id=1, hardware_id="AB1234", member_no=1, priority=3,)
+            session.add(stackmember)
+        stackmember_data = {'stackmembers': [
+            {"hardware_id": "AB1234", "member_no": 0, "priority": None},
+            {"hardware_id": "CD5555", "member_no": 2, "priority": 99},
+            {"hardware_id": "GF43534", "member_no": 5},
+        ]}
+        result = self.client.put(f'/api/v1.0/device/{1}/stackmember', json=stackmember_data)
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 200, msg=json_data)
+        self.assertEqual(len(json_data['data']['stackmembers']), 3, msg=json_data)
+        with sqla_session() as session:
+            q_stackmembers = session.query(Stackmember).filter(Stackmember.device_id == 1).all()
+            self.assertEqual(len(q_stackmembers), 3, msg=json_data)
+    
+    def test_put_stackmembers_invalid(self):
+        new_device = self.create_test_device(device_id=1)
+        with sqla_session() as session:
+            session.add(new_device)
+        stackmember_data = {'stackmembers': [
+            {"hardware_id": "AB1234", "member_no": "adwa", "priority": 99},
+        ]}
+        result = self.client.put(f'/api/v1.0/device/{1}/stackmember', json=stackmember_data)
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 400, msg=json_data)
+        with sqla_session() as session:
+            q_stackmembers = session.query(Stackmember).filter(Stackmember.device_id == 1).all()
+            self.assertEqual(q_stackmembers, [])
+
+    def test_put_stackmembers_clear(self):
+        new_device = self.create_test_device(device_id=1)
+        with sqla_session() as session:
+            session.add(new_device)
+            stackmember = Stackmember(device_id=1, hardware_id="AB1234", member_no=1, priority=3,)
+            session.add(stackmember)
+        stackmember_data = {'stackmembers': []}
+        result = self.client.put(f'/api/v1.0/device/{1}/stackmember', json=stackmember_data)
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 200, msg=json_data)
+        self.assertEqual(len(json_data['data']['stackmembers']), 0, msg=json_data)
+        with sqla_session() as session:
+            q_stackmembers = session.query(Stackmember).filter(Stackmember.device_id == 1).all()
+            self.assertEqual(len(q_stackmembers), 0, msg=json_data)     
+    
+    def test_put_stackmembers_dupe_member_no(self):
+        new_device = self.create_test_device(device_id=1)
+        with sqla_session() as session:
+            session.add(new_device)
+            stackmember = Stackmember(device_id=1, hardware_id="AB1234", member_no=1, priority=3)
+            session.add(stackmember)
+        stackmember_data = {'stackmembers': [
+            {"hardware_id": "DC1231", "member_no": 1},
+            {"hardware_id": "CD5555", "member_no": 1}
+        ]}
+        result = self.client.put(f'/api/v1.0/device/{1}/stackmember', json=stackmember_data)
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 400, msg=json_data)
+    
+    def test_put_stackmembers_dupe_hardware_id(self):
+        new_device = self.create_test_device(device_id=1)
+        with sqla_session() as session:
+            session.add(new_device)
+            stackmember = Stackmember(device_id=1, hardware_id="AB1234", member_no=1, priority=3)
+            session.add(stackmember)
+        stackmember_data = {'stackmembers': [
+            {"hardware_id": "AA1111", "member_no": 1},
+            {"hardware_id": "AA1111", "member_no": 2}
+        ]}
+        result = self.client.put(f'/api/v1.0/device/{1}/stackmember', json=stackmember_data)
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 400, msg=json_data)
 
 if __name__ == '__main__':
     unittest.main()

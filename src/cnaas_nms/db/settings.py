@@ -245,14 +245,14 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
     logger = get_logger()
     try:
         ret_dict = f_root(**settings_dict).dict()
-    except ValidationError as e:
+    except ValidationError as validation_error:
         msg = ''
-        for num, error in enumerate(e.errors()):
+        for num, error in enumerate(validation_error.errors()):
             # If there are two errors and the last one is of type none allowed
             # then skip recording the second error because it's an implication
             # of the first error (the value has to be correct or none)
             # TODO: handle multiple occurrences of this?
-            if len(e.errors()) == 2 and num == 1 and error['type'] == 'type_error.none.allowed':
+            if len(validation_error.errors()) == 2 and num == 1 and error['type'] == 'type_error.none.allowed':
                 continue
             # TODO: Find a way to present customised error message when string
             # regex match fails instead of just showing the regex pattern.
@@ -271,8 +271,8 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
                     pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
                 else:
                     pydantic_descr_msg = ""
-            except Exception as e:
-                logger.debug(e)
+            except Exception as exception:
+                logger.debug(exception)
                 pydantic_descr_msg = ""
             error_msg += "Message: {}{}\n".format(error['msg'], pydantic_descr_msg)
             msg += error_msg

@@ -1,3 +1,4 @@
+import ipaddress
 import unittest
 
 from cnaas_nms.tools.jinja_filters import increment_ip, isofy_ipv4, ipv4_to_ipv6
@@ -61,22 +62,30 @@ class JinjaFilterTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 isofy_ipv4('10.0.0.1', prefix=prefix)
 
-    def test_ipv4_to_ipv6(self):
-        self.assertEqual(ipv4_to_ipv6('2001:700::/64', '10.0.0.1'), '2001:700::10:0:0:1/64')
-        self.assertEqual(ipv4_to_ipv6('2001:700:0::/64', '10.0.0.1'), '2001:700::10:0:0:1/64')
+
+class IPv6ToIPv4Tests(unittest.TestCase):
+    """Tests for the ipv4_to_ipv6 filter function"""
+
+    def test_should_convert_short_network_properly(self):
+        self.assertEqual(
+            ipv4_to_ipv6('2001:700::/64', '10.0.0.1'),
+            ipaddress.IPv6Interface('2001:700::10.0.0.1/64'),
+        )
+
+    def test_should_convert_long_network_properly(self):
+        self.assertEqual(
+            ipv4_to_ipv6('2001:700:dead:c0de:babe::/80', '10.0.0.1'),
+            ipaddress.IPv6Interface('2001:700:dead:c0de:babe::10.0.0.1/80'),
+        )
+
+    def test_should_raise_on_invalid_network(self):
         with self.assertRaises(ValueError):
             invalid_network = '2001:700:0:::/64'
             ipv4_to_ipv6(invalid_network, '10.0.0.1')
 
-    def test_ipv4to6_prefix(self):
-        self.assertNotEqual(ipv4_to_ipv6('2001:700::/64', '10.0.0.1'), '2001:700::10:0:0:1')
-
-    def test_ipv4to6_compressed_notation(self):
-        self.assertNotEqual(ipv4_to_ipv6('2001:700:0::/64', '10.0.0.1'), '2001:700:0::10:0:0:1/64')
-        self.assertNotEqual(
-            ipv4_to_ipv6('2001:0700:0000::/64', '10.0.0.1'), '2001:0700:0000::10:0:0:1/64'
-        )
-        self.assertNotEqual(ipv4_to_ipv6('2001:700::/64', '10.00.0.1'), '2001:700::10:00:0:1/64')
+    def test_should_return_an_ipv6interface(self):
+        result = ipv4_to_ipv6('2001:700::/64', '10.0.0.1')
+        self.assertIsInstance(result, ipaddress.IPv6Interface)
 
 
 if __name__ == '__main__':

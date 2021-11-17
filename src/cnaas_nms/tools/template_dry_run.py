@@ -56,9 +56,7 @@ def get_device_details(hostname):
 def load_jinja_filters():
     try:
         import jinja_filters
-        jf = jinja_filters.__dict__
-        functions = {f: jf[f] for f in jf if callable(jf[f])}
-        return functions
+        return jinja_filters.FILTERS
     except ModuleNotFoundError:
         print('No jinja_filters.py file in PYTHONPATH, proceeding without filters')
         return {}
@@ -74,8 +72,7 @@ def render_template(platform, device_type, variables):
         keep_trailing_newline=True
     )
     jfilters = load_jinja_filters()
-    for f in jfilters:
-        jinjaenv.filters[f] = jfilters[f]
+    jinjaenv.filters.update(jfilters)
     print("Jinja filters added: {}".format([*jfilters]))
     template_vars = {**variables, **get_environment_secrets()}
     template = jinjaenv.get_template(get_entrypoint(platform, device_type))

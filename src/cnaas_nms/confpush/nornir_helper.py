@@ -36,9 +36,7 @@ def get_jinja_env(path):
         loader=FileSystemLoader(path),
         cache_size=0,
     )
-    jinja_env.filters['increment_ip'] = jinja_filters.increment_ip
-    jinja_env.filters['isofy_ipv4'] = jinja_filters.isofy_ipv4
-    jinja_env.filters['ipv4_to_ipv6'] = jinja_filters.ipv4_to_ipv6
+    jinja_env.filters.update(jinja_filters.FILTERS)
     return jinja_env
 
 

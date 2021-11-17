@@ -1,5 +1,6 @@
 import ipaddress
 import re
+from typing import Union
 
 
 def increment_ip(ip_string, increment=1):
@@ -60,22 +61,30 @@ def isofy_ipv4(ip_string, prefix=''):
     return iso_address
 
 
-def ipv4_to_ipv6(v6network_string, v4address):
-    """Transform IPv4 address to IPv6. This will combine four hextets of an IPv6 network
-    with four pseudo-hextets of an IPv4 address into a valid IPv6 address.
+def ipv4_to_ipv6(
+    v6_network: Union[str, ipaddress.IPv6Network], v4_address: Union[str, ipaddress.IPv4Interface]
+):
+    """Transforms an IPv4 address to an IPv6 interface address. This will combine an arbitrary
+    IPv6 network address with the 32 address bytes of an IPv4 address into a valid IPv6 address
+    + prefix length notation - the equivalent of dotted quad compatible notation.
+
+    E.g.:
+    >>> ipv6 = ipv4_to_ipv6("2001:700:dead:babe::/64", "127.0.0.1")
+    >>> ipv6
+    IPv6Interface('2001:700:dead:babe::7f00:1/64')
+    >>> ipv6 == ipaddress.IPv6Interface('2001:700:dead:babe::127.0.0.1/64')
+    True
+
     Args:
-        v6network_string: IPv6 network in prefix notation
-        v4address: IPv4 address
+        v6_network: IPv6 network in prefix notation
+        v4_address: IPv4 address
     Returns:
-        IPv6 address on the given network, in compressed notation
+        An IPv6Address object on the given network
     """
-    v6network = ipaddress.IPv6Network(v6network_string)
-    part1 = v6network.network_address.compressed
-    part3 = v6network.prefixlen
-    part2 = v4address.replace('.', ':')
-    v6address_string = f"{part1}{part2}/{part3}"
+    if isinstance(v6_network, str):
+        v6_network = ipaddress.IPv6Network(v6_network)
+    if isinstance(v4_address, str):
+        v4_address = ipaddress.IPv4Address(v4_address)
 
-    v6address = ipaddress.IPv6Interface(v6address_string)
-    assert v6address in v6network  # verify that address is on the given network
-
-    return v6address.compressed
+    v6_address = v6_network[int(v4_address)]
+    return ipaddress.IPv6Interface(f"{v6_address}/{v6_network.prefixlen}")

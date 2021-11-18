@@ -19,6 +19,7 @@ nose==1.3.7
 pluggy==0.13.1
 psycopg2==2.8.6
 psycopg2-binary==2.8.6
+requests==2.26.0
 redis==3.5.3
 redis-lru==0.1.0
 Sphinx==3.3.1

@@ -995,6 +995,29 @@ class DeviceStackmembersApi(Resource):
                 result['data']['stackmembers'].append(stackmember.as_dict())
         return result
 
+    @jwt_required
+    def put(self, device_id):
+        data = request.get_json()['stackmembers']
+        result = empty_result(data={'stackmembers': []})
+        with sqla_session() as session:
+            device_instance = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if not device_instance:
+                return empty_result('error', "Device not found"), 404
+            if not device_instance.is_stack(session):
+                return empty_result('error', "This device is not a stack"), 400
+            try:
+                for stackmember in device_instance.get_stackmembers(session):
+                    session.delete(stackmember)
+                session.flush()
+                for stackmember_data in data:
+                    stackmember_data['device_id'] = device_id
+                    new_stackmember = Stackmember(**stackmember_data)
+                    session.add(new_stackmember)
+                    result['data']['stackmembers'].append(new_stackmember.as_dict())
+            except ValueError as e:
+                session.rollback()
+                return empty_result('error', str(e)), 400
+        return result
 
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')

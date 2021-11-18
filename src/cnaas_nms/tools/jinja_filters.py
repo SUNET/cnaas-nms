@@ -5,6 +5,7 @@ import ipaddress
 import re
 from typing import Union, Optional, Callable
 
+from cachetools import cached, TTLCache
 import requests
 
 # This global dict can be used to update the Jinja environment filters dict to include all
@@ -118,6 +119,7 @@ def ipv4_to_ipv6(
 
 
 @template_filter()
+@cached(cache=TTLCache(maxsize=128, ttl=300))
 def file_sha256sum(file_url: str) -> str:
     """Downloads a file from the internet and returns its sha256 checksum"""
     response = requests.get(file_url)

@@ -6,7 +6,6 @@ import json
 import unittest
 
 from cnaas_nms.api import app
-from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
 from cnaas_nms.db.session import clear_db
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
@@ -22,13 +21,8 @@ class DeviceTests(unittest.TestCase):
         self.app = app.app
         self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
         self.client = self.app.test_client()
-        self.tmp_postgres = PostgresTemporaryInstance()
 
     def tearDown(self):
-        device_id = self.testdata['initcheck_device_id']
-        self.client.put(f'/api/v1.0/device/{device_id}',
-                        json={'state': 'MANAGED'})
-        self.tmp_postgres.shutdown()
         clear_db()
 
     def test_0_add_invalid_device(self):
@@ -150,9 +144,6 @@ class DeviceTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
         self.assertEqual(json_data['data']['compatible'], False)
-
-        self.client.put(f'/api/v1.0/device/{device_id}',
-                        json={'state': 'MANAGED'})
 
 
 if __name__ == '__main__':

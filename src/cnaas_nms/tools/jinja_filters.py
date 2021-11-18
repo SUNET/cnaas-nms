@@ -1,8 +1,11 @@
 """Jinja filter functions for use in configuration templates"""
 
+import hashlib
 import ipaddress
 import re
 from typing import Union, Optional, Callable
+
+import requests
 
 # This global dict can be used to update the Jinja environment filters dict to include all
 # registered template filter function
@@ -112,3 +115,11 @@ def ipv4_to_ipv6(
 
     v6_address = v6_network[int(v4_address)]
     return ipaddress.IPv6Interface(f"{v6_address}/{v6_network.prefixlen}")
+
+
+@template_filter()
+def file_sha256sum(file_url: str) -> str:
+    """Downloads a file from the internet and returns its sha256 checksum"""
+    response = requests.get(file_url)
+    checksum = hashlib.sha256(response.content)
+    return checksum.hexdigest()

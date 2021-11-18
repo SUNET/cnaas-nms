@@ -86,14 +86,14 @@ def isofy_ipv4(ip_string, prefix=''):
 
 @template_filter()
 def ipv4_to_ipv6(
-    v6_network: Union[str, ipaddress.IPv6Network], v4_address: Union[str, ipaddress.IPv4Interface]
+    v4_address: Union[str, ipaddress.IPv4Interface], v6_network: Union[str, ipaddress.IPv6Network]
 ):
     """Transforms an IPv4 address to an IPv6 interface address. This will combine an arbitrary
     IPv6 network address with the 32 address bytes of an IPv4 address into a valid IPv6 address
     + prefix length notation - the equivalent of dotted quad compatible notation.
 
     E.g.:
-    >>> ipv6 = ipv4_to_ipv6("2001:700:dead:babe::/64", "127.0.0.1")
+    >>> ipv6 = ipv4_to_ipv6("127.0.0.1", "2001:700:dead:babe::/64")
     >>> ipv6
     IPv6Interface('2001:700:dead:babe::7f00:1/64')
     >>> ipv6 == ipaddress.IPv6Interface('2001:700:dead:babe::127.0.0.1/64')

@@ -112,3 +112,24 @@ def ipv4_to_ipv6(
 
     v6_address = v6_network[int(v4_address)]
     return ipaddress.IPv6Interface(f"{v6_address}/{v6_network.prefixlen}")
+
+
+@template_filter()
+def get_interface(
+    network: Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface, str], index: int
+) -> Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface]:
+    """Returns a host address with a prefix length from its index in a network.
+
+    Example:
+    >>> get_interface("10.0.1.0/24", 2)
+    ipaddress.IPv4Interface("10.0.1.2/24")
+
+    Args:
+        network: Network in CIDR notation
+        index: The host address' index in the network prefix
+    """
+    if isinstance(network, str):
+        network = ipaddress.ip_network(network)
+
+    host = network[index]
+    return ipaddress.ip_interface(f"{host}/{network.prefixlen}")

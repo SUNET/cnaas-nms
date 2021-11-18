@@ -1,7 +1,9 @@
 import ipaddress
 import unittest
 
-from cnaas_nms.tools.jinja_filters import increment_ip, isofy_ipv4, ipv4_to_ipv6
+from mock import Mock, patch
+
+from cnaas_nms.tools.jinja_filters import increment_ip, isofy_ipv4, ipv4_to_ipv6, file_sha256sum
 
 
 class JinjaFilterTests(unittest.TestCase):
@@ -86,6 +88,24 @@ class IPv6ToIPv4Tests(unittest.TestCase):
     def test_should_return_an_ipv6interface(self):
         result = ipv4_to_ipv6('2001:700::/64', '10.0.0.1')
         self.assertIsInstance(result, ipaddress.IPv6Interface)
+
+
+class FileSha256SumTests(unittest.TestCase):
+    """Tests for the file_sha256sum filter function"""
+
+    def setUp(self) -> None:
+        self.request_patch = patch('requests.get')
+        self.get = self.request_patch.start()
+
+    def test_should_return_correct_checksum(self):
+        self.get.return_value = Mock(content=b'fake-content')
+        expected_checksum = '9c87681ea7ba17d350f3cb62894935d8f77c0aacc678966d51638d584a6eaee0'
+
+        checksum = file_sha256sum('fake_url')
+        self.assertEqual(checksum, expected_checksum)
+
+    def tearDown(self) -> None:
+        self.request_patch.stop()
 
 
 if __name__ == '__main__':

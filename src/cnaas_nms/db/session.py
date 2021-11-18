@@ -32,15 +32,17 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
     )
 
 
-conn_str = get_sqlalchemy_conn_str()
-engine = create_engine(conn_str, pool_size=50, max_overflow=50)
-connection = engine.connect()
-Session = sessionmaker(bind=engine)
+def get_session():
+    conn_str = get_sqlalchemy_conn_str()
+    engine = create_engine(conn_str, pool_size=50, max_overflow=50)
+    engine.connect()
+    Session = sessionmaker(bind=engine)
+    return Session()
 
 
 @contextmanager
 def sqla_session(**kwargs):
-    session = Session()
+    session = get_session()
     try:
         yield session
         session.commit()

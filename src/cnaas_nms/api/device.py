@@ -15,6 +15,7 @@ import cnaas_nms.confpush.update
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.api.generic import build_filter, empty_result
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups
@@ -980,6 +981,20 @@ class DeviceCertApi(Resource):
                 data=f"Unknown action specified: {action}"
             ), 400
 
+class DeviceStackmembersApi(Resource):
+    @jwt_required
+    def get(self, device_id):
+        """ Get stackmembers for device """
+        result = empty_result(data={'stackmembers': []})
+        with sqla_session() as session:
+            device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if not device:
+                return empty_result('error', "Device not found"), 404
+            stackmembers = device.get_stackmembers(session)
+            for stackmember in stackmembers:
+                result['data']['stackmembers'].append(stackmember.as_dict())
+        return result
+
 
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
@@ -996,4 +1011,5 @@ device_syncto_api.add_resource(DeviceSyncApi, '')
 device_update_facts_api.add_resource(DeviceUpdateFactsApi, '')
 device_update_interfaces_api.add_resource(DeviceUpdateInterfacesApi, '')
 device_cert_api.add_resource(DeviceCertApi, '')
+device_api.add_resource(DeviceStackmembersApi, "/<int:device_id>/stackmember")
 # device/<string:hostname>/current_config

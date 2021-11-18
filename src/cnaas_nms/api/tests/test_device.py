@@ -7,6 +7,7 @@ import unittest
 
 from cnaas_nms.api import app
 from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
+from cnaas_nms.db.session import clear_db
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 
@@ -28,6 +29,7 @@ class DeviceTests(unittest.TestCase):
         self.client.put(f'/api/v1.0/device/{device_id}',
                         json={'state': 'MANAGED'})
         self.tmp_postgres.shutdown()
+        clear_db()
 
     def test_0_add_invalid_device(self):
         device_data = {

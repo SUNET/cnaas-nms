@@ -1,7 +1,13 @@
 import ipaddress
 import unittest
 
-from cnaas_nms.tools.jinja_filters import increment_ip, isofy_ipv4, ipv4_to_ipv6, get_interface
+from cnaas_nms.tools.jinja_filters import (
+    increment_ip,
+    isofy_ipv4,
+    ipv4_to_ipv6,
+    get_interface,
+    ipwrap,
+)
 
 
 class JinjaFilterTests(unittest.TestCase):
@@ -61,6 +67,30 @@ class JinjaFilterTests(unittest.TestCase):
         for prefix in invalid_prefixes:
             with self.assertRaises(ValueError):
                 isofy_ipv4('10.0.0.1', prefix=prefix)
+
+
+class IPWrapTests(unittest.TestCase):
+    """Tests for the ipwrap filter function"""
+
+    def test_should_wrap_ipv6_string_in_brackets(self):
+        address = "fe80:c0ff:eeba:be::"
+        self.assertEqual(ipwrap(address), f"[{address}]")
+
+    def test_should_wrap_ipv6_address_object_in_brackets(self):
+        address = ipaddress.IPv6Address("fe80:c0ff:eeba:be::")
+        self.assertEqual(ipwrap(address), f"[{address}]")
+
+    def test_should_not_wrap_ipv4_address(self):
+        address = "10.0.1.42"
+        self.assertEqual(ipwrap(address), address)
+
+    def test_should_not_wrap_fqdn(self):
+        address = "wwww.example.org"
+        self.assertEqual(ipwrap(address), address)
+
+    def test_should_not_wrap_ints(self):
+        address = 338288761799928348595999619069446717440
+        self.assertEqual(ipwrap(address), str(address))
 
 
 class IPv6ToIPv4Tests(unittest.TestCase):

@@ -57,8 +57,11 @@ def load_jinja_filters():
     try:
         import jinja_filters
         return jinja_filters.FILTERS
-    except ModuleNotFoundError:
-        print('No jinja_filters.py file in PYTHONPATH, proceeding without filters')
+    except ModuleNotFoundError as error:
+        print(
+            f'jinja_filters.py could not be loaded from PYTHONPATH, proceeding without filters: '
+            '{error}'
+        )
         return {}
 
 

@@ -69,13 +69,13 @@ class IPv6ToIPv4Tests(unittest.TestCase):
     def test_should_convert_short_network_properly(self):
         self.assertEqual(
             ipv4_to_ipv6('10.0.0.1', '2001:700::/64'),
-            ipaddress.IPv6Interface('2001:700::10.0.0.1/64'),
+            ipaddress.IPv6Interface('2001:700::1/64'),
         )
 
     def test_should_convert_long_network_properly(self):
         self.assertEqual(
-            ipv4_to_ipv6('10.0.0.1', '2001:700:dead:c0de:babe::/80'),
-            ipaddress.IPv6Interface('2001:700:dead:c0de:babe::10.0.0.1/80'),
+            ipv4_to_ipv6('10.0.0.1', '2001:700:dead:c0de::/64', keep_octets=4),
+            ipaddress.IPv6Interface('2001:700:dead:c0de:10:0:0:1/64'),
         )
 
     def test_should_raise_on_invalid_network(self):

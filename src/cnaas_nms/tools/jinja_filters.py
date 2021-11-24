@@ -1,8 +1,30 @@
+"""Jinja filter functions for use in configuration templates"""
+
 import ipaddress
 import re
-from typing import Union
+from typing import Union, Optional, Callable
+
+# This global dict can be used to update the Jinja environment filters dict to include all
+# registered template filter function
+FILTERS = {}
 
 
+def template_filter(name: Optional[str] = None) -> Callable:
+    """Registers a template filter function in the FILTERS dict.
+
+    Args:
+        name: Optional alternative name to register the function as
+    """
+
+    def decorator(func):
+        name_ = name if name else func.__name__
+        FILTERS[name_] = func
+        return func
+
+    return decorator
+
+
+@template_filter()
 def increment_ip(ip_string, increment=1):
     """Increment an IP address by a given value. Default increment value is 1.
     Args:
@@ -31,6 +53,7 @@ def increment_ip(ip_string, increment=1):
         return format(ip + increment)
 
 
+@template_filter()
 def isofy_ipv4(ip_string, prefix=''):
     """Transform IPv4 address so it can be used as an ISO/NET address.
     All four blocks of the IP address are padded with zeros and split up into double octets.
@@ -61,6 +84,7 @@ def isofy_ipv4(ip_string, prefix=''):
     return iso_address
 
 
+@template_filter()
 def ipv4_to_ipv6(
     v6_network: Union[str, ipaddress.IPv6Network], v4_address: Union[str, ipaddress.IPv4Interface]
 ):

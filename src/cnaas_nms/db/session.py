@@ -31,12 +31,14 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
         f"{db_data['hostname']}:{db_data['port']}/{db_data['database']}"
     )
 
-
+Session = None
 def get_session():
-    conn_str = get_sqlalchemy_conn_str()
-    engine = create_engine(conn_str, pool_size=50, max_overflow=50)
-    engine.connect()
-    Session = sessionmaker(bind=engine)
+    global Session
+    if Session is None:
+        conn_str = get_sqlalchemy_conn_str()
+        engine = create_engine(conn_str, pool_size=50, max_overflow=50)
+        engine.connect()
+        Session = sessionmaker(bind=engine)
     return Session()
 
 

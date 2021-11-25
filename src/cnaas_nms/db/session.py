@@ -51,6 +51,18 @@ def sqla_session(**kwargs):
         session.close()
 
 @contextmanager
+def sqla_test_session(**kwargs):
+    session = Session()
+    try:
+        yield session
+        session.flush()
+    except:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+@contextmanager
 def sqla_execute(**kwargs):
     conn_str = get_sqlalchemy_conn_str(**kwargs)
     engine = create_engine(conn_str)

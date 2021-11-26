@@ -7,7 +7,7 @@ from flask_restx import Resource, Namespace, fields
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
-from pydantic import ValidationError, parse_obj_as
+from pydantic import ValidationError
 
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
@@ -1002,7 +1002,7 @@ class DeviceStackmembersApi(Resource):
     @jwt_required
     def put(self, device_id):
         try:
-            validated_json_data = parse_obj_as(StackmembersModel, request.get_json()).dict()
+            validated_json_data = StackmembersModel(**request.get_json()).dict()
             data = validated_json_data['stackmembers']
         except ValidationError as e:
             errors = [error['msg'] for error in e.errors()]

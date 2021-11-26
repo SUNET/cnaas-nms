@@ -404,6 +404,18 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
         self.assertTrue("action" in result.json['message'], msg="Unexpected error message")
 
+    def test_generate_only_vars(self):
+        result = self.client.get("/api/v1.0/device/{}/generate_config".format(
+            self.testdata['interface_device']
+        ))
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(
+            result.json['data']['config']['available_variables']['hostname'],
+            self.testdata['interface_device'],
+            "hostname variable not found in generate_only variables"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

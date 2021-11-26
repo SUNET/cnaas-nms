@@ -28,6 +28,10 @@ will depend on things defined in a file called "managed-full.j2".
 The template files themselves are written using the Jinja2 templating language. Variables
 that are exposed from CNaaS includes:
 
+- hostname: Short hostname of device
+
+- host: Short hostname of device (implicitly added by nornir-jinja2)
+
 - mgmt_ip: IPv4 management address (ex 192.168.0.10)
 
 - mgmt_ipif: IPv4 management address including prefix length (ex 192.168.0.10/24)
@@ -49,6 +53,8 @@ that are exposed from CNaaS includes:
 
 - device_os_version: Device OS version string, same as "os_version" in the
   device API. Can be used if you need OS version specific configuration lines.
+
+- device_id: CNaaS-NMS internal ID number of the device
 
 Additional variables available for distribution switches:
 

@@ -1005,7 +1005,7 @@ class DeviceStackmembersApi(Resource):
             validated_json_data = StackmembersModel(**request.get_json()).dict()
             data = validated_json_data['stackmembers']
         except ValidationError as e:
-            errors = [error['msg'] for error in e.errors()]
+            errors = DeviceStackmembersApi.format_errors(e.errors())
             return empty_result('error', errors), 400
         result = empty_result(data={'stackmembers': []})
         with sqla_session() as session:
@@ -1025,6 +1025,17 @@ class DeviceStackmembersApi(Resource):
                 session.rollback()
                 return empty_result('error', str(e)), 400
         return result
+
+    @classmethod
+    def format_errors(cls, errors):
+        return_errors = []
+        for error in errors:
+            error_msg = error['msg']
+            if error['type'] != 'value_error':
+                error_msg = f"{error['loc'][2]}: {error_msg}"
+            return_errors.append(error_msg)
+        return return_errors
+
 
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')

@@ -758,6 +758,7 @@ class DeviceConfigApi(Resource):
 
         try:
             config, template_vars = cnaas_nms.confpush.sync_devices.generate_only(hostname)
+            template_vars['host'] = hostname
             result['data']['config'] = {
                 'hostname': hostname,
                 'generated_config': config,

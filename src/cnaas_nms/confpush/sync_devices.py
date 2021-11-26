@@ -110,7 +110,10 @@ def populate_device_vars(session, dev: Device,
     logger = get_logger()
     device_variables = {
         'device_model': dev.model,
-        'device_os_version': dev.os_version
+        'device_os_version': dev.os_version,
+        'device_id': dev.id,
+        'hostname': dev.hostname
+        # 'host' variable is also implicitly added by nornir-jinja2
     }
 
     if ztp_hostname:

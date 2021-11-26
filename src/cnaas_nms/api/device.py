@@ -1012,8 +1012,6 @@ class DeviceStackmembersApi(Resource):
             device_instance = session.query(Device).filter(Device.id == device_id).one_or_none()
             if not device_instance:
                 return empty_result('error', "Device not found"), 404
-            if not device_instance.is_stack(session):
-                return empty_result('error', "This device is not a stack"), 400
             try:
                 for stackmember in device_instance.get_stackmembers(session):
                     session.delete(stackmember)

@@ -6,6 +6,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from redis import StrictRedis
 
+
+_sessionmaker = None
+
+
 def get_dbdata(config='/etc/cnaas-nms/db_config.yml'):
     with open(config, 'r') as db_file:
         return yaml.safe_load(db_file)
@@ -29,20 +33,20 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
         f"{db_data['hostname']}:{db_data['port']}/{db_data['database']}"
     )
 
-Session = None
-def get_session():
-    global Session
-    if Session is None:
+
+def _get_session():
+    global _sessionmaker
+    if _sessionmaker is None:
         conn_str = get_sqlalchemy_conn_str()
         engine = create_engine(conn_str, pool_size=50, max_overflow=50)
         engine.connect()
-        Session = sessionmaker(bind=engine)
-    return Session()
+        _sessionmaker = sessionmaker(bind=engine)
+    return _sessionmaker()
 
 
 @contextmanager
 def sqla_session(**kwargs):
-    session = get_session()
+    session = _get_session()
     try:
         yield session
         session.commit()
@@ -51,6 +55,7 @@ def sqla_session(**kwargs):
         raise
     finally:
         session.close()
+
 
 @contextmanager
 def sqla_test_session(**kwargs):
@@ -64,6 +69,7 @@ def sqla_test_session(**kwargs):
     finally:
         session.close()
 
+
 @contextmanager
 def sqla_execute(**kwargs):
     conn_str = get_sqlalchemy_conn_str(**kwargs)
@@ -71,6 +77,7 @@ def sqla_execute(**kwargs):
 
     with engine.connect() as connection:
         yield connection
+
 
 @contextmanager
 def redis_session(**kwargs):

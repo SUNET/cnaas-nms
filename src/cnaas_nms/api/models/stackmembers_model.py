@@ -2,7 +2,7 @@ from typing import Optional, List
 from pydantic import BaseModel, validator, conint
 
 class StackmemberModel(BaseModel):
-    member_no: conint(gt=-1)
+    member_no: Optional[conint(gt=-1)] = None
     hardware_id: str
     priority: Optional[conint(gt=-1)] = None
 

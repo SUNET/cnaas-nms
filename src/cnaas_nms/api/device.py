@@ -996,11 +996,11 @@ class DeviceCertApi(Resource):
 class DeviceStackmembersApi(Resource):
 
     @jwt_required
-    def get(self, device_id):
+    def get(self, hostname):
         """ Get stackmembers for device """
         result = empty_result(data={'stackmembers': []})
         with sqla_session() as session:
-            device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not device:
                 return empty_result('error', "Device not found"), 404
             stackmembers = device.get_stackmembers(session)
@@ -1010,7 +1010,7 @@ class DeviceStackmembersApi(Resource):
 
     @jwt_required
     @device_api.expect(stackmembers_model)
-    def put(self, device_id):
+    def put(self, hostname):
         try:
             validated_json_data = StackmembersModel(**request.get_json()).dict()
             data = validated_json_data['stackmembers']
@@ -1019,7 +1019,7 @@ class DeviceStackmembersApi(Resource):
             return empty_result('error', errors), 400
         result = empty_result(data={'stackmembers': []})
         with sqla_session() as session:
-            device_instance = session.query(Device).filter(Device.id == device_id).one_or_none()
+            device_instance = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not device_instance:
                 return empty_result('error', "Device not found"), 404
             try:
@@ -1027,7 +1027,7 @@ class DeviceStackmembersApi(Resource):
                     session.delete(stackmember)
                 session.flush()
                 for stackmember_data in data:
-                    stackmember_data['device_id'] = device_id
+                    stackmember_data['device_id'] = device_instance.id
                     new_stackmember = Stackmember(**stackmember_data)
                     session.add(new_stackmember)
                     result['data']['stackmembers'].append(new_stackmember.as_dict())
@@ -1062,5 +1062,5 @@ device_syncto_api.add_resource(DeviceSyncApi, '')
 device_update_facts_api.add_resource(DeviceUpdateFactsApi, '')
 device_update_interfaces_api.add_resource(DeviceUpdateInterfacesApi, '')
 device_cert_api.add_resource(DeviceCertApi, '')
-device_api.add_resource(DeviceStackmembersApi, "/<int:device_id>/stackmember")
+device_api.add_resource(DeviceStackmembersApi, "/<string:hostname>/stackmember")
 # device/<string:hostname>/current_config

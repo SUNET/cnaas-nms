@@ -273,7 +273,7 @@ class DevicesApi(Resource):
         resp.headers['X-Total-Count'] = total_count
         resp.headers['Content-Type'] = 'application/json'
         return resp
-    
+
 
 class DeviceInitApi(Resource):
     @jwt_required

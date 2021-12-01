@@ -1,7 +1,6 @@
 import json
 import datetime
 from typing import Optional
-from typing_extensions import Required
 
 from flask import request, make_response
 from flask_restx import Resource, Namespace, fields

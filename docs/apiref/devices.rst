@@ -372,7 +372,7 @@ Stackmembers for a device can be listed with the following API call:
 
 ::
 
-   curl https://hostname/api/v1.0/device/1/stackmember
+   curl https://hostname/api/v1.0/device/<device_hostname>/stackmember
 
 This will return all stackmember entries from the database that are tied to the specified device.
 Example output:
@@ -413,10 +413,10 @@ has three fields available:
 
 member_no and hardware_id must be unique for each stackmember in the same device.
 
-Example for defining two stackmembers for device with device_id 1:
+Example for defining two stackmembers:
 
 ::
 
    curl -H "Content-Type: application/json" -X PUT -d
    '{"stackmembers": [{"member_no": 1,"hardware_id": "4AE008A","priority": 55}, {"member_no": 2, "hardware_id": "B77C34F", "priority": 125}]}'
-   https://hostname/api/v1.0/device/1/stackmember
+   https://hostname/api/v1.0/device/<device_hostname>/stackmember

@@ -137,6 +137,7 @@ stackmembers_model = device_api.model('stackmembers', {
     'stackmembers': fields.List(fields.Nested(stackmember_model)),
 })
 
+
 class DeviceByIdApi(Resource):
     @jwt_required
     def get(self, device_id):
@@ -993,8 +994,8 @@ class DeviceCertApi(Resource):
                 data=f"Unknown action specified: {action}"
             ), 400
 
-class DeviceStackmembersApi(Resource):
 
+class DeviceStackmembersApi(Resource):
     @jwt_required
     def get(self, hostname):
         """ Get stackmembers for device """

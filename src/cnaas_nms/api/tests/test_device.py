@@ -218,8 +218,6 @@ class DeviceTests(unittest.TestCase):
         new_device = self.create_test_device(device_id=1)
         with sqla_session() as session:
             session.add(new_device)
-            stackmember = Stackmember(device_id=1, hardware_id="AB1234", member_no=1, priority=3)
-            session.add(stackmember)
         stackmember_data = {'stackmembers': [
             {"hardware_id": "DC1231", "member_no": 1},
             {"hardware_id": "CD5555", "member_no": 1}
@@ -232,8 +230,6 @@ class DeviceTests(unittest.TestCase):
         new_device = self.create_test_device(device_id=1)
         with sqla_session() as session:
             session.add(new_device)
-            stackmember = Stackmember(device_id=1, hardware_id="AB1234", member_no=1, priority=3)
-            session.add(stackmember)
         stackmember_data = {'stackmembers': [
             {"hardware_id": "AA1111", "member_no": 1},
             {"hardware_id": "AA1111", "member_no": 2}

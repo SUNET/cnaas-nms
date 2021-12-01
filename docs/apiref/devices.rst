@@ -367,7 +367,7 @@ argument must be specified and the only valid action for now is "RENEW".
 
 
 Show stackmembers
---------------
+-----------------
 Stackmembers for a device can be listed with the following API call:
 
 ::
@@ -395,10 +395,10 @@ Example output:
               },
           ]
       }
-  }  
+  }
 
 Set stackmembers
---------------
+----------------
 
 Stackmembers for a device can be set using a PUT operation.
 This replaces any existing stackmembers.

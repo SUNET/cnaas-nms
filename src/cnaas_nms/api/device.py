@@ -1,6 +1,7 @@
 import json
 import datetime
 from typing import Optional
+from typing_extensions import Required
 
 from flask import request, make_response
 from flask_restx import Resource, Namespace, fields
@@ -127,6 +128,15 @@ device_cert_model = device_syncto_api.model('device_cert', {
                             example="RENEW")
 })
 
+stackmember_model = device_api.model('stackmember', {
+    'member_no': fields.Integer(required=False),
+    'hardware_id': fields.String(required=True),
+    'prioity_id': fields.Integer(required=False)
+})
+
+stackmembers_model = device_api.model('stackmembers', {
+    'stackmembers': fields.List(fields.Nested(stackmember_model)),
+})
 
 class DeviceByIdApi(Resource):
     @jwt_required
@@ -1000,6 +1010,7 @@ class DeviceStackmembersApi(Resource):
         return result
 
     @jwt_required
+    @device_api.expect(stackmembers_model)
     def put(self, device_id):
         try:
             validated_json_data = StackmembersModel(**request.get_json()).dict()

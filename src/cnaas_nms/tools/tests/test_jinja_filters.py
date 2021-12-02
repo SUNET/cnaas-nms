@@ -1,7 +1,7 @@
 import ipaddress
 import unittest
 
-from cnaas_nms.tools.jinja_filters import increment_ip, isofy_ipv4, ipv4_to_ipv6
+from cnaas_nms.tools.jinja_filters import increment_ip, isofy_ipv4, ipv4_to_ipv6, get_interface
 
 
 class JinjaFilterTests(unittest.TestCase):
@@ -86,6 +86,24 @@ class IPv6ToIPv4Tests(unittest.TestCase):
     def test_should_return_an_ipv6interface(self):
         result = ipv4_to_ipv6('2001:700::/64', '10.0.0.1')
         self.assertIsInstance(result, ipaddress.IPv6Interface)
+
+
+class GetInterfaceTests(unittest.TestCase):
+    """Tests for the get_interface filter function"""
+
+    def test_should_return_correct_ipv4_interface(self):
+        self.assertEqual(get_interface('10.0.1.0/24', 2), ipaddress.IPv4Interface('10.0.1.2/24'))
+
+    def test_should_return_correct_ipv6_interface(self):
+        self.assertEqual(
+            get_interface('2001:700:dead:c0de::/64', 2),
+            ipaddress.IPv6Interface('2001:700:dead:c0de::2/64'),
+        )
+
+    def test_should_raise_on_invalid_network(self):
+        with self.assertRaises(ValueError):
+            invalid_network = '2001:700:0:::/64'
+            get_interface(invalid_network, 2)
 
 
 if __name__ == '__main__':

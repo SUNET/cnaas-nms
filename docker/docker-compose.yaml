@@ -4,7 +4,7 @@ services:
   #
   # CNaaS services
   #
-  
+
   cnaas_api:
     build:
       context: ./api/
@@ -81,7 +81,7 @@ services:
   #
   # Databases
   #
-  
+
   cnaas_postgres:
     build: ./postgres/
     volumes:
@@ -92,11 +92,9 @@ services:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWORD=cnaas
       - POSTGRES_DB=cnaas
-    ports:
-      - 5432:5432
     networks:
       - cnaas
-  
+
   cnaas_redis:
     build: ./redis/
     ports:

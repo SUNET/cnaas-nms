@@ -2,7 +2,7 @@ import os
 import yaml
 import datetime
 from typing import Optional, List
-from ipaddress import IPv4Interface, IPv4Address
+from ipaddress import IPv4Interface, IPv6Interface, IPv4Address
 from hashlib import sha256
 
 from nornir.core.task import MultiResult
@@ -19,7 +19,7 @@ from cnaas_nms.tools.jinja_helpers import get_environment_secrets
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
@@ -31,6 +31,26 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 
 AUTOPUSH_MAX_SCORE = 10
 PRIVATE_ASN_START = 4200000000
+
+
+def generate_unique_vxlan_ip_address(device: Device, settings: dict) -> dict:
+    """
+    Generate a unique IP address for the distribution layer.
+
+    This is a constraint when using Junos and implementing vxlans.
+    When routing in the VXLAN, Junos needs IRB interfaces with a unique IP in the vxlan.
+    """
+    for vxlan in settings["vxlans"]:
+        if vxlan["ipv4_gw"] is not None:
+            interface = IPv4Interface(vxlan["ipv4_gw"])
+            # this assumes a Vxlan will not land on more than 10 devices that need an ip, and that there are no id
+            # collisions in `base 10` and with the gateway address.
+            vxlan["ipv4_ip"] = str(interface.network.network_address + (device.id % 10))
+        if vxlan["ipv6_gw"] is not None:
+            interface = IPv6Interface(vxlan["ipv6_gw"])
+            vxlan["ipv6_ip"] = str(interface.network.network_address + (device.id % 10))
+
+    return settings
 
 
 def generate_asn(ipv4_address: IPv4Address) -> Optional[int]:
@@ -202,6 +222,7 @@ def populate_device_vars(session, dev: Device,
                             **access_device_variables,
                             **mlag_vars}
     elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
+        settings = generate_unique_vxlan_ip_address(dev, settings)
         infra_ip = dev.infra_ip
         asn = generate_asn(infra_ip)
         fabric_device_variables = {

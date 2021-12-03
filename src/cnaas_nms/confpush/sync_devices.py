@@ -303,7 +303,8 @@ def populate_device_vars(session, dev: Device,
                     'ipv4_gw': mgmtdom.ipv4_gw,
                     'vlan': mgmtdom.vlan,
                     'description': mgmtdom.description,
-                    'esi_mac': mgmtdom.esi_mac
+                    'esi_mac': mgmtdom.esi_mac,
+                    'ipv4_ip': str(mgmtdom.device_a_ip) if hostname == mgmtdom.device_a.hostname else str(mgmtdom.device_b_ip)
                 })
         # populate evpn peers data
         for neighbor_d in get_evpn_peers(session, settings):

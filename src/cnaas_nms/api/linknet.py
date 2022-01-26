@@ -13,10 +13,20 @@ from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
 
-api = Namespace('linknets', description='API for handling links',
-                prefix='/api/{}'.format(__api_version__))
+linknets_api = Namespace('linknets', description='API for handling linknets',
+                         prefix='/api/{}'.format(__api_version__))
+linknet_api = Namespace('linknet', description='API for handling a single linknet',
+                        prefix='/api/{}'.format(__api_version__))
 
-linknet_model = api.model('linknet', {
+linknets_model = linknets_api.model('linknets', {
+    'device_a': fields.String(required=True),
+    'device_b': fields.String(required=True),
+    'device_a_port': fields.String(required=True),
+    'device_b_port': fields.String(required=True),
+})
+
+
+linknet_model = linknet_api.model('linknet', {
     'device_a': fields.String(required=True),
     'device_b': fields.String(required=True),
     'device_a_port': fields.String(required=True),
@@ -36,7 +46,7 @@ class LinknetsApi(Resource):
         return empty_result(status='success', data=result)
 
     @jwt_required
-    @api.expect(linknet_model)
+    @linknets_api.expect(linknet_model)
     def post(self):
         """ Add a new linknet """
         json_data = request.get_json()
@@ -137,5 +147,37 @@ class LinknetsApi(Resource):
             return empty_result(status="success", data={"deleted_linknet": cur_linknet.as_dict()}), 200
 
 
-# # Links
-api.add_resource(LinknetsApi, '')
+class LinknetByIdApi(Resource):
+    @jwt_required
+    def get(self, linknet_id):
+        """ Get all linksnets """
+        result = empty_result()
+        result['data'] = {'linknets': []}
+        with sqla_session() as session:
+            instance = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
+            if instance:
+                result['data']['linknets'].append(instance.as_dict())
+            else:
+                return empty_result('error', "Linknet not found"), 404
+        return result
+
+    @jwt_required
+    def delete(self, linknet_id):
+        """ Remove a linknet """
+        with sqla_session() as session:
+            instance: Linknet = session.query(Linknet). \
+                filter(Linknet.id == linknet_id).one_or_none()
+            if instance:
+                instance.device_a.synchronized = False
+                instance.device_b.synchronized = False
+                session.delete(instance)
+                session.commit()
+                return empty_result(status="success",
+                                    data={"deleted_linknet": instance.as_dict()}), 200
+            else:
+                return empty_result('error', "No such linknet found in database"), 404
+
+
+# Links
+linknets_api.add_resource(LinknetsApi, '')
+linknet_api.add_resource(LinknetByIdApi, '/<int:linknet_id>')

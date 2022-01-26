@@ -21,7 +21,7 @@ from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.api.device import device_api, devices_api, device_init_api, \
     device_initcheck_api, device_syncto_api, device_discover_api, \
     device_update_facts_api, device_update_interfaces_api, device_cert_api
-from cnaas_nms.api.linknet import api as links_api
+from cnaas_nms.api.linknet import linknets_api, linknet_api
 from cnaas_nms.api.firmware import api as firmware_api
 from cnaas_nms.api.interface import api as interfaces_api
 from cnaas_nms.api.jobs import job_api, jobs_api, joblock_api
@@ -111,7 +111,8 @@ api.add_namespace(device_discover_api)
 api.add_namespace(device_update_facts_api)
 api.add_namespace(device_update_interfaces_api)
 api.add_namespace(device_cert_api)
-api.add_namespace(links_api)
+api.add_namespace(linknets_api)
+api.add_namespace(linknet_api)
 api.add_namespace(firmware_api)
 api.add_namespace(interfaces_api)
 api.add_namespace(job_api)

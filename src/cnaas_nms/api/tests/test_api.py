@@ -416,6 +416,40 @@ class ApiTests(unittest.TestCase):
             "hostname variable not found in generate_only variables"
         )
 
+    def test_linknet(self):
+        data = {
+            "device_a": "eosdist1",
+            "device_a_port": "Ethernet3",
+            "device_b": "eosdist2",
+            "device_b_port": "Ethernet3"
+        }
+        result = self.client.post('/api/v1.0/linknets', json=data)
+        self.assertEqual(result.status_code, 201, "Bad status code on POST")
+        self.assertEqual(result.json['status'], 'success')
+        self.assertIsInstance(result.json['data']['id'], int)
+        self.assertIsInstance(result.json['data']['ipv4_network'], str)
+        self.assertTrue("/" in result.json['data']['ipv4_network'])
+        linknet_id: int = result.json['data']['id']
+
+        result = self.client.get('/api/v1.0/linknet/{}'.format(linknet_id))
+        self.assertEqual(result.status_code, 200, "Bad status code on GET")
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(len(result.json['data']['linknets']), 1)
+        self.assertIsInstance(result.json['data']['linknets'][0]['id'], int)
+        self.assertEqual(result.json['data']['linknets'][0]['id'], linknet_id)
+
+        result = self.client.get('/api/v1.0/linknets')
+        self.assertEqual(result.status_code, 200, "Bad status code on GET all linknets")
+        self.assertEqual(result.json['status'], 'success')
+        self.assertGreaterEqual(len(result.json['data']['linknets']), 1,
+                                "Less than one linknet found on GET linknets")
+
+        result = self.client.delete('/api/v1.0/linknet/{}'.format(linknet_id))
+        self.assertEqual(result.status_code, 200, "Bad status code on DELETE")
+        self.assertEqual(result.json['status'], 'success')
+        self.assertIsInstance(result.json['data']['deleted_linknet']['id'], int)
+        self.assertEqual(result.json['data']['deleted_linknet']['id'], linknet_id)
+
 
 if __name__ == '__main__':
     unittest.main()

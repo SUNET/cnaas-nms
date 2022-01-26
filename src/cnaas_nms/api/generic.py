@@ -165,6 +165,8 @@ def update_sqla_object(instance, new_data: dict) -> bool:
     """
     changed = False
     for k, v in new_data.items():
+        if k == "id":  # Don't allow updating of instance id
+            continue
         try:
             if getattr(instance, k) != v:
                 setattr(instance, k, v)

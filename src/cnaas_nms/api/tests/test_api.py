@@ -417,13 +417,13 @@ class ApiTests(unittest.TestCase):
         )
 
     def test_linknet(self):
-        data = {
+        post_data = {
             "device_a": "eosdist1",
             "device_a_port": "Ethernet3",
             "device_b": "eosdist2",
             "device_b_port": "Ethernet3"
         }
-        result = self.client.post('/api/v1.0/linknets', json=data)
+        result = self.client.post('/api/v1.0/linknets', json=post_data)
         self.assertEqual(result.status_code, 201, "Bad status code on POST")
         self.assertEqual(result.json['status'], 'success')
         self.assertIsInstance(result.json['data']['id'], int)
@@ -443,6 +443,19 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
         self.assertGreaterEqual(len(result.json['data']['linknets']), 1,
                                 "Less than one linknet found on GET linknets")
+
+        put_data = {
+            "ipv4_network": "10.198.0.0/31",
+            "device_a_ip": "10.198.0.0",
+            "device_b_ip": "10.198.0.1",
+        }
+        result = self.client.put('/api/v1.0/linknet/{}'.format(linknet_id), json=put_data)
+        self.assertEqual(result.status_code, 200, "Bad status code on PUT with OK data")
+        self.assertIn("updated_linknet", result.json['data'])
+        put_data['device_b_ip'] = "10.198.0.0"  # Bad data
+        result = self.client.put('/api/v1.0/linknet/{}'.format(linknet_id), json=put_data)
+        self.assertEqual(result.status_code, 400, "Bad status code on PUT with bad data")
+        self.assertEqual(result.json['status'], 'error')
 
         result = self.client.delete('/api/v1.0/linknet/{}'.format(linknet_id))
         self.assertEqual(result.status_code, 200, "Bad status code on DELETE")

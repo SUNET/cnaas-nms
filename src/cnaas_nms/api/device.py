@@ -13,7 +13,7 @@ import cnaas_nms.confpush.underlay
 import cnaas_nms.confpush.get
 import cnaas_nms.confpush.update
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
-from cnaas_nms.api.generic import build_filter, empty_result
+from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
@@ -257,8 +257,8 @@ class DevicesApi(Resource):
                 total_count = instance.total
 
         resp = make_response(json.dumps(empty_result(status='success', data=data)), 200)
-        resp.headers['X-Total-Count'] = total_count
         resp.headers['Content-Type'] = 'application/json'
+        resp.headers = {**resp.headers, **pagination_headers(total_count)}
         return resp
 
 

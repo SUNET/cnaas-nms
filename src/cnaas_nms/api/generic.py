@@ -1,4 +1,6 @@
 import re
+import urllib
+import math
 from typing import List
 
 from flask import request
@@ -54,6 +56,51 @@ def offset_results() -> int:
             pass
 
     return offset
+
+
+def pagination_headers(total_count) -> dict:
+    per_page = DEFAULT_PER_PAGE
+    page_arg = 1
+    links = []
+    headers = {
+        "X-Total-Count": total_count,
+    }
+
+    args = request.args
+    if 'per_page' in args:
+        try:
+            per_page_arg = int(args['per_page'])
+            assert 1 <= per_page_arg <= MAX_PER_PAGE
+            per_page = per_page_arg
+        except (AssertionError, ValueError):
+            pass
+
+    last_page = int(math.ceil(total_count / per_page))
+    if last_page == 1:
+        return {}
+
+    if 'page' in args:
+        try:
+            page_arg = max(1, int(args['page']))
+        except ValueError:
+            pass
+
+    query_without_page = {k: request.args[k] for k in request.args if k not in ["page"]}
+
+    if page_arg * per_page < total_count:
+        links.append('<{}>; rel="next"'.format(
+            request.base_url + "?" + urllib.parse.urlencode({**query_without_page, "page": page_arg + 1})
+        ))
+
+    if page_arg != last_page:
+        links.append('<{}>; rel="last"'.format(
+            request.base_url + "?" + urllib.parse.urlencode({**query_without_page, "page": last_page})
+        ))
+
+    if links:
+        headers["Link"] = ",".join(links)
+
+    return headers
 
 
 def build_filter(f_class, query: sqlalchemy.orm.query.Query):

@@ -6,7 +6,7 @@ from flask_restx import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func
 
-from cnaas_nms.api.generic import empty_result, build_filter
+from cnaas_nms.api.generic import empty_result, build_filter, pagination_headers
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.db.session import sqla_session
@@ -82,8 +82,8 @@ class JobsApi(Resource):
                 total_count = instance.total
 
         resp = make_response(json.dumps(empty_result(status='success', data=data)), 200)
-        resp.headers['X-Total-Count'] = total_count
         resp.headers['Content-Type'] = 'application/json'
+        resp.headers = {**resp.headers, **pagination_headers(total_count)}
         return resp
 
 

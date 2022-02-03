@@ -75,9 +75,9 @@ def pagination_headers(total_count) -> dict:
         except (AssertionError, ValueError):
             pass
 
-    last_page = int(math.ceil(total_count / per_page))
+    last_page = math.ceil(total_count / per_page)
     if last_page == 1:
-        return {}
+        return headers
 
     if 'page' in args:
         try:
@@ -85,16 +85,14 @@ def pagination_headers(total_count) -> dict:
         except ValueError:
             pass
 
-    query_without_page = {k: request.args[k] for k in request.args if k not in ["page"]}
+    query = request.args
 
-    if page_arg * per_page < total_count:
+    if page_arg < last_page:
         links.append('<{}>; rel="next"'.format(
-            request.base_url + "?" + urllib.parse.urlencode({**query_without_page, "page": page_arg + 1})
+            request.base_url + "?" + urllib.parse.urlencode({**query, "page": page_arg + 1})
         ))
-
-    if page_arg != last_page:
         links.append('<{}>; rel="last"'.format(
-            request.base_url + "?" + urllib.parse.urlencode({**query_without_page, "page": last_page})
+            request.base_url + "?" + urllib.parse.urlencode({**query, "page": last_page})
         ))
 
     if links:

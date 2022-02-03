@@ -81,7 +81,7 @@ app = Flask(__name__)
 # TODO: make origins configurable
 cors = CORS(app,
             resources={r"/api/*": {"origins": "*"}},
-            expose_headers=["Content-Type", "Authorization", "X-Total-Count"])
+            expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link"])
 socketio = SocketIO(app, cors_allowed_origins='*')
 app.config['SECRET_KEY'] = os.urandom(128)
 app.config['JWT_PUBLIC_KEY'] = jwt_pubkey

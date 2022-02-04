@@ -1,39 +1,40 @@
 import os
-import sys
 import re
+import sys
 from typing import Optional
 
-from flask import Flask, render_template, request, g
+from flask import Flask, g, jsonify, render_template, request
+from flask_cors import CORS
+from flask_jwt_extended import JWTManager, decode_token, get_jwt_identity, jwt_required
+from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
-from flask_jwt_extended import JWTManager, decode_token, jwt_required, get_jwt_identity
-from flask_jwt_extended.exceptions import NoAuthorizationError
+from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError
 
-from flask import jsonify
-from flask_cors import CORS
-
-from cnaas_nms.version import __api_version__
-from cnaas_nms.tools.log import get_logger
-from cnaas_nms.app_settings import api_settings
-
-from cnaas_nms.api.device import device_api, devices_api, device_init_api, \
-    device_initcheck_api, device_syncto_api, device_discover_api, \
-    device_update_facts_api, device_update_interfaces_api, device_cert_api
-from cnaas_nms.api.linknet import api as links_api
+from cnaas_nms.api.device import (
+    device_api,
+    device_cert_api,
+    device_discover_api,
+    device_init_api,
+    device_initcheck_api,
+    device_syncto_api,
+    device_update_facts_api,
+    device_update_interfaces_api,
+    devices_api,
+)
 from cnaas_nms.api.firmware import api as firmware_api
-from cnaas_nms.api.interface import api as interfaces_api
-from cnaas_nms.api.jobs import job_api, jobs_api, joblock_api
-from cnaas_nms.api.mgmtdomain import mgmtdomain_api, mgmtdomains_api
 from cnaas_nms.api.groups import api as groups_api
+from cnaas_nms.api.interface import api as interfaces_api
+from cnaas_nms.api.jobs import job_api, joblock_api, jobs_api
+from cnaas_nms.api.linknet import api as links_api
+from cnaas_nms.api.mgmtdomain import mgmtdomain_api, mgmtdomains_api
+from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
-from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.system import api as system_api
-
-from jwt.exceptions import DecodeError, InvalidSignatureError, \
-    InvalidTokenError
-from flask_jwt_extended.exceptions import InvalidHeaderError
-
+from cnaas_nms.app_settings import api_settings
+from cnaas_nms.tools.log import get_logger
+from cnaas_nms.version import __api_version__
 
 logger = get_logger()
 

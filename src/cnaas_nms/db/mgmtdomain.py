@@ -1,17 +1,16 @@
-import ipaddress
 import datetime
 import enum
-from ipaddress import IPv4Interface, IPv4Address
+import ipaddress
+from ipaddress import IPv4Address, IPv4Interface
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, Unicode, UniqueConstraint
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import relationship, load_only
+from sqlalchemy import Column, ForeignKey, Integer, String, Unicode, UniqueConstraint
+from sqlalchemy.orm import load_only, relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
-import cnaas_nms.db.site
 import cnaas_nms.db.device
+import cnaas_nms.db.site
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.reservedip import ReservedIP
 

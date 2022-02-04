@@ -1,12 +1,11 @@
-import yaml
 import importlib
 
 import pluggy
+import yaml
 
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.plugins.pluginspec import CnaasPluginSpec
 from cnaas_nms.tools.log import get_logger
-
 
 logger = get_logger()
 

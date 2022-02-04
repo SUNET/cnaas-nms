@@ -1,23 +1,19 @@
 from __future__ import annotations
 
-import ipaddress
 import datetime
 import enum
-import re
+import ipaddress
 import json
-from typing import Optional, List, Set
+import re
+from typing import List, Optional, Set
 
-from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
-from sqlalchemy import Enum, DateTime, Boolean
-from sqlalchemy import ForeignKey
-from sqlalchemy import event
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Unicode, UniqueConstraint, event
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
-import cnaas_nms.db.site
 import cnaas_nms.db.linknet
-
+import cnaas_nms.db.site
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.tools.event import add_event

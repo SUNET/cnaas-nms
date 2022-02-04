@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
 import unittest
-
 from ipaddress import IPv4Address
 
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_test_session
+from cnaas_nms.db.stackmember import Stackmember
+
 
 class DeviceTests(unittest.TestCase):
 

@@ -1,11 +1,9 @@
 import enum
 import re
 
-from sqlalchemy import Column, Integer, Unicode
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, Enum, ForeignKey, Integer, Unicode
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.orm import relationship, backref
-from sqlalchemy import Enum
+from sqlalchemy.orm import backref, relationship
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device

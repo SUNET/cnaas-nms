@@ -1,15 +1,12 @@
-import traceback
 import threading
-
+import traceback
 from typing import Optional
 
 from cnaas_nms.db.job import Job
+from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.scheduler.jobresult import JobResult
+from cnaas_nms.scheduler.thread_data import set_thread_data, thread_data
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.session import redis_session
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.scheduler.thread_data import thread_data, set_thread_data
-
 
 logger = get_logger()
 

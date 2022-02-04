@@ -1,21 +1,21 @@
+import importlib
 import os
 import re
-import pkg_resources
-import importlib
-from typing import List, Optional, Union, Tuple, Set, Dict
+from typing import Dict, List, Optional, Set, Tuple, Union
 
+import pkg_resources
+import redis
 import yaml
 from pydantic.error_wrappers import ValidationError
-import redis
 from redis_lru import RedisLRU
 
 from cnaas_nms.app_settings import app_settings
-from cnaas_nms.db.settings_fields import f_groups
-from cnaas_nms.tools.mergedict import merge_dict_origin
-from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.settings_fields import f_groups
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.mergedict import merge_dict_origin
 
 
 def get_settings_root():

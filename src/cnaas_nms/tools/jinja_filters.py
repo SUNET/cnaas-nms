@@ -2,7 +2,7 @@
 
 import ipaddress
 import re
-from typing import Union, Optional, Callable
+from typing import Callable, Optional, Union
 
 # This global dict can be used to update the Jinja environment filters dict to include all
 # registered template filter function

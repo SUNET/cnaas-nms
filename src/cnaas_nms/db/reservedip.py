@@ -1,15 +1,13 @@
 import datetime
 from typing import Optional
 
-from sqlalchemy import Column, Integer, DateTime
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, DateTime, ForeignKey, Integer
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy_utils import IPAddressType
-from sqlalchemy.orm import relationship, backref
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device
 from cnaas_nms.tools.log import get_logger
-
 
 logger = get_logger()
 

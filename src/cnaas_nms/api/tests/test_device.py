@@ -1,13 +1,13 @@
-import yaml
-import pkg_resources
-import os
 import json
-
+import os
 import unittest
 
+import pkg_resources
+import yaml
+
 from cnaas_nms.api import app
-from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
+from cnaas_nms.tools.testsetup import PostgresTemporaryInstance
 
 
 class DeviceTests(unittest.TestCase):

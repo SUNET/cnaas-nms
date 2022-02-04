@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
+import logging
 import os
 import sys
-import logging
 
+import netaddr
 import requests
 import yaml
-import netaddr
-
 
 logger = logging.getLogger('dhcp-hook')
 if not logger.handlers:

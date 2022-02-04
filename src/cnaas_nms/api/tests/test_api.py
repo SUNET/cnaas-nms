@@ -1,10 +1,11 @@
-import shutil
-import yaml
-import pkg_resources
 import os
+import shutil
 import time
-
 import unittest
+
+import pkg_resources
+import yaml
+
 import cnaas_nms.api.app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 

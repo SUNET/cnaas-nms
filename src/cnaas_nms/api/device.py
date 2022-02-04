@@ -1,29 +1,28 @@
-import json
 import datetime
+import json
 from typing import Optional
 
-from flask import request, make_response
-from flask_restx import Resource, Namespace, fields
+from flask import make_response, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_restx import Namespace, Resource, fields
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
+import cnaas_nms.confpush.get
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
-import cnaas_nms.confpush.get
 import cnaas_nms.confpush.update
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
+from cnaas_nms.app_settings import api_settings
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
+from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from cnaas_nms.version import __api_version__
-from cnaas_nms.app_settings import api_settings
-
 
 logger = get_logger()
 

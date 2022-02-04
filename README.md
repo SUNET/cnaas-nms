@@ -31,7 +31,7 @@ Install docker and docker-compose and run: docker-compose build -f docker/docker
 Or install locally by creating a virtualenv and activate the environment, then:
 
 ```
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements/all.txt
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
 

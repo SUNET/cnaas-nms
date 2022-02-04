@@ -1,14 +1,14 @@
-import cnaas_nms.confpush.get
-
+import os
 import pprint
 import unittest
+
 import pkg_resources
 import yaml
-import os
 
+import cnaas_nms.confpush.get
 import cnaas_nms.confpush.update
-from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import DeviceType
+from cnaas_nms.db.session import sqla_session
 
 
 class GetTests(unittest.TestCase):

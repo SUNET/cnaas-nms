@@ -1,7 +1,7 @@
 import ipaddress
 import unittest
 
-from cnaas_nms.tools.jinja_filters import increment_ip, isofy_ipv4, ipv4_to_ipv6, get_interface
+from cnaas_nms.tools.jinja_filters import get_interface, increment_ip, ipv4_to_ipv6, isofy_ipv4
 
 
 class JinjaFilterTests(unittest.TestCase):

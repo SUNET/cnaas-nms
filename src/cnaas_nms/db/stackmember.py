@@ -1,6 +1,5 @@
-from sqlalchemy import Column, Integer, UniqueConstraint, String
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy.orm import backref, relationship
 
 import cnaas_nms.db.base
 

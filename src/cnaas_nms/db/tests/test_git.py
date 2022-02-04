@@ -1,7 +1,7 @@
 import unittest
 
-from cnaas_nms.db.git import template_syncstatus
 from cnaas_nms.db.device import DeviceType
+from cnaas_nms.db.git import template_syncstatus
 
 
 class GitTests(unittest.TestCase):

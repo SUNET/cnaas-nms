@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+
 import yaml
 
 with open('/etc/cnaas-nms/db_config.yml', 'r') as db_file:
@@ -19,7 +20,7 @@ engine = create_engine(conn_str)
 connection = engine.connect()
 
 from cnaas_nms.db.base import Base
-from cnaas_nms.db.device import Device, DeviceType, DeviceState
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.site import Site
 
 print(Device.__table__)

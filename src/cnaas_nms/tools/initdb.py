@@ -18,11 +18,11 @@ engine = create_engine(conn_str)
 connection = engine.connect()
 
 from cnaas_nms.db.base import Base
-from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.site import Site
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
-from cnaas_nms.db.interface import Interface
+from cnaas_nms.db.site import Site
 
 print(Device.__table__)
 print(Site.__table__)

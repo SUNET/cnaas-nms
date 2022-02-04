@@ -1,8 +1,8 @@
-import os
-import time
-import random
 import logging
+import os
+import random
 import subprocess
+import time
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

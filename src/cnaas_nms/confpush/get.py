@@ -1,8 +1,7 @@
 import datetime
-import re
 import hashlib
-
-from typing import Optional, List, Dict
+import re
+from typing import Dict, List, Optional
 
 from nornir.core.filter import F
 from nornir.core.task import AggregatedResult
@@ -10,10 +9,10 @@ from nornir_napalm.plugins.tasks import napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType
-from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.tools.log import get_logger
 
 
 def get_inventory():

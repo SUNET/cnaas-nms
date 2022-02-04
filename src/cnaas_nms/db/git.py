@@ -1,22 +1,27 @@
+import datetime
 import enum
 import os
-import datetime
 from typing import Set, Tuple
 
-from git import Repo
-from git import InvalidGitRepositoryError, NoSuchPathError
-from git.exc import NoSuchPathError, GitCommandError
 import yaml
+from git import InvalidGitRepositoryError, NoSuchPathError, Repo
+from git.exc import GitCommandError, NoSuchPathError
 from redis_lru import RedisLRU
 
-from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
-from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
-    check_settings_collisions, get_model_specific_configfiles, VlanConflictError
 from cnaas_nms.db.device import Device, DeviceType
-from cnaas_nms.db.session import sqla_session, redis_session
+from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
+from cnaas_nms.db.session import redis_session, sqla_session
+from cnaas_nms.db.settings import (
+    DIR_STRUCTURE,
+    SettingsSyntaxError,
+    VlanConflictError,
+    check_settings_collisions,
+    get_model_specific_configfiles,
+    get_settings,
+)
+from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
 

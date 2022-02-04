@@ -1,34 +1,34 @@
 import datetime
 import os
-from typing import Optional, List
-from ipaddress import IPv4Interface, IPv4Address
+from ipaddress import IPv4Address, IPv4Interface
+from typing import List, Optional
 
-from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
-from nornir_jinja2.plugins.tasks import template_file
-from nornir_utils.plugins.functions import print_result
-from apscheduler.job import Job
 import yaml
+from apscheduler.job import Job
+from nornir_jinja2.plugins.tasks import template_file
+from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
+from nornir_utils.plugins.functions import print_result
 
-import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
+import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.underlay
 import cnaas_nms.db.helper
 from cnaas_nms.app_settings import api_settings
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
-from cnaas_nms.db.interface import Interface, InterfaceConfigType
-from cnaas_nms.scheduler.scheduler import Scheduler
-from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
-from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets, set_facts
-from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices
-from cnaas_nms.db.git import RepoStructureException
-from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
-from cnaas_nms.db.reservedip import ReservedIP
-from cnaas_nms.tools.log import get_logger
-from cnaas_nms.scheduler.thread_data import set_thread_data
-from cnaas_nms.tools.pki import generate_device_cert
 from cnaas_nms.confpush.cert import arista_copy_cert
+from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
+from cnaas_nms.confpush.sync_devices import confcheck_devices, populate_device_vars
+from cnaas_nms.confpush.update import set_facts, update_interfacedb_worker, update_linknets
+from cnaas_nms.db.device import Device, DeviceState, DeviceStateException, DeviceType
+from cnaas_nms.db.git import RepoStructureException
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.reservedip import ReservedIP
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
+from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.scheduler.thread_data import set_thread_data
+from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.pki import generate_device_cert
 
 
 class ConnectionCheckError(Exception):

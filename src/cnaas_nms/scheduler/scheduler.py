@@ -1,20 +1,20 @@
-import inspect
 import datetime
 import fcntl
-import os
+import inspect
 import json
-from pytz import utc
-from typing import Optional, Union
+import os
 from types import FunctionType
+from typing import Optional, Union
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
+from apscheduler.jobstores.memory import MemoryJobStore
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
+from apscheduler.schedulers.background import BackgroundScheduler
+from pytz import utc
 
 from cnaas_nms.app_settings import app_settings
-from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.job import Job
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()

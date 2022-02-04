@@ -1,12 +1,19 @@
 import os
-import yaml
 import unittest
-import pkg_resources
 
-from cnaas_nms.db.settings import get_settings, verify_dir_structure, \
-    DIR_STRUCTURE, VerifyPathException, \
-    check_vlan_collisions, VlanConflictError
+import pkg_resources
+import yaml
+
 from cnaas_nms.db.device import DeviceType
+from cnaas_nms.db.settings import (
+    DIR_STRUCTURE,
+    VerifyPathException,
+    VlanConflictError,
+    check_vlan_collisions,
+    get_settings,
+    verify_dir_structure,
+)
+
 
 class SettingsTests(unittest.TestCase):
     def setUp(self):

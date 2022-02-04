@@ -21,4 +21,4 @@ git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*
 git fetch --all
 git checkout $2
 # install dependencies
-python3 -m pip install --no-cache-dir -r requirements.txt
+python3 -m pip install --no-cache-dir -r requirements/all.txt

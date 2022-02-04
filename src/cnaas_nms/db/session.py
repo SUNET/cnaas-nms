@@ -60,7 +60,7 @@ def sqla_session(**kwargs):
 
 @contextmanager
 def sqla_test_session(**kwargs):
-    session = Session()
+    session = _get_session()
     try:
         yield session
         session.flush()

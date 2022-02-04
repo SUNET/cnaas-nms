@@ -1,7 +1,7 @@
 import yaml
 from typing import Optional
 
-from pydantic import BaseSettings, PostgresDsn, HttpUrl
+from pydantic import BaseSettings, PostgresDsn
 from pathlib import Path
 
 
@@ -15,9 +15,7 @@ class AppSettings(BaseSettings):
     CNAAS_DB_PORT: int = 5432
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
-    POSTGRES_DSN: Optional[
-        PostgresDsn
-    ] = f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
+    POSTGRES_DSN: PostgresDsn = f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
 
 
 class ApiSettings(BaseSettings):
@@ -39,7 +37,7 @@ def construct_api_settings() -> ApiSettings:
     api_config = Path("/etc/cnaas-nms/api.yml")
 
     if api_config.is_file():
-        with open(api_config, 'r') as api_file:
+        with open(api_config, "r") as api_file:
             config = yaml.safe_load(api_file)
 
         if config.get("firmware_url", False):
@@ -56,7 +54,7 @@ def construct_api_settings() -> ApiSettings:
             CAFILE=config["cafile"],
             CAKEYFILE=config["cakeyfile"],
             CERTPATH=config["certpath"],
-            FIRMWARE_URL=firmware_url
+            FIRMWARE_URL=firmware_url,
         )
     else:
         return ApiSettings()
@@ -66,7 +64,7 @@ def construct_app_settings() -> AppSettings:
     db_config = Path("/etc/cnaas-nms/db_config.yml")
 
     if db_config.is_file():
-        with open(db_config, 'r') as db_file:
+        with open(db_config, "r") as db_file:
             config = yaml.safe_load(db_file)
         return AppSettings(
             CNAAS_DB_HOSTNAME=config["hostname"],
@@ -74,7 +72,7 @@ def construct_app_settings() -> AppSettings:
             CNAAS_DB_PORT=config["port"],
             CNAAS_DB_DATABASE=config["database"],
             CNAAS_DB_PASSWORD=config["password"],
-            REDIS_HOSTNAME=config["redis_hostname"]
+            REDIS_HOSTNAME=config["redis_hostname"],
         )
     else:
         return AppSettings()

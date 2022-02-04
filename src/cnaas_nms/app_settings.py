@@ -31,6 +31,7 @@ class ApiSettings(BaseSettings):
     ALLOW_APPLY_CONFIG_LIVERUN: bool = False
     FIRMWARE_URL: str = HTTPD_URL
     OAUTH2_ENABLED: bool = True
+    PLUGIN_FILE: Path = "/etc/cnaas-nms/plugins.yml"
 
 
 def construct_api_settings() -> ApiSettings:

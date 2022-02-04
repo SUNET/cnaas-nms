@@ -1,4 +1,3 @@
-import os
 import json
 import requests
 
@@ -9,11 +8,11 @@ from flask import request, make_response
 from flask_restx import Resource, Namespace, fields
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from cnaas_nms.app_settings import api_settings
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.get_apidata import get_apidata
 from cnaas_nms.version import __api_version__
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.db.device import Device
@@ -45,27 +44,11 @@ firmware_upgrade_model = api.model('firmware_upgrade', {
     'reboot': fields.Boolean(required=False)})
 
 
-def get_httpd_url() -> str:
-    apidata = get_apidata()
-    httpd_url = 'https://cnaas_httpd/api/v1.0/firmware'
-    if isinstance(apidata, dict) and 'httpd_url' in apidata:
-        httpd_url = apidata['httpd_url']
-    return httpd_url
-
-
-def verify_tls() -> bool:
-    verify_tls = True
-    apidata = get_apidata()
-    if isinstance(apidata, dict) and 'verify_tls' in apidata:
-        verify_tls = apidata['verify_tls']
-    return verify_tls
-
-
 @job_wrapper
 def get_firmware(**kwargs: dict) -> str:
     try:
-        res = requests.post(get_httpd_url(), json=kwargs,
-                            verify=verify_tls())
+        res = requests.post(api_settings.HTTPD_URL, json=kwargs,
+                            verify=api_settings.VERIFY_TLS)
         json_data = json.loads(res.content)
     except Exception as e:
         logger.exception(f"Exception while getting firmware: {e}")
@@ -78,8 +61,8 @@ def get_firmware(**kwargs: dict) -> str:
 @job_wrapper
 def get_firmware_chksum(**kwargs: dict) -> str:
     try:
-        url = get_httpd_url() + '/' + kwargs['filename']
-        res = requests.get(url, verify=verify_tls())
+        url = api_settings.HTTPD_URL + '/' + kwargs['filename']
+        res = requests.get(url, verify=api_settings.VERIFY_TLS)
         json_data = json.loads(res.content)
     except Exception as e:
         logger.exception(f"Exceptionb while getting checksum: {e}")
@@ -92,8 +75,8 @@ def get_firmware_chksum(**kwargs: dict) -> str:
 @job_wrapper
 def remove_file(**kwargs: dict) -> str:
     try:
-        url = get_httpd_url() + '/' + kwargs['filename']
-        res = requests.delete(url, verify=verify_tls())
+        url = api_settings.HTTPD_URL + '/' + kwargs['filename']
+        res = requests.delete(url, verify=api_settings.VERIFY_TLS)
         json_data = json.loads(res.content)
     except Exception as e:
         logger.exception(f"Exception when removing firmware: {e}")
@@ -143,8 +126,8 @@ class FirmwareApi(Resource):
     def get(self) -> tuple:
         """ Get firmwares """
         try:
-            res = requests.get(get_httpd_url(),
-                               verify=verify_tls())
+            res = requests.get(api_settings.HTTPD_URL,
+                               verify=api_settings.VERIFY_TLS)
             json_data = json.loads(res.content)['data']
         except Exception as e:
             logger.exception(f"Exception when getting images: {e}")
@@ -184,14 +167,6 @@ class FirmwareImageApi(Resource):
 
 
 class FirmwareUpgradeApi(Resource):
-    def firmware_url(self) -> str:
-        apidata = get_apidata()
-        httpd_url = ''
-        if isinstance(apidata, dict) and 'firmware_url' in apidata:
-            httpd_url = apidata['firmware_url']
-        elif 'FIRMWARE_URL' in os.environ:
-            httpd_url = os.environ['FIRMWARE_URL']
-        return httpd_url
 
     @jwt_required
     @api.expect(firmware_upgrade_model)
@@ -202,7 +177,7 @@ class FirmwareUpgradeApi(Resource):
         kwargs = dict()
         seconds = 1
         date_format = "%Y-%m-%d %H:%M:%S"
-        url = self.firmware_url()
+        url = api_settings.FIRMWARE_URL
 
         if 'url' not in json_data and url == '':
             return empty_result(status='error',

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import yaml
 import importlib
 
@@ -26,13 +28,18 @@ class PluginManagerHandler(object, metaclass=SingletonType):
 
     @classmethod
     def get_plugindata(cls, config='/etc/cnaas-nms/plugins.yml'):
-        with open(config, 'r') as plugins_file:
-            data = yaml.safe_load(plugins_file)
-            if 'plugins' in data and isinstance(data['plugins'], list):
-                return data
-            else:
-                logger.error("No plugins defined in plugins.yml")
-                return None
+        file = Path(config)
+        if file.is_file():
+            with open(config, 'r') as plugins_file:
+                data = yaml.safe_load(plugins_file)
+                if 'plugins' in data and isinstance(data['plugins'], list):
+                    return data
+                else:
+                    logger.error("No plugins defined in plugins.yml")
+                    return None
+        else:
+            logger.error("No plugins defined in plugins.yml")
+            return None
 
     def load_plugins(self):
         plugindata = self.get_plugindata()

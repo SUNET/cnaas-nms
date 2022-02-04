@@ -14,6 +14,7 @@ from flask_cors import CORS
 
 from cnaas_nms.version import __api_version__
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.app_settings import api_settings
 
 from cnaas_nms.api.device import device_api, devices_api, device_init_api, \
     device_initcheck_api, device_syncto_api, device_discover_api, \
@@ -28,7 +29,6 @@ from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.system import api as system_api
-from cnaas_nms.tools.get_apidata import get_apidata
 
 from jwt.exceptions import DecodeError, InvalidSignatureError, \
     InvalidTokenError
@@ -71,11 +71,7 @@ class CnaasApi(Api):
         return jsonify(data), 401
 
 
-try:
-    jwt_pubkey = open(get_apidata()['jwtcert']).read()
-except Exception as e:
-    print("Could not load public JWT cert from api.yml config: {}".format(e))
-    sys.exit(1)
+
 
 app = Flask(__name__)
 # TODO: make origins configurable
@@ -83,14 +79,23 @@ cors = CORS(app,
             resources={r"/api/*": {"origins": "*"}},
             expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link"])
 socketio = SocketIO(app, cors_allowed_origins='*')
-app.config['SECRET_KEY'] = os.urandom(128)
-app.config['JWT_PUBLIC_KEY'] = jwt_pubkey
-app.config['JWT_IDENTITY_CLAIM'] = 'sub'
-app.config['JWT_ALGORITHM'] = 'ES256'
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
-app.config['JWT_TOKEN_LOCATION'] = ('headers', 'query_string')
 
-jwt = JWTManager(app)
+if api_settings.OAUTH2_ENABLED:
+    try:
+        jwt_pubkey = open(api_settings.JWT_CERT).read()
+    except Exception as e:
+        print("Could not load public JWT cert from api.yml config: {}".format(e))
+        sys.exit(1)
+
+    app.config['SECRET_KEY'] = os.urandom(128)
+    app.config['JWT_PUBLIC_KEY'] = jwt_pubkey
+    app.config['JWT_IDENTITY_CLAIM'] = 'sub'
+    app.config['JWT_ALGORITHM'] = 'ES256'
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
+    app.config['JWT_TOKEN_LOCATION'] = ('headers', 'query_string')
+
+    jwt = JWTManager(app)
+
 api = CnaasApi(app, prefix='/api/{}'.format(__api_version__),
                authorizations=authorizations,
                security='apikey')

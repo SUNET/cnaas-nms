@@ -9,10 +9,11 @@ from pydantic.error_wrappers import ValidationError
 import redis
 from redis_lru import RedisLRU
 
+from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.settings_fields import f_groups
-from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
+from cnaas_nms.tools.mergedict import merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.session import sqla_session, get_dbdata
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.tools.log import get_logger
 
@@ -39,9 +40,8 @@ def get_settings_root():
 f_root = get_settings_root()
 
 
-db_data = get_dbdata()
 redis_client = redis.StrictRedis(
-    host=db_data['redis_hostname'], port=6379,
+    host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT,
     retry_on_timeout=True, socket_keepalive=True
 )
 redis_lru_cache = RedisLRU(redis_client)

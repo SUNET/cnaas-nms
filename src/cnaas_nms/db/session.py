@@ -1,6 +1,6 @@
-import os
-import yaml
+import yaml, os
 from contextlib import contextmanager
+from cnaas_nms.app_settings import app_settings
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -34,10 +34,11 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
     )
 
 
+
 def _get_session():
     global _sessionmaker
     if _sessionmaker is None:
-        conn_str = get_sqlalchemy_conn_str()
+        conn_str = app_settings.POSTGRES_DSN
         engine = create_engine(conn_str, pool_size=50, max_overflow=50)
         engine.connect()
         _sessionmaker = sessionmaker(bind=engine)
@@ -72,7 +73,7 @@ def sqla_test_session(**kwargs):
 
 @contextmanager
 def sqla_execute(**kwargs):
-    conn_str = get_sqlalchemy_conn_str(**kwargs)
+    conn_str = app_settings.POSTGRES_DSN
     engine = create_engine(conn_str)
 
     with engine.connect() as connection:
@@ -81,6 +82,5 @@ def sqla_execute(**kwargs):
 
 @contextmanager
 def redis_session(**kwargs):
-    db_data = get_dbdata(**kwargs)
-    with StrictRedis(host=db_data['redis_hostname'], port=6379, charset="utf-8", decode_responses=True) as conn:
+    with StrictRedis(host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, charset="utf-8", decode_responses=True) as conn:
         yield conn

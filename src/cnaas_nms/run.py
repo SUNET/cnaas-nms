@@ -7,7 +7,7 @@ from typing import List
 from gevent import monkey, signal as gevent_signal
 from redis import StrictRedis
 
-from cnaas_nms.tools.get_apidata import get_apidata
+from cnaas_nms.app_settings import api_settings
 # Do late imports for anything cnaas/flask related so we can do gevent monkey patch, see below
 
 
@@ -127,13 +127,7 @@ if __name__ == '__main__':
     t_websocket_events = threading.Thread(target=thread_websocket_events)
     t_websocket_events.start()
 
-    apidata = get_apidata()
-    if isinstance(apidata, dict) and 'host' in apidata:
-        host = apidata['host']
-    else:
-        host = None
-
-    app.socketio.run(get_app(), debug=True, host=host)
+    app.socketio.run(get_app(), debug=True, host=api_settings.HOST, port=8080)
     stop_websocket_threads = True
     t_websocket_events.join()
 

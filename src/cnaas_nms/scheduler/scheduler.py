@@ -12,8 +12,9 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-from cnaas_nms.db.session import sqla_session, get_sqlalchemy_conn_str
-from cnaas_nms.db.job import Job, JobStatus
+from cnaas_nms.app_settings import app_settings
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.job import Job
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
@@ -47,7 +48,7 @@ class Scheduler(object, metaclass=SingletonType):
             self.use_mule = False
         caller = self.get_caller(caller=inspect.currentframe())
         if caller == 'api':
-            sqlalchemy_url = get_sqlalchemy_conn_str()
+            sqlalchemy_url = app_settings.POSTGRES_DSN
             self._scheduler = BackgroundScheduler(
                 executors={'default': ThreadPoolExecutor(threads)},
                 jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},
@@ -56,7 +57,7 @@ class Scheduler(object, metaclass=SingletonType):
             )
             logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
         elif caller == 'mule':
-            sqlalchemy_url = get_sqlalchemy_conn_str()
+            sqlalchemy_url = app_settings.POSTGRES_DSN
             self._scheduler = BackgroundScheduler(
                 executors={'default': ThreadPoolExecutor(threads)},
                 jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},

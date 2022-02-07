@@ -41,34 +41,31 @@ linknet_model = linknet_api.model('linknet', {
 })
 
 
-def linknet_device_ip_validator(v, values, **kwargs):
-    if not v:
-        return v
-    if not values['ipv4_network']:
-        raise ValueError("ipv4_network must be set")
-    try:
-        addr = IPv4Address(v)
-        net = IPv4Network(values['ipv4_network'])
-    except:
-        raise ValueError("Invalid device IP or ipv4_network")
-    else:
-        if addr not in net.hosts():
-            raise ValueError("device IP must be part of ipv4_network")
-        if 'device_a_ip' in values and v == values['device_a_ip']:
-            raise ValueError("device_a_ip and device_b_ip can not be the same")
-        if 'device_b_ip' in values and v == values['device_b_ip']:
-            raise ValueError("device_a_ip and device_b_ip can not be the same")
-
-    return v
-
-
 class f_linknet(BaseModel):
     ipv4_network: Optional[str] = None
     device_a_ip: Optional[str] = None
     device_b_ip: Optional[str] = None
 
-    _device_a_ip_valid = validator('device_a_ip', allow_reuse=True)(linknet_device_ip_validator)
-    _device_b_ip_valid = validator('device_b_ip', allow_reuse=True)(linknet_device_ip_validator)
+    @validator('device_a_ip', 'device_b_ip')
+    def device_ip_validator(cls, v, values, **kwargs):
+        if not v:
+            return v
+        if not values['ipv4_network']:
+            raise ValueError("ipv4_network must be set")
+        try:
+            addr = IPv4Address(v)
+            net = IPv4Network(values['ipv4_network'])
+        except:
+            raise ValueError("Invalid device IP or ipv4_network")
+        else:
+            if addr not in net.hosts():
+                raise ValueError("device IP must be part of ipv4_network")
+            if 'device_a_ip' in values and v == values['device_a_ip']:
+                raise ValueError("device_a_ip and device_b_ip can not be the same")
+            if 'device_b_ip' in values and v == values['device_b_ip']:
+                raise ValueError("device_a_ip and device_b_ip can not be the same")
+
+        return v
 
     @validator('ipv4_network')
     def ipv4_network_validator(cls, v, values, **kwargs):

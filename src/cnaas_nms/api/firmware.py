@@ -4,7 +4,7 @@ from typing import Optional
 
 import requests
 from flask import make_response, request
-from flask_jwt_extended import get_jwt_identity, jwt_required
+from flask_jwt_extended import get_jwt_identity
 from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.api.generic import empty_result
@@ -15,6 +15,7 @@ from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()

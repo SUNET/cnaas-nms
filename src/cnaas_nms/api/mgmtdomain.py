@@ -2,7 +2,6 @@ from ipaddress import IPv4Interface
 from typing import Optional
 
 from flask import request
-from flask_jwt_extended import jwt_required
 from flask_restx import Namespace, Resource, fields
 from pydantic import BaseModel, validator
 from pydantic.error_wrappers import ValidationError
@@ -13,6 +12,7 @@ from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings_fields import vlan_id_schema_optional
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
 mgmtdomains_api = Namespace('mgmtdomains', description='API for handling management domains',

@@ -3,7 +3,7 @@ import re
 import sys
 from typing import Optional
 
-from flask import Flask, g, jsonify, render_template, request
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, decode_token, get_jwt_identity, jwt_required
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError

@@ -1,9 +1,9 @@
 from flask import request
-from flask_jwt_extended import jwt_required
 from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
 api = Namespace('plugins', description='API for handling plugins',

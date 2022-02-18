@@ -1,12 +1,12 @@
 from flask import make_response, request
-from flask_jwt_extended import jwt_required
-from flask_restx import Namespace, Resource, fields
+from flask_restx import Namespace, Resource
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import SettingsSyntaxError, check_settings_syntax, get_settings, get_settings_root
 from cnaas_nms.tools.mergedict import merge_dict_origin
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
 settings_root_model = get_settings_root()

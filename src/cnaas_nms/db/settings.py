@@ -112,9 +112,7 @@ def get_model_specific_configfiles(only_modelname: bool = False) -> dict:
         }
     """
     ret = {'CORE': [], 'DIST': []}
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-    local_repo_path = repo_config['settings_local']
+    local_repo_path = app_settings.SETTINGS_LOCAL
 
     for devtype in ['CORE', 'DIST']:
         for filename in os.listdir(os.path.join(local_repo_path, devtype.lower())):
@@ -527,10 +525,8 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
     logger = get_logger()
-    with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
-        repo_config = yaml.safe_load(repo_file)
 
-    local_repo_path = repo_config['settings_local']
+    local_repo_path = app_settings.SETTINGS_LOCAL
     try:
         verify_dir_structure(local_repo_path, DIR_STRUCTURE)
     except VerifyPathException as e:
@@ -626,9 +622,7 @@ def get_group_settings():
     settings: dict = {}
     settings_origin: dict = {}
 
-    with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
-        repo_config = yaml.safe_load(repo_file)
-    local_repo_path = repo_config['settings_local']
+    local_repo_path = app_settings.SETTINGS_LOCAL
     try:
         verify_dir_structure(local_repo_path, DIR_STRUCTURE)
     except VerifyPathException as e:

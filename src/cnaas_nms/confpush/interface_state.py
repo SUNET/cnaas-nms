@@ -4,6 +4,7 @@ import yaml
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 
+from cnaas_nms.app_settings import app_settings
 from cnaas_nms.confpush.nornir_helper import cnaas_init, get_jinja_env
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
@@ -60,9 +61,7 @@ def pre_bounce_check(hostname: str, interfaces: List[str]):
 
 def bounce_task(task, interfaces: List[str]):
     template_vars = {'interfaces': interfaces}
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-        local_repo_path = repo_config['templates_local']
+    local_repo_path = app_settings.TEMPLATES_LOCAL
     r = task.run(
         task=template_file,
         name="Generate port bounce down config",

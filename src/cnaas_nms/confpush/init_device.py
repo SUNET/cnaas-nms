@@ -13,7 +13,7 @@ import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
 import cnaas_nms.confpush.underlay
 import cnaas_nms.db.helper
-from cnaas_nms.app_settings import api_settings
+from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
@@ -51,10 +51,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
     set_thread_data(job_id)
     logger = get_logger()
     logger.debug("Push basetemplate for host: {}".format(task.host.name))
-
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-        local_repo_path = repo_config['templates_local']
+    local_repo_path = app_settings.TEMPLATES_LOCAL
 
     mapfile = os.path.join(local_repo_path, task.host.platform, 'mapping.yml')
     if not os.path.isfile(mapfile):
@@ -696,9 +693,7 @@ def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
 
 
 def set_hostname_task(task, new_hostname: str):
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-        local_repo_path = repo_config['templates_local']
+    local_repo_path = app_settings.TEMPLATES_LOCAL
     template_vars = {}  # host is already set by nornir
     r = task.run(
         task=template_file,

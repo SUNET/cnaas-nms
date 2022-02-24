@@ -9,6 +9,7 @@ from git.exc import NoSuchPathError, GitCommandError
 import yaml
 from redis_lru import RedisLRU
 
+from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
@@ -35,15 +36,10 @@ class RepoType(enum.Enum):
 
 
 def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> str:
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-
     if repo_type == RepoType.TEMPLATES:
-        local_repo_path = repo_config['templates_local']
-        remote_repo_path = repo_config['templates_remote']
+        local_repo_path = app_settings.TEMPLATES_LOCAL
     elif repo_type == RepoType.SETTINGS:
-        local_repo_path = repo_config['settings_local']
-        remote_repo_path = repo_config['settings_remote']
+        local_repo_path = app_settings.SETTINGS_LOCAL
     else:
         raise ValueError("Invalid repository")
 
@@ -110,15 +106,12 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES,
 
 def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
     """Should only be called by refresh_repo function."""
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-
     if repo_type == RepoType.TEMPLATES:
-        local_repo_path = repo_config['templates_local']
-        remote_repo_path = repo_config['templates_remote']
+        local_repo_path = app_settings.TEMPLATES_LOCAL
+        remote_repo_path = app_settings.TEMPLATES_REMOTE
     elif repo_type == RepoType.SETTINGS:
-        local_repo_path = repo_config['settings_local']
-        remote_repo_path = repo_config['settings_remote']
+        local_repo_path = app_settings.SETTINGS_LOCAL
+        remote_repo_path = app_settings.SETTINGS_REMOTE
     else:
         raise ValueError("Invalid repository")
 
@@ -225,9 +218,7 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
     """Determine what device types have become unsynchronized because
     of updated template files."""
     unsynced_devtypes = set()
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-        local_repo_path = repo_config['templates_local']
+    local_repo_path = app_settings.TEMPLATES_LOCAL
 
     # loop through OS/platform types
     for platform in os.listdir(local_repo_path):

@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, UniqueConstraint, String, ForeignKey
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship
 
 import cnaas_nms.db.base
 
@@ -11,8 +11,7 @@ class Stackmember(cnaas_nms.db.base.Base):
     )
     id = Column(Integer, autoincrement=True, primary_key=True)
     device_id = Column(Integer, ForeignKey('device.id'), nullable=False)
-    device = relationship("Device", foreign_keys=[device_id],
-                          backref=backref("Stackmember", cascade="all, delete-orphan"))
+    device = relationship("Device", back_populates="stack_members")
     hardware_id = Column(String(64), nullable=False)
     member_no = Column(Integer)
     priority = Column(Integer)

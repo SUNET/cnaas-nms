@@ -16,6 +16,18 @@ class AppSettings(BaseSettings):
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
     POSTGRES_DSN: PostgresDsn = f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
+    USERNAME_DHCP_BOOT: str = "admin"
+    PASSWORD_DHCP_BOOT: str = "fietsbel01"
+    USERNAME_DISCOVERED: str = "admin"
+    PASSWORD_DISCOVERED: str = "fietsbel01"
+    USERNAME_INIT: str = "admin"
+    PASSWORD_INIT: str = "fietsbel01"
+    USERNAME_MANAGED: str = "admin"
+    PASSWORD_MANAGED: str = "fietsbel01"
+    TEMPLATES_REMOTE: str = "/opt/git/cnaas-templates-origin.git"
+    TEMPLATES_LOCAL: str = "/opt/cnaas/templates"
+    SETTINGS_REMOTE: str = "/opt/git/cnaas-settings-origin.git"
+    SETTINGS_LOCAL: str = "/opt/cnaas/settings"
 
 
 class ApiSettings(BaseSettings):
@@ -63,20 +75,37 @@ def construct_api_settings() -> ApiSettings:
 
 def construct_app_settings() -> AppSettings:
     db_config = Path("/etc/cnaas-nms/db_config.yml")
+    repo_config = Path("/etc/cnaas-nms/repository.yml")
+
+    app_settings = AppSettings()
+
+    def _create_db_config(settings: AppSettings, config: dict) -> None:
+        settings.CNAAS_DB_HOSTNAME = config["hostname"]
+        settings.CNAAS_DB_USERNAME = config["username"]
+        settings.CNAAS_DB_PORT = config["port"]
+        settings.CNAAS_DB_DATABASE = config["database"]
+        settings.CNAAS_DB_PASSWORD = config["password"]
+        settings.REDIS_HOSTNAME = config["redis_hostname"]
 
     if db_config.is_file():
         with open(db_config, "r") as db_file:
             config = yaml.safe_load(db_file)
-        return AppSettings(
-            CNAAS_DB_HOSTNAME=config["hostname"],
-            CNAAS_DB_USERNAME=config["username"],
-            CNAAS_DB_PORT=config["port"],
-            CNAAS_DB_DATABASE=config["database"],
-            CNAAS_DB_PASSWORD=config["password"],
-            REDIS_HOSTNAME=config["redis_hostname"],
-        )
-    else:
-        return AppSettings()
+        _create_db_config(app_settings, config)
+
+    def _create_repo_config(settings: AppSettings, config: dict) -> None:
+        settings.CNAAS_DB_HOSTNAME = config["hostname"]
+        settings.CNAAS_DB_USERNAME = config["username"]
+        settings.CNAAS_DB_PORT = config["port"]
+        settings.CNAAS_DB_DATABASE = config["database"]
+        settings.CNAAS_DB_PASSWORD = config["password"]
+        settings.REDIS_HOSTNAME = config["redis_hostname"]
+
+    if repo_config.is_file():
+        with open(repo_config, "r") as repo_file:
+            config = yaml.safe_load(repo_file)
+        _create_repo_config(app_settings, config)
+
+    return app_settings
 
 
 app_settings = construct_app_settings()

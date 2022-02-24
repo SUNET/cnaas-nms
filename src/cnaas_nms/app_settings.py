@@ -6,7 +6,6 @@ from pathlib import Path
 
 
 class AppSettings(BaseSettings):
-
     # Database settings
     CNAAS_DB_HOSTNAME: str = "127.0.0.1"
     CNAAS_DB_USERNAME: str = "cnaas"
@@ -16,14 +15,14 @@ class AppSettings(BaseSettings):
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
     POSTGRES_DSN: PostgresDsn = f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
-    USERNAME_DHCP_BOOT: str = "admin"
-    PASSWORD_DHCP_BOOT: str = "fietsbel01"
-    USERNAME_DISCOVERED: str = "admin"
-    PASSWORD_DISCOVERED: str = "fietsbel01"
-    USERNAME_INIT: str = "admin"
-    PASSWORD_INIT: str = "fietsbel01"
-    USERNAME_MANAGED: str = "admin"
-    PASSWORD_MANAGED: str = "fietsbel01"
+    USERNAME_DHCP_BOOT: str = "cnaas"
+    PASSWORD_DHCP_BOOT: str = "cnaas"
+    USERNAME_DISCOVERED: str = "cnaas"
+    PASSWORD_DISCOVERED: str = "cnaas"
+    USERNAME_INIT: str = "cnaas"
+    PASSWORD_INIT: str = "cnaas"
+    USERNAME_MANAGED: str = "cnaas"
+    PASSWORD_MANAGED: str = "cnaas"
     TEMPLATES_REMOTE: str = "/opt/git/cnaas-templates-origin.git"
     TEMPLATES_LOCAL: str = "/opt/cnaas/templates"
     SETTINGS_REMOTE: str = "/opt/git/cnaas-settings-origin.git"
@@ -63,10 +62,10 @@ def construct_api_settings() -> ApiSettings:
             HTTPD_URL=config["httpd_url"],
             VERIFY_TLS=config["verify_tls"],
             VERIFY_TLS_DEVICE=config["verify_tls_device"],
-            JWT_CERT=config["jwt_cert"],
-            CAFILE=config["cafile"],
-            CAKEYFILE=config["cakeyfile"],
-            CERTPATH=config["certpath"],
+            JWT_CERT=config.get("jwt_cert", ApiSettings().JWT_CERT),
+            CAFILE=config.get("cafile", ApiSettings().CAFILE),
+            CAKEYFILE=config.get("cakeyfile", ApiSettings().CAKEYFILE),
+            CERTPATH=config.get("certpath", ApiSettings().CERTPATH),
             FIRMWARE_URL=firmware_url,
         )
     else:
@@ -93,12 +92,10 @@ def construct_app_settings() -> AppSettings:
         _create_db_config(app_settings, config)
 
     def _create_repo_config(settings: AppSettings, config: dict) -> None:
-        settings.CNAAS_DB_HOSTNAME = config["hostname"]
-        settings.CNAAS_DB_USERNAME = config["username"]
-        settings.CNAAS_DB_PORT = config["port"]
-        settings.CNAAS_DB_DATABASE = config["database"]
-        settings.CNAAS_DB_PASSWORD = config["password"]
-        settings.REDIS_HOSTNAME = config["redis_hostname"]
+        settings.TEMPLATES_REMOTE = config["templates_remote"]
+        settings.TEMPLATES_LOCAL = config["templates_local"]
+        settings.SETTINGS_REMOTE = config["settings_remote"]
+        settings.SETTINGS_LOCAL = config["settings_local"]
 
     if repo_config.is_file():
         with open(repo_config, "r") as repo_file:

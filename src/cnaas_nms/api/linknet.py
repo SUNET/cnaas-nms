@@ -7,6 +7,7 @@ from pydantic.error_wrappers import ValidationError
 from flask import request
 from flask_restx import Namespace, Resource, fields
 
+
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.linknet import Linknet

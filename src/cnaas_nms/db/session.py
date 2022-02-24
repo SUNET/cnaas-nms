@@ -1,4 +1,3 @@
-import yaml, os
 from contextlib import contextmanager
 from cnaas_nms.app_settings import app_settings
 

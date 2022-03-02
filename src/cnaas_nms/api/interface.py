@@ -19,7 +19,7 @@ api = Namespace('device', description='API for handling interfaces',
 
 
 class InterfaceApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, hostname):
         """ List all interfaces """
         result = empty_result()
@@ -39,7 +39,7 @@ class InterfaceApi(Resource):
             result['data']['interfaces'] = sorted(interfaces, key=lambda i: i['indexnum'])
         return result
 
-    @jwt_required
+    @jwt_required()
     def put(self, hostname):
         """Take a map of interfaces and associated values to update.
         Example:
@@ -198,7 +198,7 @@ class InterfaceApi(Resource):
 
 
 class InterfaceStatusApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, hostname):
         """List all interfaces status"""
         result = empty_result()
@@ -216,7 +216,7 @@ class InterfaceStatusApi(Resource):
             ), 400
         return result
 
-    @jwt_required
+    @jwt_required()
     def put(self, hostname):
         """Bounce selected interfaces by appling bounce-down/bounce-up template"""
         json_data = request.get_json()

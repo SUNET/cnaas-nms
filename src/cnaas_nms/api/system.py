@@ -15,7 +15,7 @@ api = Namespace('system', description='API for managing the CNaaS NMS API system
 
 
 class ShutdownApi(Resource):
-    @jwt_required
+    @jwt_required()
     def post(self):
         print("System shutdown API called, exiting...")
         app.socketio.stop()

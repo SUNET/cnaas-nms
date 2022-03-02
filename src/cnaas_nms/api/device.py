@@ -125,7 +125,7 @@ device_cert_model = device_syncto_api.model('device_cert', {
 
 
 class DeviceByIdApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, device_id):
         """ Get a device from ID """
         result = empty_result()
@@ -138,7 +138,7 @@ class DeviceByIdApi(Resource):
                 return empty_result('error', "Device not found"), 404
         return result
 
-    @jwt_required
+    @jwt_required()
     def delete(self, device_id):
         """ Delete device from ID """
         json_data = request.get_json()
@@ -173,7 +173,7 @@ class DeviceByIdApi(Resource):
                     data="Could not remove device: {}".format(e))
             return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
 
-    @jwt_required
+    @jwt_required()
     @device_api.expect(device_model)
     def put(self, device_id):
         """ Modify device from ID """
@@ -192,7 +192,7 @@ class DeviceByIdApi(Resource):
 
 
 class DeviceByHostnameApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, hostname):
         """ Get a device from hostname """
         result = empty_result()
@@ -207,7 +207,7 @@ class DeviceByHostnameApi(Resource):
 
 
 class DeviceApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_api.expect(device_model)
     def post(self):
         """ Add a device """
@@ -240,7 +240,7 @@ class DeviceApi(Resource):
 
 
 class DevicesApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         """ Get all devices """
         data = {'devices': []}
@@ -263,7 +263,7 @@ class DevicesApi(Resource):
 
 
 class DeviceInitApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_init_api.expect(device_init_model)
     def post(self, device_id: int):
         """ Init a device """
@@ -372,7 +372,7 @@ class DeviceInitApi(Resource):
 
 
 class DeviceInitCheckApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_init_api.expect(device_initcheck_model)
     def post(self, device_id: int):
         """Perform init check on a device"""
@@ -471,7 +471,7 @@ class DeviceInitCheckApi(Resource):
 
 
 class DeviceDiscoverApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_discover_api.expect(device_discover_model)
     def post(self):
         """ Discover device """
@@ -497,7 +497,7 @@ class DeviceDiscoverApi(Resource):
 
 
 class DeviceSyncApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_syncto_api.expect(device_syncto_model)
     def post(self):
         """ Start sync of device(s) """
@@ -589,7 +589,7 @@ class DeviceSyncApi(Resource):
 
 
 class DeviceUpdateFactsApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_update_facts_api.expect(device_update_facts_model)
     def post(self):
         """ Start update facts of device(s) """
@@ -640,7 +640,7 @@ class DeviceUpdateFactsApi(Resource):
 
 
 class DeviceUpdateInterfacesApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_update_interfaces_api.expect(device_update_interfaces_model)
     def post(self):
         """Update/scan interfaces of device"""
@@ -731,7 +731,7 @@ class DeviceUpdateInterfacesApi(Resource):
 
 
 class DeviceConfigApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, hostname: str):
         """ Get device configuration """
         result = empty_result()
@@ -761,7 +761,7 @@ class DeviceConfigApi(Resource):
 
 
 class DevicePreviousConfigApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_api.param('job_id')
     @device_api.param('previous')
     @device_api.param('before')
@@ -804,7 +804,7 @@ class DevicePreviousConfigApi(Resource):
 
         return result
 
-    @jwt_required
+    @jwt_required()
     @device_api.expect(device_restore_model)
     def post(self, hostname: str):
         """Restore configuration to previous version"""
@@ -867,7 +867,7 @@ class DevicePreviousConfigApi(Resource):
 
 
 class DeviceApplyConfigApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_api.expect(device_apply_config_model)
     def post(self, hostname: str):
         """Apply exact specified configuration to device without using templates"""
@@ -909,7 +909,7 @@ class DeviceApplyConfigApi(Resource):
 
 
 class DeviceCertApi(Resource):
-    @jwt_required
+    @jwt_required()
     @device_api.expect(device_cert_model)
     def post(self):
         """Execute certificate related actions on device"""

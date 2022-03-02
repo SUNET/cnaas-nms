@@ -62,7 +62,7 @@ def filter_job_dict(job_dict: dict, args: dict) -> dict:
 
 
 class JobsApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         """ Get one or more jobs """
         data = {'jobs': []}
@@ -88,7 +88,7 @@ class JobsApi(Resource):
 
 
 class JobByIdApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, job_id):
         """ Get job information by ID """
         args = request.args
@@ -102,7 +102,7 @@ class JobByIdApi(Resource):
                 return empty_result(status='error',
                                     data="No job with id {} found".format(job_id)), 400
 
-    @jwt_required
+    @jwt_required()
     def put(self, job_id):
         json_data = request.get_json()
         if 'action' not in json_data:
@@ -147,7 +147,7 @@ class JobByIdApi(Resource):
 
 
 class JobLockApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self):
         """ Get job locks """
         locks = []
@@ -156,7 +156,7 @@ class JobLockApi(Resource):
                 locks.append(lock.as_dict())
         return empty_result('success', data={'locks': locks})
 
-    @jwt_required
+    @jwt_required()
     @job_api.expect(job_model)
     def delete(self):
         """ Remove job locks """

@@ -98,7 +98,7 @@ class LinknetsApi(Resource):
             # Allow pre-provisioning of linknet to device that is not yet
             # managed or not assigned device_type, so no further checks here
 
-    @jwt_required
+    @jwt_required()
     def get(self):
         """ Get all linksnets """
         result = {'linknets': []}
@@ -108,7 +108,7 @@ class LinknetsApi(Resource):
                 result['linknets'].append(instance.as_dict())
         return empty_result(status='success', data=result)
 
-    @jwt_required
+    @jwt_required()
     @linknets_api.expect(linknets_model)
     def post(self):
         """ Add a new linknet """
@@ -182,7 +182,7 @@ class LinknetsApi(Resource):
 
         return empty_result(status='success', data=data), 201
 
-    @jwt_required
+    @jwt_required()
     def delete(self):
         """ Remove linknet """
         json_data = request.get_json()
@@ -206,7 +206,7 @@ class LinknetsApi(Resource):
 
 
 class LinknetByIdApi(Resource):
-    @jwt_required
+    @jwt_required()
     def get(self, linknet_id):
         """ Get a single specified linknet """
         result = empty_result()
@@ -219,7 +219,7 @@ class LinknetByIdApi(Resource):
                 return empty_result('error', "Linknet not found"), 404
         return result
 
-    @jwt_required
+    @jwt_required()
     def delete(self, linknet_id):
         """ Remove a linknet """
         with sqla_session() as session:
@@ -235,7 +235,7 @@ class LinknetByIdApi(Resource):
             else:
                 return empty_result('error', "No such linknet found in database"), 404
 
-    @jwt_required
+    @jwt_required()
     @linknets_api.expect(linknet_model)
     def put(self, linknet_id):
         """ Update data on existing linknet """

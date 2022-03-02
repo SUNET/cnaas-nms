@@ -645,6 +645,7 @@ def get_group_settings():
 
 @redis_lru_cache
 def get_groups(hostname: Optional[str] = None) -> List[str]:
+    """Return list of names for valid groups."""
     groups = []
     settings, origin = get_group_settings()
     if settings is None:

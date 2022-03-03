@@ -6,13 +6,13 @@ from typing import List, Optional, Union, Tuple, Set, Dict
 
 import yaml
 from pydantic.error_wrappers import ValidationError
-import redis
+from redis import StrictRedis
 from redis_lru import RedisLRU
 
 from cnaas_nms.db.settings_fields import f_groups
 from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.session import sqla_session, get_dbdata
+from cnaas_nms.db.session import sqla_session, get_dbdata, redis_session
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.tools.log import get_logger
 
@@ -40,7 +40,7 @@ f_root = get_settings_root()
 
 
 db_data = get_dbdata()
-redis_client = redis.StrictRedis(
+redis_client = StrictRedis(
     host=db_data['redis_hostname'], port=6379,
     retry_on_timeout=True, socket_keepalive=True
 )
@@ -684,3 +684,78 @@ def get_group_regex(group_name: str) -> Optional[str]:
             continue
         if group_name == group['group']['name']:
             return group['group']['regex']
+
+
+def get_groups_priorities(hostname: Optional[str] = None,
+                          settings: Optional[dict] = None) -> Dict[str, int]:
+    """Return dicts with {name: priority} for groups"""
+    groups_priorities = {}
+
+    if not settings:
+        settings, _ = get_group_settings()
+    if settings is None:
+        return groups_priorities
+    if 'groups' not in settings:
+        return groups_priorities
+    if settings['groups'] is None:
+        return groups_priorities
+    for group in settings['groups']:
+        if 'name' not in group['group']:
+            continue
+        if 'group_priority' not in group['group'] or group['group']['group_priority'] == 0:
+            continue
+        if hostname:
+            if 'regex' not in group['group']:
+                continue
+            # TODO: try and catch, report what regex failed
+            if not re.match(group['group']['regex'], hostname):
+                continue
+        groups_priorities[group['group']['name']] = group['group']['group_priority']
+    return groups_priorities
+
+
+def get_groups_priorities_sorted(hostname: Optional[str] = None,
+                                 settings: Optional[dict] = None) -> Dict[str, int]:
+    return {k: v for k, v in sorted(get_groups_priorities(hostname, settings).items(),
+                                    key=lambda item: item[1],  # sort on value(priority)
+                                    reverse=True)}  # sort highest priority first
+
+
+def find_primary_group(secondary_groups: list,
+                       groups_priorities_sorted: Dict[str, int]) -> str:
+    for prio_group in groups_priorities_sorted.keys():
+        for sec_group in secondary_groups:
+            if prio_group == sec_group:
+                return prio_group
+    return 'DEFAULT'
+
+
+def parse_device_primary_groups() -> dict:
+    groups_priorities_sorted = get_groups_priorities_sorted()
+    device_primary_group: Dict[str, str] = {}
+    with sqla_session() as session:
+        devices: List[Device] = session.query(Device).all()
+        for dev in devices:
+            groups = get_groups(dev.hostname)
+            primary_group: str = find_primary_group(groups, groups_priorities_sorted)
+            device_primary_group[dev.hostname] = primary_group
+    return device_primary_group
+
+
+def update_device_primary_groups():
+    device_primary_group = parse_device_primary_groups()
+    with redis_session() as redis:
+        redis.hset("device_primary_group", mapping=device_primary_group)
+
+
+def get_device_primary_groups(no_cache: bool = False) -> dict:
+    # update redis if redis is empty
+    with redis_session() as redis:
+        if redis.exists("device_primary_group"):
+            no_cache = True
+    if no_cache:
+        update_device_primary_groups()  # or just return parsed data, don't update?
+    device_primary_group = {}
+    with redis_session() as redis:
+        device_primary_group = redis.hgetall("device_primary_group")
+    return device_primary_group

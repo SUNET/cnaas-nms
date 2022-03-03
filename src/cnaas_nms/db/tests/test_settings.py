@@ -5,7 +5,8 @@ import pkg_resources
 
 from cnaas_nms.db.settings import get_settings, verify_dir_structure, \
     DIR_STRUCTURE, VerifyPathException, \
-    check_vlan_collisions, VlanConflictError
+    check_vlan_collisions, VlanConflictError, \
+    get_groups_priorities_sorted, get_device_primary_groups
 from cnaas_nms.db.device import DeviceType
 
 class SettingsTests(unittest.TestCase):
@@ -149,6 +150,42 @@ class SettingsTests(unittest.TestCase):
             }
         }
         self.assertIsNone(check_vlan_collisions(devices_dict, mgmt_vlans))
+
+    def test_groups_priorities_sorted(self):
+        group_settings_dict = {
+            "groups": [
+                {
+                    "group": {
+                        "name": "DEFAULT",
+                        "group_priority": 1
+                    },
+                },
+                {
+                    "group": {
+                        "name": "HIGH",
+                        "group_priority": 100
+                    }
+                },
+                {
+                    "group": {
+                        "name": "NONE",
+                        "group_priority": 0
+                    }
+                },
+            ]
+        }
+        result = get_groups_priorities_sorted(settings=group_settings_dict)
+        self.assertEqual(list(result.keys()),
+                         ['HIGH', 'DEFAULT', 'NONE'],
+                         "Unexpected ordering of groups sorted by priority")
+        self.assertNotEqual(list(result.keys()),
+                            ['NONE', 'DEFAULT', 'HIGH'],
+                            "Unexpected ordering of groups sorted by priority")
+
+    def test_get_device_primary_group(self):
+        before = get_device_primary_groups()
+        after = get_device_primary_groups(no_cache=True)
+        self.assertEqual(before, after)
 
 
 if __name__ == '__main__':

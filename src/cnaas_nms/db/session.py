@@ -4,10 +4,10 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
 from redis import StrictRedis
 
 _sessionmaker = None
+
 
 def get_dbdata(config='/etc/cnaas-nms/db_config.yml'):
     with open(config, 'r') as db_file:
@@ -32,6 +32,7 @@ def get_sqlalchemy_conn_str(**kwargs) -> str:
         f"{db_data['hostname']}:{db_data['port']}/{db_data['database']}"
     )
 
+
 def _get_session():
     global _sessionmaker
     if _sessionmaker is None:
@@ -43,7 +44,7 @@ def _get_session():
 
 
 @contextmanager
-def sqla_session(**kwargs):
+def sqla_session(**kwargs) -> sessionmaker:
     session = _get_session()
     try:
         yield session
@@ -54,17 +55,6 @@ def sqla_session(**kwargs):
     finally:
         session.close()
 
-@contextmanager
-def sqla_test_session(**kwargs):
-    session = Session()
-    try:
-        yield session
-        session.flush()
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
 
 @contextmanager
 def sqla_execute(**kwargs):
@@ -74,8 +64,9 @@ def sqla_execute(**kwargs):
     with engine.connect() as connection:
         yield connection
 
+
 @contextmanager
-def redis_session(**kwargs):
+def redis_session(**kwargs) -> StrictRedis:
     db_data = get_dbdata(**kwargs)
     with StrictRedis(host=db_data['redis_hostname'], port=6379, charset="utf-8", decode_responses=True) as conn:
         yield conn

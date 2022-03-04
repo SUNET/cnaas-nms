@@ -310,6 +310,7 @@ def check_settings_collisions(unique_vlans: bool = True):
             dev_settings, _ = get_settings(dev.hostname, dev.device_type)
             devices_dict[dev.hostname] = dev_settings
     check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
+    check_group_priority_collisions()
 
 
 def get_internal_vlan_range(settings) -> range:
@@ -394,6 +395,32 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int],
                 device_vlan_names[hostname].add(vxlan_data['vlan_name'])
             else:
                 device_vlan_names[hostname] = {vxlan_data['vlan_name']}
+
+
+def check_group_priority_collisions(settings: Optional[dict] = None):
+    priorities: Dict[int, str] = {}
+    if not settings:
+        settings, _ = get_group_settings()
+    if settings is None:
+        return
+    if 'groups' not in settings:
+        return
+    if settings['groups'] is None:
+        return
+    for group in settings['groups']:
+        if 'name' not in group['group']:
+            continue
+        if 'group_priority' not in group['group'] or group['group']['group_priority'] == 0:
+            continue
+        if group['group']['group_priority'] in priorities.keys():
+            raise ValueError(
+                "Groups must have unique group_priority values, "
+                "but group {} and {} both have priority {}".format(
+                    priorities[group['group']['group_priority']],
+                    group['group']['name'],
+                    group['group']['group_priority']
+                ))
+        priorities[group['group']['group_priority']] = group['group']['name']
 
 
 @redis_lru_cache
@@ -640,6 +667,7 @@ def get_group_settings():
                                               settings,
                                               settings_origin)
     check_settings_syntax(settings, settings_origin)
+    # TODO: always have DEFAULT group with prio1
     return f_groups(**settings).dict(), settings_origin
 
 
@@ -748,7 +776,8 @@ def update_device_primary_groups():
         redis.hset("device_primary_group", mapping=device_primary_group)
 
 
-def get_device_primary_groups(no_cache: bool = False) -> dict:
+def get_device_primary_groups(no_cache: bool = False) -> Dict[str, str]:
+    """Returns a dict with {hostname: primary_group}"""
     # update redis if redis is empty
     with redis_session() as redis:
         if redis.exists("device_primary_group"):

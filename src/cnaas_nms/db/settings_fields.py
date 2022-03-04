@@ -323,7 +323,12 @@ class f_group_item(BaseModel):
     name: str = group_name
     regex: str = ''
     group_priority: int = group_priority_schema
-    redundancy_required: bool = True
+
+    @validator('group_priority')
+    def reserved_priority(cls, v, values, **kwargs):
+        if v and v == 1:
+            raise ValueError("group_priority 1 is reserved for built-in group DEFAULT")
+        return v
 
 
 class f_group(BaseModel):

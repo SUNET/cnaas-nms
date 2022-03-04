@@ -6,7 +6,8 @@ import pkg_resources
 from cnaas_nms.db.settings import get_settings, verify_dir_structure, \
     DIR_STRUCTURE, VerifyPathException, \
     check_vlan_collisions, VlanConflictError, \
-    get_groups_priorities_sorted, get_device_primary_groups
+    get_groups_priorities_sorted, get_device_primary_groups, \
+    check_group_priority_collisions
 from cnaas_nms.db.device import DeviceType
 
 class SettingsTests(unittest.TestCase):
@@ -186,6 +187,36 @@ class SettingsTests(unittest.TestCase):
         before = get_device_primary_groups()
         after = get_device_primary_groups(no_cache=True)
         self.assertEqual(before, after)
+
+    def test_groups_priorities_collission(self):
+        group_settings_dict = {
+            "groups": [
+                {
+                    "group": {
+                        "name": "DEFAULT",
+                        "group_priority": 1
+                    },
+                },
+                {
+                    "group": {
+                        "name": "HIGH",
+                        "group_priority": 100
+                    }
+                },
+                {
+                    "group": {
+                        "name": "DUPLICATE",
+                        "group_priority": 100
+                    }
+                },
+            ]
+        }
+        with self.assertRaises(ValueError,
+                               msg="Groups with same priority should raise ValueError"):
+            check_group_priority_collisions(group_settings_dict)
+        # Remove duplicate entry
+        del group_settings_dict['groups'][2]
+        self.assertIsNone(check_group_priority_collisions(group_settings_dict))
 
 
 if __name__ == '__main__':

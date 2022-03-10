@@ -55,7 +55,7 @@ class f_mgmtdomain(BaseModel):
 
 
 class MgmtdomainByIdApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, mgmtdomain_id):
         """ Get management domain by ID """
         result = empty_result()
@@ -69,7 +69,7 @@ class MgmtdomainByIdApi(Resource):
                 return empty_result('error', "Management domain not found"), 404
         return result
 
-    @jwt_required()
+    @jwt_required
     def delete(self, mgmtdomain_id):
         """ Remove management domain """
         with sqla_session() as session:
@@ -85,7 +85,7 @@ class MgmtdomainByIdApi(Resource):
             else:
                 return empty_result('error', "Management domain not found"), 404
 
-    @jwt_required()
+    @jwt_required
     @mgmtdomain_api.expect(mgmtdomain_model)
     def put(self, mgmtdomain_id):
         """ Modify management domain """
@@ -115,7 +115,7 @@ class MgmtdomainByIdApi(Resource):
 
 
 class MgmtdomainsApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ Get all management domains """
         result = empty_result()
@@ -132,7 +132,7 @@ class MgmtdomainsApi(Resource):
                 result['data']['mgmtdomains'].append(instance.as_dict())
         return result
 
-    @jwt_required()
+    @jwt_required
     @mgmtdomain_api.expect(mgmtdomain_model)
     def post(self):
         """ Add management domain """

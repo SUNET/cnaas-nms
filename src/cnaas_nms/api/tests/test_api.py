@@ -2,7 +2,6 @@ import shutil
 import yaml
 import pkg_resources
 import os
-import time
 
 import unittest
 import cnaas_nms.api.app

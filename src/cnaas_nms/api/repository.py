@@ -19,7 +19,7 @@ repository_model = api.model('repository', {
 
 
 class RepositoryApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repo):
         """ Get repository information """
         try:
@@ -28,7 +28,7 @@ class RepositoryApi(Resource):
             return empty_result('error', "Invalid repository type"), 400
         return empty_result('success', get_repo_status(repo_type))
 
-    @jwt_required()
+    @jwt_required
     @api.expect(repository_model)
     def put(self, repo):
         """ Modify repository """

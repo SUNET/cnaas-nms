@@ -55,7 +55,7 @@ def groups_osversion_populate(group_name: str):
 
 
 class GroupsApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ Get all groups """
         tmpgroups = groups_populate()
@@ -64,7 +64,7 @@ class GroupsApi(Resource):
 
 
 class GroupsApiByName(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, group_name):
         """ Get a single group by name """
         tmpgroups = groups_populate(group_name)
@@ -73,7 +73,7 @@ class GroupsApiByName(Resource):
 
 
 class GroupsApiByNameOsversion(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, group_name):
         """Get os version of all devices in a group"""
         try:

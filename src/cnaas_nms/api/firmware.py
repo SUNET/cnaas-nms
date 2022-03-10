@@ -90,7 +90,7 @@ def remove_file(**kwargs: dict) -> str:
 
 
 class FirmwareApi(Resource):
-    @jwt_required()
+    @jwt_required
     @api.expect(firmware_model)
     def post(self) -> tuple:
         """ Download new firmware """
@@ -125,7 +125,7 @@ class FirmwareApi(Resource):
 
         return res
 
-    @jwt_required()
+    @jwt_required
     def get(self) -> tuple:
         """ Get firmwares """
         try:
@@ -140,7 +140,7 @@ class FirmwareApi(Resource):
 
 
 class FirmwareImageApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, filename: str) -> dict:
         """ Get information about a single firmware """
         scheduler = Scheduler()
@@ -154,7 +154,7 @@ class FirmwareImageApi(Resource):
 
         return res
 
-    @jwt_required()
+    @jwt_required
     def delete(self, filename: str) -> dict:
         """ Remove firmware """
         scheduler = Scheduler()
@@ -171,7 +171,7 @@ class FirmwareImageApi(Resource):
 
 class FirmwareUpgradeApi(Resource):
 
-    @jwt_required()
+    @jwt_required
     @api.expect(firmware_upgrade_model)
     def post(self):
         """ Upgrade firmware on device """

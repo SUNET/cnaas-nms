@@ -128,7 +128,7 @@ api.add_namespace(system_api)
 
 # SocketIO on connect
 @socketio.on('connect')
-@jwt_required()
+@jwt_required
 def socketio_on_connect():
     user = get_jwt_identity()
     if user:

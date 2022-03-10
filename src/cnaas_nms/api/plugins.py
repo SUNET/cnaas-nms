@@ -16,7 +16,7 @@ plugin_model = api.model('plugin', {
 
 
 class PluginsApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ List all plugins """
         try:
@@ -30,7 +30,7 @@ class PluginsApi(Resource):
             return empty_result('success', {'loaded_plugins': plugin_module_names,
                                             'plugindata': plugindata})
 
-    @jwt_required()
+    @jwt_required
     @api.expect(plugin_model)
     def put(self):
         """ Modify plugins """

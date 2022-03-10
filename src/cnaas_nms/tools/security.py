@@ -9,6 +9,6 @@ def jwt_required(fn):
 
     """
     if api_settings.OAUTH2_ENABLED:
-        return jwt_orig(fn)
+        return jwt_orig()(fn)
     else:
         return fn

@@ -19,7 +19,7 @@ api = Namespace('settings', description='Settings',
 
 
 class SettingsApi(Resource):
-    @jwt_required()
+    @jwt_required
     @api.param('hostname')
     @api.param('device_type')
     def get(self):

@@ -31,6 +31,7 @@ class AppSettings(BaseSettings):
 
 class ApiSettings(BaseSettings):
     # Api Settings
+
     HOST: str = "0.0.0.0"
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
     VERIFY_TLS: bool = False

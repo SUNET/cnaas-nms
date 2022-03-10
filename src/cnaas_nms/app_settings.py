@@ -86,6 +86,7 @@ def construct_app_settings() -> AppSettings:
         settings.CNAAS_DB_DATABASE = config["database"]
         settings.CNAAS_DB_PASSWORD = config["password"]
         settings.REDIS_HOSTNAME = config["redis_hostname"]
+        settings.POSTGRES_DSN = f"postgresql://{settings.CNAAS_DB_USERNAME}:{settings.CNAAS_DB_PASSWORD}@{settings.CNAAS_DB_HOSTNAME}:{settings.CNAAS_DB_PORT}/{settings.CNAAS_DB_DATABASE}"
 
     if db_config.is_file():
         with open(db_config, "r") as db_file:

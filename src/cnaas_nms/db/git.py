@@ -12,7 +12,8 @@ from redis_lru import RedisLRU
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
-    check_settings_collisions, get_model_specific_configfiles, VlanConflictError
+    check_settings_collisions, get_model_specific_configfiles, VlanConflictError, \
+    update_device_primary_groups
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.job import Job, JobStatus
@@ -167,6 +168,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
             with redis_session() as redis_db:
                 cache = RedisLRU(redis_db)
                 cache.clear_all_cache()
+            update_device_primary_groups()
             get_settings()
             test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
             for devtype in test_devtypes:

@@ -780,10 +780,10 @@ def get_device_primary_groups(no_cache: bool = False) -> Dict[str, str]:
     """Returns a dict with {hostname: primary_group}"""
     # update redis if redis is empty
     with redis_session() as redis:
-        if redis.exists("device_primary_group"):
+        if not redis.exists("device_primary_group"):
             no_cache = True
     if no_cache:
-        update_device_primary_groups()  # or just return parsed data, don't update?
+        update_device_primary_groups()
     device_primary_group = {}
     with redis_session() as redis:
         device_primary_group = redis.hgetall("device_primary_group")

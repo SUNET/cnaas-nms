@@ -17,7 +17,8 @@ from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import get_groups, get_device_primary_groups
+from cnaas_nms.db.settings import get_groups, get_device_primary_groups, \
+    update_device_primary_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -194,12 +195,15 @@ class DeviceByIdApi(Resource):
                 Device.id == device_id).one_or_none()
 
             if not dev:
-                return empty_result(status='error', data=f"No device with id {device_id}")
+                return empty_result(status='error', data=f"No device with id {device_id}"), 404
 
             errors = dev.device_update(**json_data)
             if errors:
-                return empty_result(status='error', data=errors), 404
-            return empty_result(status='success', data={"updated_device": dev.as_dict()}), 200
+                return empty_result(status='error', data=errors), 400
+            session.commit()
+            update_device_primary_groups()
+            dev_dict = device_data_postprocess([dev])[0]
+            return empty_result(status='success', data={"updated_device": dev_dict}), 200
 
 
 class DeviceByHostnameApi(Resource):
@@ -247,7 +251,9 @@ class DeviceApi(Resource):
             new_device = Device.device_create(**data)
             session.add(new_device)
             session.flush()
-            return empty_result(status='success', data={"added_device": new_device.as_dict()}), 200
+            update_device_primary_groups()
+            dev_dict = device_data_postprocess([new_device])[0]
+            return empty_result(status='success', data={"added_device": dev_dict}), 200
 
 
 class DevicesApi(Resource):

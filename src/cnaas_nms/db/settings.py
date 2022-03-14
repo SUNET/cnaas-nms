@@ -92,6 +92,10 @@ DIR_STRUCTURE = {
     'devices':
     {
         Device: DIR_STRUCTURE_HOST
+    },
+    'groups':
+    {
+        'group': DIR_STRUCTURE_HOST
     }
 }
 
@@ -156,6 +160,14 @@ def verify_dir_structure(path: str, dir_structure: dict):
                 if not Device.valid_hostname(hostname):
                     continue
                 verify_dir_structure(hostname_path, subitem)
+        elif isinstance(item, str) and item == 'group':
+            for groupname in os.listdir(path):
+                groupname_path = os.path.join(path, groupname)
+                if not os.path.isdir(groupname_path) or groupname.startswith('.'):
+                    continue
+                if groupname not in get_groups():
+                    continue
+                verify_dir_structure(groupname_path, subitem)
         else:
             dirname = os.path.join(path, item)
             if not os.path.isdir(dirname):
@@ -194,6 +206,11 @@ def get_setting_filename(repo_root: str, path: List[str]) -> str:
     if path[0] == 'devices':
         if not len(path) >= 3:
             raise ValueError("Invalid directory structure for devices settings")
+        if not keys_exists(DIR_STRUCTURE_HOST, path[2:]):
+            raise ValueError("File {} not defined in DIR_STRUCTURE".format(path[2:]))
+    elif path[0] == 'groups':
+        if not len(path) >= 3:
+            raise ValueError("Invalid directory structure for groups settings")
         if not keys_exists(DIR_STRUCTURE_HOST, path[2:]):
             raise ValueError("File {} not defined in DIR_STRUCTURE".format(path[2:]))
     elif re.match(MODEL_IF_REGEX, path[1]):
@@ -590,7 +607,6 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             local_repo_path, [device_type.name.lower(), 'base_system.yml'],
             'devicetype->base_system.yml',
             settings, settings_origin)
-    # 5. Get settings repo device specific settings
     if hostname:
         # Some settings parsing require knowledge of group memberships
         groups = get_groups(hostname)
@@ -601,6 +617,23 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
             local_repo_path, ['global', 'vxlans.yml'], 'global->vxlans.yml',
             settings, settings_origin, groups, hostname)
         settings = get_downstream_dependencies(hostname, settings)
+        # 5. Get settings repo group specific settings
+        if hostname in get_device_primary_groups():
+            primary_group = get_device_primary_groups()[hostname]
+            if os.path.isdir(os.path.join(local_repo_path, 'groups', primary_group)):
+                settings, settings_origin = read_settings(
+                    local_repo_path, ['groups', primary_group, 'base_system.yml'],
+                    'groups->{}->base_system.yml'.format(primary_group),
+                    settings, settings_origin)
+                settings, settings_origin = read_settings(
+                    local_repo_path, ['groups', primary_group, 'interfaces.yml'],
+                    'groups->{}->base_system.yml'.format(primary_group),
+                    settings, settings_origin)
+                settings, settings_origin = read_settings(
+                    local_repo_path, ['groups', primary_group, 'routing.yml'],
+                    'groups->{}->base_system.yml'.format(primary_group),
+                    settings, settings_origin)
+        # 6. Get settings repo device specific settings
         if os.path.isdir(os.path.join(local_repo_path, 'devices', hostname)):
             settings, settings_origin = read_settings(
                 local_repo_path, ['devices', hostname, 'base_system.yml'],
@@ -657,7 +690,8 @@ def get_group_settings():
         repo_config = yaml.safe_load(repo_file)
     local_repo_path = repo_config['settings_local']
     try:
-        verify_dir_structure(local_repo_path, DIR_STRUCTURE)
+        verify_dir_structure(os.path.join(local_repo_path, 'global'),
+                             DIR_STRUCTURE['global'])
     except VerifyPathException as e:
         logger.exception("Exception when verifying settings repository directory structure")
         raise e

@@ -326,7 +326,7 @@ class f_group_item(BaseModel):
 
     @validator('group_priority')
     def reserved_priority(cls, v, values, **kwargs):
-        if v and v == 1:
+        if v and v == 1 and values['name'] != 'DEFAULT':
             raise ValueError("group_priority 1 is reserved for built-in group DEFAULT")
         return v
 

@@ -1,0 +1,6 @@
+---
+groups:
+  - group:
+      name: 'DEFAULT'
+      regex: '.*'
+      group_priority: 1

@@ -695,13 +695,18 @@ def get_group_settings():
     except VerifyPathException as e:
         logger.exception("Exception when verifying settings repository directory structure")
         raise e
+
+    data_dir = pkg_resources.resource_filename(__name__, 'data')
+    with open(os.path.join(data_dir, 'default_groups.yml'), 'r') as f_default_settings:
+        default_settings: dict = yaml.safe_load(f_default_settings)
+
     settings, settings_origin = read_settings(local_repo_path,
                                               ['global', 'groups.yml'],
                                               'global',
                                               settings,
                                               settings_origin)
+    settings['groups'] += default_settings['groups']
     check_settings_syntax(settings, settings_origin)
-    # TODO: always have DEFAULT group with prio1
     return f_groups(**settings).dict(), settings_origin
 
 

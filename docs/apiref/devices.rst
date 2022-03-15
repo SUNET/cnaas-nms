@@ -40,7 +40,8 @@ This will return the entire device entry from the database:
                   "device_type": "DIST",
                   "confhash": null,
                   "last_seen": "2019-02-27 10:30:23.338681",
-                  "port": null
+                  "port": null,
+                  "primary_group": "DEFAULT"
               }
           ]
       }
@@ -96,6 +97,9 @@ have the following format:
 
 There are four mandatory fields that can not be left out: hostname,
 state, platform and device_type.
+
+The field "primary_group" can not be configured via the API but is instead
+assigned via the groups.yml file in the :ref:`settings_repo_ref` repository.
 
 Device state can be one of the following:
 

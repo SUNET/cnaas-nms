@@ -797,7 +797,8 @@ def find_primary_group(secondary_groups: list,
     return 'DEFAULT'
 
 
-def parse_device_primary_groups() -> dict:
+def parse_device_primary_groups() -> Dict[str, str]:
+    """Returns a dict with {hostname: primary_group} from settings"""
     groups_priorities_sorted = get_groups_priorities_sorted()
     device_primary_group: Dict[str, str] = {}
     with sqla_session() as session:
@@ -811,19 +812,30 @@ def parse_device_primary_groups() -> dict:
 
 def update_device_primary_groups():
     device_primary_group = parse_device_primary_groups()
+    if not device_primary_group:
+        return
     with redis_session() as redis:
         redis.hset("device_primary_group", mapping=device_primary_group)
 
 
 def get_device_primary_groups(no_cache: bool = False) -> Dict[str, str]:
-    """Returns a dict with {hostname: primary_group}"""
+    """Returns a dict with {hostname: primary_group} from redis
+
+    Args:
+        no_cache: Update redis cache before returning data
+    """
+    logger = get_logger()
     # update redis if redis is empty
     with redis_session() as redis:
         if not redis.exists("device_primary_group"):
             no_cache = True
     if no_cache:
         update_device_primary_groups()
-    device_primary_group = {}
+    device_primary_group: dict = {}
     with redis_session() as redis:
-        device_primary_group = redis.hgetall("device_primary_group")
+        try:
+            device_primary_group = redis.hgetall("device_primary_group")
+        except Exception as e:
+            logger.exception(
+                "Error while getting device_primary_group from redis: {} ".format(e))
     return device_primary_group

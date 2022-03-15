@@ -89,7 +89,8 @@ settings
 Settings are defined at different levels and inherited (possibly overridden) in several steps.
 For example, NTP servers might be defined in the "global" settings to impact the entire
 managed network, but then overridden for a specific device type that needs custom NTP servers.
-The inheritence is defined in these steps: Global -> Core/Dist/Access -> Device specific.
+The inheritence is defined in these steps:
+Global -> Fabric -> Core/Dist/Access -> Group -> Device specific.
 The directory structure looks like this:
 
 - global
@@ -97,6 +98,10 @@ The directory structure looks like this:
   * groups.yml: Definition of custom device groups
   * routing.yml: Definition of global routing settings like fabric underlay and VRFs
   * vxlans.yml: Definition of VXLAN/VLANs
+  * base_system.yml: Base system settings
+
+- fabric (core+dist)
+
   * base_system.yml: Base system settings
 
 - core
@@ -112,6 +117,14 @@ The directory structure looks like this:
 - access:
 
   * base_system.yml: Base system settings
+
+- groups:
+
+  * <group name>
+
+    + base_system.yml
+    + interfaces.yml
+    + routing.yml
 
 - devices:
 

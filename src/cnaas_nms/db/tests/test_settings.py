@@ -105,7 +105,7 @@ class SettingsTests(unittest.TestCase):
         self.assertRaises(VlanConflictError, check_vlan_collisions, devices_dict, mgmt_vlans)
         # Check colliding vlan name in same device
         devices_dict = {
-            'device1': {
+            'eosaccess': {
                 'vxlans': {
                     'vxlan1': {
                         'vni': 100200,
@@ -176,11 +176,12 @@ class SettingsTests(unittest.TestCase):
             ]
         }
         result = get_groups_priorities_sorted(settings=group_settings_dict)
+        # Groups with priority 0 is not evaluated in selecting primary group
         self.assertEqual(list(result.keys()),
-                         ['HIGH', 'DEFAULT', 'NONE'],
+                         ['HIGH', 'DEFAULT'],
                          "Unexpected ordering of groups sorted by priority")
         self.assertNotEqual(list(result.keys()),
-                            ['NONE', 'DEFAULT', 'HIGH'],
+                            ['DEFAULT', 'HIGH'],
                             "Unexpected ordering of groups sorted by priority")
 
     def test_get_device_primary_group(self):

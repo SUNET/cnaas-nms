@@ -29,10 +29,9 @@ class CnaasInventory:
             env_var = 'DHCP_BOOT'
         else:
             env_var = devicestate
-
         try:
             username = getattr(app_settings, f"USERNAME_{env_var}")
-            password = getattr(app_settings, f"USERNAME_{env_var}")
+            password = getattr(app_settings, f"PASSWORD_{env_var}")
         except Exception:
             raise ValueError('Could not find credentials for state ' + devicestate)
         return username, password

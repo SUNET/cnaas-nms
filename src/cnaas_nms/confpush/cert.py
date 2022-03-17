@@ -23,8 +23,8 @@ def arista_copy_cert(task, job_id: Optional[str] = None) -> str:
     logger = get_logger()
 
     try:
-        key_path = os.path.join(api_settings.CERT_PATH, "{}.key".format(task.host.name))
-        crt_path = os.path.join(api_settings.CERT_PATH, "{}.crt".format(task.host.name))
+        key_path = os.path.join(api_settings.CERTPATH, "{}.key".format(task.host.name))
+        crt_path = os.path.join(api_settings.CERTPATH, "{}.crt".format(task.host.name))
     except KeyError:
         raise Exception("No certpath found in api.yml settings")
     except Exception as e:

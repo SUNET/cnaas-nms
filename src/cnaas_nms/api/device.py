@@ -131,7 +131,7 @@ device_cert_model = device_syncto_api.model('device_cert', {
 stackmember_model = device_api.model('stackmember', {
     'member_no': fields.Integer(required=False),
     'hardware_id': fields.String(required=True),
-    'prioity_id': fields.Integer(required=False)
+    'priority_id': fields.Integer(required=False)
 })
 
 stackmembers_model = device_api.model('stackmembers', {

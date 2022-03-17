@@ -7,6 +7,7 @@ from pathlib import Path
 
 class AppSettings(BaseSettings):
     # Database settings
+
     CNAAS_DB_HOSTNAME: str = "127.0.0.1"
     CNAAS_DB_USERNAME: str = "cnaas"
     CNAAS_DB_PASSWORD: str = "cnaas"
@@ -15,12 +16,12 @@ class AppSettings(BaseSettings):
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
     POSTGRES_DSN: PostgresDsn = f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
+    USERNAME_INIT: str = "admin"
+    PASSWORD_INIT: str = "abc123abc123"
     USERNAME_DHCP_BOOT: str = "admin"
     PASSWORD_DHCP_BOOT: str = "abc123abc123"
     USERNAME_DISCOVERED: str = "admin"
     PASSWORD_DISCOVERED: str = "abc123abc123"
-    USERNAME_INIT: str = "admin"
-    PASSWORD_INIT: str = "abc123abc123"
     USERNAME_MANAGED: str = "admin"
     PASSWORD_MANAGED: str = "abc123abc123"
     TEMPLATES_REMOTE: str = "/opt/git/cnaas-templates-origin.git"

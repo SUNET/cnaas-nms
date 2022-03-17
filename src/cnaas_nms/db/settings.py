@@ -418,11 +418,9 @@ def check_group_priority_collisions(settings: Optional[dict] = None):
     priorities: Dict[int, str] = {}
     if not settings:
         settings, _ = get_group_settings()
-    if settings is None:
+    if settings:
         return
-    if 'groups' not in settings:
-        return
-    if settings['groups'] is None:
+    if not settings.get("groups", None):
         return
     for group in settings['groups']:
         if 'name' not in group['group']:
@@ -715,11 +713,9 @@ def get_groups(hostname: Optional[str] = None) -> List[str]:
     """Return list of names for valid groups."""
     groups = []
     settings, origin = get_group_settings()
-    if settings is None:
+    if settings:
         return groups
-    if 'groups' not in settings:
-        return groups
-    if settings['groups'] is None:
+    if not settings.get("groups", None):
         return groups
     for group in settings['groups']:
         if 'name' not in group['group']:
@@ -738,11 +734,9 @@ def get_group_regex(group_name: str) -> Optional[str]:
     """Returns a string containing the regex defining the specified
     group name if it's found."""
     settings, origin = get_group_settings()
-    if settings is None:
+    if settings:
         return None
-    if 'groups' not in settings:
-        return None
-    if settings['groups'] is None:
+    if not settings.get("groups", None):
         return None
     for group in settings['groups']:
         if 'name' not in group['group']:
@@ -760,11 +754,9 @@ def get_groups_priorities(hostname: Optional[str] = None,
 
     if not settings:
         settings, _ = get_group_settings()
-    if settings is None:
+    if not settings:
         return groups_priorities
-    if 'groups' not in settings:
-        return groups_priorities
-    if settings['groups'] is None:
+    if not settings.get("groups", None):
         return groups_priorities
     for group in settings['groups']:
         if 'name' not in group['group']:
@@ -828,7 +820,7 @@ def get_device_primary_groups(no_cache: bool = False) -> Dict[str, str]:
     # update redis if redis is empty
     with redis_session() as redis:
         if not redis.exists("device_primary_group"):
-            no_cache = True
+            update_device_primary_groups()
     if no_cache:
         update_device_primary_groups()
     device_primary_group: dict = {}

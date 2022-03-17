@@ -2,7 +2,6 @@ import json
 import time
 
 from flask import make_response, request
-from flask_jwt_extended import get_jwt_identity
 from flask_restx import Namespace, Resource, fields
 from sqlalchemy import func
 
@@ -13,7 +12,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 
-from cnaas_nms.tools.security import jwt_required
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 
 job_api = Namespace('job', description='API for handling jobs',

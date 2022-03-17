@@ -133,6 +133,7 @@ if __name__ == '__main__':
 
     if 'COVERAGE' in os.environ:
         save_coverage()
+
 else:
     # Starting via uwsgi
     from cnaas_nms.api import app

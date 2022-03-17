@@ -3,7 +3,6 @@ import datetime
 from typing import Optional
 
 from flask import make_response, request
-from flask_jwt_extended import get_jwt_identity
 from flask_restx import Namespace, Resource, fields
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -25,7 +24,7 @@ from cnaas_nms.db.settings import get_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 
-from cnaas_nms.tools.security import jwt_required
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
@@ -586,7 +585,6 @@ class DeviceSyncApi(Resource):
                 status='error',
                 data=f"No devices to synchronize were specified"
             ), 400
-
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.sync_devices:sync_devices',

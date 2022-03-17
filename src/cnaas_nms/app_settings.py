@@ -16,13 +16,13 @@ class AppSettings(BaseSettings):
     REDIS_PORT: int = 6379
     POSTGRES_DSN: PostgresDsn = f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
     USERNAME_DHCP_BOOT: str = "admin"
-    PASSWORD_DHCP_BOOT: str = "abc123abc123,"
+    PASSWORD_DHCP_BOOT: str = "abc123abc123"
     USERNAME_DISCOVERED: str = "admin"
-    PASSWORD_DISCOVERED: str = "abc123abc123,"
+    PASSWORD_DISCOVERED: str = "abc123abc123"
     USERNAME_INIT: str = "admin"
-    PASSWORD_INIT: str = "abc123abc123,"
+    PASSWORD_INIT: str = "abc123abc123"
     USERNAME_MANAGED: str = "admin"
-    PASSWORD_MANAGED: str = "abc123abc123,"
+    PASSWORD_MANAGED: str = "abc123abc123"
     TEMPLATES_REMOTE: str = "/opt/git/cnaas-templates-origin.git"
     TEMPLATES_LOCAL: str = "/opt/cnaas/templates"
     SETTINGS_REMOTE: str = "/opt/git/cnaas-settings-origin.git"
@@ -31,7 +31,6 @@ class AppSettings(BaseSettings):
 
 class ApiSettings(BaseSettings):
     # Api Settings
-
     HOST: str = "0.0.0.0"
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
     VERIFY_TLS: bool = False

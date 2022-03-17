@@ -7,7 +7,7 @@ from typing import Optional
 from flask import Flask, request
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
-from flask_jwt_extended import JWTManager, decode_token, get_jwt_identity
+from flask_jwt_extended import JWTManager, decode_token
 from flask_jwt_extended.exceptions import NoAuthorizationError
 
 from flask import jsonify
@@ -16,7 +16,7 @@ from flask_cors import CORS
 from cnaas_nms.version import __api_version__
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.app_settings import api_settings
-from cnaas_nms.tools.security import jwt_required
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 
 from cnaas_nms.api.device import device_api, devices_api, device_init_api, \
     device_initcheck_api, device_syncto_api, device_discover_api, \

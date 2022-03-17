@@ -418,7 +418,7 @@ def check_group_priority_collisions(settings: Optional[dict] = None):
     priorities: Dict[int, str] = {}
     if not settings:
         settings, _ = get_group_settings()
-    if settings:
+    if not settings:
         return
     if not settings.get("groups", None):
         return
@@ -713,7 +713,7 @@ def get_groups(hostname: Optional[str] = None) -> List[str]:
     """Return list of names for valid groups."""
     groups = []
     settings, origin = get_group_settings()
-    if settings:
+    if not settings:
         return groups
     if not settings.get("groups", None):
         return groups
@@ -734,7 +734,7 @@ def get_group_regex(group_name: str) -> Optional[str]:
     """Returns a string containing the regex defining the specified
     group name if it's found."""
     settings, origin = get_group_settings()
-    if settings:
+    if not settings:
         return None
     if not settings.get("groups", None):
         return None

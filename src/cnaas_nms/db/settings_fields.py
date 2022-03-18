@@ -64,6 +64,8 @@ maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum nu
 
 GROUP_NAME = r'^([a-zA-Z0-9_]{1,63}\.?)+$'
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
+group_priority_schema = Field(0, ge=0, le=100,
+                              description="Group priority 0-100, default 0, higher value means higher priority")
 
 
 def validate_ipv4_if(ipv4if: str):
@@ -320,6 +322,13 @@ class f_root(BaseModel):
 class f_group_item(BaseModel):
     name: str = group_name
     regex: str = ''
+    group_priority: int = group_priority_schema
+
+    @validator('group_priority')
+    def reserved_priority(cls, v, values, **kwargs):
+        if v and v == 1 and values['name'] != 'DEFAULT':
+            raise ValueError("group_priority 1 is reserved for built-in group DEFAULT")
+        return v
 
 
 class f_group(BaseModel):

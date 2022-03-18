@@ -91,7 +91,8 @@ settings
 Settings are defined at different levels and inherited (possibly overridden) in several steps.
 For example, NTP servers might be defined in the "global" settings to impact the entire
 managed network, but then overridden for a specific device type that needs custom NTP servers.
-The inheritence is defined in these steps: Global -> Core/Dist/Access -> Device specific.
+The inheritence is defined in these steps:
+Global -> Fabric -> Core/Dist/Access -> Group -> Device specific.
 The directory structure looks like this:
 
 - global
@@ -99,6 +100,10 @@ The directory structure looks like this:
   * groups.yml: Definition of custom device groups
   * routing.yml: Definition of global routing settings like fabric underlay and VRFs
   * vxlans.yml: Definition of VXLAN/VLANs
+  * base_system.yml: Base system settings
+
+- fabric (core+dist)
+
   * base_system.yml: Base system settings
 
 - core
@@ -115,6 +120,14 @@ The directory structure looks like this:
 
   * base_system.yml: Base system settings
 
+- groups:
+
+  * <group name>
+
+    + base_system.yml
+    + interfaces.yml
+    + routing.yml
+
 - devices:
 
   * <hostname>
@@ -125,12 +138,24 @@ The directory structure looks like this:
 
 groups.yml:
 
-Contains a dictionary named "groups", that contains a list of groups.
+A device in CNaaS-NMS will be a member of exactly one primary group, and
+optionally any number of secandary groups. Primary groups can be used to
+configure settings per group. Secondary groups can be used to assign VXLAN
+memberships, select devices for synchronization or firmware upgrade etc.
+
+groups.yml contains a dictionary named "groups", that contains a list of groups.
 Each group is defined as a dictionary with a single key named "group",
 and that key contains a dictionary with two keys:
 
 - name: A string representing a name. No spaces.
-- regex: A Python style regex that matches on device hostnames
+- regex: A Python style regex that matches on device hostnames.
+- group_priority: Optional integer value 0-100. Specifies which group should
+  have the highest priority when determining the primary group for a device.
+  Higher value means higher priority. Defaults to 0, value of 1 is reserved
+  for builtin group DEFAULT.
+
+There will always exist a group called DEFAULT with group_priority 1 even
+if it's not specified in groups.yml.
 
 All devices that matches the regex will be included in the group.
 
@@ -150,6 +175,15 @@ All devices that matches the regex will be included in the group.
      - group:
          name: 'DIST_ODD'
          regex: '.*-dist[0-9][13579]'
+     - group:
+         name: 'E1'
+         regex: 'eosdist1$'
+         group_priority: 100
+     - group:
+         name: 'E'
+         regex: 'eosdist.*'
+         group_priority: 99
+
 
 routing.yml:
 

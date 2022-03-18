@@ -20,24 +20,11 @@ def _get_session():
 
 
 @contextmanager
-def sqla_session(**kwargs):
+def sqla_session(**kwargs) -> sessionmaker:
     session = _get_session()
     try:
         yield session
         session.commit()
-    except:
-        session.rollback()
-        raise
-    finally:
-        session.close()
-
-
-@contextmanager
-def sqla_test_session(**kwargs):
-    session = _get_session()
-    try:
-        yield session
-        session.flush()
     except:
         session.rollback()
         raise
@@ -55,6 +42,6 @@ def sqla_execute(**kwargs):
 
 
 @contextmanager
-def redis_session(**kwargs):
+def redis_session(**kwargs) -> StrictRedis:
     with StrictRedis(host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, charset="utf-8", decode_responses=True) as conn:
         yield conn

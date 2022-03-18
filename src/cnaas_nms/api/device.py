@@ -1,6 +1,6 @@
 import json
 import datetime
-from typing import Optional
+from typing import Optional, List
 
 from flask import make_response, request
 from flask_restx import Namespace, Resource, fields
@@ -20,7 +20,8 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import get_groups
+from cnaas_nms.db.settings import get_groups, get_device_primary_groups, \
+    update_device_primary_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 
@@ -139,6 +140,17 @@ stackmembers_model = device_api.model('stackmembers', {
 })
 
 
+def device_data_postprocess(device_list: List[Device]) -> List[dict]:
+    device_primary_group = get_device_primary_groups()
+    ret: List[dict] = []
+    for device in device_list:
+        dev_dict = device.as_dict()
+        if device.hostname in device_primary_group.keys():
+            dev_dict['primary_group'] = device_primary_group[device.hostname]
+        ret.append(dev_dict)
+    return ret
+
+
 class DeviceByIdApi(Resource):
     @jwt_required
     def get(self, device_id):
@@ -148,7 +160,7 @@ class DeviceByIdApi(Resource):
         with sqla_session() as session:
             instance = session.query(Device).filter(Device.id == device_id).one_or_none()
             if instance:
-                result['data']['devices'].append(instance.as_dict())
+                result['data']['devices'] = device_data_postprocess([instance])
             else:
                 return empty_result('error', "Device not found"), 404
         return result
@@ -198,12 +210,15 @@ class DeviceByIdApi(Resource):
                 Device.id == device_id).one_or_none()
 
             if not dev:
-                return empty_result(status='error', data=f"No device with id {device_id}")
+                return empty_result(status='error', data=f"No device with id {device_id}"), 404
 
             errors = dev.device_update(**json_data)
             if errors:
-                return empty_result(status='error', data=errors), 404
-            return empty_result(status='success', data={"updated_device": dev.as_dict()}), 200
+                return empty_result(status='error', data=errors), 400
+            session.commit()
+            update_device_primary_groups()
+            dev_dict = device_data_postprocess([dev])[0]
+            return empty_result(status='success', data={"updated_device": dev_dict}), 200
 
 
 class DeviceByHostnameApi(Resource):
@@ -215,7 +230,7 @@ class DeviceByHostnameApi(Resource):
         with sqla_session() as session:
             instance = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if instance:
-                result['data']['devices'].append(instance.as_dict())
+                result['data']['devices'] = device_data_postprocess([instance])
             else:
                 return empty_result('error', "Device not found"), 404
         return result
@@ -251,14 +266,16 @@ class DeviceApi(Resource):
             new_device = Device.device_create(**data)
             session.add(new_device)
             session.flush()
-            return empty_result(status='success', data={"added_device": new_device.as_dict()}), 200
+            update_device_primary_groups()
+            dev_dict = device_data_postprocess([new_device])[0]
+            return empty_result(status='success', data={"added_device": dev_dict}), 200
 
 
 class DevicesApi(Resource):
     @jwt_required
     def get(self):
         """ Get all devices """
-        data = {'devices': []}
+        device_list: List[Device] = []
         total_count = 0
         with sqla_session() as session:
             query = session.query(Device, func.count(Device.id).over().label('total'))
@@ -268,8 +285,9 @@ class DevicesApi(Resource):
                 return empty_result(status='error',
                                     data="Unable to filter devices: {}".format(e)), 400
             for instance in query:
-                data['devices'].append(instance.Device.as_dict())
+                device_list.append(instance.Device)
                 total_count = instance.total
+            data = {'devices': device_data_postprocess(device_list)}
 
         resp = make_response(json.dumps(empty_result(status='success', data=data)), 200)
         resp.headers['Content-Type'] = 'application/json'

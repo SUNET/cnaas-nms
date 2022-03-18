@@ -5,7 +5,9 @@ import pkg_resources
 
 from cnaas_nms.db.settings import get_settings, verify_dir_structure, \
     DIR_STRUCTURE, VerifyPathException, \
-    check_vlan_collisions, VlanConflictError
+    check_vlan_collisions, VlanConflictError, \
+    get_groups_priorities_sorted, get_device_primary_groups, \
+    check_group_priority_collisions
 from cnaas_nms.db.device import DeviceType
 
 class SettingsTests(unittest.TestCase):
@@ -103,7 +105,7 @@ class SettingsTests(unittest.TestCase):
         self.assertRaises(VlanConflictError, check_vlan_collisions, devices_dict, mgmt_vlans)
         # Check colliding vlan name in same device
         devices_dict = {
-            'device1': {
+            'eosaccess': {
                 'vxlans': {
                     'vxlan1': {
                         'vni': 100200,
@@ -149,6 +151,73 @@ class SettingsTests(unittest.TestCase):
             }
         }
         self.assertIsNone(check_vlan_collisions(devices_dict, mgmt_vlans))
+
+    def test_groups_priorities_sorted(self):
+        group_settings_dict = {
+            "groups": [
+                {
+                    "group": {
+                        "name": "DEFAULT",
+                        "group_priority": 1
+                    },
+                },
+                {
+                    "group": {
+                        "name": "HIGH",
+                        "group_priority": 100
+                    }
+                },
+                {
+                    "group": {
+                        "name": "NONE",
+                        "group_priority": 0
+                    }
+                },
+            ]
+        }
+        result = get_groups_priorities_sorted(settings=group_settings_dict)
+        # Groups with priority 0 is not evaluated in selecting primary group
+        self.assertEqual(list(result.keys()),
+                         ['HIGH', 'DEFAULT'],
+                         "Unexpected ordering of groups sorted by priority")
+        self.assertNotEqual(list(result.keys()),
+                            ['DEFAULT', 'HIGH'],
+                            "Unexpected ordering of groups sorted by priority")
+
+    def test_get_device_primary_group(self):
+        before = get_device_primary_groups()
+        after = get_device_primary_groups(no_cache=True)
+        self.assertEqual(before, after)
+
+    def test_groups_priorities_collission(self):
+        group_settings_dict = {
+            "groups": [
+                {
+                    "group": {
+                        "name": "DEFAULT",
+                        "group_priority": 1
+                    },
+                },
+                {
+                    "group": {
+                        "name": "HIGH",
+                        "group_priority": 100
+                    }
+                },
+                {
+                    "group": {
+                        "name": "DUPLICATE",
+                        "group_priority": 100
+                    }
+                },
+            ]
+        }
+        with self.assertRaises(ValueError,
+                               msg="Groups with same priority should raise ValueError"):
+            check_group_priority_collisions(group_settings_dict)
+        # Remove duplicate entry
+        del group_settings_dict['groups'][2]
+        self.assertIsNone(check_group_priority_collisions(group_settings_dict))
 
 
 if __name__ == '__main__':

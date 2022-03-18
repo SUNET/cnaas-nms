@@ -35,11 +35,21 @@ then
 	fi
 fi
 
+on_exit () {
+    docker logs docker_cnaas_dhcpd_1
+    docker logs docker_cnaas_api_1
+    echo "Integrationtests failed!"
+}
+
+trap on_exit ERR
+
 docker volume create cnaas-templates
 docker volume create cnaas-settings
 docker volume create cnaas-postgres-data
 docker volume create cnaas-jwtcert
 docker volume create cnaas-cacert
+
+set -e
 
 docker-compose up -d
 
@@ -64,6 +74,8 @@ popd
 
 echo "Starting integration tests..."
 python3 -m integrationtests
+
+set +e
 
 if [ -z "$AUTOTEST" ]
 then

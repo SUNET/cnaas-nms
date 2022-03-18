@@ -47,10 +47,10 @@ jobs:
         run: docker ps -a
 
       - name: Fix permissions for code coverage
-        run: docker-compose exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+        run: docker-compose -f docker/docker-compose.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 
       - name: Run unit tests in container
-        run: docker-compose exec -T cnaas_api /opt/cnaas/nosetests.sh
+        run: docker-compose -f docker/docker-compose.yaml exec -T cnaas_api /opt/cnaas/nosetests.sh
 
       - name: Check logs
         if: always()

@@ -1,0 +1,38 @@
+name: Run CNaaS-NMS unit tests
+on: [push, pull_request]
+
+jobs:
+  docker-tests:
+    name: "Run unit tests in docker"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: "Set environment variables"
+        run: |
+          echo "GITREPO_TEMPLATES=git://gitops.sunet.se/cnaas-lab-templates" >> $GITHUB_ENV
+          echo "GITREPO_SETTINGS=git://gitops.sunet.se/cnaas-lab-settings" >> $GITHUB_ENV
+          echo "GITREPO_ETC=https://github.com/indy-independence/cnaas-nms-lab-etc.git" >> $GITHUB_ENV
+          echo "USERNAME_DHCP_BOOT=admin" >> $GITHUB_ENV
+          echo "PASSWORD_DHCP_BOOT=abc123abc123" >> $GITHUB_ENV
+          echo "USERNAME_DISCOVERED=admin" >> $GITHUB_ENV
+          echo "PASSWORD_DISCOVERED=abc123abc123" >> $GITHUB_ENV
+          echo "USERNAME_INIT=admin" >> $GITHUB_ENV
+          echo "PASSWORD_INIT=abc123abc123" >> $GITHUB_ENV
+          echo "USERNAME_MANAGED=admin" >> $GITHUB_ENV
+          echo "PASSWORD_MANAGED=abc123abc123" >> $GITHUB_ENV
+          echo "COVERAGE=1" >> $GITHUB_ENV
+          echo "JWT_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw" >> $GITHUB_ENV
+
+      - name: Build the docker-compose stack
+        run: docker-compose -f docker/docker-compose.yaml up -d
+
+      - name: Check running containers
+        run: docker ps -a
+
+      - name: Run unit tests in container
+        run: docker-compose exec -T cnaas_api /opt/cnaas/nosetests.sh
+
+      - name: Check logs
+        run: docker logs docker_cnaas_api_1

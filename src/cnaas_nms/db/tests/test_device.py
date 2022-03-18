@@ -81,7 +81,7 @@ class DeviceTests(unittest.TestCase):
             self.assertEqual(new_stack.get_stackmembers(session), [])
             stackmember1 = Stackmember(
                 device_id = new_stack.id,
-                hardware_id = "FO64534",
+                hardware_id = "FO64535",
                 member_no = "0",
             )
             session.add(stackmember1)

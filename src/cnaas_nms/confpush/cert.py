@@ -3,9 +3,9 @@ from typing import Optional
 
 from nornir_netmiko import netmiko_file_transfer, netmiko_send_command
 
+from cnaas_nms.app_settings import api_settings
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.get_apidata import get_apidata
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.db.session import sqla_session
@@ -21,11 +21,10 @@ class CopyError(Exception):
 def arista_copy_cert(task, job_id: Optional[str] = None) -> str:
     set_thread_data(job_id)
     logger = get_logger()
-    apidata = get_apidata()
 
     try:
-        key_path = os.path.join(apidata['certpath'], "{}.key".format(task.host.name))
-        crt_path = os.path.join(apidata['certpath'], "{}.crt".format(task.host.name))
+        key_path = os.path.join(api_settings.CERTPATH, "{}.key".format(task.host.name))
+        crt_path = os.path.join(api_settings.CERTPATH, "{}.crt".format(task.host.name))
     except KeyError:
         raise Exception("No certpath found in api.yml settings")
     except Exception as e:

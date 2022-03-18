@@ -2,8 +2,7 @@ from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
 from flask import request
-from flask_restx import Resource, Namespace, fields
-from flask_jwt_extended import jwt_required
+from flask_restx import Namespace, Resource, fields
 from pydantic import BaseModel, validator
 from pydantic.error_wrappers import ValidationError
 from ipaddress import IPv4Interface
@@ -12,6 +11,7 @@ from cnaas_nms.api.generic import build_filter, empty_result, limit_results
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 from cnaas_nms.db.settings_fields import vlan_id_schema_optional
 from cnaas_nms.api.generic import parse_pydantic_error, update_sqla_object
@@ -55,7 +55,7 @@ class f_mgmtdomain(BaseModel):
 
 
 class MgmtdomainByIdApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, mgmtdomain_id):
         """ Get management domain by ID """
         result = empty_result()
@@ -69,7 +69,7 @@ class MgmtdomainByIdApi(Resource):
                 return empty_result('error', "Management domain not found"), 404
         return result
 
-    @jwt_required()
+    @jwt_required
     def delete(self, mgmtdomain_id):
         """ Remove management domain """
         with sqla_session() as session:
@@ -85,7 +85,7 @@ class MgmtdomainByIdApi(Resource):
             else:
                 return empty_result('error', "Management domain not found"), 404
 
-    @jwt_required()
+    @jwt_required
     @mgmtdomain_api.expect(mgmtdomain_model)
     def put(self, mgmtdomain_id):
         """ Modify management domain """
@@ -115,7 +115,7 @@ class MgmtdomainByIdApi(Resource):
 
 
 class MgmtdomainsApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ Get all management domains """
         result = empty_result()
@@ -132,7 +132,7 @@ class MgmtdomainsApi(Resource):
                 result['data']['mgmtdomains'].append(instance.as_dict())
         return result
 
-    @jwt_required()
+    @jwt_required
     @mgmtdomain_api.expect(mgmtdomain_model)
     def post(self):
         """ Add management domain """

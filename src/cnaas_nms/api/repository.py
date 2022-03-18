@@ -1,11 +1,11 @@
 from flask import request
-from flask_restx import Resource, Namespace, fields
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.db.git import RepoType, refresh_repo, get_repo_status
-from cnaas_nms.db.settings import VerifyPathException, SettingsSyntaxError
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.joblock import JoblockError
+from cnaas_nms.db.settings import SettingsSyntaxError, VerifyPathException
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 
 
@@ -18,7 +18,7 @@ repository_model = api.model('repository', {
 
 
 class RepositoryApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, repo):
         """ Get repository information """
         try:
@@ -27,7 +27,7 @@ class RepositoryApi(Resource):
             return empty_result('error', "Invalid repository type"), 400
         return empty_result('success', get_repo_status(repo_type))
 
-    @jwt_required()
+    @jwt_required
     @api.expect(repository_model)
     def put(self, repo):
         """ Modify repository """

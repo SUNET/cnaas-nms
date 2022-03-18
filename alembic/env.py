@@ -14,8 +14,8 @@ from alembic import context
 # access to the values within the .ini file in use.
 config = context.config
 
-from cnaas_nms.db.session import get_sqlalchemy_conn_str
-config.set_main_option('sqlalchemy.url', get_sqlalchemy_conn_str())
+from cnaas_nms.app_settings import app_settings
+config.set_main_option('sqlalchemy.url', app_settings.POSTGRES_DSN)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

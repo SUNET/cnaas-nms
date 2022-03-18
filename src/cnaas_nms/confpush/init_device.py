@@ -13,6 +13,7 @@ import cnaas_nms.confpush.nornir_helper
 import cnaas_nms.confpush.get
 import cnaas_nms.confpush.underlay
 import cnaas_nms.db.helper
+from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
@@ -20,8 +21,7 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets, set_facts
-from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices, \
-    sync_devices
+from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.reservedip import ReservedIP
@@ -29,7 +29,6 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.tools.pki import generate_device_cert
 from cnaas_nms.confpush.cert import arista_copy_cert
-from cnaas_nms.tools.get_apidata import get_apidata
 
 
 class ConnectionCheckError(Exception):
@@ -52,10 +51,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
     set_thread_data(job_id)
     logger = get_logger()
     logger.debug("Push basetemplate for host: {}".format(task.host.name))
-
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-        local_repo_path = repo_config['templates_local']
+    local_repo_path = app_settings.TEMPLATES_LOCAL
 
     mapfile = os.path.join(local_repo_path, task.host.platform, 'mapping.yml')
     if not os.path.isfile(mapfile):
@@ -78,7 +74,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
         logger.exception(e)
     else:
         if device_cert_res.failed:
-            if device_cert_required():
+            if api_settings.VERIFY_TLS_DEVICE:
                 logger.error("Unable to install device certificate for {}, aborting".format(
                     device_variables['host']))
                 raise Exception(device_cert_res[0].exception)
@@ -277,15 +273,6 @@ def ztp_device_cert(task, job_id: str, new_hostname: str, management_ip: str) ->
             task.host.platform
         )
     return "Device certificate installed for {}".format(new_hostname)
-
-
-def device_cert_required() -> bool:
-    apidata = get_apidata()
-    if 'verify_tls_device' in apidata and type(apidata['verify_tls_device']) == bool and \
-            not apidata['verify_tls_device']:
-        return False
-    else:
-        return True
 
 
 @job_wrapper
@@ -706,9 +693,7 @@ def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int,
 
 
 def set_hostname_task(task, new_hostname: str):
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-        local_repo_path = repo_config['templates_local']
+    local_repo_path = app_settings.TEMPLATES_LOCAL
     template_vars = {}  # host is already set by nornir
     r = task.run(
         task=template_file,

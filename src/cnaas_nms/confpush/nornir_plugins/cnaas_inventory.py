@@ -1,4 +1,3 @@
-import os
 import ipaddress
 
 from nornir.core.inventory import (
@@ -16,6 +15,7 @@ from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.tools.pki import ssl_context
 import cnaas_nms.db.session
+from cnaas_nms.app_settings import app_settings
 
 
 class CnaasInventory:
@@ -29,10 +29,9 @@ class CnaasInventory:
             env_var = 'DHCP_BOOT'
         else:
             env_var = devicestate
-
         try:
-            username = os.environ['USERNAME_' + env_var]
-            password = os.environ['PASSWORD_' + env_var]
+            username = getattr(app_settings, f"USERNAME_{env_var}")
+            password = getattr(app_settings, f"PASSWORD_{env_var}")
         except Exception:
             raise ValueError('Could not find credentials for state ' + devicestate)
         return username, password

@@ -1,13 +1,13 @@
 from typing import List, Optional
 import re
 
-from flask_restx import Resource, Namespace
-from flask_jwt_extended import jwt_required
+from flask_restx import Namespace, Resource
 
 from cnaas_nms.db.device import Device, DeviceState
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.settings import get_groups, get_group_settings, get_group_regex
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
 
@@ -70,7 +70,7 @@ def groups_osversion_populate(group_name: str):
 
 
 class GroupsApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ Get all groups """
         result = {
@@ -81,7 +81,7 @@ class GroupsApi(Resource):
 
 
 class GroupsApiByName(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, group_name):
         """ Get a single group by name """
         if group_name not in get_groups():
@@ -95,7 +95,7 @@ class GroupsApiByName(Resource):
 
 
 class GroupsApiByNameOsversion(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, group_name):
         """Get os version of all devices in a group"""
         try:

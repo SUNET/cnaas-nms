@@ -1,19 +1,19 @@
 import json
 import time
 
-from flask import request, make_response
-from flask_restx import Resource, Namespace, fields
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask import make_response, request
+from flask_restx import Namespace, Resource, fields
 from sqlalchemy import func
 
 from cnaas_nms.api.generic import empty_result, build_filter, pagination_headers
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.version import __api_version__
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.version import __api_version__
 
 job_api = Namespace('job', description='API for handling jobs',
                     prefix='/api/{}'.format(__api_version__))
@@ -62,7 +62,7 @@ def filter_job_dict(job_dict: dict, args: dict) -> dict:
 
 
 class JobsApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ Get one or more jobs """
         data = {'jobs': []}
@@ -88,7 +88,7 @@ class JobsApi(Resource):
 
 
 class JobByIdApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, job_id):
         """ Get job information by ID """
         args = request.args
@@ -102,7 +102,7 @@ class JobByIdApi(Resource):
                 return empty_result(status='error',
                                     data="No job with id {} found".format(job_id)), 400
 
-    @jwt_required()
+    @jwt_required
     def put(self, job_id):
         json_data = request.get_json()
         if 'action' not in json_data:
@@ -147,7 +147,7 @@ class JobByIdApi(Resource):
 
 
 class JobLockApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ Get job locks """
         locks = []
@@ -156,7 +156,7 @@ class JobLockApi(Resource):
                 locks.append(lock.as_dict())
         return empty_result('success', data={'locks': locks})
 
-    @jwt_required()
+    @jwt_required
     @job_api.expect(job_model)
     def delete(self):
         """ Remove job locks """

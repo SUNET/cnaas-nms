@@ -56,6 +56,8 @@ that are exposed from CNaaS includes:
 
 - device_id: CNaaS-NMS internal ID number of the device
 
+- stack_members: CNaaS-NMS stack members if they are include. Each stackmember has a hardware id, and member number, priority is optional.
+
 Additional variables available for distribution switches:
 
 - infra_ip: IPv4 infrastructure VRF address (ex 10.199.0.0)

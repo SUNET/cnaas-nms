@@ -2,10 +2,12 @@ import json
 import datetime
 from typing import Optional, List
 
-from flask import request, make_response
-from flask_restx import Resource, Namespace, fields
+from flask import make_response, request
+from flask_restx import Namespace, Resource, fields
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
+
+from pydantic import ValidationError
 
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
@@ -15,15 +17,18 @@ import cnaas_nms.confpush.update
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups, get_device_primary_groups, \
     update_device_primary_groups
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
-from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
-from cnaas_nms.tools.get_apidata import get_apidata
+from cnaas_nms.api.models.stackmembers_model import StackmembersModel
+from cnaas_nms.app_settings import api_settings
 
 
 logger = get_logger()
@@ -124,6 +129,16 @@ device_cert_model = device_syncto_api.model('device_cert', {
                             example="RENEW")
 })
 
+stackmember_model = device_api.model('stackmember', {
+    'member_no': fields.Integer(required=False),
+    'hardware_id': fields.String(required=True),
+    'priority_id': fields.Integer(required=False)
+})
+
+stackmembers_model = device_api.model('stackmembers', {
+    'stackmembers': fields.List(fields.Nested(stackmember_model)),
+})
+
 
 def device_data_postprocess(device_list: List[Device]) -> List[dict]:
     device_primary_group = get_device_primary_groups()
@@ -137,7 +152,7 @@ def device_data_postprocess(device_list: List[Device]) -> List[dict]:
 
 
 class DeviceByIdApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, device_id):
         """ Get a device from ID """
         result = empty_result()
@@ -150,7 +165,7 @@ class DeviceByIdApi(Resource):
                 return empty_result('error', "Device not found"), 404
         return result
 
-    @jwt_required()
+    @jwt_required
     def delete(self, device_id):
         """ Delete device from ID """
         json_data = request.get_json()
@@ -185,7 +200,7 @@ class DeviceByIdApi(Resource):
                     data="Could not remove device: {}".format(e))
             return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
 
-    @jwt_required()
+    @jwt_required
     @device_api.expect(device_model)
     def put(self, device_id):
         """ Modify device from ID """
@@ -207,7 +222,7 @@ class DeviceByIdApi(Resource):
 
 
 class DeviceByHostnameApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, hostname):
         """ Get a device from hostname """
         result = empty_result()
@@ -222,7 +237,7 @@ class DeviceByHostnameApi(Resource):
 
 
 class DeviceApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_api.expect(device_model)
     def post(self):
         """ Add a device """
@@ -257,7 +272,7 @@ class DeviceApi(Resource):
 
 
 class DevicesApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ Get all devices """
         device_list: List[Device] = []
@@ -281,7 +296,7 @@ class DevicesApi(Resource):
 
 
 class DeviceInitApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_init_api.expect(device_init_model)
     def post(self, device_id: int):
         """ Init a device """
@@ -390,7 +405,7 @@ class DeviceInitApi(Resource):
 
 
 class DeviceInitCheckApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_init_api.expect(device_initcheck_model)
     def post(self, device_id: int):
         """Perform init check on a device"""
@@ -489,7 +504,7 @@ class DeviceInitCheckApi(Resource):
 
 
 class DeviceDiscoverApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_discover_api.expect(device_discover_model)
     def post(self):
         """ Discover device """
@@ -515,7 +530,7 @@ class DeviceDiscoverApi(Resource):
 
 
 class DeviceSyncApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_syncto_api.expect(device_syncto_model)
     def post(self):
         """ Start sync of device(s) """
@@ -588,7 +603,6 @@ class DeviceSyncApi(Resource):
                 status='error',
                 data=f"No devices to synchronize were specified"
             ), 400
-
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             'cnaas_nms.confpush.sync_devices:sync_devices',
@@ -607,7 +621,7 @@ class DeviceSyncApi(Resource):
 
 
 class DeviceUpdateFactsApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_update_facts_api.expect(device_update_facts_model)
     def post(self):
         """ Start update facts of device(s) """
@@ -658,7 +672,7 @@ class DeviceUpdateFactsApi(Resource):
 
 
 class DeviceUpdateInterfacesApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_update_interfaces_api.expect(device_update_interfaces_model)
     def post(self):
         """Update/scan interfaces of device"""
@@ -749,7 +763,7 @@ class DeviceUpdateInterfacesApi(Resource):
 
 
 class DeviceConfigApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, hostname: str):
         """ Get device configuration """
         result = empty_result()
@@ -779,7 +793,7 @@ class DeviceConfigApi(Resource):
 
 
 class DevicePreviousConfigApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_api.param('job_id')
     @device_api.param('previous')
     @device_api.param('before')
@@ -822,7 +836,7 @@ class DevicePreviousConfigApi(Resource):
 
         return result
 
-    @jwt_required()
+    @jwt_required
     @device_api.expect(device_restore_model)
     def post(self, hostname: str):
         """Restore configuration to previous version"""
@@ -885,13 +899,13 @@ class DevicePreviousConfigApi(Resource):
 
 
 class DeviceApplyConfigApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_api.expect(device_apply_config_model)
     def post(self, hostname: str):
         """Apply exact specified configuration to device without using templates"""
         json_data = request.get_json()
         apply_kwargs = {'hostname': hostname}
-        allow_live_run = get_apidata()['allow_apply_config_liverun']
+        allow_live_run = api_settings.ALLOW_APPLY_CONFIG_LIVERUN
         if not Device.valid_hostname(hostname):
             return empty_result(
                 status='error',
@@ -927,7 +941,7 @@ class DeviceApplyConfigApi(Resource):
 
 
 class DeviceCertApi(Resource):
-    @jwt_required()
+    @jwt_required
     @device_api.expect(device_cert_model)
     def post(self):
         """Execute certificate related actions on device"""
@@ -1000,6 +1014,59 @@ class DeviceCertApi(Resource):
             ), 400
 
 
+class DeviceStackmembersApi(Resource):
+    @jwt_required
+    def get(self, hostname):
+        """ Get stackmembers for device """
+        result = empty_result(data={'stackmembers': []})
+        with sqla_session() as session:
+            device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if not device:
+                return empty_result('error', "Device not found"), 404
+            stackmembers = device.get_stackmembers(session)
+            for stackmember in stackmembers:
+                result['data']['stackmembers'].append(stackmember.as_dict())
+        return result
+
+    @jwt_required
+    @device_api.expect(stackmembers_model)
+    def put(self, hostname):
+        try:
+            validated_json_data = StackmembersModel(**request.get_json()).dict()
+            data = validated_json_data['stackmembers']
+        except ValidationError as e:
+            errors = DeviceStackmembersApi.format_errors(e.errors())
+            return empty_result('error', errors), 400
+        result = empty_result(data={'stackmembers': []})
+        with sqla_session() as session:
+            device_instance = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if not device_instance:
+                return empty_result('error', "Device not found"), 404
+            try:
+                for stackmember in device_instance.get_stackmembers(session):
+                    session.delete(stackmember)
+                session.flush()
+                for stackmember_data in data:
+                    stackmember_data['device_id'] = device_instance.id
+                    new_stackmember = Stackmember(**stackmember_data)
+                    session.add(new_stackmember)
+                    result['data']['stackmembers'].append(new_stackmember.as_dict())
+            except ValueError as e:
+                session.rollback()
+                return empty_result('error', str(e)), 400
+        return result
+
+    @classmethod
+    def format_errors(cls, errors):
+        return_errors = []
+        for error in errors:
+            error_msg = error['msg']
+            if error['type'] != 'value_error':
+                error_msg = f"{error['loc'][2]}: {error_msg}"
+            return_errors.append(error_msg)
+        return return_errors
+
+
 # Devices
 device_api.add_resource(DeviceByIdApi, '/<int:device_id>')
 device_api.add_resource(DeviceByHostnameApi, '/<string:hostname>')
@@ -1015,4 +1082,5 @@ device_syncto_api.add_resource(DeviceSyncApi, '')
 device_update_facts_api.add_resource(DeviceUpdateFactsApi, '')
 device_update_interfaces_api.add_resource(DeviceUpdateInterfacesApi, '')
 device_cert_api.add_resource(DeviceCertApi, '')
+device_api.add_resource(DeviceStackmembersApi, "/<string:hostname>/stackmember")
 # device/<string:hostname>/current_config

@@ -26,7 +26,7 @@ jobs:
           echo "JWT_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw" >> $GITHUB_ENV
 
       - name: Create code coverage dir
-        run: mkdir -p coverage/
+        run: mkdir -p docker/coverage/
 
       - name: Create docker volumes
         run: |
@@ -36,8 +36,12 @@ jobs:
           docker volume create cnaas-jwtcert
           docker volume create cnaas-cacert
 
+      - uses: satackey/action-docker-layer-caching@v0.0.11
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
+
       - name: Build the docker-compose stack
-        run: docker-compose -f docker/docker-compose.yaml up -d
+        run: docker-compose -f docker/docker-compose.yaml up --build -d
 
       - name: Check running containers
         run: docker ps -a

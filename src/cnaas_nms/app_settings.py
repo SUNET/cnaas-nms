@@ -42,7 +42,7 @@ class ApiSettings(BaseSettings):
     CERTPATH: Path = "/tmp/devicecerts/"
     ALLOW_APPLY_CONFIG_LIVERUN: bool = False
     FIRMWARE_URL: str = HTTPD_URL
-    OAUTH2_ENABLED: bool = True
+    JWT_ENABLED: bool = True
     PLUGIN_FILE: Path = "/etc/cnaas-nms/plugins.yml"
 
 

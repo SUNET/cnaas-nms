@@ -8,7 +8,7 @@ def jwt_required(fn):
     This function enables development without Oauth.
 
     """
-    if api_settings.OAUTH2_ENABLED:
+    if api_settings.JWT_ENABLED:
         return jwt_orig()(fn)
     else:
         return fn
@@ -19,4 +19,4 @@ def get_jwt_identity():
     This function overides the identity when needed.
 
     """
-    return get_jwt_identity_orig() if api_settings.OAUTH2_ENABLED else "admin"
+    return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"

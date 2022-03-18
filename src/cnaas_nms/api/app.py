@@ -82,7 +82,7 @@ cors = CORS(app,
             expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link"])
 socketio = SocketIO(app, cors_allowed_origins='*')
 
-if api_settings.OAUTH2_ENABLED:
+if api_settings.JWT_ENABLED:
     try:
         jwt_pubkey = open(api_settings.JWT_CERT).read()
     except Exception as e:

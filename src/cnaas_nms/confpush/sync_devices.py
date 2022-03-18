@@ -11,6 +11,7 @@ from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
+from cnaas_nms.app_settings import app_settings
 from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector, get_jinja_env
 from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.confpush.get import calc_config_hash
@@ -19,7 +20,7 @@ from cnaas_nms.tools.jinja_helpers import get_environment_secrets
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
@@ -112,9 +113,20 @@ def populate_device_vars(session, dev: Device,
         'device_model': dev.model,
         'device_os_version': dev.os_version,
         'device_id': dev.id,
-        'hostname': dev.hostname
+        'hostname': dev.hostname,
+        'stack_members': []
         # 'host' variable is also implicitly added by nornir-jinja2
     }
+
+    if len(dev.stack_members) > 0:
+        device_variables["stack_members"] = [
+            {
+                "priority": member.priority,
+                "hardware_id": member.hardware_id,
+                "member_no": member.member_no
+            }
+            for member in dev.stack_members
+        ]
 
     if ztp_hostname:
         hostname: str = ztp_hostname
@@ -356,9 +368,7 @@ def push_sync_device(task, dry_run: bool = True, generate_only: bool = False,
         platform = dev.platform
         devtype = dev.device_type
 
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-        local_repo_path = repo_config['templates_local']
+    local_repo_path = app_settings.TEMPLATES_LOCAL
 
     mapfile = os.path.join(local_repo_path, platform, 'mapping.yml')
     if not os.path.isfile(mapfile):

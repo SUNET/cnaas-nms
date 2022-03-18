@@ -2,11 +2,11 @@ import shutil
 import yaml
 import pkg_resources
 import os
-import time
 
 import unittest
 import cnaas_nms.api.app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
+from cnaas_nms.app_settings import app_settings
 
 
 class ApiTests(unittest.TestCase):
@@ -121,9 +121,7 @@ class ApiTests(unittest.TestCase):
 
     def test_repository_get(self):
         # Delete settings repo
-        with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-            repo_config = yaml.safe_load(db_file)
-        shutil.rmtree(repo_config['settings_local'])
+        shutil.rmtree(app_settings.SETTINGS_LOCAL)
 
         # Check that no repo is found
         result = self.client.get('/api/v1.0/repository/settings')

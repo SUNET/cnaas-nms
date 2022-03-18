@@ -9,10 +9,11 @@ from pydantic.error_wrappers import ValidationError
 import redis
 from redis_lru import RedisLRU
 
+from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.settings_fields import f_groups
-from cnaas_nms.tools.mergedict import MetadataDict, merge_dict_origin
+from cnaas_nms.tools.mergedict import merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.session import sqla_session, get_dbdata
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.tools.log import get_logger
 
@@ -39,9 +40,8 @@ def get_settings_root():
 f_root = get_settings_root()
 
 
-db_data = get_dbdata()
 redis_client = redis.StrictRedis(
-    host=db_data['redis_hostname'], port=6379,
+    host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT,
     retry_on_timeout=True, socket_keepalive=True
 )
 redis_lru_cache = RedisLRU(redis_client)
@@ -112,9 +112,7 @@ def get_model_specific_configfiles(only_modelname: bool = False) -> dict:
         }
     """
     ret = {'CORE': [], 'DIST': []}
-    with open('/etc/cnaas-nms/repository.yml', 'r') as db_file:
-        repo_config = yaml.safe_load(db_file)
-    local_repo_path = repo_config['settings_local']
+    local_repo_path = app_settings.SETTINGS_LOCAL
 
     for devtype in ['CORE', 'DIST']:
         for filename in os.listdir(os.path.join(local_repo_path, devtype.lower())):
@@ -527,10 +525,8 @@ def get_settings(hostname: Optional[str] = None, device_type: Optional[DeviceTyp
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
     logger = get_logger()
-    with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
-        repo_config = yaml.safe_load(repo_file)
 
-    local_repo_path = repo_config['settings_local']
+    local_repo_path = app_settings.SETTINGS_LOCAL
     try:
         verify_dir_structure(local_repo_path, DIR_STRUCTURE)
     except VerifyPathException as e:
@@ -626,9 +622,7 @@ def get_group_settings():
     settings: dict = {}
     settings_origin: dict = {}
 
-    with open('/etc/cnaas-nms/repository.yml', 'r') as repo_file:
-        repo_config = yaml.safe_load(repo_file)
-    local_repo_path = repo_config['settings_local']
+    local_repo_path = app_settings.SETTINGS_LOCAL
     try:
         verify_dir_structure(local_repo_path, DIR_STRUCTURE)
     except VerifyPathException as e:

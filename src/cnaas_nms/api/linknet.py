@@ -1,17 +1,19 @@
 from typing import Optional
 
-from flask import request
-from flask_restx import Resource, Namespace, fields
-from flask_jwt_extended import jwt_required
-from ipaddress import IPv4Network, IPv4Interface, IPv4Address
+from ipaddress import IPv4Network, IPv4Address
 from pydantic import BaseModel, validator
 from pydantic.error_wrappers import ValidationError
+
+from flask import request
+from flask_restx import Namespace, Resource, fields
+
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.confpush.underlay import find_free_infra_linknet
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 from cnaas_nms.api.generic import parse_pydantic_error, update_sqla_object
 
@@ -96,7 +98,7 @@ class LinknetsApi(Resource):
             # Allow pre-provisioning of linknet to device that is not yet
             # managed or not assigned device_type, so no further checks here
 
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ Get all linksnets """
         result = {'linknets': []}
@@ -106,7 +108,7 @@ class LinknetsApi(Resource):
                 result['linknets'].append(instance.as_dict())
         return empty_result(status='success', data=result)
 
-    @jwt_required()
+    @jwt_required
     @linknets_api.expect(linknets_model)
     def post(self):
         """ Add a new linknet """
@@ -180,7 +182,7 @@ class LinknetsApi(Resource):
 
         return empty_result(status='success', data=data), 201
 
-    @jwt_required()
+    @jwt_required
     def delete(self):
         """ Remove linknet """
         json_data = request.get_json()
@@ -204,7 +206,7 @@ class LinknetsApi(Resource):
 
 
 class LinknetByIdApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self, linknet_id):
         """ Get a single specified linknet """
         result = empty_result()
@@ -217,7 +219,7 @@ class LinknetByIdApi(Resource):
                 return empty_result('error', "Linknet not found"), 404
         return result
 
-    @jwt_required()
+    @jwt_required
     def delete(self, linknet_id):
         """ Remove a linknet """
         with sqla_session() as session:
@@ -233,7 +235,7 @@ class LinknetByIdApi(Resource):
             else:
                 return empty_result('error', "No such linknet found in database"), 404
 
-    @jwt_required()
+    @jwt_required
     @linknets_api.expect(linknet_model)
     def put(self, linknet_id):
         """ Update data on existing linknet """

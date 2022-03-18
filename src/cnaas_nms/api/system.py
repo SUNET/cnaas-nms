@@ -1,12 +1,13 @@
-from os.path import dirname, abspath
-from flask_restx import Resource, Namespace
-from flask_jwt_extended import jwt_required
-from git import Repo
-from git import InvalidGitRepositoryError, NoSuchPathError
+
+from os.path import abspath, dirname
+
+from flask_restx import Namespace, Resource
+from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.api import app
 import cnaas_nms.version
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
 
@@ -15,7 +16,7 @@ api = Namespace('system', description='API for managing the CNaaS NMS API system
 
 
 class ShutdownApi(Resource):
-    @jwt_required()
+    @jwt_required
     def post(self):
         print("System shutdown API called, exiting...")
         app.socketio.stop()

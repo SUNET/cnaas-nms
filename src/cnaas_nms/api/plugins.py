@@ -1,9 +1,9 @@
 from flask import request
-from flask_restx import Resource, Namespace, fields
-from flask_jwt_extended import jwt_required
+from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
+from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
 
@@ -16,7 +16,7 @@ plugin_model = api.model('plugin', {
 
 
 class PluginsApi(Resource):
-    @jwt_required()
+    @jwt_required
     def get(self):
         """ List all plugins """
         try:
@@ -30,7 +30,7 @@ class PluginsApi(Resource):
             return empty_result('success', {'loaded_plugins': plugin_module_names,
                                             'plugindata': plugindata})
 
-    @jwt_required()
+    @jwt_required
     @api.expect(plugin_model)
     def put(self):
         """ Modify plugins """

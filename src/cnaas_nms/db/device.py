@@ -11,7 +11,7 @@ from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
 from sqlalchemy import Enum, DateTime, Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy import event
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
@@ -92,6 +92,12 @@ class Device(cnaas_nms.db.base.Base):
     confhash = Column(String(64))  # SHA256 = 64 characters
     last_seen = Column(DateTime, default=datetime.datetime.utcnow)
     port = Column(Integer)
+    stack_members = relationship(
+        "Stackmember",
+        foreign_keys="[Stackmember.device_id]",
+        lazy="subquery",
+        back_populates="device"
+    )
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -252,12 +258,12 @@ class Device(cnaas_nms.db.base.Base):
         else:
             return None
 
-    def is_stack(self, session):
+    def is_stack(self, session) -> bool:
         """Check if this device is a stack"""
         membercount = session.query(Stackmember).filter(Stackmember.device == self).count()
         return membercount > 0
 
-    def get_stackmembers(self, session) -> Optional[Stackmember]:
+    def get_stackmembers(self, session) -> List[Stackmember]:
         """Return all stackmembers belonging to a device (if any)"""
         members = session.query(Stackmember).filter(Stackmember.device == self).all()
         return members

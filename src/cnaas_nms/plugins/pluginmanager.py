@@ -3,6 +3,7 @@ import importlib
 
 import pluggy
 
+from cnaas_nms.app_settings import api_settings
 from cnaas_nms.plugins.pluginspec import CnaasPluginSpec
 from cnaas_nms.tools.log import get_logger
 
@@ -25,14 +26,18 @@ class PluginManagerHandler(object, metaclass=SingletonType):
         self.pm.add_hookspecs(CnaasPluginSpec)
 
     @classmethod
-    def get_plugindata(cls, config='/etc/cnaas-nms/plugins.yml'):
-        with open(config, 'r') as plugins_file:
-            data = yaml.safe_load(plugins_file)
-            if 'plugins' in data and isinstance(data['plugins'], list):
-                return data
-            else:
-                logger.error("No plugins defined in plugins.yml")
-                return None
+    def get_plugindata(cls):
+        if api_settings.PLUGIN_FILE.is_file():
+            with open(api_settings.PLUGIN_FILE, 'r') as plugins_file:
+                data = yaml.safe_load(plugins_file)
+                if 'plugins' in data and isinstance(data['plugins'], list):
+                    return data
+                else:
+                    logger.error("No plugins defined in plugins.yml")
+                    return None
+        else:
+            logger.error("No plugins defined in plugins.yml")
+            return None
 
     def load_plugins(self):
         plugindata = self.get_plugindata()

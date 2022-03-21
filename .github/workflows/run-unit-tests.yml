@@ -22,12 +22,12 @@ jobs:
           echo "PASSWORD_INIT=abc123abc123" >> $GITHUB_ENV
           echo "USERNAME_MANAGED=admin" >> $GITHUB_ENV
           echo "PASSWORD_MANAGED=abc123abc123" >> $GITHUB_ENV
-          echo "COVERAGE=1" >> $GITHUB_ENV
+          echo "COVERAGE=0" >> $GITHUB_ENV
           echo "JWT_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw" >> $GITHUB_ENV
 
-      - name: Create code coverage dir
-        run: mkdir -p docker/coverage/
-
+#      - name: Create code coverage dir
+#        run: mkdir -p docker/coverage/
+#
       - name: Create docker volumes
         run: |
           docker volume create cnaas-templates
@@ -40,17 +40,33 @@ jobs:
         # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
 
+      - name: Get branch name (merge)
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
+
+      - name: Get branch name (pull request)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+
+      - name: Print branch name
+        run: echo ${{ env.BRANCH_NAME }}
+
       - name: Build the docker-compose stack
-        run: docker-compose -f docker/docker-compose.yaml up --build -d
+        run: docker-compose -f docker/docker-compose_test.yaml up --build --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} -d
 
       - name: Check running containers
         run: docker ps -a
 
-      - name: Fix permissions for code coverage
-        run: docker-compose -f docker/docker-compose.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+      - name: Check API running version
+        run: curl -ks https://localhost/api/v1.0/system/version
 
+#      - name: Fix permissions for code coverage
+#        run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+#
       - name: Run unit tests in container
-        run: docker-compose -f docker/docker-compose.yaml exec -T cnaas_api /opt/cnaas/nosetests.sh
+        run: docker-compose -f docker/docker-compose_test.yaml exec -T cnaas_api /opt/cnaas/nosetests.sh
 
       - name: Check logs
         if: always()

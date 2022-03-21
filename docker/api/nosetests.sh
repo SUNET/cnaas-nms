@@ -16,5 +16,7 @@ export PASSWORD_MANAGED="abc123abc123"
 
 nosetests --collect-only --with-id -v
 nosetests --with-coverage --cover-package=cnaas_nms -v
+EXITSTATUS=$?
 cp .coverage /coverage/.coverage-nosetests
 
+exit $EXITSTATUS

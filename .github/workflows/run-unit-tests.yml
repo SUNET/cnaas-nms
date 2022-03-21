@@ -28,14 +28,6 @@ jobs:
 #      - name: Create code coverage dir
 #        run: mkdir -p docker/coverage/
 #
-      - name: Create docker volumes
-        run: |
-          docker volume create cnaas-templates
-          docker volume create cnaas-settings
-          docker volume create cnaas-postgres-data
-          docker volume create cnaas-jwtcert
-          docker volume create cnaas-cacert
-
       - uses: satackey/action-docker-layer-caching@v0.0.11
         # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
@@ -58,6 +50,9 @@ jobs:
 
       - name: Start docker
         run: docker-compose -f docker/docker-compose_test.yaml up -d
+
+      - name: Fix coverage permissions
+        run: docker-compose -f docker/docker-compose_test.yaml exec -T cnaas_api chown www-data:www-data /coverage
 
       - name: Check running containers
         run: docker ps -a

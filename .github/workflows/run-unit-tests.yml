@@ -63,15 +63,8 @@ jobs:
       - name: Check running containers
         run: docker ps -a
 
-      - uses: cygnetdigital/wait_for_response@v2.0.0
-        with:
-          url: 'https://localhost/api/v1.0/system/version'
-          responseCode: '200,500'
-          timeout: 30000
-          interval: 1000
-
       - name: Check API running version
-        run: curl -ks https://localhost/api/v1.0/system/version
+        run: curl -ks --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 0 --retry-max-time 30 https://localhost/api/v1.0/system/version
 
       - name: Fix permissions for code coverage
         run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/

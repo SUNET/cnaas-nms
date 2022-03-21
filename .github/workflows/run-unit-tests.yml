@@ -54,6 +54,12 @@ jobs:
       - name: Fix coverage permissions
         run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown www-data:www-data /coverage
 
+      - name: Install API certificates
+        run: |
+          docker cp ./docker/jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
+          docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
+          docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api /opt/cnaas/createca.sh
+
       - name: Check running containers
         run: docker ps -a
 

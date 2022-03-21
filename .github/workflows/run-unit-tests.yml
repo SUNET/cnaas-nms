@@ -62,6 +62,13 @@ jobs:
       - name: Check running containers
         run: docker ps -a
 
+      - uses: cygnetdigital/wait_for_response@v2.0.0
+        with:
+          url: 'https://localhost/api/v1.0/system/version'
+          responseCode: '200,500'
+          timeout: 30000
+          interval: 1000
+
       - name: Check API running version
         run: curl -ks https://localhost/api/v1.0/system/version
 

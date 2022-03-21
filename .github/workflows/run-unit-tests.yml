@@ -52,7 +52,7 @@ jobs:
         run: docker-compose -f docker/docker-compose_test.yaml up -d
 
       - name: Fix coverage permissions
-        run: docker-compose -f docker/docker-compose_test.yaml exec -T cnaas_api chown www-data:www-data /coverage
+        run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown www-data:www-data /coverage
 
       - name: Check running containers
         run: docker ps -a
@@ -67,9 +67,9 @@ jobs:
       - name: Check API running version
         run: curl -ks https://localhost/api/v1.0/system/version
 
-#      - name: Fix permissions for code coverage
-#        run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
-#
+      - name: Fix permissions for code coverage
+        run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+
       - name: Run unit tests in container
         run: docker-compose -f docker/docker-compose_test.yaml exec -T cnaas_api /opt/cnaas/nosetests.sh
 

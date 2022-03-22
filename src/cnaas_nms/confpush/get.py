@@ -39,32 +39,6 @@ def calc_config_hash(hostname, config):
     return hash_object.hexdigest()
 
 
-def get_facts(hostname: Optional[str] = None, group: Optional[str] = None)\
-        -> AggregatedResult:
-    """Get facts about devices using NAPALM getfacts. Defaults to querying all
-    devices in the inventory.
-
-    Args:
-        hostname: Optional hostname of device to query
-        group: Optional group of devices to query
-
-    Returns:
-        Nornir result object
-    """
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
-    if hostname:
-        nr_filtered = nr.filter(name=hostname)
-    elif group:
-        nr_filtered = nr.filter(F(groups__contains=group))
-    else:
-        nr_filtered = nr
-
-    result = nr_filtered.run(task=napalm_get, getters=["facts"])
-    print_result(result)
-
-    return result
-
-
 def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
         -> AggregatedResult:
     """Get neighbor information from device

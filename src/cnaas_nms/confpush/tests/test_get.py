@@ -29,10 +29,6 @@ class GetTests(unittest.TestCase):
             1,
             len(result['hosts'].items()))
 
-    def test_get_facts(self):
-        result = cnaas_nms.confpush.get.get_facts(group='S_DHCP_BOOT')
-        pprint.pprint(result)
-
     def test_update_links(self):
         with sqla_session() as session:
             new_links = cnaas_nms.confpush.update.update_linknets(

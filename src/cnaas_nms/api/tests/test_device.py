@@ -13,6 +13,19 @@ from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 
 class DeviceTests(unittest.TestCase):
+    def cleandb(self):
+        with sqla_session() as session:
+            for hardware_id in ["AB1234", "CD5555", "GF43534"]:
+                stack = session.query(Stackmember).filter(Stackmember.hardware_id == hardware_id).one_or_none()
+                if stack:
+                    session.delete(stack)
+                    session.commit()
+            for hostname in ["testdevice", "testdevice2"]:
+                device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+                if device:
+                    session.delete(device)
+                    session.commit()
+
     def setUp(self):
         self.jwt_auth_token = None
         data_dir = pkg_resources.resource_filename(__name__, 'data')
@@ -23,17 +36,13 @@ class DeviceTests(unittest.TestCase):
         self.app = app.app
         self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
         self.client = self.app.test_client()
+        self.cleandb()
         device_id, hostname = self.add_device()
         self.device_id = device_id
         self.hostname = hostname
 
     def tearDown(self):
-        with sqla_session() as session:
-            for hostname in ["testdevice", "testdevice2"]:
-                device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
-                if device:
-                    session.delete(device)
-                    session.commit()
+        self.cleandb()
 
     def add_device(self):
         with sqla_session() as session:

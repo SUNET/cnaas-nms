@@ -11,7 +11,7 @@ from cnaas_nms.db.session import sqla_session
 
 
 class DeviceTests(unittest.TestCase):
-    def setUp(self):
+    def cleandb(self):
         with sqla_session() as session:
             for hardware_id in ["FO64534", "FO64535"]:
                 stack = session.query(Stackmember).filter(Stackmember.hardware_id == hardware_id).one_or_none()
@@ -23,6 +23,12 @@ class DeviceTests(unittest.TestCase):
                 if device:
                     session.delete(device)
                     session.commit()
+
+    def setUp(self):
+        self.cleandb()
+
+    def tearDown(self):
+        self.cleandb()
 
     @classmethod
     def create_test_device(cls, hostname="unittest"):

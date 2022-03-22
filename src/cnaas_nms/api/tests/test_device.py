@@ -33,10 +33,11 @@ class DeviceTests(unittest.TestCase):
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
                     session.delete(device)
+                    session.commit()
 
     def add_device(self):
         with sqla_session() as session:
-            device = Device (
+            device = Device(
                 hostname="testdevice",
                 platform="eos",
                 management_ip=IPv4Address("10.0.1.22"),
@@ -44,8 +45,8 @@ class DeviceTests(unittest.TestCase):
                 device_type=DeviceType.DIST,
             )
             session.add(device)
-            q_device = session.query(Device).filter(Device.hostname == device.hostname).one_or_none()
-            return q_device.id, q_device.hostname
+            session.commit()
+            return device.id, device.hostname
 
     def test_add_invalid_device(self):
         device_data = {

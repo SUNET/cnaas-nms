@@ -34,9 +34,6 @@ services:
       - "cnaas_redis"
     volumes:
       - type: volume
-        source: cnaas-coverage
-        target: /coverage
-      - type: volume
         source: cnaas-templates
         target: /opt/cnaas/templates
       - type: volume
@@ -92,4 +89,3 @@ volumes:
   cnaas-postgres-data:
   cnaas-jwtcert:
   cnaas-cacert:
-  cnaas-coverage:

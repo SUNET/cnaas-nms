@@ -51,9 +51,6 @@ jobs:
       - name: Start docker
         run: docker-compose -f docker/docker-compose_test.yaml up -d
 
-      - name: Fix coverage permissions
-        run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown www-data:www-data /coverage
-
       - name: Install API certificates
         run: |
           docker cp ./docker/jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem

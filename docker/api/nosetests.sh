@@ -20,7 +20,8 @@ if [ -z "$NO_EQUIPMENTTEST" ] ; then
 fi
 
 if [ -z "$COVERAGE" ] ; then
-	nosetests -v
+	nosetests --collect-only --with-id -v
+	nosetests --with-coverage --cover-package=cnaas_nms -v
 	EXITSTATUS=$?
 else
 	nosetests --collect-only --with-id -v

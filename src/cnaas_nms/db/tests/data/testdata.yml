@@ -1,3 +1,5 @@
 ---
 query_neighbor_device: 'mac-080027F60C55'
 testdevice: eosaccess
+mgmtdomain_ipv4_gw: '10.0.66.1/24'
+mgmtdomain_vlan: 660

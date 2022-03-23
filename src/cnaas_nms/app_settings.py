@@ -63,7 +63,7 @@ def construct_api_settings() -> ApiSettings:
             HTTPD_URL=config["httpd_url"],
             VERIFY_TLS=config["verify_tls"],
             VERIFY_TLS_DEVICE=config["verify_tls_device"],
-            JWT_CERT=config.get("jwt_cert", ApiSettings().JWT_CERT),
+            JWT_CERT=config.get("jwtcert", ApiSettings().JWT_CERT),
             CAFILE=config.get("cafile", ApiSettings().CAFILE),
             CAKEYFILE=config.get("cakeyfile", ApiSettings().CAKEYFILE),
             CERTPATH=config.get("certpath", ApiSettings().CERTPATH),

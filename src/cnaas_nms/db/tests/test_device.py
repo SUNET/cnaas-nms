@@ -4,15 +4,34 @@ import unittest
 
 from ipaddress import IPv4Address
 
-import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 
-class DeviceTests(unittest.TestCase):
 
-    def create_test_device(hostname="unittest"):
+class DeviceTests(unittest.TestCase):
+    def cleandb(self):
+        with sqla_session() as session:
+            for hardware_id in ["FO64534", "FO64535"]:
+                stack = session.query(Stackmember).filter(Stackmember.hardware_id == hardware_id).one_or_none()
+                if stack:
+                    session.delete(stack)
+                    session.commit()
+            for hostname in ["test-device1", "test-device2", "unittest"]:
+                device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+                if device:
+                    session.delete(device)
+                    session.commit()
+
+    def setUp(self):
+        self.cleandb()
+
+    def tearDown(self):
+        self.cleandb()
+
+    @classmethod
+    def create_test_device(cls, hostname="unittest"):
         return Device(
             ztp_mac="08002708a8be",
             hostname=hostname,

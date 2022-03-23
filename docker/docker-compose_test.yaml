@@ -4,17 +4,22 @@ services:
   #
   # CNaaS services
   #
-  
+
   cnaas_api:
-    build: ./api/
+    build:
+      context: ./api/
+      args:
+        - BUILDBRANCH=develop
+        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
     ports:
-      - 10.100.2.2:443:1443
+      - 443:1443
     networks:
       - cnaas
     environment:
       - GITREPO_TEMPLATES
       - GITREPO_SETTINGS
       - COVERAGE
+      - NO_EQUIPMENTTEST
       - USERNAME_DHCP_BOOT
       - PASSWORD_DHCP_BOOT
       - USERNAME_DISCOVERED
@@ -23,82 +28,48 @@ services:
       - PASSWORD_INIT
       - USERNAME_MANAGED
       - PASSWORD_MANAGED
+      - JWT_AUTH_TOKEN
     depends_on:
       - "cnaas_postgres"
-      - "cnaas_mongo"
       - "cnaas_redis"
-      - "cnaas_httpd"
     volumes:
-      - type: bind
-        source: ./coverage
-        target: /coverage
       - type: volume
         source: cnaas-templates
         target: /opt/cnaas/templates
       - type: volume
         source: cnaas-settings
         target: /opt/cnaas/settings
-
-  cnaas_httpd:
-    image:
-      docker.sunet.se/cnaas/httpd
-    ports:
-      - 10.100.2.2:80:1180
-    networks:
-      - cnaas
-    environment:
-      - GITREPO_TEMPLATES
-  cnaas_dhcpd:
-    build: ./dhcpd/
-    ports:
-      - 10.100.2.2:67:67/udp
-    networks:
-      - cnaas
-    environment:
-      - GITREPO_ETC
-      - DB_PASSWORD=cnaas
-      - DB_HOSTNAME=docker_cnaas_postgres_1
-      - JWT_AUTH_TOKEN
-    depends_on:
-      - "cnaas_httpd"
-      - "cnaas_api"
-
+      - type: volume
+        source: cnaas-jwtcert
+        target: /opt/cnaas/jwtcert
+      - type: volume
+        source: cnaas-cacert
+        target: /opt/cnaas/cacert
 
   #
   # Databases
   #
-  
+
   cnaas_postgres:
-    build: ./postgres/
+    build:
+      context: ./postgres/
+      args:
+        - SQLFILE=nms_test.sql
     volumes:
       - cnaas-postgres-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
     environment:
       - POSTGRES_USER=cnaas
-      - POSTGRES_PASSWD=cnaas
-      - POSTGRES_DB=cnaas
-    networks:
-      - cnaas
-  
-  cnaas_mongo:
-    build: ./mongo/
-    volumes:
-      - cnaas-mongo-data:/data
-    environment:
-      - POSTGRES_USER=cnaas
-      - POSTGRES_PASSWD=cnaas
+      - POSTGRES_PASSWORD=cnaas
       - POSTGRES_DB=cnaas
     networks:
       - cnaas
 
   cnaas_redis:
     build: ./redis/
-    networks:
-      - cnaas
-
-  cnaas_auth:
-    image: docker.sunet.se/auth-server-poc:latest
     ports:
-      - 10.100.2.2:2443:1443
+      - 6379:6379
     networks:
       - cnaas
 
@@ -116,4 +87,5 @@ volumes:
   cnaas-templates:
   cnaas-settings:
   cnaas-postgres-data:
-  cnaas-mongo-data:
+  cnaas-jwtcert:
+  cnaas-cacert:

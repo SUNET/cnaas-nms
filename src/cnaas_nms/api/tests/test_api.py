@@ -25,7 +25,7 @@ class ApiTests(unittest.TestCase):
         hostname = self.testdata['managed_dist']
         result = self.client.get(
             f'/api/v1.0/devices',
-            params={"filter[hostname]": hostname}
+            query_string={"filter[hostname]": hostname}
         )
 
         # 200 OK
@@ -120,8 +120,13 @@ class ApiTests(unittest.TestCase):
         self.assertRegex(result.json['data'], r'[Cc]ommit')
 
     def test_repository_get(self):
-        # Delete settings repo
-        shutil.rmtree(app_settings.SETTINGS_LOCAL)
+        # Delete everything inside setting repo
+        for filename in os.listdir(app_settings.SETTINGS_LOCAL):
+            file_path = os.path.join(app_settings.SETTINGS_LOCAL, filename)
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
 
         # Check that no repo is found
         result = self.client.get('/api/v1.0/repository/settings')
@@ -338,7 +343,7 @@ class ApiTests(unittest.TestCase):
         # Exactly one result
         #self.assertEqual(len(result.json['data']['jobs']), 1)
 
-    def test_get_interface_status(self):
+    def equipmenttest_get_interface_status(self):
         result = self.client.get(
             "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device'])
         )
@@ -346,7 +351,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
         self.assertEqual('interface_status' in result.json['data'], True)
 
-    def test_bounce_interface(self):
+    def equipmenttest_bounce_interface(self):
         # Bounce of uplink should give error 400
         data = {'bounce_interfaces': [self.testdata['interface_uplink']]}
         result = self.client.put(

@@ -129,6 +129,7 @@ class f_evpn_peer(BaseModel):
 class f_interface(BaseModel):
     name: str = ifname_schema
     ifclass: str = ifclass_schema
+    redundant_downlink: bool = True
     config: Optional[str] = None
     description: Optional[str] = ifdescr_schema
     enabled: Optional[bool] = None

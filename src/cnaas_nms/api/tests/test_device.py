@@ -113,7 +113,7 @@ class DeviceTests(unittest.TestCase):
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertIsNone(q_device)
 
-    def test_initcheck_distdevice(self):
+    def equipmenttest_initcheck_distdevice(self):
         device_id = self.testdata['initcheck_device_id']
         self.client.put(f'/api/v1.0/device/{device_id}', json={'state': 'DISCOVERED'})
         device_data = {"hostname": "distcheck", "device_type": "DIST"}

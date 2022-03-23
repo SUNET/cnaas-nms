@@ -27,6 +27,7 @@ services:
       - PASSWORD_INIT
       - USERNAME_MANAGED
       - PASSWORD_MANAGED
+      - JWT_AUTH_TOKEN
     depends_on:
       - "cnaas_postgres"
       - "cnaas_redis"

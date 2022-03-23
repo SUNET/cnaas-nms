@@ -17,16 +17,16 @@ class EnvironmentSecretsTest(unittest.TestCase):
 
     def test_that_individual_secrets_are_present(self):
         secrets = get_environment_secrets()
-        self.assertEquals(secrets['TEMPLATE_SECRET_FOO'], 'bar')
-        self.assertEquals(secrets['TEMPLATE_SECRET_TEST_TYPE'], 'cromulent')
+        self.assertEqual(secrets['TEMPLATE_SECRET_FOO'], 'bar')
+        self.assertEqual(secrets['TEMPLATE_SECRET_TEST_TYPE'], 'cromulent')
 
     def test_that_secret_dict_is_set_properly(self):
         secrets = get_environment_secrets()
         self.assertIn('TEMPLATE_SECRET', secrets)
 
         secret_dict = secrets.get('TEMPLATE_SECRET')
-        self.assertEquals(secret_dict['FOO'], 'bar')
-        self.assertEquals(secret_dict['TEST_TYPE'], 'cromulent')
+        self.assertEqual(secret_dict['FOO'], 'bar')
+        self.assertEqual(secret_dict['TEST_TYPE'], 'cromulent')
 
     def test_that_non_secret_variables_arent_included(self):
         secrets = get_environment_secrets()

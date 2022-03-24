@@ -10,7 +10,7 @@ from nornir_napalm.plugins.tasks import napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.db.device import Device, DeviceType, DeviceError
+from cnaas_nms.db.device import Device, DeviceType, DeviceState
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
 
@@ -256,6 +256,8 @@ def verify_peer_iftype(session, local_dev: Device,
                 return False
 
     elif local_dev.device_type == DeviceType.ACCESS and remote_dev.device_type == DeviceType.ACCESS:
+        # In case we are doing ZTP init of MLAG pair the peer device should not be of type
+        # access yet, so these checks should not fail even though remote interface is not configured
         remote_intf: Optional[Interface] = session.query(Interface).\
             filter((Interface.device == remote_dev) & (Interface.name == remote_if)).\
             one_or_none()
@@ -263,7 +265,9 @@ def verify_peer_iftype(session, local_dev: Device,
             raise InterfaceError("Peer device interface not found in database: {} {}".format(
                 remote_dev.hostname, remote_if
             ))
-        if not remote_intf.configtype == InterfaceConfigType.ACCESS_DOWNLINK:
+        if remote_intf.configtype == InterfaceConfigType.MLAG_PEER:
+            pass
+        elif remote_intf.configtype != InterfaceConfigType.ACCESS_DOWNLINK:
             raise InterfaceError(
                 "Peer device interface not configured as ACCESS_DOWNLINK: {} {}".format(
                     remote_dev.hostname, remote_if

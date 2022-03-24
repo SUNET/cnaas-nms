@@ -31,6 +31,10 @@ class DeviceStateError(DeviceError):
     pass
 
 
+class DeviceSyncError(DeviceError):
+    pass
+
+
 class DeviceState(enum.Enum):
     UNKNOWN = 0         # Unhandled programming error
     PRE_CONFIGURED = 1  # Pre-populated, not seen yet

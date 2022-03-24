@@ -192,27 +192,28 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                     redundant_uplinks += 1
                 uplinks.append(neighbor)
 
-            if len(uplinks) <= 0:
-                raise Exception(
-                    "No uplink neighbors found for device id: {} ({})".format(dev.id, dev.hostname))
-            elif len(uplinks) == 1 and redundant_uplinks == 0:
-                logger.debug(
-                    "One non-redundant uplink neighbors found for device id {} ({}): {}".format(
-                        dev.id, dev.hostname, uplinks
-                    ))
-            elif len(uplinks) == 2 and redundant_uplinks == 2:
-                logger.debug(
-                    "Two redundant uplink neighbors found for device id {} ({}): {}".format(
-                        dev.id, dev.hostname, uplinks
-                    ))
-            else:
-                raise Exception(
-                    ("Incompatible uplink neighbors found for device id {} ({}): "
-                     """{} - {} has redundancy required ("redundant_link" setting)""").format(
-                        dev.id, dev.hostname, uplinks, redundant_uplinks
-                    ))
-
             neighbors.append(neighbor)
+
+        if len(uplinks) <= 0:
+            raise Exception(
+                "No uplink neighbors found for device id: {} ({})".format(dev.id, dev.hostname))
+        elif len(uplinks) == 1 and redundant_uplinks == 0:
+            logger.debug(
+                "One non-redundant uplink neighbors found for device id {} ({}): {}".format(
+                    dev.id, dev.hostname, uplinks
+                ))
+        elif len(uplinks) == 2 and redundant_uplinks == 2:
+            logger.debug(
+                "Two redundant uplink neighbors found for device id {} ({}): {}".format(
+                    dev.id, dev.hostname, uplinks
+                ))
+        else:
+            raise Exception(
+                ("Incompatible uplink neighbors found for device id {} ({}): "
+                 """{} - {} has redundancy required ("redundant_link" setting)""").format(
+                    dev.id, dev.hostname, uplinks, redundant_uplinks
+                ))
+
         try:
             cnaas_nms.db.helper.find_mgmtdomain(session, uplinks)
         except Exception as e:

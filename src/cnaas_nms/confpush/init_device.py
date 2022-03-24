@@ -15,7 +15,7 @@ import cnaas_nms.confpush.underlay
 import cnaas_nms.db.helper
 from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
+from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateError
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
@@ -119,7 +119,7 @@ def pre_init_checks(session, device_id) -> Device:
     if not dev:
         raise ValueError(f"No device with id {device_id} found")
     if dev.state != DeviceState.DISCOVERED:
-        raise DeviceStateException("Device must be in state DISCOVERED to begin init")
+        raise DeviceStateError("Device must be in state DISCOVERED to begin init")
     old_hostname = dev.hostname
     # Perform connectivity check
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
@@ -623,7 +623,7 @@ def init_device_step2(device_id: int, iteration: int = -1,
         if dev.state != DeviceState.INIT:
             logger.error("Device with ID {} got to init step2 but is in incorrect state: {}".\
                          format(device_id, dev.state.name))
-            raise DeviceStateException("Device must be in state INIT to continue init step 2")
+            raise DeviceStateError("Device must be in state INIT to continue init step 2")
         hostname = dev.hostname
         devtype: DeviceType = dev.device_type
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()

@@ -23,11 +23,11 @@ from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.tools.event import add_event
 
 
-class DeviceException(Exception):
+class DeviceError(Exception):
     pass
 
 
-class DeviceStateException(DeviceException):
+class DeviceStateError(DeviceError):
     pass
 
 
@@ -244,7 +244,7 @@ class Device(cnaas_nms.db.base.Base):
                 elif linknet.device_b == self and linknet.device_b_port == intf.name:
                     peers.add(linknet.device_a)
         if len(peers) > 1:
-            raise DeviceException("More than one MLAG peer found: {}".format(
+            raise DeviceError("More than one MLAG peer found: {}".format(
                 [x.hostname for x in peers]
             ))
         elif len(peers) == 1:
@@ -253,7 +253,7 @@ class Device(cnaas_nms.db.base.Base):
                 # Ignore check during INIT, one device might be UNKNOWN
                 pass
             elif self.device_type != peer_devtype:
-                raise DeviceException("MLAG peers are not the same device type")
+                raise DeviceError("MLAG peers are not the same device type")
             return next(iter(peers))
         else:
             return None

@@ -206,6 +206,13 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                     ztp_hostname: Optional[str] = None, dry_run: bool = False,
                     neighbors_arg: Optional[Dict[str, list]] = None) -> List[dict]:
     """Update linknet data for specified device using LLDP neighbor data.
+
+    Returns:
+        List[dict]: List of linknets as dict, extra field redundant_link
+                    added in each dict defaults to true
+
+    Raises:
+        InterfaceError: incompatible interfaces found by verify_peer_iftype
     """
     logger = get_logger()
     if neighbors_arg:
@@ -255,7 +262,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                                                  remote_device_inst.model
                                                  )
 
-        redundant_downlink = verify_peer_iftype(
+        redundant_link = verify_peer_iftype(
             session,
             local_device_inst, local_device_settings, local_if,
             remote_device_inst, remote_device_settings, data[0]['port'])
@@ -291,8 +298,9 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                         and check_linknet.device_b_port == data[0]['port']
                     )
             ):
-                # All info is the same, no update required
-                continue
+                if not dry_run:
+                    # All info is the same, no update required
+                    continue
             else:
                 # TODO: update instead of delete+new insert?
                 if not dry_run:
@@ -325,7 +333,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
         ret_dict = {
             'device_a_hostname': local_device_inst.hostname,
             'device_b_hostname': remote_device_inst.hostname,
-            'redundant_downlink': redundant_downlink,
+            'redundant_link': redundant_link,
             **new_link.as_dict()
         }
         del ret_dict['id']

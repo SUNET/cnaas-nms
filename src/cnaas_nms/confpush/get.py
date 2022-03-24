@@ -10,10 +10,9 @@ from nornir_napalm.plugins.tasks import napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.device import Device, DeviceType, DeviceError
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
 
 
 def get_inventory():
@@ -204,7 +203,7 @@ def verify_peer_iftype(session, local_dev: Device,
         bool: True if redundant linknet is required.
 
     Raises:
-        ValueError
+        InterfaceError: Incompatible interface found
     """
 
     # Make sure interface with peers are configured in settings for CORE and DIST devices
@@ -214,46 +213,46 @@ def verify_peer_iftype(session, local_dev: Device,
             if intf['name'] == remote_if:
                 match = True
         if not match:
-            raise ValueError("Peer device interface is not configured: "
-                             "{} {}".format(remote_dev.hostname,
-                                            remote_if))
+            raise InterfaceError("Peer device interface is not configured: "
+                                 "{} {}".format(remote_dev.hostname,
+                                                remote_if))
     if local_dev.device_type in [DeviceType.DIST, DeviceType.CORE]:
         match = False
         for intf in local_device_settings['interfaces']:
             if intf['name'] == local_if:
                 match = True
         if not match:
-            raise ValueError("Local device interface is not configured: "
-                             "{} {}".format(local_dev.hostname,
-                                            local_if))
+            raise InterfaceError("Local device interface is not configured: "
+                                 "{} {}".format(local_dev.hostname,
+                                                local_if))
 
     # Make sure linknets between CORE/DIST devices are configured as fabric
     if local_dev.device_type in [DeviceType.DIST, DeviceType.CORE] and \
             remote_dev.device_type in [DeviceType.DIST, DeviceType.CORE]:
         for intf in local_device_settings['interfaces']:
             if intf['name'] == local_if and intf['ifclass'] != 'fabric':
-                raise ValueError("Local device interface is not configured as fabric: "
-                                 "{} {} ifclass: {}".format(local_dev.hostname,
-                                                            intf['name'],
-                                                            intf['ifclass']))
+                raise InterfaceError("Local device interface is not configured as fabric: "
+                                     "{} {} ifclass: {}".format(local_dev.hostname,
+                                                                intf['name'],
+                                                               intf['ifclass']))
         for intf in remote_device_settings['interfaces']:
             if intf['name'] == remote_if and intf['ifclass'] != 'fabric':
-                raise ValueError("Peer device interface is not configured as fabric: "
-                                 "{} {} ifclass: {}".format(remote_dev.hostname,
-                                                            intf['name'],
-                                                            intf['ifclass']))
+                raise InterfaceError("Peer device interface is not configured as fabric: "
+                                     "{} {} ifclass: {}".format(remote_dev.hostname,
+                                                                intf['name'],
+                                                                intf['ifclass']))
 
     # Make sure that an access switch is connected to an interface
     # configured as "downlink" on the remote end
     if local_dev.device_type == DeviceType.ACCESS and remote_dev.device_type == DeviceType.DIST:
         for intf in remote_device_settings['interfaces']:
             if intf['name'] == remote_if and intf['ifclass'] != 'downlink':
-                raise ValueError("Peer device interface is not configured as downlink: "
-                                 "{} {} ifclass: {}".format(remote_dev.hostname,
-                                                            intf['name'],
-                                                            intf['ifclass']))
+                raise InterfaceError("Peer device interface is not configured as downlink: "
+                                     "{} {} ifclass: {}".format(remote_dev.hostname,
+                                                                intf['name'],
+                                                                intf['ifclass']))
             if intf['name'] == remote_if and intf['ifclass'] == 'downlink' and \
-                    not intf['redundant_downlink']:
+                    not intf['redundant_link']:
                 return False
 
     elif local_dev.device_type == DeviceType.ACCESS and remote_dev.device_type == DeviceType.ACCESS:
@@ -261,15 +260,15 @@ def verify_peer_iftype(session, local_dev: Device,
             filter((Interface.device == remote_dev) & (Interface.name == remote_if)).\
             one_or_none()
         if not remote_intf:
-            raise ValueError("Peer device interface not found in database: {} {}".format(
+            raise InterfaceError("Peer device interface not found in database: {} {}".format(
                 remote_dev.hostname, remote_if
             ))
         if not remote_intf.configtype == InterfaceConfigType.ACCESS_DOWNLINK:
-            raise ValueError(
+            raise InterfaceError(
                 "Peer device interface not configured as ACCESS_DOWNLINK: {} {}".format(
                     remote_dev.hostname, remote_if
                 ))
-        if 'redundant_downlink' in remote_intf.data and not remote_intf.data['redundant_downlink']:
+        if 'redundant_link' in remote_intf.data and not remote_intf.data['redundant_link']:
             return False
 
     return True

@@ -1,19 +1,19 @@
-import unittest
-import pkg_resources
-import yaml
 import os
 import time
+import unittest
 
+import pkg_resources
+import yaml
+from nornir.core.inventory import ConnectionOptions
 from nornir_napalm.plugins.tasks import napalm_configure
 from nornir_utils.plugins.functions import print_result
-from nornir.core.inventory import ConnectionOptions
 
 import cnaas_nms.confpush.init_device
-from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.confpush.update import reset_interfacedb
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.confpush.update import reset_interfacedb
+from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()

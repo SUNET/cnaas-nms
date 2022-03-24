@@ -1,34 +1,31 @@
-import os
-import yaml
 import datetime
-from typing import Optional, List
-from ipaddress import IPv4Interface, IPv4Address
+import os
 from hashlib import sha256
+from ipaddress import IPv4Address, IPv4Interface
+from typing import List, Optional
 
+import yaml
 from nornir.core.task import MultiResult
-from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
+from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
 from cnaas_nms.app_settings import app_settings
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector, get_jinja_env
-from cnaas_nms.db.session import sqla_session, redis_session
-from cnaas_nms.confpush.get import calc_config_hash
 from cnaas_nms.confpush.changescore import calculate_score
-from cnaas_nms.tools.jinja_helpers import get_environment_secrets
-from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.settings import get_settings
+from cnaas_nms.confpush.get import calc_config_hash
+from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.joblock import Joblock, JoblockError
-from cnaas_nms.db.git import RepoStructureException
-from cnaas_nms.confpush.nornir_helper import NornirJobResult
-from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.scheduler.thread_data import set_thread_data
-
+from cnaas_nms.db.session import redis_session, sqla_session
+from cnaas_nms.db.settings import get_settings
 from cnaas_nms.scheduler.scheduler import Scheduler
-
+from cnaas_nms.scheduler.thread_data import set_thread_data
+from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.tools.jinja_helpers import get_environment_secrets
+from cnaas_nms.tools.log import get_logger
 
 AUTOPUSH_MAX_SCORE = 10
 PRIVATE_ASN_START = 4200000000

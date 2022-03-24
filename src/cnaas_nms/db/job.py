@@ -1,23 +1,20 @@
-import enum
 import datetime
+import enum
 import json
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from sqlalchemy import Column, Integer, Unicode, SmallInteger
-from sqlalchemy import Enum, DateTime
-from sqlalchemy import ForeignKey
+from nornir.core.task import AggregatedResult
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, SmallInteger, Unicode
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import relationship
-from nornir.core.task import AggregatedResult
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device
-from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResult
-from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
+from cnaas_nms.confpush.nornir_helper import NornirJobResult, nr_result_serialize
 from cnaas_nms.db.helper import json_dumper
-from cnaas_nms.tools.log import get_logger
+from cnaas_nms.scheduler.jobresult import DictJobResult, StrJobResult
 from cnaas_nms.tools.event import add_event
-
+from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
 

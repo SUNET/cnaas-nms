@@ -6,7 +6,6 @@ from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 
-
 api = Namespace("plugins", description="API for handling plugins", prefix="/api/{}".format(__api_version__))
 
 plugin_model = api.model(

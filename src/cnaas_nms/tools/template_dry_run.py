@@ -1,15 +1,15 @@
 #!/bin/env python3
 # flake8: noqa
 
-import sys
-import os
 import argparse
+import os
+import sys
 
 from jinja_helpers import get_environment_secrets
 
 try:
-    import requests
     import jinja2
+    import requests
     import yaml
 except ModuleNotFoundError as e:
     print("Please install python modules requests, jinja2 and yaml: {}".format(e))

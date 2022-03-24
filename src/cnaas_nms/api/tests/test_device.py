@@ -1,15 +1,16 @@
-import yaml
-import pkg_resources
-import os
 import json
+import os
 import unittest
 from ipaddress import IPv4Address
 
+import pkg_resources
+import yaml
+
 from cnaas_nms.api import app
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.stackmember import Stackmember
 
 
 class DeviceTests(unittest.TestCase):

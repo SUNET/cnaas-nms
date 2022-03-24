@@ -1,21 +1,12 @@
 import ipaddress
 
-from nornir.core.inventory import (
-    Inventory,
-    Group,
-    Groups,
-    Host,
-    Hosts,
-    Defaults,
-    ConnectionOptions,
-    ParentGroups,
-)
+from nornir.core.inventory import ConnectionOptions, Defaults, Group, Groups, Host, Hosts, Inventory, ParentGroups
 
-from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.settings import get_groups
-from cnaas_nms.tools.pki import ssl_context
 import cnaas_nms.db.session
 from cnaas_nms.app_settings import app_settings
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.settings import get_groups
+from cnaas_nms.tools.pki import ssl_context
 
 
 class CnaasInventory:

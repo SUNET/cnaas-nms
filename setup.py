@@ -1,6 +1,6 @@
 import os
-import setuptools
 
+import setuptools
 
 from src.cnaas_nms import version
 

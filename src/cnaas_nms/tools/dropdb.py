@@ -2,9 +2,9 @@
 # flake8: noqa
 import sys
 
-from cnaas_nms.app_settings import app_settings
-
 from sqlalchemy import create_engine
+
+from cnaas_nms.app_settings import app_settings
 
 engine = create_engine(app_settings.POSTGRES_DSN)
 

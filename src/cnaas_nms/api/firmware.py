@@ -1,24 +1,22 @@
 import json
-
 from datetime import datetime
 from typing import Optional
-
 
 import requests
 from flask import make_response, request
 from flask_jwt_extended import get_jwt_identity
 from flask_restx import Namespace, Resource, fields
 
-from cnaas_nms.app_settings import api_settings
-from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.api.generic import empty_result
+from cnaas_nms.app_settings import api_settings
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
+from cnaas_nms.db.device import Device
+from cnaas_nms.db.settings import get_groups
+from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
-from cnaas_nms.db.device import Device
-from cnaas_nms.db.settings import get_groups
 
 logger = get_logger()
 

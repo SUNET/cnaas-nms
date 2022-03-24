@@ -1,5 +1,6 @@
-from typing import Optional, List
-from pydantic import BaseModel, validator, conint
+from typing import List, Optional
+
+from pydantic import BaseModel, conint, validator
 
 
 class StackmemberModel(BaseModel):

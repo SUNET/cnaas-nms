@@ -1,27 +1,27 @@
 import datetime
-from typing import Optional, List
+from typing import List, Optional
 
 from nornir_napalm.plugins.tasks import napalm_get
 
-from cnaas_nms.confpush.underlay import find_free_infra_linknet
-from cnaas_nms.db.linknet import Linknet
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.interface import Interface, InterfaceConfigType
+import cnaas_nms.confpush.nornir_helper
 from cnaas_nms.confpush.get import (
-    get_interfaces_names,
-    get_uplinks,
     filter_interfaces,
+    get_interfaces_names,
     get_mlag_ifs,
     get_neighbors,
+    get_uplinks,
     verify_peer_iftype,
 )
-from cnaas_nms.db.settings import get_settings
-from cnaas_nms.tools.log import get_logger
-from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.confpush.underlay import find_free_infra_linknet
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.linknet import Linknet
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.settings import get_settings
 from cnaas_nms.scheduler.jobresult import DictJobResult
-import cnaas_nms.confpush.nornir_helper
+from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.tools.log import get_logger
 
 
 def update_interfacedb_worker(

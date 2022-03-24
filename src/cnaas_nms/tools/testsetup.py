@@ -1,8 +1,8 @@
 # flake8: noqa
-import os
-import time
 import logging
+import os
 import subprocess
+import time
 
 from sqlalchemy import create_engine
 

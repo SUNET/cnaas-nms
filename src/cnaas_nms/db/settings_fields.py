@@ -1,8 +1,7 @@
-from typing import List, Optional, Dict
-from ipaddress import IPv4Interface, AddressValueError
+from ipaddress import AddressValueError, IPv4Interface
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, validator
-
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
 IPV4_REGEX = r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}" r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"

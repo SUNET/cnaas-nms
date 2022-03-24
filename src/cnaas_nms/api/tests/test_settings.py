@@ -1,8 +1,8 @@
-import yaml
-import pkg_resources
 import os
-
 import unittest
+
+import pkg_resources
+import yaml
 
 from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper

@@ -1,6 +1,5 @@
 import re
 
-
 line_start = r"^[+-][ ]*"
 line_start_remove = r"^-[ ]*"
 DEFAULT_LINE_SCORE = 1.0

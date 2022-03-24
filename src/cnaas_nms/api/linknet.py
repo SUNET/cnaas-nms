@@ -1,22 +1,18 @@
+from ipaddress import IPv4Address, IPv4Network
 from typing import Optional
-
-from ipaddress import IPv4Network, IPv4Address
-from pydantic import BaseModel, validator
-from pydantic.error_wrappers import ValidationError
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
+from pydantic import BaseModel, validator
+from pydantic.error_wrappers import ValidationError
 
-
-from cnaas_nms.api.generic import empty_result
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.linknet import Linknet
-from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.api.generic import empty_result, parse_pydantic_error, update_sqla_object
 from cnaas_nms.confpush.underlay import find_free_infra_linknet
+from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.linknet import Linknet
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
-from cnaas_nms.api.generic import parse_pydantic_error, update_sqla_object
-
 
 linknets_api = Namespace("linknets", description="API for handling linknets", prefix="/api/{}".format(__api_version__))
 linknet_api = Namespace(

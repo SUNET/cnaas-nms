@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
-import unittest
-import pkg_resources
-import yaml
 import os
 import pprint
-from ipaddress import IPv4Address, IPv4Network, IPv4Interface
+import unittest
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network
+
+import pkg_resources
+import yaml
 
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device
-from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
+from cnaas_nms.db.session import sqla_session
 
 
 class MgmtdomainTests(unittest.TestCase):

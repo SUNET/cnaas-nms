@@ -1,6 +1,5 @@
 from collections import namedtuple
 
-
 MetadataDict = namedtuple("MetadataDict", ["data", "metadata"])
 
 

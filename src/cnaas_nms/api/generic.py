@@ -1,13 +1,12 @@
+import math
 import re
 import urllib
-import math
 from typing import List
 
-from flask import request
 import sqlalchemy
+from flask import request
 
 from cnaas_nms.db.settings import get_pydantic_error_value, get_pydantic_field_descr
-
 
 FILTER_RE = re.compile(r"^filter\[([a-zA-Z0-9_.]+)\](\[[a-z]+\])?$")
 DEFAULT_PER_PAGE = 50

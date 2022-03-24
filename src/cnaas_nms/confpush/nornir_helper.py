@@ -1,14 +1,15 @@
-from dataclasses import dataclass
-from typing import Optional, Tuple, List, Union
-from functools import lru_cache
 import os
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import List, Optional, Tuple, Union
 
+from jinja2 import Environment as JinjaEnvironment
+from jinja2 import FileSystemLoader
 from nornir import InitNornir
 from nornir.core import Nornir
-from nornir.core.task import AggregatedResult, MultiResult
 from nornir.core.filter import F
 from nornir.core.plugins.inventory import InventoryPluginRegister
-from jinja2 import Environment as JinjaEnvironment, FileSystemLoader
+from nornir.core.task import AggregatedResult, MultiResult
 
 from cnaas_nms.confpush.nornir_plugins.cnaas_inventory import CnaasInventory
 from cnaas_nms.scheduler.jobresult import JobResult

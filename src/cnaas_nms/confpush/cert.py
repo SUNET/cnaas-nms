@@ -4,13 +4,12 @@ from typing import Optional
 from nornir_netmiko import netmiko_file_transfer, netmiko_send_command
 
 from cnaas_nms.app_settings import api_settings
-from cnaas_nms.scheduler.thread_data import set_thread_data
-from cnaas_nms.tools.log import get_logger
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
-from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.confpush.nornir_helper import NornirJobResult
+from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
 from cnaas_nms.db.device import Device
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.scheduler.thread_data import set_thread_data
+from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.pki import generate_device_cert
 
 

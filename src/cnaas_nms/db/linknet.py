@@ -1,16 +1,15 @@
-import ipaddress
-import enum
 import datetime
+import enum
+import ipaddress
 from typing import Optional
 
-from sqlalchemy import Column, Integer, Unicode, UniqueConstraint
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy import Column, ForeignKey, Integer, Unicode, UniqueConstraint
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
-import cnaas_nms.db.site
 import cnaas_nms.db.device
+import cnaas_nms.db.site
 
 
 class Linknet(cnaas_nms.db.base.Base):

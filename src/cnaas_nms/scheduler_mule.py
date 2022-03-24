@@ -1,17 +1,17 @@
-import json
-import datetime
-import os
-import coverage
 import atexit
+import datetime
+import json
+import os
 import signal
 
-from cnaas_nms.scheduler.scheduler import Scheduler
-from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.joblock import Joblock
-from cnaas_nms.db.job import Job
-from cnaas_nms.tools.log import get_logger
+import coverage
 
+from cnaas_nms.db.job import Job
+from cnaas_nms.db.joblock import Joblock
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
+from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
 logger.info("Code coverage collection for mule in pid {}: {}".format(os.getpid(), ("COVERAGE" in os.environ)))

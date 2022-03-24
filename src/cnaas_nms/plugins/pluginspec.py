@@ -2,7 +2,6 @@ import pluggy
 
 import cnaas_nms.plugins.pluginmanager
 
-
 hookspec = pluggy.HookspecMarker("cnaas-nms")
 hookimpl = pluggy.HookimplMarker("cnaas-nms")
 

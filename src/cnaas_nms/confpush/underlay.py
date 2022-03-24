@@ -1,12 +1,12 @@
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 from typing import Optional
 
-from ipaddress import IPv4Network, IPv4Address, IPv4Interface
 from sqlalchemy.orm import load_only
 
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
-from cnaas_nms.db.settings import get_settings
 from cnaas_nms.db.reservedip import ReservedIP
+from cnaas_nms.db.settings import get_settings
 
 
 def find_free_infra_ip(session) -> Optional[IPv4Address]:

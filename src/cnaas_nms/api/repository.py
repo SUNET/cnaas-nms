@@ -1,13 +1,12 @@
 from flask import request
 from flask_restx import Namespace, Resource, fields
 
-from cnaas_nms.db.git import RepoType, refresh_repo, get_repo_status
 from cnaas_nms.api.generic import empty_result
+from cnaas_nms.db.git import RepoType, get_repo_status, refresh_repo
 from cnaas_nms.db.joblock import JoblockError
 from cnaas_nms.db.settings import SettingsSyntaxError, VerifyPathException
 from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
-
 
 api = Namespace("repository", description="API for handling repositories", prefix="/api/{}".format(__api_version__))
 

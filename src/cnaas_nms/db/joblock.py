@@ -1,7 +1,7 @@
 import datetime
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from sqlalchemy import Column, String, DateTime, Boolean, Integer, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 import cnaas_nms.db.base

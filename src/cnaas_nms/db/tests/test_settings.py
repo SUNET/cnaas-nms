@@ -1,20 +1,21 @@
 import os
-import yaml
 import unittest
-import pkg_resources
 
+import pkg_resources
+import yaml
+
+from cnaas_nms.db.device import DeviceType
 from cnaas_nms.db.settings import (
-    get_settings,
-    verify_dir_structure,
     DIR_STRUCTURE,
     VerifyPathException,
-    check_vlan_collisions,
     VlanConflictError,
-    get_groups_priorities_sorted,
-    get_device_primary_groups,
     check_group_priority_collisions,
+    check_vlan_collisions,
+    get_device_primary_groups,
+    get_groups_priorities_sorted,
+    get_settings,
+    verify_dir_structure,
 )
-from cnaas_nms.db.device import DeviceType
 
 
 class SettingsTests(unittest.TestCase):

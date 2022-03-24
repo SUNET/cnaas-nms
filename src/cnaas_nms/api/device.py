@@ -1,34 +1,31 @@
-import json
 import datetime
-from typing import Optional, List
+import json
+from typing import List, Optional
 
 from flask import make_response, request
 from flask_restx import Namespace, Resource, fields
+from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
-from pydantic import ValidationError
-
+import cnaas_nms.confpush.get
 import cnaas_nms.confpush.init_device
 import cnaas_nms.confpush.sync_devices
 import cnaas_nms.confpush.underlay
-import cnaas_nms.confpush.get
 import cnaas_nms.confpush.update
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
-from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.stackmember import Stackmember
-from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import get_groups, get_device_primary_groups, update_device_primary_groups
-from cnaas_nms.scheduler.scheduler import Scheduler
-from cnaas_nms.tools.log import get_logger
-
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
-from cnaas_nms.version import __api_version__
 from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
-
+from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.settings import get_device_primary_groups, get_groups, update_device_primary_groups
+from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.version import __api_version__
 
 logger = get_logger()
 

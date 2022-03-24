@@ -3,7 +3,6 @@ import requests
 from cnaas_nms.plugins.pluginspec import CnaasBasePlugin, hookimpl
 from cnaas_nms.tools.log import get_logger
 
-
 logger = get_logger()
 
 

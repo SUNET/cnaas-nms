@@ -1,14 +1,15 @@
-import unittest
-import pkg_resources
-import yaml
 import os
 import time
+import unittest
 
+import pkg_resources
+import yaml
+
+from cnaas_nms.db.job import Job, JobStatus
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.scheduler.jobresult import DictJobResult
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.scheduler.jobresult import DictJobResult
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.job import Job, JobStatus
 
 
 @job_wrapper

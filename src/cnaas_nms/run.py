@@ -1,10 +1,12 @@
-import os
-import coverage
 import atexit
+import os
 import signal
 import threading
 from typing import List
-from gevent import monkey, signal as gevent_signal
+
+import coverage
+from gevent import monkey
+from gevent import signal as gevent_signal
 from redis import StrictRedis
 
 from cnaas_nms.app_settings import api_settings
@@ -31,11 +33,11 @@ if "COVERAGE" in os.environ:
 
 
 def get_app():
-    from cnaas_nms.scheduler.scheduler import Scheduler
-    from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
-    from cnaas_nms.db.session import sqla_session
-    from cnaas_nms.db.joblock import Joblock
     from cnaas_nms.db.job import Job
+    from cnaas_nms.db.joblock import Joblock
+    from cnaas_nms.db.session import sqla_session
+    from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
+    from cnaas_nms.scheduler.scheduler import Scheduler
 
     # If running inside uwsgi, a separate "mule" will run the scheduler
     try:
@@ -120,9 +122,10 @@ if __name__ == "__main__":
     # Starting via python run.py
     # gevent monkey patching required if you start flask with the auto-reloader (debug mode)
     monkey.patch_all()
+    import json
+
     from cnaas_nms.api import app
     from cnaas_nms.db.session import redis_session
-    import json
 
     t_websocket_events = threading.Thread(target=thread_websocket_events)
     t_websocket_events.start()
@@ -136,9 +139,10 @@ if __name__ == "__main__":
 
 else:
     # Starting via uwsgi
+    import json
+
     from cnaas_nms.api import app
     from cnaas_nms.db.session import redis_session
-    import json
 
     t_websocket_events = threading.Thread(target=thread_websocket_events)
     t_websocket_events.start()

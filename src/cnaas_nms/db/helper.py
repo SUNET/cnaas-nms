@@ -1,9 +1,9 @@
 import datetime
+from ipaddress import IPv4Address, IPv4Interface
 from typing import List, Optional
-from ipaddress import IPv4Interface, IPv4Address
 
 import netaddr
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
+from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.mgmtdomain import Mgmtdomain

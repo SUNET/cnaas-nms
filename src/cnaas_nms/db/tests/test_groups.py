@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
+import os
 import unittest
+
 import pkg_resources
 import yaml
-import os
 
 
 class GroupsTest(unittest.TestCase):

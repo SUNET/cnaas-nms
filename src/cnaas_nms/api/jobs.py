@@ -5,13 +5,12 @@ from flask import make_response, request
 from flask_restx import Namespace, Resource, fields
 from sqlalchemy import func
 
-from cnaas_nms.api.generic import empty_result, build_filter, pagination_headers
+from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
-
 from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 

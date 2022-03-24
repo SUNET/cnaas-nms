@@ -1,4 +1,5 @@
-from flask_jwt_extended import jwt_required as jwt_orig, get_jwt_identity as get_jwt_identity_orig
+from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
+from flask_jwt_extended import jwt_required as jwt_orig
 
 from cnaas_nms.app_settings import api_settings
 

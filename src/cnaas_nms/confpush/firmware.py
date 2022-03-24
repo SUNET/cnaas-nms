@@ -1,20 +1,19 @@
-import time
 import datetime
+import time
 from typing import Optional
 
-from nornir.core.task import MultiResult
 from nornir.core.exceptions import NornirSubTaskError
+from nornir.core.task import MultiResult
 from nornir_napalm.plugins.tasks import napalm_cli, napalm_get
 from nornir_netmiko.tasks import netmiko_send_command
 
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
-from cnaas_nms.tools.log import get_logger
-from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.confpush.nornir_helper import NornirJobResult
-from cnaas_nms.db.session import sqla_session, redis_session
-from cnaas_nms.db.device import DeviceType, Device
+from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
+from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.job import Job
+from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.scheduler.thread_data import set_thread_data
+from cnaas_nms.scheduler.wrapper import job_wrapper
+from cnaas_nms.tools.log import get_logger
 
 
 class FirmwareAlreadyActiveException(Exception):

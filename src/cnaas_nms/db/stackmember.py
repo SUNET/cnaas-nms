@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, UniqueConstraint, String, ForeignKey
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 import cnaas_nms.db.base

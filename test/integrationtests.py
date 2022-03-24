@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-import requests
+import datetime
+import os
 import time
 import unittest
-import os
-import datetime
 
+import requests
 
 if "CNAASURL" in os.environ:
     URL = os.environ["CNAASURL"]

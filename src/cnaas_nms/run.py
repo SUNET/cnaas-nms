@@ -8,19 +8,17 @@ from gevent import monkey, signal as gevent_signal
 from redis import StrictRedis
 
 from cnaas_nms.app_settings import api_settings
+
 # Do late imports for anything cnaas/flask related so we can do gevent monkey patch, see below
 
 
-os.environ['PYTHONPATH'] = os.getcwd()
+os.environ["PYTHONPATH"] = os.getcwd()
 stop_websocket_threads = False
 
 
-print("Code coverage collection for worker in pid {}: {}".format(
-    os.getpid(), ('COVERAGE' in os.environ)))
-if 'COVERAGE' in os.environ:
-    cov = coverage.coverage(
-        data_file='/coverage/.coverage-{}'.format(os.getpid()),
-        concurrency="gevent")
+print("Code coverage collection for worker in pid {}: {}".format(os.getpid(), ("COVERAGE" in os.environ)))  # noqa: T001
+if "COVERAGE" in os.environ:
+    cov = coverage.coverage(data_file="/coverage/.coverage-{}".format(os.getpid()), concurrency="gevent")
     cov.start()
 
     def save_coverage():
@@ -38,11 +36,13 @@ def get_app():
     from cnaas_nms.db.session import sqla_session
     from cnaas_nms.db.joblock import Joblock
     from cnaas_nms.db.job import Job
+
     # If running inside uwsgi, a separate "mule" will run the scheduler
     try:
-        import uwsgi
-        print("Running inside uwsgi")
-    except (ModuleNotFoundError, ImportError):
+        import uwsgi  # noqa: F401
+
+        print("Running inside uwsgi")  # noqa: T001
+    except ImportError:
         scheduler = Scheduler()
         scheduler.start()
 
@@ -53,13 +53,13 @@ def get_app():
         with sqla_session() as session:
             Joblock.clear_locks(session)
     except Exception as e:
-        print("Unable to clear old locks from database at startup: {}".format(str(e)))
+        print("Unable to clear old locks from database at startup: {}".format(str(e)))  # noqa: T001
 
     try:
         with sqla_session() as session:
             Job.clear_jobs(session)
     except Exception as e:
-        print("Unable to clear jobs with invalid states: {}".format(str(e)))
+        print("Unable to clear jobs with invalid states: {}".format(str(e)))  # noqa: T001
     return app.app
 
 
@@ -71,16 +71,16 @@ def socketio_emit(message: str, rooms: List[str]):
 
 
 def loglevel_to_rooms(levelname: str) -> List[str]:
-    if levelname == 'DEBUG':
-        return ['DEBUG']
-    elif levelname == 'INFO':
-        return ['DEBUG', 'INFO']
-    elif levelname == 'WARNING':
-        return ['DEBUG', 'INFO', 'WARNING']
-    elif levelname == 'ERROR':
-        return ['DEBUG', 'INFO', 'WARNING', 'ERROR']
-    elif levelname == 'CRITICAL':
-        return ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+    if levelname == "DEBUG":
+        return ["DEBUG"]
+    elif levelname == "INFO":
+        return ["DEBUG", "INFO"]
+    elif levelname == "WARNING":
+        return ["DEBUG", "INFO", "WARNING"]
+    elif levelname == "ERROR":
+        return ["DEBUG", "INFO", "WARNING", "ERROR"]
+    elif levelname == "CRITICAL":
+        return ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 def parse_redis_event(event):
@@ -88,17 +88,17 @@ def parse_redis_event(event):
         # [stream, [(messageid, {datadict})]
         if event[0] == "events":
             return event[1][0][1]
-    except Exception as e:
+    except Exception:
         return None
 
 
 def emit_redis_event(event):
     try:
-        if event['type'] == "log":
-            socketio_emit(event['message'], loglevel_to_rooms(event['level']))
-        elif event['type'] == "update":
-            socketio_emit(json.loads(event['json']), ["update_{}".format(event['update_type'])])
-    except Exception as e:
+        if event["type"] == "log":
+            socketio_emit(event["message"], loglevel_to_rooms(event["level"]))
+        elif event["type"] == "update":
+            socketio_emit(json.loads(event["json"]), ["update_{}".format(event["update_type"])])
+    except Exception:  # noqa: S110
         pass
 
 
@@ -116,7 +116,7 @@ def thread_websocket_events():
                 break
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Starting via python run.py
     # gevent monkey patching required if you start flask with the auto-reloader (debug mode)
     monkey.patch_all()
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     stop_websocket_threads = True
     t_websocket_events.join()
 
-    if 'COVERAGE' in os.environ:
+    if "COVERAGE" in os.environ:
         save_coverage()
 
 else:
@@ -145,5 +145,5 @@ else:
 
     cnaas_app = get_app()
 
-    if 'COVERAGE' in os.environ:
+    if "COVERAGE" in os.environ:
         save_coverage()

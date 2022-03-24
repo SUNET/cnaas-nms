@@ -4,10 +4,7 @@ from cnaas_nms.app_settings import api_settings
 
 
 def jwt_required(fn):
-    """
-    This function enables development without Oauth.
-
-    """
+    """Enable development with JWT off."""
     if api_settings.JWT_ENABLED:
         return jwt_orig()(fn)
     else:
@@ -15,8 +12,5 @@ def jwt_required(fn):
 
 
 def get_jwt_identity():
-    """
-    This function overides the identity when needed.
-
-    """
+    """Enable development with JWT off."""
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"

@@ -9,64 +9,65 @@ from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 
 
-api = Namespace('repository', description='API for handling repositories',
-                prefix='/api/{}'.format(__api_version__))
+api = Namespace("repository", description="API for handling repositories", prefix="/api/{}".format(__api_version__))
 
-repository_model = api.model('repository', {
-    'action': fields.String(required=True),
-})
+repository_model = api.model(
+    "repository",
+    {
+        "action": fields.String(required=True),
+    },
+)
 
 
 class RepositoryApi(Resource):
     @jwt_required
     def get(self, repo):
-        """ Get repository information """
+        """Get repository information."""
         try:
             repo_type = RepoType[str(repo).upper()]
-        except:
-            return empty_result('error', "Invalid repository type"), 400
-        return empty_result('success', get_repo_status(repo_type))
+        except Exception:
+            return empty_result("error", "Invalid repository type"), 400
+        return empty_result("success", get_repo_status(repo_type))
 
     @jwt_required
     @api.expect(repository_model)
     def put(self, repo):
-        """ Modify repository """
+        """Modify repository."""
         json_data = request.get_json()
         try:
             repo_type = RepoType[str(repo).upper()]
-        except:
-            return empty_result('error', "Invalid repository type"), 400
+        except Exception:
+            return empty_result("error", "Invalid repository type"), 400
 
-        if 'action' in json_data:
-            if str(json_data['action']).upper() == 'REFRESH':
+        if "action" in json_data:
+            if str(json_data["action"]).upper() == "REFRESH":
                 # TODO: consider doing as scheduled job?
                 try:
                     res = refresh_repo(repo_type, get_jwt_identity())
-                    return empty_result('success', res)
+                    return empty_result("success", res)
                 except VerifyPathException as e:
-                    return empty_result(
-                        'error',
-                        "Repository structure is invalid ({}): {}".format(type(e).__name__, str(e))
-                    ), 400
+                    return (
+                        empty_result(
+                            "error", "Repository structure is invalid ({}): {}".format(type(e).__name__, str(e))
+                        ),
+                        400,
+                    )
                 except JoblockError as e:
-                    return empty_result(
-                        'error',
-                        "Another job is locking configuration of devices, try again later ({})".format(str(e))
-                    ), 503
+                    return (
+                        empty_result(
+                            "error",
+                            "Another job is locking configuration of devices, try again later ({})".format(str(e)),
+                        ),
+                        503,
+                    )
                 except SettingsSyntaxError as e:
-                    return empty_result(
-                        'error',
-                        "Syntax error in repository: {}".format(str(e))
-                    ), 400
+                    return empty_result("error", "Syntax error in repository: {}".format(str(e))), 400
                 except Exception as e:
-                    return empty_result(
-                        'error',
-                        "Error in repository: {}".format(str(e))
-                    ), 500
+                    return empty_result("error", "Error in repository: {}".format(str(e))), 500
             else:
-                return empty_result('error', "Invalid action"), 400
+                return empty_result("error", "Invalid action"), 400
         else:
-            return empty_result('error', "No action specified"), 400
+            return empty_result("error", "No action specified"), 400
 
 
-api.add_resource(RepositoryApi, '/<string:repo>')
+api.add_resource(RepositoryApi, "/<string:repo>")

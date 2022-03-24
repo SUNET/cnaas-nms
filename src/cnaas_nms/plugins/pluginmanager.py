@@ -28,9 +28,9 @@ class PluginManagerHandler(object, metaclass=SingletonType):
     @classmethod
     def get_plugindata(cls):
         if api_settings.PLUGIN_FILE.is_file():
-            with open(api_settings.PLUGIN_FILE, 'r') as plugins_file:
+            with open(api_settings.PLUGIN_FILE, "r") as plugins_file:
                 data = yaml.safe_load(plugins_file)
-                if 'plugins' in data and isinstance(data['plugins'], list):
+                if "plugins" in data and isinstance(data["plugins"], list):
                     return data
                 else:
                     logger.error("No plugins defined in plugins.yml")
@@ -44,19 +44,18 @@ class PluginManagerHandler(object, metaclass=SingletonType):
         if not plugindata:
             logger.error("Could not get plugins")
             return
-        for plugin in plugindata['plugins']:
-            if not 'filename':
+        for plugin in plugindata["plugins"]:
+            if not "filename":
                 logger.error("Invalid plugin configuration: {}".format(plugin))
             try:
-                module_name = "cnaas_nms.plugins." + plugin['filename'].rsplit('.', 1)[0]
+                module_name = "cnaas_nms.plugins." + plugin["filename"].rsplit(".", 1)[0]
                 pluginmodule = importlib.import_module(module_name)
             except Exception:
                 logger.error("Could not load module {}".format(module_name))
                 continue
 
             if not callable(pluginmodule.Plugin):
-                logger.error("Could not find callable Plugin class in module {}".
-                             format(module_name))
+                logger.error("Could not find callable Plugin class in module {}".format(module_name))
             else:
                 self.pm.register(pluginmodule.Plugin())
 
@@ -66,6 +65,6 @@ class PluginManagerHandler(object, metaclass=SingletonType):
 
     def get_plugins(self):
         module_names = []
-        for name, plugin in self.pm.list_name_plugin():
+        for _, plugin in self.pm.list_name_plugin():
             module_names.append(plugin.__module__)
         return module_names

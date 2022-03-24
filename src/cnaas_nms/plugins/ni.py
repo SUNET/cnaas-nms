@@ -15,12 +15,12 @@ class Plugin(CnaasBasePlugin):
 
         pluginvars = self.get_vars(__name__)
 
-        if 'urlbase' in pluginvars:
-            self.urlbase = pluginvars['urlbase']
-        if 'apiuser' in pluginvars:
-            self.apiuser = pluginvars['apiuser']
-        if 'apitoken' in pluginvars:
-            self.apitoken = pluginvars['apitoken']
+        if "urlbase" in pluginvars:
+            self.urlbase = pluginvars["urlbase"]
+        if "apiuser" in pluginvars:
+            self.apiuser = pluginvars["apiuser"]
+        if "apitoken" in pluginvars:
+            self.apitoken = pluginvars["apitoken"]
 
     @hookimpl
     def selftest(self):
@@ -30,47 +30,34 @@ class Plugin(CnaasBasePlugin):
             return False
 
     @hookimpl
-    def new_managed_device(self, hostname, device_type, serial_number, vendor,
-                           model, os_version, management_ip):
-        headers = {
-            'Authorization': 'ApiKey {}:{}'.format(self.apiuser,
-                                                   self.apitoken)
-        }
+    def new_managed_device(self, hostname, device_type, serial_number, vendor, model, os_version, management_ip):
+        headers = {"Authorization": "ApiKey {}:{}".format(self.apiuser, self.apitoken)}
 
-        data = {
-            'node': {
-                'operational_state': 'In service'
-            }
-        }
+        data = {"node": {"operational_state": "In service"}}
 
-        res = requests.get(self.urlbase, headers=headers, verify=False)
+        res = requests.get(self.urlbase, headers=headers, verify=False)  # noqa: S501
         if not res.status_code == 200:
-            logger.warn("Failed to fetch devices from NI: {}: {} ({})".format(
-                res.status_code, res.text, data
-            ))
+            logger.warning("Failed to fetch devices from NI: {}: {} ({})".format(res.status_code, res.text, data))
 
             return False
 
-        for device in res.json()['objects']:
-            if device['node_name'] != hostname:
+        for device in res.json()["objects"]:
+            if device["node_name"] != hostname:
                 continue
 
             if management_ip:
-                if 'ip_addresses' in device['node']:
-                    addresses = device['node']['ip_addresses']
-                    data['node']['ip_addresses'] = addresses
-                    data['node']['ip_addresses'].insert(0, management_ip)
+                if "ip_addresses" in device["node"]:
+                    addresses = device["node"]["ip_addresses"]
+                    data["node"]["ip_addresses"] = addresses
+                    data["node"]["ip_addresses"].insert(0, management_ip)
                 else:
-                    data['node']['ip_addresses'] = [management_ip]
+                    data["node"]["ip_addresses"] = [management_ip]
 
-            handle_id = device['handle_id']
-            res = requests.put(self.urlbase + str(handle_id) + '/',
-                               headers=headers,
-                               json=data,
-                               verify=False)
+            handle_id = device["handle_id"]
+            res = requests.put(
+                self.urlbase + str(handle_id) + "/", headers=headers, json=data, verify=False  # noqa: S501
+            )
 
             if res.status_code != 204:
-                logger.warn('Could not change device {} with ID {}.'.format(
-                    hostname,
-                    handle_id))
+                logger.warning("Could not change device {} with ID {}.".format(hostname, handle_id))
                 return False

@@ -22,7 +22,8 @@ class NornirJobResult(JobResult):
 
 
 class RelativeJinjaEnvironment(JinjaEnvironment):
-    """Enable relative template paths"""
+    """Enable relative template paths."""
+
     def join_path(self, template, parent):
         return os.path.join(os.path.dirname(parent), template)
 
@@ -43,16 +44,9 @@ def get_jinja_env(path):
 def cnaas_init() -> Nornir:
     InventoryPluginRegister.register("CnaasInventory", CnaasInventory)
     nr = InitNornir(
-        runner={
-            "plugin": "threaded",
-            "options": {
-                "num_workers": 50
-            }
-        },
-        inventory={
-            "plugin": "CnaasInventory"
-        },
-        logging={"log_file": "/tmp/nornir-pid{}.log".format(os.getpid()), "level": "DEBUG"}
+        runner={"plugin": "threaded", "options": {"num_workers": 50}},
+        inventory={"plugin": "CnaasInventory"},
+        logging={"log_file": "/tmp/nornir-pid{}.log".format(os.getpid()), "level": "DEBUG"},  # noqa:  S108
     )
     return nr
 
@@ -61,26 +55,27 @@ def nr_result_serialize(result: AggregatedResult):
     if not isinstance(result, AggregatedResult):
         raise ValueError("result must be of type AggregatedResult")
 
-    hosts = {}    
+    hosts = {}
     for host, multires in result.items():
-        hosts[host] = {'failed': False, 'job_tasks': []}
+        hosts[host] = {"failed": False, "job_tasks": []}
         for res in multires:
-            hosts[host]['job_tasks'].append({
-                'task_name': res.name,
-                'result': res.result,
-                'diff': res.diff,
-                'failed': res.failed
-            })
+            hosts[host]["job_tasks"].append(
+                {"task_name": res.name, "result": res.result, "diff": res.diff, "failed": res.failed}
+            )
             if res.failed:
-                hosts[host]['failed'] = True
+                hosts[host]["failed"] = True
     return hosts
 
 
-def inventory_selector(nr: Nornir, resync: bool = True,
-                       hostname: Optional[Union[str, List[str]]] = None,
-                       device_type: Optional[str] = None,
-                       group: Optional[str] = None) -> Tuple[Nornir, int, List[str]]:
-    """Return a filtered Nornir inventory with only the selected devices
+def inventory_selector(
+    nr: Nornir,
+    resync: bool = True,
+    hostname: Optional[Union[str, List[str]]] = None,
+    device_type: Optional[str] = None,
+    group: Optional[str] = None,
+) -> Tuple[Nornir, int, List[str]]:
+    """
+    Return a filtered Nornir inventory with only the selected devices.
 
     Args:
         nr: Nornir object
@@ -90,8 +85,8 @@ def inventory_selector(nr: Nornir, resync: bool = True,
         group: Select device by group (string)
 
     Returns:
-        Tuple with: filtered Nornir inventory, total device count selected,
-                    list of hostnames that was skipped because of resync=False
+        Tuple with: filtered Nornir inventory, total device count selected, list of hostnames that was skipped because of resync=False
+
     """
     skipped_devices = []
     if hostname:
@@ -102,7 +97,7 @@ def inventory_selector(nr: Nornir, resync: bool = True,
         else:
             raise ValueError("Can't select hostname based on type {}".type(hostname))
     elif device_type:
-        nr_filtered = nr.filter(F(groups__contains='T_'+device_type)).filter(managed=True)
+        nr_filtered = nr.filter(F(groups__contains="T_" + device_type)).filter(managed=True)
     elif group:
         nr_filtered = nr.filter(F(groups__contains=group)).filter(managed=True)
     else:

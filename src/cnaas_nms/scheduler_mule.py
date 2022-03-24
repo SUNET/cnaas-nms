@@ -9,23 +9,20 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.joblock import Joblock
-from cnaas_nms.db.job import Job, JobStatus
+from cnaas_nms.db.job import Job
 from cnaas_nms.tools.log import get_logger
 
 
 logger = get_logger()
-logger.info("Code coverage collection for mule in pid {}: {}".format(
-    os.getpid(), ('COVERAGE' in os.environ)))
+logger.info("Code coverage collection for mule in pid {}: {}".format(os.getpid(), ("COVERAGE" in os.environ)))
 
-if 'COVERAGE' in os.environ:
-    cov = coverage.coverage(data_file='/coverage/.coverage-{}'.format(os.getpid()))
+if "COVERAGE" in os.environ:
+    cov = coverage.coverage(data_file="/coverage/.coverage-{}".format(os.getpid()))
     cov.start()
-
 
     def save_coverage():
         cov.stop()
         cov.save()
-
 
     atexit.register(save_coverage)
     signal.signal(signal.SIGTERM, save_coverage)
@@ -37,16 +34,17 @@ def pre_schedule_checks(scheduler, kwargs):
     message = ""
     for job in scheduler.get_scheduler().get_jobs():
         # Only allow scheduling of one discover_device job at the same time
-        if job.name == 'cnaas_nms.confpush.init_device:discover_device':
-            if job.kwargs['kwargs']['dhcp_ip'] == kwargs['kwargs']['dhcp_ip']:
-                message = ("There is already another scheduled job to discover {} {}, skipping ".
-                           format(kwargs['kwargs']['ztp_mac'], kwargs['kwargs']['dhcp_ip']))
+        if job.name == "cnaas_nms.confpush.init_device:discover_device":
+            if job.kwargs["kwargs"]["dhcp_ip"] == kwargs["kwargs"]["dhcp_ip"]:
+                message = "There is already another scheduled job to discover {} {}, skipping ".format(
+                    kwargs["kwargs"]["ztp_mac"], kwargs["kwargs"]["dhcp_ip"]
+                )
                 check_ok = False
 
     if not check_ok:
         logger.debug(message)
         with sqla_session() as session:
-            job_entry: Job = session.query(Job).filter(Job.id == kwargs['job_id']).one_or_none()
+            job_entry: Job = session.query(Job).filter(Job.id == kwargs["job_id"]).one_or_none()
             job_entry.finish_abort(message)
 
     return check_ok
@@ -57,10 +55,10 @@ def main_loop():
         import uwsgi
     except Exception as e:
         logger.exception("Mule not running in uwsgi, exiting: {}".format(str(e)))
-        print("Error, not running in uwsgi")
+        print("Error, not running in uwsgi")  # noqa: T001
         return
 
-    print("Running scheduler in uwsgi mule")
+    print("Running scheduler in uwsgi mule")  # noqa: T001
     scheduler = Scheduler()
     scheduler.start()
 
@@ -77,15 +75,15 @@ def main_loop():
         mule_data = uwsgi.mule_get_msg()
         data: dict = json.loads(mule_data)
         action = "add"
-        if 'scheduler_action' in data:
-            if data['scheduler_action'] == "remove":
+        if "scheduler_action" in data:
+            if data["scheduler_action"] == "remove":
                 action = "remove"
-        if 'when' in data and isinstance(data['when'], int):
-            data['run_date'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=data['when'])
-            del data['when']
+        if "when" in data and isinstance(data["when"], int):
+            data["run_date"] = datetime.datetime.utcnow() + datetime.timedelta(seconds=data["when"])
+            del data["when"]
         kwargs = {}
         for k, v in data.items():
-            if k not in ['func', 'trigger', 'id', 'run_date', 'scheduler_action']:
+            if k not in ["func", "trigger", "id", "run_date", "scheduler_action"]:
                 kwargs[k] = v
         # Perform pre-schedule job checks
         try:
@@ -95,12 +93,17 @@ def main_loop():
             logger.exception("Unable to perform pre-schedule job checks: {}".format(e))
 
         if action == "add":
-            scheduler.add_local_job(data['func'], trigger=data['trigger'], kwargs=kwargs,
-                                    id=data['id'], run_date=data['run_date'], name=data['func'])
+            scheduler.add_local_job(
+                data["func"],
+                trigger=data["trigger"],
+                kwargs=kwargs,
+                id=data["id"],
+                run_date=data["run_date"],
+                name=data["func"],
+            )
         elif action == "remove":
-            scheduler.remove_local_job(data['id'])
+            scheduler.remove_local_job(data["id"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main_loop()
-

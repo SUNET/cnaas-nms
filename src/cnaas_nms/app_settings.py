@@ -15,7 +15,9 @@ class AppSettings(BaseSettings):
     CNAAS_DB_PORT: int = 5432
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
-    POSTGRES_DSN: PostgresDsn = f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
+    POSTGRES_DSN: PostgresDsn = (
+        f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
+    )
     USERNAME_INIT: str = "admin"
     PASSWORD_INIT: str = "abc123abc123"
     USERNAME_DHCP_BOOT: str = "admin"
@@ -32,14 +34,14 @@ class AppSettings(BaseSettings):
 
 class ApiSettings(BaseSettings):
     # Api Settings
-    HOST: str = "0.0.0.0"
+    HOST: str = "0.0.0.0"  # noqa: S104
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
     VERIFY_TLS: bool = False
     VERIFY_TLS_DEVICE: bool = False
     JWT_CERT: Path = "/opt/cnaas/jwtcert/public.pem"
     CAFILE: Optional[Path] = "/opt/cnaas/cacert/rootCA.crt"
     CAKEYFILE: Path = "/opt/cnaas/cacert/rootCA.key"
-    CERTPATH: Path = "/tmp/devicecerts/"
+    CERTPATH: Path = "/tmp/devicecerts/"  # noqa: S108
     ALLOW_APPLY_CONFIG_LIVERUN: bool = False
     FIRMWARE_URL: str = HTTPD_URL
     JWT_ENABLED: bool = True

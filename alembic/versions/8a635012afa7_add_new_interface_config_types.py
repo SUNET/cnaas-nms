@@ -1,4 +1,4 @@
-"""add new interface config types
+"""add new interface config types.
 
 Revision ID: 8a635012afa7
 Revises: 395427a732d6
@@ -6,12 +6,11 @@ Create Date: 2020-03-26 09:21:15.439761
 
 """
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '8a635012afa7'
-down_revision = '395427a732d6'
+revision = "8a635012afa7"
+down_revision = "395427a732d6"
 branch_labels = None
 depends_on = None
 

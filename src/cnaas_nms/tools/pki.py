@@ -27,7 +27,7 @@ def get_ssl_context():
 
     if not api_settings.VERIFY_TLS_DEVICE:
         logger.warning("Accepting unverified TLS certificates")
-        new_ssl_context = ssl._create_unverified_context()
+        new_ssl_context = ssl._create_unverified_context()  # noqa: S323
 
     if not new_ssl_context:
         logger.debug("Using system default CAs")
@@ -62,13 +62,9 @@ def generate_device_cert(hostname: str, ipv4_address: IPv4Address):
         )
 
     with open(api_settings.CAFILE, "rb") as cafile:
-        root_cert = x509.load_pem_x509_certificate(
-            cafile.read()
-        )
+        root_cert = x509.load_pem_x509_certificate(cafile.read())
 
-    cert_key = rsa.generate_private_key(
-        public_exponent=65537, key_size=2048, backend=default_backend()
-    )
+    cert_key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
     new_subject = x509.Name(
         [
             x509.NameAttribute(NameOID.COMMON_NAME, hostname),
@@ -93,11 +89,13 @@ def generate_device_cert(hostname: str, ipv4_address: IPv4Address):
         f.write(cert.public_bytes(serialization.Encoding.PEM))
 
     with open(os.path.join(api_settings.CERTPATH, "{}.key".format(hostname)), "wb") as f:
-        f.write(cert_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.NoEncryption(),
-        ))
+        f.write(
+            cert_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
 
 
 ssl_context = get_ssl_context()

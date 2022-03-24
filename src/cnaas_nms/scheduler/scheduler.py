@@ -34,12 +34,12 @@ class Scheduler(object, metaclass=SingletonType):
         threads = 10
         self.is_mule = False
         # If scheduler is already started, use uwsgi ipc to send job to mule process
-        self.lock_f = open('/tmp/scheduler.lock', 'w')
+        self.lock_f = open("/tmp/scheduler.lock", "w")  # noqa: S108
         try:
             fcntl.lockf(self.lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             try:
-                import uwsgi
+                import uwsgi  # noqa: F401
             except Exception:
                 self.use_mule = False
             else:
@@ -47,34 +47,34 @@ class Scheduler(object, metaclass=SingletonType):
         else:
             self.use_mule = False
         caller = self.get_caller(caller=inspect.currentframe())
-        if caller == 'api':
+        if caller == "api":
             sqlalchemy_url = app_settings.POSTGRES_DSN
             self._scheduler = BackgroundScheduler(
-                executors={'default': ThreadPoolExecutor(threads)},
-                jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},
+                executors={"default": ThreadPoolExecutor(threads)},
+                jobstores={"default": SQLAlchemyJobStore(url=sqlalchemy_url)},
                 job_defaults={},
-                timezone=utc
+                timezone=utc,
             )
             logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
-        elif caller == 'mule':
+        elif caller == "mule":
             sqlalchemy_url = app_settings.POSTGRES_DSN
             self._scheduler = BackgroundScheduler(
-                executors={'default': ThreadPoolExecutor(threads)},
-                jobstores={'default': SQLAlchemyJobStore(url=sqlalchemy_url)},
+                executors={"default": ThreadPoolExecutor(threads)},
+                jobstores={"default": SQLAlchemyJobStore(url=sqlalchemy_url)},
                 job_defaults={},
-                timezone=utc
+                timezone=utc,
             )
             logger.info("Scheduler started with persistent jobstore, {} threads".format(threads))
             self.is_mule = True
         elif self.use_mule:
-            logger.info("Use uwsgi to send jobs to mule process".format(threads))
+            logger.info("Use uwsgi to send jobs to mule process: {}".format(threads))
             self._scheduler = None
         else:
             self._scheduler = BackgroundScheduler(
-                executors={'default': ThreadPoolExecutor(threads)},
-                jobstores={'default': MemoryJobStore()},
+                executors={"default": ThreadPoolExecutor(threads)},
+                jobstores={"default": MemoryJobStore()},
                 job_defaults={},
-                timezone=utc
+                timezone=utc,
             )
             logger.info("Scheduler started with in-memory jobstore, {} threads".format(threads))
 
@@ -82,7 +82,7 @@ class Scheduler(object, metaclass=SingletonType):
         if self.lock_f:
             fcntl.lockf(self.lock_f, fcntl.LOCK_UN)
             self.lock_f.close()
-            os.unlink('/tmp/scheduler.lock')
+            os.unlink("/tmp/scheduler.lock")  # noqa: S108
 
     def get_scheduler(self):
         return self._scheduler
@@ -90,20 +90,17 @@ class Scheduler(object, metaclass=SingletonType):
     def get_caller(self, caller):
         """Check if API main run was the caller."""
         frameinfo = inspect.getframeinfo(caller.f_back.f_back)
-        filename = '/'.join(frameinfo.filename.split('/')[-2:])
+        filename = "/".join(frameinfo.filename.split("/")[-2:])
         function = frameinfo.function
-        if filename == 'cnaas_nms/run.py' and function == 'get_app':
-            logger.info("Scheduler started from filename {} function {} (API mode)".format(
-                filename, function))
-            return 'api'
-        elif filename == 'cnaas_nms/scheduler_mule.py':
-            logger.info("Scheduler started from filename {} function {} (uwsgi mule mode)".format(
-                filename, function))
-            return 'mule'
+        if filename == "cnaas_nms/run.py" and function == "get_app":
+            logger.info("Scheduler started from filename {} function {} (API mode)".format(filename, function))
+            return "api"
+        elif filename == "cnaas_nms/scheduler_mule.py":
+            logger.info("Scheduler started from filename {} function {} (uwsgi mule mode)".format(filename, function))
+            return "mule"
         else:
-            logger.info("Scheduler started from filename {} function {} (Standalone mode)".format(
-                filename, function))
-            return 'other'
+            logger.info("Scheduler started from filename {} function {} (Standalone mode)".format(filename, function))
+            return "other"
 
     def start(self):
         if self._scheduler and not self.use_mule:
@@ -122,18 +119,14 @@ class Scheduler(object, metaclass=SingletonType):
         return self._scheduler.remove_job(str(job_id))
 
     def remove_scheduled_job(self, job_id, abort_message="removed"):
-        """Remove scheduled job from mule worker or local scheduler depending
-        on setup."""
+        """Remove scheduled job from mule worker or local scheduler depending on setup."""
         if self.use_mule:
             try:
                 import uwsgi
             except Exception as e:
                 logger.exception("use_mule is set but not running in uwsgi")
                 raise e
-            args = {
-                "scheduler_action": "remove",
-                "id": str(job_id)
-            }
+            args = {"scheduler_action": "remove", "id": str(job_id)}
             uwsgi.mule_msg(json.dumps(args))
         else:
             self.remove_local_job(job_id)
@@ -142,11 +135,11 @@ class Scheduler(object, metaclass=SingletonType):
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             job.finish_abort(message=abort_message)
 
-    def add_onetime_job(self, func: Union[str, FunctionType],
-                        when: Optional[int] = None,
-                        scheduled_by: Optional[str] = None, **kwargs) -> int:
-        """Schedule a job to run at a later time on the mule worker or
-        local scheduler depending on setup.
+    def add_onetime_job(
+        self, func: Union[str, FunctionType], when: Optional[int] = None, scheduled_by: Optional[str] = None, **kwargs
+    ) -> int:
+        """
+        Schedule a job to run at a later time on the mule worker or local scheduler depending on setup.
 
         Some extra checks against kwargs are performed here. If kwarg
         with name 'dry_run' is included, (dry_run) is appended to function
@@ -157,12 +150,14 @@ class Scheduler(object, metaclass=SingletonType):
             func: The function to call
             when: Optional number of seconds to wait before starting job
             scheduled_by: Username that scheduled the job
-            **kwargs: Arguments to pass through to called function
+            kwargs: Arguments to pass through to called function
+
         Returns:
             int: job_id
+
         """
         if when and isinstance(when, int):
-            trigger = 'date'
+            trigger = "date"
             run_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=when)
         else:
             trigger = None
@@ -172,7 +167,7 @@ class Scheduler(object, metaclass=SingletonType):
             func_qualname = str(func.__qualname__)
         else:
             func_qualname = str(func)
-        func_name = func_qualname.split(':')[-1]
+        func_name = func_qualname.split(":")[-1]
 
         try:
             json.dumps(kwargs)
@@ -181,9 +176,9 @@ class Scheduler(object, metaclass=SingletonType):
 
         # Append (dry_run) to function name if set, so we can distinguish dry_run jobs
         try:
-            if kwargs['kwargs']['dry_run']:
+            if kwargs["kwargs"]["dry_run"]:
                 func_name += " (dry_run)"
-        except Exception:
+        except Exception:  # noqa: S110
             pass
 
         with sqla_session() as session:
@@ -192,21 +187,21 @@ class Scheduler(object, metaclass=SingletonType):
                 job.scheduled_time = run_date
             job.function_name = func_name
             if scheduled_by is None:
-                scheduled_by = 'unknown'
+                scheduled_by = "unknown"
             job.scheduled_by = scheduled_by
-            job_comment = kwargs['kwargs'].pop('job_comment', None)
+            job_comment = kwargs["kwargs"].pop("job_comment", None)
             if job_comment and isinstance(job_comment, str):
                 job.comment = job_comment[:255]
-            job_ticket_ref = kwargs['kwargs'].pop('job_ticket_ref', None)
+            job_ticket_ref = kwargs["kwargs"].pop("job_ticket_ref", None)
             if job_ticket_ref and isinstance(job_comment, str):
                 job.ticket_ref = job_ticket_ref[:32]
-            job.start_arguments = kwargs['kwargs']
+            job.start_arguments = kwargs["kwargs"]
             session.add(job)
             session.flush()
             job_id = job.id
 
-        kwargs['job_id'] = job_id
-        kwargs['scheduled_by'] = scheduled_by
+        kwargs["job_id"] = job_id
+        kwargs["scheduled_by"] = scheduled_by
         if self.use_mule:
             try:
                 import uwsgi
@@ -214,14 +209,14 @@ class Scheduler(object, metaclass=SingletonType):
                 logger.exception("use_mule is set but not running in uwsgi")
                 raise e
             args = dict(kwargs)
-            args['func'] = func_qualname
-            args['trigger'] = trigger
-            args['when'] = when
-            args['id'] = str(job_id)
+            args["func"] = func_qualname
+            args["trigger"] = trigger
+            args["when"] = when
+            args["id"] = str(job_id)
             uwsgi.mule_msg(json.dumps(args))
             return job_id
         else:
-            self.add_local_job(func, trigger=trigger, kwargs=kwargs, id=str(job_id),
-                               run_date=run_date, name=func_qualname)
+            self.add_local_job(
+                func, trigger=trigger, kwargs=kwargs, id=str(job_id), run_date=run_date, name=func_qualname
+            )
             return job_id
-

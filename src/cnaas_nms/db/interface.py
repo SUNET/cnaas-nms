@@ -34,13 +34,12 @@ class InterfaceConfigType(enum.Enum):
 
 
 class Interface(cnaas_nms.db.base.Base):
-    __tablename__ = 'interface'
-    __table_args__ = (
-        None,
+    __tablename__ = "interface"
+    __table_args__ = (None,)
+    device_id = Column(Integer, ForeignKey("device.id"), primary_key=True, index=True)
+    device = relationship(
+        "Device", foreign_keys=[device_id], backref=backref("Interfaces", cascade="all, delete-orphan")
     )
-    device_id = Column(Integer, ForeignKey('device.id'), primary_key=True, index=True)
-    device = relationship("Device", foreign_keys=[device_id],
-                          backref=backref("Interfaces", cascade="all, delete-orphan"))
     name = Column(Unicode(255), primary_key=True)
     configtype = Column(Enum(InterfaceConfigType), nullable=False)
     data = Column(JSONB)
@@ -59,7 +58,9 @@ class Interface(cnaas_nms.db.base.Base):
 
     @classmethod
     def interface_index_num(cls, ifname: str):
-        """Calculate a unique numerical value for a physical interface name
+        """
+        Calculate a unique numerical value for a physical interface name.
+
         Ethernet1 -> 2
         Ethernet1/0 -> 201
         Ethernet4/3/2/1 -> 5040302
@@ -69,6 +70,7 @@ class Interface(cnaas_nms.db.base.Base):
 
         Returns:
             int or none
+
         """
         index_num = 0
         # Match physical interface name and divide into "group" components
@@ -82,9 +84,8 @@ class Interface(cnaas_nms.db.base.Base):
         missing_groups = 0
         for index, item in reversed(list(enumerate(groups, start=1))):
             if item:
-                item_num = int(item.rstrip('/'))
-                index_num += (100**(4-index-missing_groups)) * (item_num+1)
+                item_num = int(item.rstrip("/"))
+                index_num += (100 ** (4 - index - missing_groups)) * (item_num + 1)
             else:
                 missing_groups += 1
         return index_num
-

@@ -11,7 +11,7 @@ from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
 from sqlalchemy import Enum, DateTime, Boolean
 from sqlalchemy import ForeignKey
 from sqlalchemy import event
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
@@ -32,14 +32,14 @@ class DeviceStateException(DeviceException):
 
 
 class DeviceState(enum.Enum):
-    UNKNOWN = 0         # Unhandled programming error
+    UNKNOWN = 0  # Unhandled programming error
     PRE_CONFIGURED = 1  # Pre-populated, not seen yet
-    DHCP_BOOT = 2       # Something booted via DHCP, unknown device
-    DISCOVERED = 3      # Something booted with base config, temp ssh access for conf push
-    INIT = 4            # Moving to management VLAN, applying base template
-    MANAGED = 5         # Correct managament and accessible via conf push
-    MANAGED_NOIF = 6    # Only base system template managed, no interfaces?
-    UNMANAGED = 99      # Device no longer maintained by conf push
+    DHCP_BOOT = 2  # Something booted via DHCP, unknown device
+    DISCOVERED = 3  # Something booted with base config, temp ssh access for conf push
+    INIT = 4  # Moving to management VLAN, applying base template
+    MANAGED = 5  # Correct managament and accessible via conf push
+    MANAGED_NOIF = 6  # Only base system template managed, no interfaces?
+    UNMANAGED = 99  # Device no longer maintained by conf push
 
     @classmethod
     def has_value(cls, value):
@@ -66,14 +66,14 @@ class DeviceType(enum.Enum):
 
 
 class Device(cnaas_nms.db.base.Base):
-    __tablename__ = 'device'
+    __tablename__ = "device"
     __table_args__ = (
         None,
-        UniqueConstraint('hostname'),
+        UniqueConstraint("hostname"),
     )
     id = Column(Integer, autoincrement=True, primary_key=True)
     hostname = Column(String(64), nullable=False)
-    site_id = Column(Integer, ForeignKey('site.id'))
+    site_id = Column(Integer, ForeignKey("site.id"))
     site = relationship("Site")
     description = Column(Unicode(255))
     management_ip = Column(IPAddressType)
@@ -93,10 +93,7 @@ class Device(cnaas_nms.db.base.Base):
     last_seen = Column(DateTime, default=datetime.datetime.utcnow)
     port = Column(Integer)
     stack_members = relationship(
-        "Stackmember",
-        foreign_keys="[Stackmember.device_id]",
-        lazy="subquery",
-        back_populates="device"
+        "Stackmember", foreign_keys="[Stackmember.device_id]", lazy="subquery", back_populates="device"
     )
 
     def as_dict(self) -> dict:
@@ -129,19 +126,16 @@ class Device(cnaas_nms.db.base.Base):
     def get_linknets(self, session) -> List[cnaas_nms.db.linknet.Linknet]:
         """Look up linknets and return a list of Linknet objects."""
         ret = []
-        linknets = session.query(cnaas_nms.db.linknet.Linknet).\
-            filter(
-                (cnaas_nms.db.linknet.Linknet.device_a_id == self.id)
-                |
-                (cnaas_nms.db.linknet.Linknet.device_b_id == self.id)
-            )
+        linknets = session.query(cnaas_nms.db.linknet.Linknet).filter(
+            (cnaas_nms.db.linknet.Linknet.device_a_id == self.id)
+            | (cnaas_nms.db.linknet.Linknet.device_b_id == self.id)
+        )
         for linknet in linknets:
             ret.append(linknet)
         return ret
 
     def get_linknet_localif_mapping(self, session) -> dict[str, str]:
-        """Return a mapping with local interface name and what peer device hostname
-        that interface is connected to."""
+        """Return a mapping with local interface name and what peer device hostname that interface is connected to."""
         linknets: List[cnaas_nms.db.linknet.Linknet] = self.get_linknets(session)
         ret = {}
         for linknet in linknets:
@@ -150,21 +144,25 @@ class Device(cnaas_nms.db.base.Base):
             elif linknet.device_b == self:
                 ret[linknet.device_b_port] = linknet.device_a.hostname
             else:
-                raise Exception("Got invalid linknets for device {}: {}".format(
-                    self.hostname, linknets
-                ))
+                raise Exception("Got invalid linknets for device {}: {}".format(self.hostname, linknets))
         return ret
 
     def get_links_to(self, session, peer_device: Device) -> List[cnaas_nms.db.linknet.Linknet]:
         """Return linknet connecting to device peer_device."""
-        return session.query(cnaas_nms.db.linknet.Linknet).\
-            filter(
-                ((cnaas_nms.db.linknet.Linknet.device_a_id == self.id) &
-                 (cnaas_nms.db.linknet.Linknet.device_b_id == peer_device.id))
-                |
-                ((cnaas_nms.db.linknet.Linknet.device_b_id == self.id) &
-                 (cnaas_nms.db.linknet.Linknet.device_a_id == peer_device.id))
-            ).all()
+        return (
+            session.query(cnaas_nms.db.linknet.Linknet)
+            .filter(
+                (
+                    (cnaas_nms.db.linknet.Linknet.device_a_id == self.id)
+                    & (cnaas_nms.db.linknet.Linknet.device_b_id == peer_device.id)
+                )
+                | (
+                    (cnaas_nms.db.linknet.Linknet.device_b_id == self.id)
+                    & (cnaas_nms.db.linknet.Linknet.device_a_id == peer_device.id)
+                )
+            )
+            .all()
+        )
 
     def get_neighbor_local_ifname(self, session, peer_device: Device) -> Optional[str]:
         """Get the local interface name on this device that links to peer_device."""
@@ -222,18 +220,26 @@ class Device(cnaas_nms.db.base.Base):
             return linknet.device_a_ip
 
     def get_uplink_peer_hostnames(self, session) -> List[str]:
-        intfs = session.query(Interface).filter(Interface.device == self).\
-            filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK).all()
+        intfs = (
+            session.query(Interface)
+            .filter(Interface.device == self)
+            .filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK)
+            .all()
+        )
         peer_hostnames = []
         intf: Interface = Interface()
         for intf in intfs:
             if intf.data:
-                peer_hostnames.append(intf.data['neighbor'])
+                peer_hostnames.append(intf.data["neighbor"])
         return peer_hostnames
 
     def get_mlag_peer(self, session) -> Optional[Device]:
-        intfs = session.query(Interface).filter(Interface.device == self). \
-            filter(Interface.configtype == InterfaceConfigType.MLAG_PEER).all()
+        intfs = (
+            session.query(Interface)
+            .filter(Interface.device == self)
+            .filter(Interface.configtype == InterfaceConfigType.MLAG_PEER)
+            .all()
+        )
         peers: Set[Device] = set()
         linknets = self.get_linknets(session)
         intf: Interface = Interface()
@@ -244,9 +250,7 @@ class Device(cnaas_nms.db.base.Base):
                 elif linknet.device_b == self and linknet.device_b_port == intf.name:
                     peers.add(linknet.device_a)
         if len(peers) > 1:
-            raise DeviceException("More than one MLAG peer found: {}".format(
-                [x.hostname for x in peers]
-            ))
+            raise DeviceException("More than one MLAG peer found: {}".format([x.hostname for x in peers]))
         elif len(peers) == 1:
             peer_devtype = next(iter(peers)).device_type
             if self.device_type == DeviceType.UNKNOWN or peer_devtype == DeviceType.UNKNOWN:
@@ -259,12 +263,12 @@ class Device(cnaas_nms.db.base.Base):
             return None
 
     def is_stack(self, session) -> bool:
-        """Check if this device is a stack"""
+        """Check if this device is a stack."""
         membercount = session.query(Stackmember).filter(Stackmember.device == self).count()
         return membercount > 0
 
     def get_stackmembers(self, session) -> List[Stackmember]:
-        """Return all stackmembers belonging to a device (if any)"""
+        """Return all stackmembers belonging to a device (if any)."""
         members = session.query(Stackmember).filter(Stackmember.device == self).all()
         return members
 
@@ -272,22 +276,21 @@ class Device(cnaas_nms.db.base.Base):
     def valid_hostname(cls, hostname: str) -> bool:
         if not isinstance(hostname, str):
             return False
-        if hostname.endswith('.'):
+        if hostname.endswith("."):
             hostname = hostname[:-1]
         if len(hostname) < 1 or len(hostname) > 253:
             return False
-        hostname_part_re = re.compile('^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$',
-                                      re.IGNORECASE)
-        return all(hostname_part_re.match(x) for x in hostname.split('.'))
+        hostname_part_re = re.compile("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", re.IGNORECASE)
+        return all(hostname_part_re.match(x) for x in hostname.split("."))
 
     @classmethod
-    def set_devtype_syncstatus(cls, session, devtype: DeviceType,
-                               platform: Optional[str] = None, syncstatus=False):
-        """Update sync status of devices of type devtype"""
+    def set_devtype_syncstatus(cls, session, devtype: DeviceType, platform: Optional[str] = None, syncstatus=False):
+        """Update sync status of devices of type devtype."""
         dev: Device
         if platform:
-            dev_query = session.query(Device).filter(Device.device_type == devtype).\
-                filter(Device.platform == platform).all()
+            dev_query = (
+                session.query(Device).filter(Device.device_type == devtype).filter(Device.platform == platform).all()
+            )
         else:
             dev_query = session.query(Device).filter(Device.device_type == devtype).all()
         for dev in dev_query:
@@ -315,7 +318,7 @@ class Device(cnaas_nms.db.base.Base):
     def set_config_hash(cls, session, hostname, hexdigest):
         instance: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not instance:
-            return 'Device not found'
+            return "Device not found"
         instance.confhash = hexdigest
 
     @classmethod
@@ -329,149 +332,144 @@ class Device(cnaas_nms.db.base.Base):
     def validate(cls, new_entry=True, **kwargs):
         data = {}
         errors = []
-        if 'hostname' in kwargs:
-            if Device.valid_hostname(kwargs['hostname']):
-                data['hostname'] = kwargs['hostname']
+        if "hostname" in kwargs:
+            if Device.valid_hostname(kwargs["hostname"]):
+                data["hostname"] = kwargs["hostname"]
             else:
                 errors.append("Invalid hostname received")
         else:
             if new_entry:
-                errors.append('Required field hostname not found')
+                errors.append("Required field hostname not found")
 
-        if 'site_id' in kwargs:
+        if "site_id" in kwargs:
             try:
-                site_id = int(kwargs['site_id'])
+                site_id = int(kwargs["site_id"])
             except Exception:
-                errors.append('Invalid site_id recevied, must be an integer.')
+                errors.append("Invalid site_id recevied, must be an integer.")
             else:
-                data['site_id'] = site_id
+                data["site_id"] = site_id
 
-        if 'description' in kwargs:
-            data['description'] = kwargs['description']
+        if "description" in kwargs:
+            data["description"] = kwargs["description"]
 
-        if 'management_ip' in kwargs:
-            if kwargs['management_ip']:
+        if "management_ip" in kwargs:
+            if kwargs["management_ip"]:
                 try:
-                    addr = ipaddress.IPv4Address(kwargs['management_ip'])
+                    addr = ipaddress.IPv4Address(kwargs["management_ip"])
                 except Exception:
-                    errors.append('Invalid management_ip received. Must be correct IPv4 address.')
+                    errors.append("Invalid management_ip received. Must be correct IPv4 address.")
                 else:
-                    data['management_ip'] = addr
+                    data["management_ip"] = addr
             else:
-                data['management_ip'] = None
+                data["management_ip"] = None
 
-        if 'infra_ip' in kwargs:
-            if kwargs['infra_ip']:
+        if "infra_ip" in kwargs:
+            if kwargs["infra_ip"]:
                 try:
-                    addr = ipaddress.IPv4Address(kwargs['infra_ip'])
+                    addr = ipaddress.IPv4Address(kwargs["infra_ip"])
                 except Exception:
-                    errors.append('Invalid infra_ip received. Must be correct IPv4 address.')
+                    errors.append("Invalid infra_ip received. Must be correct IPv4 address.")
                 else:
-                    data['infra_ip'] = addr
+                    data["infra_ip"] = addr
             else:
-                data['infra_ip'] = None
+                data["infra_ip"] = None
 
-        if 'dhcp_ip' in kwargs:
-            if kwargs['dhcp_ip']:
+        if "dhcp_ip" in kwargs:
+            if kwargs["dhcp_ip"]:
                 try:
-                    addr = ipaddress.IPv4Address(kwargs['dhcp_ip'])
+                    addr = ipaddress.IPv4Address(kwargs["dhcp_ip"])
                 except Exception:
-                    errors.append('Invalid dhcp_ip received. Must be correct IPv4 address.')
+                    errors.append("Invalid dhcp_ip received. Must be correct IPv4 address.")
                 else:
-                    data['dhcp_ip'] = addr
+                    data["dhcp_ip"] = addr
             else:
-                data['dhcp_ip'] = None
+                data["dhcp_ip"] = None
 
-        if 'serial' in kwargs:
+        if "serial" in kwargs:
             try:
-                serial = str(kwargs['serial']).upper()
+                serial = str(kwargs["serial"]).upper()
             except Exception:
-                errors.append('Invalid device serial received.')
+                errors.append("Invalid device serial received.")
             else:
-                data['serial'] = serial
+                data["serial"] = serial
 
-        if 'ztp_mac' in kwargs:
+        if "ztp_mac" in kwargs:
             try:
-                ztp_mac = str(kwargs['ztp_mac']).upper()
+                ztp_mac = str(kwargs["ztp_mac"]).upper()
             except Exception:
-                errors.append('Invalid device ztp_mac received.')
+                errors.append("Invalid device ztp_mac received.")
             else:
-                data['ztp_mac'] = ztp_mac
+                data["ztp_mac"] = ztp_mac
 
-        if 'platform' in kwargs:
-            data['platform'] = kwargs['platform']
+        if "platform" in kwargs:
+            data["platform"] = kwargs["platform"]
 
-        if 'vendor' in kwargs:
-            data['vendor'] = kwargs['vendor']
+        if "vendor" in kwargs:
+            data["vendor"] = kwargs["vendor"]
 
-        if 'model' in kwargs:
-            data['model'] = kwargs['model']
+        if "model" in kwargs:
+            data["model"] = kwargs["model"]
 
-        if 'os_version' in kwargs:
-            data['os_version'] = kwargs['os_version']
+        if "os_version" in kwargs:
+            data["os_version"] = kwargs["os_version"]
 
-        if 'synchronized' in kwargs:
-            if isinstance(kwargs['synchronized'], bool):
-                data['synchronized'] = kwargs['synchronized']
+        if "synchronized" in kwargs:
+            if isinstance(kwargs["synchronized"], bool):
+                data["synchronized"] = kwargs["synchronized"]
             else:
                 errors.append("Invalid synchronization state received")
-        if 'state' in kwargs:
-            if isinstance(kwargs['state'], DeviceState):
-                data['state'] = kwargs['state']
+        if "state" in kwargs:
+            if isinstance(kwargs["state"], DeviceState):
+                data["state"] = kwargs["state"]
             else:
                 try:
-                    state = str(kwargs['state']).upper()
+                    state = str(kwargs["state"]).upper()
                 except Exception:
-                    errors.append('Invalid device state received.')
+                    errors.append("Invalid device state received.")
                 else:
                     if DeviceState.has_name(state):
-                        data['state'] = DeviceState[state]
+                        data["state"] = DeviceState[state]
                     else:
-                        errors.append('Invalid device state received.')
+                        errors.append("Invalid device state received.")
         else:
             if new_entry:
-                errors.append('Required field state not found')
-        if 'device_type' in kwargs:
-            if isinstance(kwargs['device_type'], DeviceType):
-                data['device_type'] = kwargs['device_type']
+                errors.append("Required field state not found")
+        if "device_type" in kwargs:
+            if isinstance(kwargs["device_type"], DeviceType):
+                data["device_type"] = kwargs["device_type"]
             else:
                 try:
-                    devicetype = str(kwargs['device_type']).upper()
+                    devicetype = str(kwargs["device_type"]).upper()
                 except Exception:
-                    errors.append('Invalid device type')
+                    errors.append("Invalid device type")
                 else:
                     if DeviceType.has_name(devicetype):
-                        data['device_type'] = devicetype
+                        data["device_type"] = devicetype
                     else:
-                        errors.append('Invalid device type')
+                        errors.append("Invalid device type")
         else:
             if new_entry:
-                errors.append('Required field device_type not found')
-        if 'port' in kwargs:
-            if kwargs['port']:
+                errors.append("Required field device_type not found")
+        if "port" in kwargs:
+            if kwargs["port"]:
                 try:
-                    port = int(kwargs['port'])
+                    port = int(kwargs["port"])
                 except Exception:
-                    errors.append('Invalid port recevied, must be an integer.')
+                    errors.append("Invalid port recevied, must be an integer.")
                 else:
-                    data['port'] = port
+                    data["port"] = port
             else:
-                data['port'] = None
+                data["port"] = None
 
-        for k, v in kwargs.items():
+        for k, _ in kwargs.items():
             if k not in cls.__table__.columns:
                 errors.append("Unknown attribute '{}' for device".format(k))
 
         return data, errors
 
 
-@event.listens_for(Device, 'after_update')
+@event.listens_for(Device, "after_update")
 def after_update_device(mapper, connection, target: Device):
-    update_data = {
-        "action": "UPDATED",
-        "device_id": target.id,
-        "hostname": target.hostname,
-        "object": target.as_dict()
-    }
+    update_data = {"action": "UPDATED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
     json_data = json.dumps(update_data)
     add_event(json_data=json_data, event_type="update", update_type="device")

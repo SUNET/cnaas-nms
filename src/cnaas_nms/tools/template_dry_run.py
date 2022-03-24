@@ -1,4 +1,5 @@
 #!/bin/env python3
+# flake8: noqa
 
 import sys
 import os
@@ -14,51 +15,51 @@ except ModuleNotFoundError as e:
     print("Please install python modules requests, jinja2 and yaml: {}".format(e))
     sys.exit(3)
 
-if 'CNAASURL' not in os.environ or 'JWT_AUTH_TOKEN' not in os.environ:
+if "CNAASURL" not in os.environ or "JWT_AUTH_TOKEN" not in os.environ:
     print("Please export environment variables CNAASURL and JWT_AUTH_TOKEN")
     sys.exit(4)
 
-api_url = os.environ['CNAASURL']
-headers = {"Authorization": "Bearer "+os.environ['JWT_AUTH_TOKEN']}
+api_url = os.environ["CNAASURL"]
+headers = {"Authorization": "Bearer " + os.environ["JWT_AUTH_TOKEN"]}
 verify_tls = True
 
+
 def get_entrypoint(platform, device_type):
-    mapfile = os.path.join(platform, 'mapping.yml')
+    mapfile = os.path.join(platform, "mapping.yml")
     if not os.path.isfile(mapfile):
         raise Exception("File {} not found".format(mapfile))
-    with open(mapfile, 'r') as f:
+    with open(mapfile, "r") as f:
         mapping = yaml.safe_load(f)
-        template_file = mapping[device_type]['entrypoint']
+        template_file = mapping[device_type]["entrypoint"]
     return template_file
 
 
 def get_device_details(hostname):
-    r = requests.get(
-        f"{api_url}/api/v1.0/device/{hostname}",
-        verify=verify_tls,
-        headers=headers)
+    r = requests.get(f"{api_url}/api/v1.0/device/{hostname}", verify=verify_tls, headers=headers)
     if r.status_code != 200:
         raise Exception("Could not query device API")
-    device_data = r.json()['data']['devices'][0]
+    device_data = r.json()["data"]["devices"][0]
 
-    r = requests.get(
-        f"{api_url}/api/v1.0/device/{hostname}/generate_config",
-        verify=verify_tls,
-        headers=headers)
+    r = requests.get(f"{api_url}/api/v1.0/device/{hostname}/generate_config", verify=verify_tls, headers=headers)
     if r.status_code != 200:
         raise Exception("Could not query generate_config API")
-    config_data = r.json()['data']['config']
+    config_data = r.json()["data"]["config"]
 
-    return device_data['device_type'], device_data['platform'], \
-        config_data['available_variables'], config_data['generated_config']
+    return (
+        device_data["device_type"],
+        device_data["platform"],
+        config_data["available_variables"],
+        config_data["generated_config"],
+    )
 
 
 def load_jinja_filters():
     try:
         import jinja_filters
+
         return jinja_filters.FILTERS
     except ModuleNotFoundError:
-        print('No jinja_filters.py file in PYTHONPATH, proceeding without filters')
+        print("No jinja_filters.py file in PYTHONPATH, proceeding without filters")
         return {}
 
 
@@ -69,7 +70,7 @@ def render_template(platform, device_type, variables):
         undefined=jinja2.StrictUndefined,
         trim_blocks=True,
         lstrip_blocks=True,
-        keep_trailing_newline=True
+        keep_trailing_newline=True,
     )
     jfilters = load_jinja_filters()
     jinjaenv.filters.update(jfilters)
@@ -80,19 +81,13 @@ def render_template(platform, device_type, variables):
 
 
 def schedule_apply_dryrun(hostname, config):
-    data = {
-        'full_config': config,
-        'dry_run': True
-    }
+    data = {"full_config": config, "dry_run": True}
     r = requests.post(
-        f"{api_url}/api/v1.0/device/{hostname}/apply_config",
-        headers=headers,
-        verify=verify_tls,
-        json=data
+        f"{api_url}/api/v1.0/device/{hostname}/apply_config", headers=headers, verify=verify_tls, json=data
     )
     if r.status_code != 200:
         raise Exception("Could not schedule apply_config job via API")
-    return r.json()['job_id']
+    return r.json()["job_id"]
 
 
 def main():
@@ -110,7 +105,7 @@ def main():
     except Exception as e:
         print(e)
         sys.exit(2)
-    variables['host'] = hostname
+    variables["host"] = hostname
     new_config = render_template(platform, device_type, variables)
     print("OLD TEMPLATE CONFIG ==============================")
     print(old_config)
@@ -120,7 +115,7 @@ def main():
     try:
         input("Start apply_config dry run? Ctrl-C to abort or enter to continue...")
     except KeyboardInterrupt:
-        print("Exiting...")
+        print("Exiting...")  # noqa: T001
     else:
         print("Apply config dry_run job: {}".format(schedule_apply_dryrun(hostname, new_config)))
 

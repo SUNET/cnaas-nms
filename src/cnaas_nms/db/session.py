@@ -25,7 +25,7 @@ def sqla_session(**kwargs) -> sessionmaker:
     try:
         yield session
         session.commit()
-    except:
+    except Exception:
         session.rollback()
         raise
     finally:
@@ -43,5 +43,7 @@ def sqla_execute(**kwargs):
 
 @contextmanager
 def redis_session(**kwargs) -> StrictRedis:
-    with StrictRedis(host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, charset="utf-8", decode_responses=True) as conn:
+    with StrictRedis(
+        host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, charset="utf-8", decode_responses=True
+    ) as conn:
         yield conn

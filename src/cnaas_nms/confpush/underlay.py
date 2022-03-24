@@ -10,15 +10,14 @@ from cnaas_nms.db.reservedip import ReservedIP
 
 
 def find_free_infra_ip(session) -> Optional[IPv4Address]:
-    """Returns first free IPv4 infra IP."""
+    """Return first free IPv4 infra IP."""
     used_ips = []
-    device_query = session.query(Device). \
-        filter(Device.infra_ip != None).options(load_only("infra_ip"))
+    device_query = session.query(Device).filter(Device.infra_ip is not None).options(load_only("infra_ip"))
     for device in device_query:
         used_ips.append(device.infra_ip)
     settings, settings_origin = get_settings(device_type=DeviceType.CORE)
-    infra_ip_net = IPv4Network(settings['underlay']['infra_lo_net'])
-    for num, net in enumerate(infra_ip_net.subnets(new_prefix=32)):
+    infra_ip_net = IPv4Network(settings["underlay"]["infra_lo_net"])
+    for _, net in enumerate(infra_ip_net.subnets(new_prefix=32)):
         ipaddr = IPv4Address(net.network_address)
         if ipaddr in used_ips:
             continue
@@ -28,11 +27,10 @@ def find_free_infra_ip(session) -> Optional[IPv4Address]:
 
 
 def find_free_mgmt_lo_ip(session) -> Optional[IPv4Address]:
-    """Returns first free IPv4 infra IP."""
+    """Return first free IPv4 infra IP."""
     used_ips = []
     reserved_ips = []
-    device_query = session.query(Device). \
-        filter(Device.management_ip != None).options(load_only("management_ip"))
+    device_query = session.query(Device).filter(Device.management_ip is not None).options(load_only("management_ip"))
     for device in device_query:
         used_ips.append(device.management_ip)
     reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
@@ -40,8 +38,8 @@ def find_free_mgmt_lo_ip(session) -> Optional[IPv4Address]:
         reserved_ips.append(reserved_ip.ip)
 
     settings, settings_origin = get_settings(device_type=DeviceType.CORE)
-    mgmt_lo_net = IPv4Network(settings['underlay']['mgmt_lo_net'])
-    for num, net in enumerate(mgmt_lo_net.subnets(new_prefix=32)):
+    mgmt_lo_net = IPv4Network(settings["underlay"]["mgmt_lo_net"])
+    for _, net in enumerate(mgmt_lo_net.subnets(new_prefix=32)):
         ipaddr = IPv4Address(net.network_address)
         if ipaddr in used_ips:
             continue
@@ -53,17 +51,16 @@ def find_free_mgmt_lo_ip(session) -> Optional[IPv4Address]:
 
 
 def find_free_infra_linknet(session) -> Optional[IPv4Network]:
-    """Returns first free IPv4 infra linknet (/31)."""
+    """Return first free IPv4 infra linknet (/31)."""
     used_linknets = []
-    linknet_query = session.query(Linknet). \
-        filter(Linknet.device_a_ip != None)
+    linknet_query = session.query(Linknet).filter(Linknet.device_a_ip is not None)
     ln: Linknet
     for ln in linknet_query:
         used_linknets.append(IPv4Interface(ln.ipv4_network).network)
 
     settings, settings_origin = get_settings(device_type=DeviceType.CORE)
-    infra_ip_net = IPv4Network(settings['underlay']['infra_link_net'])
-    for num, net in enumerate(infra_ip_net.subnets(new_prefix=31)):
+    infra_ip_net = IPv4Network(settings["underlay"]["infra_link_net"])
+    for _, net in enumerate(infra_ip_net.subnets(new_prefix=31)):
         if net in used_linknets:
             continue
         else:

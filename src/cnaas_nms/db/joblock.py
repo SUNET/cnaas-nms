@@ -5,7 +5,6 @@ from sqlalchemy import Column, String, DateTime, Boolean, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 
 import cnaas_nms.db.base
-from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import sqla_session
 
 
@@ -14,8 +13,8 @@ class JoblockError(Exception):
 
 
 class Joblock(cnaas_nms.db.base.Base):
-    __tablename__ = 'joblock'
-    job_id = Column(Integer, ForeignKey('job.id'), unique=True, primary_key=True)
+    __tablename__ = "joblock"
+    job_id = Column(Integer, ForeignKey("job.id"), unique=True, primary_key=True)
     job = relationship("Job", foreign_keys=[job_id])
     name = Column(String(32), unique=True, nullable=False)
     start_time = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
@@ -44,8 +43,7 @@ class Joblock(cnaas_nms.db.base.Base):
         return True
 
     @classmethod
-    def release_lock(cls, session: sqla_session, name: Optional[str] = None,
-                     job_id: Optional[int] = None):
+    def release_lock(cls, session: sqla_session, name: Optional[str] = None, job_id: Optional[int] = None):
         if job_id:
             curlock = session.query(Joblock).filter(Joblock.job_id == job_id).one_or_none()
         elif name:
@@ -61,9 +59,11 @@ class Joblock(cnaas_nms.db.base.Base):
         return True
 
     @classmethod
-    def get_lock(cls, session: sqla_session, name: Optional[str] = None,
-                 job_id: Optional[int] = None) -> Optional[Dict[str, str]]:
+    def get_lock(
+        cls, session: sqla_session, name: Optional[str] = None, job_id: Optional[int] = None
+    ) -> Optional[Dict[str, str]]:
         """
+        Get job lock.
 
         Args:
             session: SQLAlchemy session context manager
@@ -91,4 +91,3 @@ class Joblock(cnaas_nms.db.base.Base):
     def clear_locks(cls, session: sqla_session):
         """Clear/release all locks in the database."""
         return session.query(Joblock).delete()
-

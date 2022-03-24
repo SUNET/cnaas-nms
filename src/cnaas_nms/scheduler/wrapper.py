@@ -2,7 +2,6 @@ import traceback
 import threading
 
 from typing import Optional
-
 from cnaas_nms.db.job import Job
 from cnaas_nms.scheduler.jobresult import JobResult
 from cnaas_nms.tools.log import get_logger
@@ -29,8 +28,8 @@ def insert_job_id(result: JobResult, job_id: int) -> JobResult:
 def update_device_progress(job_id: int):
     new_finished_devices = []
     with redis_session() as db:
-        while db.llen('finished_devices_' + str(job_id)) != 0:
-            last_finished = db.lpop('finished_devices_' + str(job_id))
+        while db.llen("finished_devices_" + str(job_id)) != 0:
+            last_finished = db.lpop("finished_devices_" + str(job_id))
             new_finished_devices.append(last_finished)
 
     if new_finished_devices:
@@ -49,20 +48,24 @@ def update_device_progress_thread(stop_event: threading.Event, job_id: int):
 
 
 def job_wrapper(func):
-    """Decorator to save job status in job tracker database."""
-    def wrapper(job_id: int, scheduled_by: str, kwargs={}):
+    """Decorate to save job status in job tracker database."""
+
+    def wrapper(job_id: int, scheduled_by: str, kwargs: Optional[dict] = None):
+        if kwargs is None:
+            kwargs = {}
+
         if not job_id or not type(job_id) == int:
             errmsg = "Missing job_id when starting job for {}".format(func.__name__)
             logger.error(errmsg)
             raise ValueError(errmsg)
-        progress_funcitons = ['sync_devices', 'device_upgrade']
+        progress_funcitons = ["sync_devices", "device_upgrade"]
         with sqla_session() as session:
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             if not job:
                 errmsg = "Could not find job_id {} in database".format(job_id)
                 logger.error(errmsg)
                 raise ValueError(errmsg)
-            kwargs['job_id'] = job_id
+            kwargs["job_id"] = job_id
             # Don't send new function name unless it was set to "wrapper"
             function_name = None
             if job.function_name == "wrapper":
@@ -70,8 +73,7 @@ def job_wrapper(func):
             job.start_job(function_name=function_name)
             if func.__name__ in progress_funcitons:
                 stop_event = threading.Event()
-                device_thread = threading.Thread(target=update_device_progress_thread,
-                                                 args=(stop_event, job_id))
+                device_thread = threading.Thread(target=update_device_progress_thread, args=(stop_event, job_id))
                 device_thread.start()
         try:
             set_thread_data(job_id)
@@ -107,4 +109,5 @@ def job_wrapper(func):
                 job.finish_success(res, find_nextjob(res))
                 session.commit()
             return res
+
     return wrapper

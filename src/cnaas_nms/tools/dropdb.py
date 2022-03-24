@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+# flake8: noqa
 import sys
 
 from cnaas_nms.app_settings import app_settings
@@ -19,9 +19,8 @@ print(Site.__table__)
 
 print("Do you really want to drop ALL tables? (yes/NO): ")
 ans = input()
-if ans.lower() != 'yes':
+if ans.lower() != "yes":
     sys.exit(0)
 
 
 print(Base.metadata.drop_all(engine))
-

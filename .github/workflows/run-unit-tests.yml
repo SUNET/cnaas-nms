@@ -1,5 +1,5 @@
 name: Run CNaaS-NMS unit tests
-on: push
+on: [push, workflow_dispatch]
 
 jobs:
   docker-tests:

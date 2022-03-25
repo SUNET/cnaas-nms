@@ -271,6 +271,7 @@ def populate_device_vars(session, dev: Device,
                     fabric_device_variables['interfaces'].append({
                         'name': intf['name'],
                         'ifclass': intf['ifclass'],
+                        'redundant_link': intf['redundant_link'],
                         'indexnum': ifindexnum,
                         'data': data
                     })

@@ -195,7 +195,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
             neighbors.append(neighbor)
 
         if len(uplinks) <= 0:
-            raise Exception(
+            raise InitVerificationError(
                 "No uplink neighbors found for device id: {} ({})".format(dev.id, dev.hostname))
         elif len(uplinks) == 1 and redundant_uplinks == 0:
             logger.debug(
@@ -208,7 +208,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                     dev.id, dev.hostname, uplinks
                 ))
         else:
-            raise Exception(
+            raise InitVerificationError(
                 ("Incompatible uplink neighbors found for device id {} ({}): "
                  """{} - {} has redundancy required ("redundant_link" setting)""").format(
                     dev.id, dev.hostname, uplinks, redundant_uplinks

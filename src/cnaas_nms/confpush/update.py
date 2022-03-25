@@ -262,9 +262,11 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                                                  remote_device_inst.model
                                                  )
 
+        local_device_inst_copy = local_device_inst
+        local_device_inst_copy.device_type = devtype
         redundant_link = verify_peer_iftype(
             session,
-            local_device_inst, local_device_settings, local_if,
+            local_device_inst_copy, local_device_settings, local_if,
             remote_device_inst, remote_device_settings, data[0]['port'])
 
         # Check if linknet object already exists in database

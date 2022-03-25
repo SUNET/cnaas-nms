@@ -3,3 +3,50 @@ init_access_old_hostname: mac-0800275C091F
 init_access_new_hostname: eosaccess
 update_hostname: mac-0800275C091F
 copycert_hostname: eosdist1
+linknet_redundant:
+  - description: null
+    device_a_hostname: eosaccess
+    device_a_ip: null
+    device_a_port: Ethernet2
+    device_b_hostname: eosdist1
+    device_b_ip: null
+    device_b_port: Ethernet2
+    ipv4_network: null
+    redundant_link: true
+    site_id: null
+  - description: null
+    device_a_hostname: eosaccess
+    device_a_ip: null
+    device_a_port: Ethernet3
+    device_b_hostname: eosdist2
+    device_b_ip: null
+    device_b_port: Ethernet2
+    ipv4_network: null
+    redundant_link: true
+    site_id: null
+linknet_nonredundant:
+  - description: null
+    device_a_hostname: eosaccess
+    device_a_ip: null
+    device_a_port: Ethernet2
+    device_b_hostname: eosdist1
+    device_b_ip: null
+    device_b_port: Ethernet20
+    ipv4_network: null
+    redundant_link: false
+    site_id: null
+lldp_data_redundant:
+  Ethernet2:
+    - hostname: eosdist1
+      port: Ethernet2
+  Ethernet3:
+    - hostname: eosdist2
+      port: Ethernet2
+lldp_data_nonredundant:
+  Ethernet2:
+    - hostname: eosdist1
+      port: Ethernet20
+lldp_data_nonredundant_error:
+  Ethernet2:
+    - hostname: eosdist1
+      port: Ethernet2

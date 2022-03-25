@@ -2,11 +2,13 @@ import unittest
 import pkg_resources
 import yaml
 import os
+from typing import Optional
 
 from cnaas_nms.confpush.update import update_linknets
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import DeviceType
+from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.interface import InterfaceError
+from cnaas_nms.confpush.init_device import pre_init_check_neighbors, InitVerificationError
 
 
 class UpdateTests(unittest.TestCase):
@@ -15,25 +17,29 @@ class UpdateTests(unittest.TestCase):
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
 
+    def get_linknets(self, session, neighbors_data: Optional[dict] = None,
+                     hostname: str = "eosaccess"):
+        if not neighbors_data:
+            neighbors_data = self.testdata['lldp_data_redundant']
+        return update_linknets(session, hostname=hostname,
+                               devtype=DeviceType.ACCESS, ztp_hostname=hostname,
+                               dry_run=True, neighbors_arg=neighbors_data)
+
     def test_update_linknet_eosaccess(self):
         with sqla_session() as session:
-            neighbors_data = {
-                "Ethernet2": [{"hostname": "eosdist1", "port": "Ethernet2"}],
-                "Ethernet3": [{"hostname": "eosdist2", "port": "Ethernet2"}],
-            }
-            linknets = update_linknets(session, hostname="eosaccess",
-                                       devtype=DeviceType.ACCESS, ztp_hostname="eosaccess",
-                                       dry_run=True, neighbors_arg=neighbors_data)
+            linknets = self.get_linknets(session)
             self.assertListEqual(
                 linknets,
-                [{'description': None, 'device_a_hostname': 'eosaccess', 'device_a_ip': None,
-                  'device_a_port': 'Ethernet2', 'device_b_hostname': 'eosdist1',
-                  'device_b_ip': None, 'device_b_port': 'Ethernet2', 'ipv4_network': None,
-                  'redundant_link': True, 'site_id': None},
-                 {'description': None, 'device_a_hostname': 'eosaccess', 'device_a_ip': None,
-                  'device_a_port': 'Ethernet3', 'device_b_hostname': 'eosdist2',
-                  'device_b_ip': None, 'device_b_port': 'Ethernet2', 'ipv4_network': None,
-                  'redundant_link': True, 'site_id': None}],
+                self.testdata['linknet_redundant'],
+                "Update linknets returned unexpected data for eosaccess links"
+            )
+
+    def test_update_linknet_eosaccess_nonredundant(self):
+        with sqla_session() as session:
+            linknets = self.get_linknets(session, self.testdata['lldp_data_nonredundant'])
+            self.assertListEqual(
+                linknets,
+                self.testdata['linknet_nonredundant'],
                 "Update linknets returned unexpected data for eosaccess links"
             )
 
@@ -47,6 +53,33 @@ class UpdateTests(unittest.TestCase):
                 InterfaceError, update_linknets, session, hostname="eosaccess",
                 devtype=DeviceType.ACCESS, ztp_hostname="eosaccess",
                 dry_run=True, neighbors_arg=neighbors_data)
+
+    def test_pre_init_check_access_redundant(self):
+        with sqla_session() as session:
+            linknets = self.get_linknets(session)
+            dev: Device = session.query(Device).filter(Device.hostname == "eosaccess").one()
+            self.assertListEqual(
+                pre_init_check_neighbors(session, dev, DeviceType.ACCESS, linknets),
+                ['eosdist1', 'eosdist2']
+            )
+
+    def test_pre_init_check_access_nonredundant(self):
+        with sqla_session() as session:
+            linknets = self.get_linknets(session, self.testdata['lldp_data_nonredundant'])
+            dev: Device = session.query(Device).filter(Device.hostname == "eosaccess").one()
+            self.assertListEqual(
+                pre_init_check_neighbors(session, dev, DeviceType.ACCESS, linknets),
+                ['eosdist1']
+            )
+
+    def test_pre_init_check_access_nonredundant_error(self):
+        with sqla_session() as session:
+            linknets = self.get_linknets(session, self.testdata['lldp_data_nonredundant_error'])
+            dev: Device = session.query(Device).filter(Device.hostname == "eosaccess").one()
+            self.assertRaises(
+                InitVerificationError,
+                pre_init_check_neighbors, session, dev, DeviceType.ACCESS, linknets
+            )
 
 
 if __name__ == '__main__':

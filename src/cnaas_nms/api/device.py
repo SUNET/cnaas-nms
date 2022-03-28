@@ -428,7 +428,7 @@ class DeviceInitCheckApi(Resource):
         with sqla_session() as session:
             try:
                 dev = cnaas_nms.confpush.init_device.pre_init_checks(session, device_id)
-                ret['linknets'] = dev.get_linknets()
+                ret['linknets'] = dev.get_linknets(session)
             except ValueError as e:
                 return empty_result(status='error',
                                     data="ValueError in pre_init_checks: {}".format(e)), 400
@@ -440,7 +440,7 @@ class DeviceInitCheckApi(Resource):
                 try:
                     mlag_peer_dev = cnaas_nms.confpush.init_device.pre_init_checks(
                         session, mlag_peer_id)
-                    ret['linknets'] += mlag_peer_dev.get_linknets()
+                    ret['linknets'] += mlag_peer_dev.get_linknets(session)
                 except ValueError as e:
                     return empty_result(status='error',
                                         data="ValueError in pre_init_checks: {}".format(e)), 400

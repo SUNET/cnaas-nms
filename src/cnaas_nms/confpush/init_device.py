@@ -345,7 +345,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
-            linknets += mlag_peer_dev.get_linknets()
+            linknets += mlag_peer_dev.get_linknets(session)
             linknets += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)

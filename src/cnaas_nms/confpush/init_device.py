@@ -166,6 +166,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
     if devtype == DeviceType.ACCESS:
         neighbors = []
         uplinks = []
+        mlag_peers = []
         redundant_uplinks = 0
         for linknet in linknets:
             if linknet['device_a_hostname'] == linknet['device_b_hostname']:
@@ -188,17 +189,16 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 filter(Device.hostname == neighbor).one_or_none()
             if not neighbor_dev:
                 raise NeighborError("Neighbor device {} not found in database".format(neighbor))
-            if neighbor_dev.device_type in [DeviceType.ACCESS, DeviceType.DIST]:
+
+            if mlag_peer_dev and mlag_peer_dev == neighbor_dev:
+                mlag_peers.append(neighbor)
+            elif neighbor_dev.device_type in [DeviceType.ACCESS, DeviceType.DIST]:
                 if 'redundant_link' in linknet:
                     if linknet['redundant_link']:
                         redundant_uplinks += 1
                 else:
                     redundant_uplinks += 1
-                if mlag_peer_dev and mlag_peer_dev == neighbor_dev:
-                    # Don't add MLAG peer device as uplink
-                    pass
-                else:
-                    uplinks.append(neighbor)
+                uplinks.append(neighbor)
 
             neighbors.append(neighbor)
 
@@ -220,6 +220,13 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 ("Incompatible uplink neighbors found for device id {} ({}): "
                  """{} - {} has redundancy required ("redundant_link" setting)""").format(
                     dev.id, dev.hostname, uplinks, redundant_uplinks
+                ))
+
+        if mlag_peer_dev and len(mlag_peers) < 2:
+            raise InitVerificationError(
+                ("MLAG requires at least two MLAG peer links, {} found for"
+                 "device id {} ({})").format(
+                    len(mlag_peers), dev.id, dev.hostname
                 ))
 
         try:

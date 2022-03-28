@@ -143,6 +143,12 @@ class Device(cnaas_nms.db.base.Base):
             ret.append(linknet)
         return ret
 
+    def get_linknets_as_dict(self, session):
+        ret = []
+        for linknet in self.get_linknets(session):
+            ret.append(linknet.as_dict())
+        return ret
+
     def get_linknet_localif_mapping(self, session) -> dict[str, str]:
         """Return a mapping with local interface name and what peer device hostname
         that interface is connected to."""

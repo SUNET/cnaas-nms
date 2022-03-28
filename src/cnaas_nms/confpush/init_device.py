@@ -336,16 +336,17 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     logger = get_logger()
     with sqla_session() as session:
         dev = pre_init_checks(session, device_id)
-        new_linknets = []
+        linknets = dev.get_linknets(session)
         mlag_peer_dev: Optional[Device] = None
 
         # update linknets using LLDP data
-        new_linknets += update_linknets(session, dev.hostname, DeviceType.ACCESS)
+        linknets += update_linknets(session, dev.hostname, DeviceType.ACCESS)
 
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
-            new_linknets += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
+            linknets += mlag_peer_dev.get_linknets()
+            linknets += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
@@ -367,7 +368,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
         try:
             verified_neighbors = pre_init_check_neighbors(
-                session, dev, DeviceType.ACCESS, new_linknets, mlag_peer_dev=mlag_peer_dev)
+                session, dev, DeviceType.ACCESS, linknets, mlag_peer_dev=mlag_peer_dev)
             logger.debug("Found valid neighbors for INIT of {}: {}".format(
                 new_hostname, ", ".join(verified_neighbors)
             ))
@@ -432,7 +433,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         if reserved_ip:
             session.delete(reserved_ip)
         # Mark remote peers as unsynchronized so they can update interface descriptions
-        for linknet in new_linknets:
+        for linknet in linknets:
             peer_hostname = linknet['device_b_hostname']
             peer_dev: Device = session.query(Device).filter(Device.hostname == peer_hostname).one_or_none()
             if peer_dev:

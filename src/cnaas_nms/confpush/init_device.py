@@ -194,7 +194,11 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                         redundant_uplinks += 1
                 else:
                     redundant_uplinks += 1
-                uplinks.append(neighbor)
+                if mlag_peer_dev and mlag_peer_dev == neighbor_dev:
+                    # Don't add MLAG peer device as uplink
+                    pass
+                else:
+                    uplinks.append(neighbor)
 
             neighbors.append(neighbor)
 
@@ -372,12 +376,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
         try:
             linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
-            verified_neighbors = pre_init_check_neighbors(
-                session, dev, DeviceType.ACCESS, linknets, mlag_peer_dev=mlag_peer_dev)
-            logger.debug("Found valid neighbors for INIT of {}: {}".format(
-                new_hostname, ", ".join(verified_neighbors)
-            ))
-            check_neighbor_sync(session, verified_neighbors)
+            # Verify uplink neighbors only for first device in MLAG pair
+            if not uplink_hostnames_arg:
+                verified_neighbors = pre_init_check_neighbors(
+                    session, dev, DeviceType.ACCESS, linknets, mlag_peer_dev=mlag_peer_dev)
+                logger.debug("Found valid neighbors for INIT of {}: {}".format(
+                    new_hostname, ", ".join(verified_neighbors)
+                ))
+                check_neighbor_sync(session, verified_neighbors)
         except DeviceSyncError as e:
             logger.warn("Uplink device not in sync during init of {}: {}".format(
                 new_hostname, e

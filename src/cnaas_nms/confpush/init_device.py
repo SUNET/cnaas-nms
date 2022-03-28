@@ -175,6 +175,11 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 neighbor = linknet['device_b_hostname']
             elif linknet['device_b_hostname'] == dev.hostname:
                 neighbor = linknet['device_a_hostname']
+            elif mlag_peer_dev:
+                if linknet['device_a_hostname'] == mlag_peer_dev.hostname:
+                    neighbor = linknet['device_b_hostname']
+                elif linknet['device_b_hostname'] == mlag_peer_dev.hostname:
+                    neighbor = linknet['device_a_hostname']
             else:
                 raise Exception("Own hostname not found in linknet")
             neighbor_dev: Device = session.query(Device). \

@@ -188,7 +188,10 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
             if not neighbor_dev:
                 raise NeighborError("Neighbor device {} not found in database".format(neighbor))
             if neighbor_dev.device_type in [DeviceType.ACCESS, DeviceType.DIST]:
-                if linknet['redundant_link']:
+                if 'redundant_link' in linknet:
+                    if linknet['redundant_link']:
+                        redundant_uplinks += 1
+                else:
                     redundant_uplinks += 1
                 uplinks.append(neighbor)
 

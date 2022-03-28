@@ -304,6 +304,25 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                     )
             ):
                 if not dry_run:
+                    if check_linknet.device_a_id == local_devid:
+                        ret_dict = {
+                            'device_a_hostname': local_device_inst.hostname,
+                            'device_b_hostname': remote_device_inst.hostname,
+                        }
+                    else:
+                        ret_dict = {
+                            'device_a_hostname': remote_device_inst.hostname,
+                            'device_b_hostname': local_device_inst.hostname,
+                        }
+                    ret_dict = {
+                        **ret_dict,
+                        'redundant_link': redundant_link,
+                        **check_linknet.as_dict()
+                    }
+                    del ret_dict['id']
+                    del ret_dict['device_a_id']
+                    del ret_dict['device_b_id']
+                    ret.append({k: ret_dict[k] for k in sorted(ret_dict)})
                     # All info is the same, no update required
                     continue
             else:

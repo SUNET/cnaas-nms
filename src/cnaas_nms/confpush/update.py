@@ -320,8 +320,6 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                         **check_linknet.as_dict()
                     }
                     del ret_dict['id']
-                    del ret_dict['device_a_id']
-                    del ret_dict['device_b_id']
                     ret.append({k: ret_dict[k] for k in sorted(ret_dict)})
                     # All info is the same, no update required
                     continue
@@ -361,7 +359,5 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
             **new_link.as_dict()
         }
         del ret_dict['id']
-        del ret_dict['device_a_id']
-        del ret_dict['device_b_id']
         ret.append({k: ret_dict[k] for k in sorted(ret_dict)})
     return ret

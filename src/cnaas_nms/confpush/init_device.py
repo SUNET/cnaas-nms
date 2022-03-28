@@ -172,17 +172,9 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
             if linknet['device_a_hostname'] == linknet['device_b_hostname']:
                 continue  # don't add loopback cables as neighbors
             elif linknet['device_a_hostname'] == dev.hostname:
-                if mlag_peer_dev and linknet['device_b_hostname'] == mlag_peer_dev.hostname:
-                    continue  # only add mlag peer linknet in one direction to avoid duplicate
-                else:
-                    neighbor = linknet['device_b_hostname']
+                neighbor = linknet['device_b_hostname']
             elif linknet['device_b_hostname'] == dev.hostname:
                 neighbor = linknet['device_a_hostname']
-            elif mlag_peer_dev:
-                if linknet['device_a_hostname'] == mlag_peer_dev.hostname:
-                    neighbor = linknet['device_b_hostname']
-                elif linknet['device_b_hostname'] == mlag_peer_dev.hostname:
-                    neighbor = linknet['device_a_hostname']
             else:
                 raise Exception("Own hostname not found in linknet")
             neighbor_dev: Device = session.query(Device). \

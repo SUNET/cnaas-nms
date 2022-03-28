@@ -262,7 +262,10 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                                                  remote_device_inst.model
                                                  )
 
-        local_device_inst_copy = local_device_inst
+        local_device_inst_copy = Device(
+            hostname=local_device_inst.hostname,
+            device_type=local_device_inst.device_typ
+        )
         local_device_inst_copy.device_type = devtype
         redundant_link = verify_peer_iftype(
             session,

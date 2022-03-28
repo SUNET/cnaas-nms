@@ -22,6 +22,7 @@ from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups, get_device_primary_groups, \
     update_device_primary_groups
+from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 
@@ -411,6 +412,7 @@ class DeviceInitCheckApi(Resource):
         """Perform init check on a device"""
         json_data = request.get_json()
         ret = {}
+        linknets_all = []
         try:
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
             target_devtype = DeviceType[parsed_args['device_type']]
@@ -428,7 +430,7 @@ class DeviceInitCheckApi(Resource):
         with sqla_session() as session:
             try:
                 dev = cnaas_nms.confpush.init_device.pre_init_checks(session, device_id)
-                ret['linknets'] = dev.get_linknets_as_dict(session)
+                linknets_all = dev.get_linknets_as_dict(session)
             except ValueError as e:
                 return empty_result(status='error',
                                     data="ValueError in pre_init_checks: {}".format(e)), 400
@@ -440,7 +442,7 @@ class DeviceInitCheckApi(Resource):
                 try:
                     mlag_peer_dev = cnaas_nms.confpush.init_device.pre_init_checks(
                         session, mlag_peer_id)
-                    ret['linknets'] += mlag_peer_dev.get_linknets_as_dict(session)
+                    linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
                 except ValueError as e:
                     return empty_result(status='error',
                                         data="ValueError in pre_init_checks: {}".format(e)), 400
@@ -449,7 +451,7 @@ class DeviceInitCheckApi(Resource):
                                         data="Exception in pre_init_checks: {}".format(e)), 500
 
             try:
-                ret['linknets'] += cnaas_nms.confpush.update.update_linknets(
+                linknets_all += cnaas_nms.confpush.update.update_linknets(
                     session,
                     hostname=dev.hostname,
                     devtype=target_devtype,
@@ -457,13 +459,14 @@ class DeviceInitCheckApi(Resource):
                     dry_run=True
                 )
                 if mlag_peer_dev:
-                    ret['linknets'] += cnaas_nms.confpush.update.update_linknets(
+                    linknets_all += cnaas_nms.confpush.update.update_linknets(
                         session,
                         hostname=mlag_peer_dev.hostname,
                         devtype=target_devtype,
                         ztp_hostname=mlag_peer_target_hostname,
                         dry_run=True
                     )
+                ret['linknets'] = Linknet.deduplicate_linknet_dicts(linknets_all)
                 ret['linknets_compatible'] = True
             except ValueError as e:
                 ret['linknets_compatible'] = False

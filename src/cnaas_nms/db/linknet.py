@@ -1,7 +1,7 @@
 import ipaddress
 import enum
 import datetime
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import Column, Integer, Unicode, UniqueConstraint
 from sqlalchemy import ForeignKey
@@ -51,6 +51,33 @@ class Linknet(cnaas_nms.db.base.Base):
                 value = str(value)
             d[col.name] = value
         return d
+
+    @staticmethod
+    def deduplicate_linknet_dicts(linknets: List[dict]) -> List[dict]:
+        """Take a list of dicts as returned from Device.get_linknets_as_dict
+        and return a list of dicts without any duplicate entries based on
+        hostname+port combinations."""
+        populated_links = []
+        ret = []
+        for linknet in linknets:
+            linknet_str_a = ':'.join([
+                linknet['device_a_hostname'],
+                linknet['device_a_port'],
+                linknet['device_b_hostname'],
+                linknet['device_b_port'],
+            ])
+            linknet_str_b = ':'.join([
+                linknet['device_b_hostname'],
+                linknet['device_b_port'],
+                linknet['device_a_hostname'],
+                linknet['device_a_port'],
+            ])
+            if linknet_str_a in populated_links or linknet_str_b in populated_links:
+                continue
+            populated_links.append(linknet_str_a)
+            populated_links.append(linknet_str_b)
+            ret.append(linknet)
+        return ret
 
     @classmethod
     def create_linknet(cls, session, hostname_a: str, interface_a: str, hostname_b: str,

@@ -18,6 +18,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType, \
     DeviceError, DeviceStateError, DeviceSyncError
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
@@ -339,17 +340,17 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     logger = get_logger()
     with sqla_session() as session:
         dev = pre_init_checks(session, device_id)
-        linknets = dev.get_linknets_as_dict(session)
+        linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None
 
         # update linknets using LLDP data
-        linknets += update_linknets(session, dev.hostname, DeviceType.ACCESS)
+        linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS)
 
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
-            linknets += mlag_peer_dev.get_linknets_as_dict(session)
-            linknets += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
+            linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
+            linknets_all += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
@@ -370,6 +371,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         try:
+            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
             verified_neighbors = pre_init_check_neighbors(
                 session, dev, DeviceType.ACCESS, linknets, mlag_peer_dev=mlag_peer_dev)
             logger.debug("Found valid neighbors for INIT of {}: {}".format(
@@ -437,7 +439,10 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             session.delete(reserved_ip)
         # Mark remote peers as unsynchronized so they can update interface descriptions
         for linknet in linknets:
-            peer_hostname = linknet['device_b_hostname']
+            if linknet['device_a_id'] == device_id:
+                peer_hostname = linknet['device_b_hostname']
+            else:
+                peer_hostname = linknet['device_a_hostname']
             peer_dev: Device = session.query(Device).filter(Device.hostname == peer_hostname).one_or_none()
             if peer_dev:
                 peer_dev.synchronized = False

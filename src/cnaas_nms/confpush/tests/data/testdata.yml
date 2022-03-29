@@ -7,8 +7,10 @@ linknet_redundant:
   - description: null
     device_a_hostname: eosaccess
     device_a_ip: null
+    device_a_id: null
     device_a_port: Ethernet2
     device_b_hostname: eosdist1
+    device_b_id: null
     device_b_ip: null
     device_b_port: Ethernet2
     ipv4_network: null
@@ -17,9 +19,11 @@ linknet_redundant:
   - description: null
     device_a_hostname: eosaccess
     device_a_ip: null
+    device_a_id: null
     device_a_port: Ethernet3
     device_b_hostname: eosdist2
     device_b_ip: null
+    device_b_id: null
     device_b_port: Ethernet2
     ipv4_network: null
     redundant_link: true
@@ -28,9 +32,11 @@ linknet_nonredundant:
   - description: null
     device_a_hostname: eosaccess
     device_a_ip: null
+    device_a_id: null
     device_a_port: Ethernet2
     device_b_hostname: eosdist1
     device_b_ip: null
+    device_b_id: null
     device_b_port: Ethernet20
     ipv4_network: null
     redundant_link: false

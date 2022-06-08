@@ -11,6 +11,10 @@ import cnaas_nms.db.base
 import cnaas_nms.db.device
 
 
+class InterfaceError(Exception):
+    pass
+
+
 class InterfaceConfigType(enum.Enum):
     UNKNOWN = 0
     UNMANAGED = 1

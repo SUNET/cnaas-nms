@@ -1,5 +1,5 @@
 import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from nornir_napalm.plugins.tasks import napalm_get
 
@@ -203,14 +203,25 @@ def update_facts(hostname: str,
 
 
 def update_linknets(session, hostname: str, devtype: DeviceType,
-                    ztp_hostname: Optional[str] = None, dry_run: bool = False) -> List[dict]:
+                    ztp_hostname: Optional[str] = None, dry_run: bool = False,
+                    neighbors_arg: Optional[Dict[str, list]] = None) -> List[dict]:
     """Update linknet data for specified device using LLDP neighbor data.
+
+    Returns:
+        List[dict]: List of linknets as dict, extra field redundant_link
+                    added in each dict defaults to true
+
+    Raises:
+        InterfaceError: incompatible interfaces found by verify_peer_iftype
     """
     logger = get_logger()
-    result = get_neighbors(hostname=hostname)[hostname][0]
-    if result.failed:
-        raise Exception("Could not get LLDP neighbors for {}".format(hostname))
-    neighbors = result.result['lldp_neighbors']
+    if neighbors_arg:
+        neighbors = neighbors_arg
+    else:
+        result = get_neighbors(hostname=hostname)[hostname][0]
+        if result.failed:
+            raise Exception("Could not get LLDP neighbors for {}".format(hostname))
+        neighbors = result.result['lldp_neighbors']
     if ztp_hostname:
         settings_hostname = ztp_hostname
     else:
@@ -219,8 +230,8 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
     ret = []
 
     local_device_inst: Device = session.query(Device).filter(Device.hostname == hostname).one()
-    logger.debug("Updating linknets for device {} of type {}...".format(
-        local_device_inst.id, devtype.name))
+    logger.debug("Updating linknets for device id {} ({}) of type {}...".format(
+        local_device_inst.id, settings_hostname, devtype.name))
 
     for local_if, data in neighbors.items():
         logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
@@ -251,10 +262,15 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                                                  remote_device_inst.model
                                                  )
 
-        verify_peer_iftype(hostname, devtype,
-                           local_device_settings, local_if,
-                           remote_device_inst.hostname, remote_device_inst.device_type,
-                           remote_device_settings, data[0]['port'])
+        local_device_inst_copy = Device(
+            hostname=local_device_inst.hostname,
+            device_type=local_device_inst.device_type
+        )
+        local_device_inst_copy.device_type = devtype
+        redundant_link = verify_peer_iftype(
+            session,
+            local_device_inst_copy, local_device_settings, local_if,
+            remote_device_inst, remote_device_settings, data[0]['port'])
 
         # Check if linknet object already exists in database
         local_devid = local_device_inst.id
@@ -287,8 +303,26 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                         and check_linknet.device_b_port == data[0]['port']
                     )
             ):
-                # All info is the same, no update required
-                continue
+                if not dry_run:
+                    if check_linknet.device_a_id == local_devid:
+                        ret_dict = {
+                            'device_a_hostname': local_device_inst.hostname,
+                            'device_b_hostname': remote_device_inst.hostname,
+                        }
+                    else:
+                        ret_dict = {
+                            'device_a_hostname': remote_device_inst.hostname,
+                            'device_b_hostname': local_device_inst.hostname,
+                        }
+                    ret_dict = {
+                        **ret_dict,
+                        'redundant_link': redundant_link,
+                        **check_linknet.as_dict()
+                    }
+                    del ret_dict['id']
+                    ret.append({k: ret_dict[k] for k in sorted(ret_dict)})
+                    # All info is the same, no update required
+                    continue
             else:
                 # TODO: update instead of delete+new insert?
                 if not dry_run:
@@ -321,10 +355,9 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
         ret_dict = {
             'device_a_hostname': local_device_inst.hostname,
             'device_b_hostname': remote_device_inst.hostname,
+            'redundant_link': redundant_link,
             **new_link.as_dict()
         }
         del ret_dict['id']
-        del ret_dict['device_a_id']
-        del ret_dict['device_b_id']
         ret.append({k: ret_dict[k] for k in sorted(ret_dict)})
     return ret

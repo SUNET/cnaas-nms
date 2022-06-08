@@ -23,11 +23,15 @@ from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.tools.event import add_event
 
 
-class DeviceException(Exception):
+class DeviceError(Exception):
     pass
 
 
-class DeviceStateException(DeviceException):
+class DeviceStateError(DeviceError):
+    pass
+
+
+class DeviceSyncError(DeviceError):
     pass
 
 
@@ -139,6 +143,18 @@ class Device(cnaas_nms.db.base.Base):
             ret.append(linknet)
         return ret
 
+    def get_linknets_as_dict(self, session):
+        ret = []
+        for linknet in self.get_linknets(session):
+            linknet_dict = linknet.as_dict()
+            linknet_dict = {
+                'device_a_hostname': linknet.device_a.hostname,
+                'device_b_hostname': linknet.device_b.hostname,
+                **linknet_dict
+            }
+            ret.append(linknet_dict)
+        return ret
+
     def get_linknet_localif_mapping(self, session) -> dict[str, str]:
         """Return a mapping with local interface name and what peer device hostname
         that interface is connected to."""
@@ -244,7 +260,7 @@ class Device(cnaas_nms.db.base.Base):
                 elif linknet.device_b == self and linknet.device_b_port == intf.name:
                     peers.add(linknet.device_a)
         if len(peers) > 1:
-            raise DeviceException("More than one MLAG peer found: {}".format(
+            raise DeviceError("More than one MLAG peer found: {}".format(
                 [x.hostname for x in peers]
             ))
         elif len(peers) == 1:
@@ -253,7 +269,7 @@ class Device(cnaas_nms.db.base.Base):
                 # Ignore check during INIT, one device might be UNKNOWN
                 pass
             elif self.device_type != peer_devtype:
-                raise DeviceException("MLAG peers are not the same device type")
+                raise DeviceError("MLAG peers are not the same device type")
             return next(iter(peers))
         else:
             return None

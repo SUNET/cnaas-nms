@@ -163,6 +163,13 @@ class InterfaceApi(Resource):
                                 errors.append(
                                     "bpdu_filter must be a bool, true or false, got: {}".
                                     format(if_dict['data']['bpdu_filter']))
+                        if 'redundant_link' in if_dict['data']:
+                            if type(if_dict['data']['redundant_link']) == bool:
+                                intfdata['redundant_link'] = if_dict['data']['redundant_link']
+                            else:
+                                errors.append(
+                                    "redundant_link must be a bool, true or false, got: {}".
+                                    format(if_dict['data']['redundant_link']))
                         if 'tags' in if_dict['data']:
                             if isinstance(if_dict['data']['tags'], list):
                                 intfdata['tags'] = if_dict['data']['tags']

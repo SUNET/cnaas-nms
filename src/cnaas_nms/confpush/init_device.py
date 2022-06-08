@@ -15,8 +15,10 @@ import cnaas_nms.confpush.underlay
 import cnaas_nms.db.helper
 from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.device import Device, DeviceState, DeviceType, DeviceStateException
+from cnaas_nms.db.device import Device, DeviceState, DeviceType, \
+    DeviceError, DeviceStateError, DeviceSyncError
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
@@ -119,7 +121,7 @@ def pre_init_checks(session, device_id) -> Device:
     if not dev:
         raise ValueError(f"No device with id {device_id} found")
     if dev.state != DeviceState.DISCOVERED:
-        raise DeviceStateException("Device must be in state DISCOVERED to begin init")
+        raise DeviceStateError("Device must be in state DISCOVERED to begin init")
     old_hostname = dev.hostname
     # Perform connectivity check
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
@@ -145,8 +147,13 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
         devtype: The target device type (not the same as current during init)
         linknets: List of linknets to check for compatible neighbors
         expected_neighbors: Optional list to manually specify neighbors
+        mlag_peer_dev: Optional device that is the MLAG peer
     Returns:
         List of compatible neighbor hostnames
+    Raises:
+        NeighborError: Neighbor not found
+        Exception: Generic error
+        InitVerificationError:
     """
     logger = get_logger()
     verified_neighbors = []
@@ -159,14 +166,13 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
     if devtype == DeviceType.ACCESS:
         neighbors = []
         uplinks = []
+        mlag_peers = []
+        redundant_uplinks = 0
         for linknet in linknets:
             if linknet['device_a_hostname'] == linknet['device_b_hostname']:
                 continue  # don't add loopback cables as neighbors
             elif linknet['device_a_hostname'] == dev.hostname:
-                if mlag_peer_dev and linknet['device_b_hostname'] == mlag_peer_dev.hostname:
-                    continue  # only add mlag peer linknet in one direction to avoid duplicate
-                else:
-                    neighbor = linknet['device_b_hostname']
+                neighbor = linknet['device_b_hostname']
             elif linknet['device_b_hostname'] == dev.hostname:
                 neighbor = linknet['device_a_hostname']
             elif mlag_peer_dev:
@@ -179,11 +185,47 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
             neighbor_dev: Device = session.query(Device). \
                 filter(Device.hostname == neighbor).one_or_none()
             if not neighbor_dev:
-                raise Exception("Neighbor device {} not found in database".format(neighbor))
-            if neighbor_dev.device_type in [DeviceType.ACCESS, DeviceType.DIST]:
+                raise NeighborError("Neighbor device {} not found in database".format(neighbor))
+
+            if mlag_peer_dev and mlag_peer_dev == neighbor_dev:
+                mlag_peers.append(neighbor)
+            elif neighbor_dev.device_type in [DeviceType.ACCESS, DeviceType.DIST]:
+                if 'redundant_link' in linknet:
+                    if linknet['redundant_link']:
+                        redundant_uplinks += 1
+                else:
+                    redundant_uplinks += 1
                 uplinks.append(neighbor)
 
             neighbors.append(neighbor)
+
+        if len(uplinks) <= 0:
+            raise InitVerificationError(
+                "No uplink neighbors found for device id: {} ({})".format(dev.id, dev.hostname))
+        elif len(uplinks) == 1 and redundant_uplinks == 0:
+            logger.debug(
+                "One non-redundant uplink neighbors found for device id {} ({}): {}".format(
+                    dev.id, dev.hostname, uplinks
+                ))
+        elif len(uplinks) == 2 and redundant_uplinks == 2:
+            logger.debug(
+                "Two redundant uplink neighbors found for device id {} ({}): {}".format(
+                    dev.id, dev.hostname, uplinks
+                ))
+        else:
+            raise InitVerificationError(
+                ("Incompatible uplink neighbors found for device id {} ({}): "
+                 """{} - {} has redundancy required ("redundant_link" setting)""").format(
+                    dev.id, dev.hostname, uplinks, redundant_uplinks
+                ))
+
+        if mlag_peer_dev and len(mlag_peers) < 2:
+            raise InitVerificationError(
+                ("MLAG requires at least two MLAG peer links, {} found for"
+                 "device id {} ({})").format(
+                    len(mlag_peers), dev.id, dev.hostname
+                ))
+
         try:
             cnaas_nms.db.helper.find_mgmtdomain(session, uplinks)
         except Exception as e:
@@ -207,7 +249,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
             neighbor_dev: Device = session.query(Device).\
                 filter(Device.hostname == neighbor).one_or_none()
             if not neighbor_dev:
-                raise Exception("Neighbor device {} not found in database".format(neighbor))
+                raise NeighborError("Neighbor device {} not found in database".format(neighbor))
             if devtype == DeviceType.CORE:
                 if neighbor_dev.device_type == DeviceType.DIST:
                     verified_neighbors.append(neighbor)
@@ -306,15 +348,17 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     logger = get_logger()
     with sqla_session() as session:
         dev = pre_init_checks(session, device_id)
-        new_linknets = []
+        linknets_all = dev.get_linknets_as_dict(session)
+        mlag_peer_dev: Optional[Device] = None
 
         # update linknets using LLDP data
-        new_linknets += update_linknets(session, dev.hostname, DeviceType.ACCESS)
+        linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS)
 
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
-            new_linknets += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
+            linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
+            linknets_all += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
                                       mlag_peer_hostname=mlag_peer_dev.hostname)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
@@ -333,6 +377,23 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         else:
             update_interfacedb_worker(session, dev, replace=True, delete_all=False)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
+
+        try:
+            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
+            # Verify uplink neighbors only for first device in MLAG pair
+            if not uplink_hostnames_arg:
+                verified_neighbors = pre_init_check_neighbors(
+                    session, dev, DeviceType.ACCESS, linknets, mlag_peer_dev=mlag_peer_dev)
+                logger.debug("Found valid neighbors for INIT of {}: {}".format(
+                    new_hostname, ", ".join(verified_neighbors)
+                ))
+                check_neighbor_sync(session, verified_neighbors)
+        except DeviceSyncError as e:
+            logger.warn("Uplink device not in sync during init of {}: {}".format(
+                new_hostname, e
+            ))
+        except (Exception, NeighborError) as e:
+            raise e
 
         # TODO: check compatability, same dist pair and same ports on dists
         mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, uplink_hostnames)
@@ -387,8 +448,11 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         if reserved_ip:
             session.delete(reserved_ip)
         # Mark remote peers as unsynchronized so they can update interface descriptions
-        for linknet in new_linknets:
-            peer_hostname = linknet['device_b_hostname']
+        for linknet in linknets:
+            if linknet['device_a_id'] == device_id:
+                peer_hostname = linknet['device_b_hostname']
+            else:
+                peer_hostname = linknet['device_a_hostname']
             peer_dev: Device = session.query(Device).filter(Device.hostname == peer_hostname).one_or_none()
             if peer_dev:
                 peer_dev.synchronized = False
@@ -441,14 +505,21 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
 
 def check_neighbor_sync(session, hostnames: List[str]):
+    """Check neighbor status.
+
+    Raises:
+        DeviceError: Device not found
+        DeviceStateError: Neighbor device not in correct state
+        DeviceSyncError: Neighbor device not synchronized
+    """
     for hostname in hostnames:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
-            raise NeighborError("Neighbor device {} not found".format(hostname))
+            raise DeviceError("Neighbor device {} not found".format(hostname))
         if not dev.state == DeviceState.MANAGED:
-            raise NeighborError("Neighbor device {} not in state MANAGED".format(hostname))
+            raise DeviceStateError("Neighbor device {} not in state MANAGED".format(hostname))
         if not dev.synchronized:
-            raise NeighborError("Neighbor device {} not synchronized".format(hostname))
+            raise DeviceSyncError("Neighbor device {} not synchronized".format(hostname))
     confcheck_devices(hostnames)
 
 
@@ -497,7 +568,7 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
                 new_hostname, ", ".join(verified_neighbors)
             ))
             check_neighbor_sync(session, verified_neighbors)
-        except Exception as e:
+        except (Exception, NeighborError) as e:
             raise e
 
         dev.device_type = devtype
@@ -623,7 +694,7 @@ def init_device_step2(device_id: int, iteration: int = -1,
         if dev.state != DeviceState.INIT:
             logger.error("Device with ID {} got to init step2 but is in incorrect state: {}".\
                          format(device_id, dev.state.name))
-            raise DeviceStateException("Device must be in state INIT to continue init step 2")
+            raise DeviceStateError("Device must be in state INIT to continue init step 2")
         hostname = dev.hostname
         devtype: DeviceType = dev.device_type
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()

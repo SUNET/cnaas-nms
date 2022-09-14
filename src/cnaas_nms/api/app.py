@@ -13,6 +13,7 @@ from flask_jwt_extended.exceptions import NoAuthorizationError
 from flask import jsonify
 from flask_cors import CORS
 
+from cnaas_nms.api.json import CNaaSJSONEncoder
 from cnaas_nms.version import __api_version__
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.app_settings import api_settings
@@ -76,6 +77,8 @@ class CnaasApi(Api):
 
 
 app = Flask(__name__)
+app.config['RESTX_JSON'] = {'cls': CNaaSJSONEncoder}
+
 # TODO: make origins configurable
 cors = CORS(app,
             resources={r"/api/*": {"origins": "*"}},

@@ -387,7 +387,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 logger.debug("Found valid neighbors for INIT of {}: {}".format(
                     new_hostname, ", ".join(verified_neighbors)
                 ))
-                check_neighbor_sync(session, verified_neighbors)
+                check_neighbor_sync(session, uplink_hostnames)
         except DeviceSyncError as e:
             logger.warn("Uplink device not in sync during init of {}: {}".format(
                 new_hostname, e

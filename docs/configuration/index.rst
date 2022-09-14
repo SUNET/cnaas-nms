@@ -83,3 +83,20 @@ cnaas_postgres
 - ``POSTGRES_USER`` -- database username
 - ``POSTGRES_PASSWORD`` -- database password
 - ``POSTGRES_DB`` -- name of the cnaas-nms database
+
+Git repository URLs
+-------------------
+
+All the options that point to various GIT repositories (``GITREPO_*``) support typical Git-compatible URLs, including,
+but not limited to:
+
+- ``ssh://user@host.xz:port/path/to/repo.git/``
+- ``https://host.xz/path/to/repo.git/``
+- ``git://host.xz/path/to/repo.git/``
+
+Additionally, specific commits or branches can be specified by adding a URL anchor containing a Git reference such as
+a branch name, tag or commit ID. Examples:
+
+- ``ssh://user@host.xz:port/path/to/repo.git/#stable``
+- ``https://host.xz/path/to/repo.git/#v1.2.3``
+- ``git://host.xz/path/to/repo.git/#2a8c7f6c6544dd438808ab1bec560115783a2f2a``

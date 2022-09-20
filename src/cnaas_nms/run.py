@@ -15,9 +15,13 @@ os.environ['PYTHONPATH'] = os.getcwd()
 stop_websocket_threads = False
 
 
+def is_coverage_enabled():
+    return os.getenv('COVERAGE', '0').strip() not in ('0', 'off', 'false', 'no')
+
+
 print("Code coverage collection for worker in pid {}: {}".format(
     os.getpid(), ('COVERAGE' in os.environ)))
-if 'COVERAGE' in os.environ:
+if is_coverage_enabled():
     cov = coverage.coverage(
         data_file='/coverage/.coverage-{}'.format(os.getpid()),
         concurrency="gevent")
@@ -131,7 +135,7 @@ if __name__ == '__main__':
     stop_websocket_threads = True
     t_websocket_events.join()
 
-    if 'COVERAGE' in os.environ:
+    if is_coverage_enabled():
         save_coverage()
 
 else:
@@ -145,5 +149,5 @@ else:
 
     cnaas_app = get_app()
 
-    if 'COVERAGE' in os.environ:
+    if is_coverage_enabled():
         save_coverage()

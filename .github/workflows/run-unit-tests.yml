@@ -42,11 +42,15 @@ jobs:
         shell: bash
         run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
 
+      - name: Get repo URL
+        shell: bash
+        run: echo "CNAAS_REPO=$(echo ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY})" >> $GITHUB_ENV
+
       - name: Print branch name
-        run: echo ${{ env.BRANCH_NAME }}
+        run: echo ${{ env.BRANCH_NAME }} at ${{ env.CNAAS_REPO }}
 
       - name: Build docker
-        run: docker-compose -f docker/docker-compose_test.yaml build --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }}
+        run: docker-compose -f docker/docker-compose_test.yaml build --build-arg GITREPO_BASE=${{ env.CNAAS_REPO }} --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }}
 
       - name: Start docker
         run: docker-compose -f docker/docker-compose_test.yaml up -d

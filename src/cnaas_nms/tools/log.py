@@ -14,34 +14,36 @@ class WebsocketHandler(logging.StreamHandler):
         msg = self.format(record)
         add_event(msg, level=record.levelname)
 
+class CustomFormatter(logging.Formatter):
+
+    main_format  = '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+    job_format  = '[%(asctime)s] %(levelname)s in %(module)s job #%(jobid)s: %(message)s'
+
+    def __init__(self):
+        super().__init__()  
+    
+    def format(self, record):
+        # include jobid in log line if it it exists
+        if hasattr(record, 'jobid'):
+            self._style._fmt = CustomFormatter.job_format
+        else:
+            self._style._fmt = CustomFormatter.main_format
+        result = logging.Formatter.format(self, record)
+        return result
+
+def init_logger():
+    logger = logging.getLogger('cnaas-nms')
+    logger.setLevel(logging.DEBUG)
+    formatter = CustomFormatter()
+    for handler in [logging.StreamHandler(), WebsocketHandler()]:
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
 
 def get_logger():
+    extra = {}
     if hasattr(thread_data, 'job_id') and type(thread_data.job_id) == int:
-        logger = logging.getLogger('cnaas-nms-{}'.format(thread_data.job_id))
-        if not logger.handlers:
-            formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s job #{}: %(message)s'.
-                                          format(thread_data.job_id))
-            # stdout logging
-            handler = logging.StreamHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            # websocket logging
-            handler = WebsocketHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
+        extra['jobid'] = thread_data.job_id
     elif current_app:
-        logger = current_app.logger
-    else:
-        logger = logging.getLogger('cnaas-nms')
-        if not logger.handlers:
-            formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
-            # stdout logging
-            handler = logging.StreamHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-            # websocket logging
-            handler = WebsocketHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG) #TODO: get from /etc config ?
-    return logger
+        return current_app.logger
+    logger = logging.getLogger('cnaas-nms')
+    return logging.LoggerAdapter(logger, extra)

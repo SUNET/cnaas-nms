@@ -13,7 +13,7 @@ from flask import jsonify
 from flask_cors import CORS
 
 from cnaas_nms.version import __api_version__
-from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.log import init_logger, get_logger
 
 from cnaas_nms.api.device import device_api, devices_api, device_init_api, \
     device_initcheck_api, device_syncto_api, device_discover_api, \
@@ -34,7 +34,7 @@ from jwt.exceptions import DecodeError, InvalidSignatureError, \
     InvalidTokenError
 from flask_jwt_extended.exceptions import InvalidHeaderError
 
-
+init_logger()
 logger = get_logger()
 
 

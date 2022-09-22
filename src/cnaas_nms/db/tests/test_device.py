@@ -4,12 +4,15 @@ import unittest
 
 from ipaddress import IPv4Address
 
+import pytest
+
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 
 
+@pytest.mark.integration
 class DeviceTests(unittest.TestCase):
     def cleandb(self):
         with sqla_session() as session:

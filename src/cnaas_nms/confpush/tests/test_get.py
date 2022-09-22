@@ -4,12 +4,15 @@ import pkg_resources
 import yaml
 import os
 
+import pytest
+
 import cnaas_nms.confpush.get
 import cnaas_nms.confpush.update
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 
 
+@pytest.mark.integration
 class GetTests(unittest.TestCase):
     def setUp(self):
         data_dir = pkg_resources.resource_filename(__name__, 'data')

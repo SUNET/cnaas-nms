@@ -3,12 +3,15 @@ import yaml
 import unittest
 import pkg_resources
 
+import pytest
+
 from cnaas_nms.db.settings import get_settings, verify_dir_structure, \
     DIR_STRUCTURE, VerifyPathException, \
     check_vlan_collisions, VlanConflictError, \
     get_groups_priorities_sorted, get_device_primary_groups, \
     check_group_priority_collisions
 from cnaas_nms.db.device import DeviceType
+
 
 class SettingsTests(unittest.TestCase):
     def setUp(self):
@@ -17,16 +20,19 @@ class SettingsTests(unittest.TestCase):
             self.testdata = yaml.safe_load(f_testdata)
         self.required_setting_keys = ['ntp_servers', 'radius_servers']
 
+    @pytest.mark.integration
     def test_get_settings_global(self):
         settings, settings_origin = get_settings()
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
+    @pytest.mark.integration
     def test_get_settings_devicetype(self):
         settings, settings_origin = get_settings(device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
+    @pytest.mark.integration
     def test_get_settings_device(self):
         settings, settings_origin = get_settings(
             hostname=self.testdata['testdevice'], device_type=DeviceType.DIST)
@@ -38,6 +44,7 @@ class SettingsTests(unittest.TestCase):
         # is raised when looking in the filesystem root
         self.assertRaises(VerifyPathException, verify_dir_structure, '', DIR_STRUCTURE)
 
+    @pytest.mark.integration
     def test_vlan_collisions(self):
         mgmt_vlans = {100}
         # Check colliding mgmt vlan
@@ -184,6 +191,7 @@ class SettingsTests(unittest.TestCase):
                             ['DEFAULT', 'HIGH'],
                             "Unexpected ordering of groups sorted by priority")
 
+    @pytest.mark.integration
     def test_get_device_primary_group(self):
         before = get_device_primary_groups()
         after = get_device_primary_groups(no_cache=True)

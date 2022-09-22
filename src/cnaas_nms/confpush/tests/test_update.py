@@ -4,6 +4,8 @@ import yaml
 import os
 from typing import Optional
 
+import pytest
+
 from cnaas_nms.confpush.update import update_linknets
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType
@@ -11,6 +13,7 @@ from cnaas_nms.db.interface import InterfaceError
 from cnaas_nms.confpush.init_device import pre_init_check_neighbors, InitVerificationError
 
 
+@pytest.mark.integration
 class UpdateTests(unittest.TestCase):
     def setUp(self):
         data_dir = pkg_resources.resource_filename(__name__, 'data')

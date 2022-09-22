@@ -5,6 +5,8 @@ import json
 import unittest
 from ipaddress import IPv4Address
 
+import pytest
+
 from cnaas_nms.api import app
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -12,6 +14,7 @@ from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 
+@pytest.mark.integration
 class DeviceTests(unittest.TestCase):
     def cleandb(self):
         with sqla_session() as session:

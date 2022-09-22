@@ -4,11 +4,13 @@ import pkg_resources
 import os
 
 import unittest
+import pytest
 import cnaas_nms.api.app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.app_settings import app_settings
 
 
+@pytest.mark.integration
 class ApiTests(unittest.TestCase):
     def setUp(self):
         self.jwt_auth_token = None

@@ -169,7 +169,10 @@ class DeviceByIdApi(Resource):
     @jwt_required
     def delete(self, device_id):
         """ Delete device from ID """
-        json_data = request.get_json()
+        try:
+            json_data = request.get_json()
+        except Exception:
+            json_data = None
 
         if json_data and 'factory_default' in json_data:
             if isinstance(json_data['factory_default'], bool) and json_data['factory_default'] is True:

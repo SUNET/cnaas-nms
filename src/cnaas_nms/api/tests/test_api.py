@@ -501,5 +501,47 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['data']['deleted_linknet']['id'], linknet_id)
 
 
+def test_add_new_device(client, redis, postgresql, settings_directory):
+    data = {
+        "hostname": "unittestdevice",
+        "site_id": 1,
+        "description": '',
+        "management_ip": "10.1.2.3",
+        "dhcp_ip": "11.1.2.3",
+        "serial": '',
+        "ztp_mac": "0800275C091F",
+        "platform": "eos",
+        "vendor": '',
+        "model": '',
+        "os_version": '',
+        "state": "MANAGED",
+        "device_type": "ACCESS",
+    }
+    result = client.post('/api/v1.0/device', json=data)
+    print(result.json)
+    assert result.status_code == 200
+    assert result.json['status'] == 'success'
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+
+@pytest.fixture
+def app(jwt_auth_token):
+    the_app = cnaas_nms.api.app.app
+    the_app.wsgi_app = TestAppWrapper(the_app.wsgi_app, jwt_auth_token)
+    return the_app
+
+
+@pytest.fixture
+def jwt_auth_token():
+    data_dir = pkg_resources.resource_filename(__name__, 'data')
+    with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
+        testdata = yaml.safe_load(f_testdata)
+        return testdata.get('jwt_auth_token')
+
+
 if __name__ == '__main__':
     unittest.main()

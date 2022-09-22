@@ -46,7 +46,7 @@ authorizations = {
         'type': 'apiKey',
         'in': 'header',
         'name': 'Authorization',
-        'description': "Type in 'Bearer: <your JWT token here' to autheticate."
+        'description': "Type in 'Bearer <your JWT token here' to authenticate."
     }
 }
 
@@ -56,7 +56,7 @@ jwt_query_r = re.compile(r'jwt=[^ &]+')
 class CnaasApi(Api):
     def handle_error(self, e):
         if isinstance(e, DecodeError):
-            data = {'status': 'error', 'data': 'Could not deode JWT token'}
+            data = {'status': 'error', 'data': 'Could not decode JWT token'}
         elif isinstance(e, InvalidTokenError):
             data = {'status': 'error', 'data': 'Invalid authentication header: {}'.format(e)}
         elif isinstance(e, InvalidSignatureError):

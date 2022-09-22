@@ -23,6 +23,7 @@ psycopg2==2.9.3
 psycopg2-binary==2.9.3
 pytest==7.1.3
 pytest-cov==3.0.0
+pytest-docker-compose==3.2.1
 redis==4.3.4
 redis-lru==0.1.0
 Sphinx==5.1.1

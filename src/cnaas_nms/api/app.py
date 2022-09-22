@@ -46,7 +46,7 @@ authorizations = {
         'type': 'apiKey',
         'in': 'header',
         'name': 'Authorization',
-        'description': "Type in 'Bearer: <your JWT token here' to autheticate."
+        'description': "Type in 'Bearer <your JWT token here' to autheticate."
     }
 }
 

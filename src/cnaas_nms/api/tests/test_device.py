@@ -116,7 +116,8 @@ class DeviceTests(unittest.TestCase):
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertIsNone(q_device)
 
-    def equipmenttest_initcheck_distdevice(self):
+    @pytest.mark.equipment
+    def test_initcheck_distdevice(self):
         device_id = self.testdata['initcheck_device_id']
         pre_state = self.client.get(f'/api/v1.0/device/{device_id}').\
             json['data']['devices'][0]['state']

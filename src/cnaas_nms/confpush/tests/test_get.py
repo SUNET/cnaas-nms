@@ -81,7 +81,8 @@ class GetTests(unittest.TestCase):
                 session.delete(dev_b)
                 session.delete(dev_nonpeer)
 
-    def equipmenttest_update_links(self):
+    @pytest.mark.equipment
+    def test_update_links(self):
         with sqla_session() as session:
             new_links = cnaas_nms.confpush.update.update_linknets(
                 session, self.testdata['init_access_new_hostname'], DeviceType.ACCESS)

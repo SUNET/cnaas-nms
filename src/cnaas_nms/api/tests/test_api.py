@@ -375,7 +375,8 @@ class ApiTests(unittest.TestCase):
         # Exactly one result
         #self.assertEqual(len(result.json['data']['jobs']), 1)
 
-    def equipmenttest_get_interface_status(self):
+    @pytest.mark.equipment
+    def test_get_interface_status(self):
         result = self.client.get(
             "/api/v1.0/device/{}/interface_status".format(self.testdata['interface_device'])
         )
@@ -383,7 +384,8 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
         self.assertEqual('interface_status' in result.json['data'], True)
 
-    def equipmenttest_bounce_interface(self):
+    @pytest.mark.equipment
+    def test_bounce_interface(self):
         # Bounce of uplink should give error 400
         data = {'bounce_interfaces': [self.testdata['interface_uplink']]}
         result = self.client.put(

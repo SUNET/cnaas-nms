@@ -534,13 +534,16 @@ def app(jwt_auth_token):
     the_app.wsgi_app = TestAppWrapper(the_app.wsgi_app, jwt_auth_token)
     return the_app
 
+@pytest.fixture
+def jwt_auth_token(testdata):
+    return testdata.get('jwt_auth_token')
+
 
 @pytest.fixture
-def jwt_auth_token():
+def testdata(scope="session"):
     data_dir = pkg_resources.resource_filename(__name__, 'data')
     with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
-        testdata = yaml.safe_load(f_testdata)
-        return testdata.get('jwt_auth_token')
+        return yaml.safe_load(f_testdata)
 
 
 if __name__ == '__main__':

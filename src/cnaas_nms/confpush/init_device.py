@@ -7,6 +7,8 @@ from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
 from nornir.core.task import Result
+from nornir.core.exceptions import NornirSubTaskError
+from netmiko.exceptions import ReadTimeout as NMReadTimeout
 from apscheduler.job import Job
 import yaml
 
@@ -72,7 +74,14 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             new_hostname=task.host.name,
             management_ip=device_variables['mgmt_ip']
         )
-    # TODO: handle exception from ztp_device_cert -> arista_copy_cert
+    except NornirSubTaskError as e:
+        try:
+            assert not type(e.result[1][1].exception) is NMReadTimeout
+        except AssertionError:
+            logger.error("Read timeout while copying cert to device")
+        except (AttributeError, IndexError) as e:
+            pass
+        logger.exception(e)
     except Exception as e:
         logger.exception(e)
     else:
@@ -514,6 +523,10 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         logger.info("MLAG peer (id {}) init scheduled as job # {}".format(
             mlag_peer_id, mlag_peer_job_id
         ))
+
+    for res in nrresult[hostname]:
+        if res.name in ["Push base management config", "push_base_management", "napalm_get"]:
+            res.failed = False
 
     return NornirJobResult(
         nrresult=nrresult,

@@ -502,6 +502,7 @@ class ApiTests(unittest.TestCase):
 
 
 def test_add_new_device(client, redis, postgresql, settings_directory):
+def test_add_new_device(client):
     data = {
         "hostname": "unittestdevice",
         "site_id": 1,
@@ -524,7 +525,7 @@ def test_add_new_device(client, redis, postgresql, settings_directory):
 
 
 @pytest.fixture
-def client(app):
+def client(app, redis, postgresql, settings_directory):
     return app.test_client()
 
 

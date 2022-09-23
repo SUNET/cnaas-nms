@@ -156,8 +156,8 @@ class GetTests(unittest.TestCase):
         step1_job_id = r.json()['job_id']
         step1_job_data = self.check_jobid(step1_job_id)
         result = step1_job_data['result']
-        self.assertTrue(result['devices']['eosaccess']['failed'],
-                        "Expected failed result since mgmt_ip changed")
+        self.assertFalse(result['devices']['eosaccess']['failed'],
+                         "device_init job returned failed status")
         time.sleep(5)
         step2_job_data = self.check_jobid(step1_job_data['next_job_id'])
         result_step2 = step2_job_data['result']

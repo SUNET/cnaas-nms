@@ -6,6 +6,7 @@ from ipaddress import IPv4Interface, IPv4Address
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
+from nornir.core.task import Result
 from apscheduler.job import Job
 import yaml
 
@@ -425,6 +426,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             **mgmt_variables
         }
         # Update device state
+        old_hostname = dev.hostname
         dev.hostname = new_hostname
         session.commit()
         hostname = dev.hostname
@@ -438,8 +440,23 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                                devtype=DeviceType.ACCESS,
                                job_id=job_id)
 
+    napalm_get_oldip_result: Result = \
+        [res for res in nrresult[hostname] if res.name == "napalm_get"][0]
+
     with sqla_session() as session:
-        dev = session.query(Device).filter(Device.id == device_id).one()
+        dev: Device = session.query(Device).filter(Device.id == device_id).one()
+        # If a get call to the old IP does not fail, it means management IP change did not work
+        # Abort and rollback to initial state before device_init
+        if not napalm_get_oldip_result.failed:
+            dev.hostname = old_hostname
+            linknets = dev.get_linknets(session)
+            for linknet in linknets:
+                session.delete(linknet)
+            reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
+            if reserved_ip:
+                session.delete(reserved_ip)
+            return NornirJobResult(nrresult=nrresult)
+
         dev.management_ip = device_variables['mgmt_ip']
         dev.state = DeviceState.INIT
         dev.device_type = DeviceType.ACCESS

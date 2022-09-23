@@ -31,6 +31,17 @@ def settings_directory(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
+def templates_directory(tmp_path_factory):
+    from cnaas_nms.app_settings import app_settings
+
+    templates_dir = tmp_path_factory.mktemp("templates")
+    app_settings.TEMPLATES_LOCAL = templates_dir
+    print(f"placing settings in {templates_dir}")
+    Repo.clone_from(app_settings.TEMPLATES_REMOTE, app_settings.TEMPLATES_LOCAL)
+    return templates_dir
+
+
+@pytest.fixture(scope="session")
 def redis(session_scoped_container_getter):
     """Ensures Redis server is running and available"""
     # This uses pytest-docker-compose, but could also just use pytest-docker for fewer moving parts

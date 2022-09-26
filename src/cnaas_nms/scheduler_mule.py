@@ -75,7 +75,12 @@ def main_loop():
 
     while True:
         mule_data = uwsgi.mule_get_msg()
-        data: dict = json.loads(mule_data)
+        try:
+            data: dict = json.loads(mule_data)
+        except json.JSONDecodeError as e:
+            logger.exception("Mule received non-JSON data: {}".format(e))
+            logger.debug("Mule received data: {}".format(mule_data))
+            continue
         action = "add"
         if 'scheduler_action' in data:
             if data['scheduler_action'] == "remove":

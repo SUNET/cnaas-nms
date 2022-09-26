@@ -38,10 +38,10 @@ fi
 on_exit () {
     docker logs docker_cnaas_dhcpd_1
     docker logs docker_cnaas_api_1
-    echo "Integrationtests failed!"
+    echo "Integrationtests exited (on_exit)"
 }
 
-trap on_exit ERR
+trap on_exit EXIT
 
 docker volume create cnaas-templates
 docker volume create cnaas-settings

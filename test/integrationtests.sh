@@ -38,10 +38,15 @@ fi
 on_exit () {
     docker logs docker_cnaas_dhcpd_1
     docker logs docker_cnaas_api_1
-    echo "Integrationtests failed!"
+    echo "Integrationtests exited (on_exit)"
 }
 
-trap on_exit ERR
+on_err () {
+    docker logs -n 100 docker_cnaas_api_1
+}
+
+trap on_exit EXIT
+trap on_err ERR
 
 docker volume create cnaas-templates
 docker volume create cnaas-settings
@@ -110,7 +115,7 @@ then
 	source ../../bin/activate
 	echo "Try to generate coverage report:"
 	coverage combine .coverage-*
-	coverage report --omit='*/site-packages/*'
+	coverage report --omit='*/site-packages/*' --fail-under=60
 	coverage xml -i --omit='*/site-packages/*,*/templates/*'
 	export CODECOV_TOKEN="dbe13a97-70b5-49df-865e-d9b58c4e9742"
 	if [ -z "$AUTOTEST" ]
@@ -131,5 +136,8 @@ fi
 
 # Change owner back after code coverage is finished
 docker-compose exec -u root -T cnaas_api chown -R root:www-data /opt/cnaas/venv/cnaas-nms/src/
+
+docker logs docker_cnaas_dhcpd_1
+docker logs docker_cnaas_api_1
 
 docker-compose down

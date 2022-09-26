@@ -106,7 +106,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
     task.host["config"] = r.result
     # Use extra low timeout for this since we expect to loose connectivity after changing IP
     connopts_napalm = task.host.connection_options["napalm"]
-    connopts_napalm.extras["timeout"] = 30
+    connopts_napalm.extras["timeout"] = api_settings.INIT_MGMT_TIMEOUT
 
     try:
         task.run(task=napalm_configure,
@@ -495,9 +495,10 @@ def init_access_device_step1(device_id: int, new_hostname: str,
 
     # step3. register apscheduler job that continues steps
     if mlag_peer_id and mlag_peer_new_hostname:
-        step2_delay = 30+60+30  # account for delayed start of peer device plus mgmt timeout
+        # account for delayed start of peer device plus mgmt timeout
+        step2_delay = 60+2*api_settings.INIT_MGMT_TIMEOUT
     else:
-        step2_delay = 30
+        step2_delay = api_settings.INIT_MGMT_TIMEOUT
     scheduler = Scheduler()
     next_job_id = scheduler.add_onetime_job(
         'cnaas_nms.confpush.init_device:init_device_step2',

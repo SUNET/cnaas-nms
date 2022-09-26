@@ -44,6 +44,8 @@ class ApiSettings(BaseSettings):
     FIRMWARE_URL: str = HTTPD_URL
     JWT_ENABLED: bool = True
     PLUGIN_FILE: Path = "/etc/cnaas-nms/plugins.yml"
+    GLOBAL_UNIQUE_VLANS: bool = True
+    INIT_MGMT_TIMEOUT: int = 30
 
 
 def construct_api_settings() -> ApiSettings:
@@ -68,6 +70,8 @@ def construct_api_settings() -> ApiSettings:
             CAKEYFILE=config.get("cakeyfile", ApiSettings().CAKEYFILE),
             CERTPATH=config.get("certpath", ApiSettings().CERTPATH),
             FIRMWARE_URL=firmware_url,
+            GLOBAL_UNIQUE_VLANS=config.get("global_unique_vlans", True),
+            INIT_MGMT_TIMEOUT=config.get("init_mgmt_timeout", 30),
         )
     else:
         return ApiSettings()

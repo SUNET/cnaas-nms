@@ -769,9 +769,6 @@ def apply_config(hostname: str, config: str, dry_run: bool,
             raise Exception("Device {} not found".format(hostname))
         elif not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
             raise Exception("Device {} is in invalid state: {}".format(hostname, dev.state))
-        if not dry_run:
-            dev.state = DeviceState.UNMANAGED
-            dev.synchronized = False
 
     nr = cnaas_init()
     nr_filtered, _, _ = inventory_selector(nr, hostname=hostname)
@@ -783,6 +780,13 @@ def apply_config(hostname: str, config: str, dry_run: bool,
                                    job_id=job_id)
     except Exception as e:
         logger.exception("Exception in apply_config: {}".format(e))
+    else:
+        if not dry_run:
+            with sqla_session() as session:
+                dev: Device = session.query(Device).\
+                    filter(Device.hostname == hostname).one_or_none()
+                dev.state = DeviceState.UNMANAGED
+                dev.synchronized = False
 
     return NornirJobResult(nrresult=nrresult)
 

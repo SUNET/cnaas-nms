@@ -29,6 +29,11 @@ Defines parameters for the API:
 - cakeyfile: Path to CA key, used to sign device certificates after generation.
 - certpath: Path to store generated device certificates in.
 - allow_apply_config_liverun: Allow liverun on apply_config API call. Defaults to False.
+- global_unique_vlans: If True VLAN IDs has to be globally unique, if False
+  different DIST switches can reuse same VLAN IDs for different L2 domains.
+  Defaults to True.
+- init_mgmt_timeout: Timeout to wait for device to apply changed management IP.
+  Defaults to 30, specified in seconds (integer).
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -115,12 +115,16 @@ class DeviceTests(unittest.TestCase):
 
     def equipmenttest_initcheck_distdevice(self):
         device_id = self.testdata['initcheck_device_id']
+        pre_state = self.client.get(f'/api/v1.0/device/{device_id}').\
+            json['data']['devices'][0]['state']
         self.client.put(f'/api/v1.0/device/{device_id}', json={'state': 'DISCOVERED'})
         device_data = {"hostname": "distcheck", "device_type": "DIST"}
         result = self.client.post(f'/api/v1.0/device_initcheck/{device_id}', json=device_data)
-        self.assertEqual(result.status_code, 200)
+        self.client.put(f'/api/v1.0/device/{device_id}', json={'state': pre_state})
+        self.assertEqual(result.status_code, 500)
         json_data = json.loads(result.data.decode())
-        self.assertEqual(json_data['data']['compatible'], False)
+#        self.assertEqual(json_data['data']['compatible'], False)
+        self.assertEqual(json_data['status'], "error")
 
     def test_get_stackmembers_invalid_device(self):
         result = self.client.get(f'/api/v1.0/device/{"nonexisting"}/stackmember')

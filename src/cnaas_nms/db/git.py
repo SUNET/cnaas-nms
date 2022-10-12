@@ -9,7 +9,7 @@ from git.exc import NoSuchPathError, GitCommandError
 import yaml
 from redis_lru import RedisLRU
 
-from cnaas_nms.app_settings import app_settings
+from cnaas_nms.app_settings import app_settings, api_settings
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
@@ -177,7 +177,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
                 devtype = DeviceType[devtype_str]
                 for device_model in device_models:
                     get_settings('nonexisting', devtype, device_model)
-            check_settings_collisions()
+            check_settings_collisions(api_settings.GLOBAL_UNIQUE_VLANS)
         except SettingsSyntaxError as e:
             logger.exception("Error in settings repo configuration: {}".format(str(e)))
             raise e

@@ -99,7 +99,6 @@ MULE_PID="`docker logs docker_cnaas_api_1 | awk '/spawned uWSGI mule/{print $6}'
 echo "Found mule at pid $MULE_PID"
 # Allow for code coverage files to be saved
 docker-compose exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
-docker-compose exec -u root -T cnaas_api kill $MULE_PID
 curl -ks -H "Authorization: Bearer $JWT_AUTH_TOKEN" "https://localhost/api/v1.0/system/shutdown" -d "{}" -X POST -H "Content-Type: application/json"
 sleep 3
 

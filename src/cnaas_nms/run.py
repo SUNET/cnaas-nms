@@ -20,7 +20,9 @@ def is_coverage_enabled():
 
 
 print("Code coverage collection for worker in pid {}: {}".format(
-    os.getpid(), ('COVERAGE' in os.environ)))
+    os.getpid(), is_coverage_enabled()))
+
+
 if is_coverage_enabled():
     cov = coverage.coverage(
         data_file='/coverage/.coverage-{}'.format(os.getpid()),

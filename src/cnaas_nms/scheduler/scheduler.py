@@ -121,6 +121,19 @@ class Scheduler(object, metaclass=SingletonType):
         """Remove job from local scheduler."""
         return self._scheduler.remove_job(str(job_id))
 
+    def shutdown_mule(self):
+        """Send a message to the mule worker to shut itself down."""
+        if self.use_mule:
+            try:
+                import uwsgi
+            except Exception as e:
+                logger.exception("use_mule is set but not running in uwsgi")
+                raise e
+            args = {
+                "scheduler_action": "shutdown_mule"
+            }
+            uwsgi.mule_msg(json.dumps(args))
+
     def remove_scheduled_job(self, job_id, abort_message="removed"):
         """Remove scheduled job from mule worker or local scheduler depending
         on setup."""

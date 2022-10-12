@@ -91,6 +91,8 @@ def main_loop():
         if 'scheduler_action' in data:
             if data['scheduler_action'] == "remove":
                 action = "remove"
+            elif data['scheduler_action'] == "shutdown_mule":
+                action = "shutdown_mule"
         if 'when' in data and isinstance(data['when'], int):
             data['run_date'] = datetime.datetime.utcnow() + datetime.timedelta(seconds=data['when'])
             del data['when']
@@ -110,6 +112,9 @@ def main_loop():
                                     id=data['id'], run_date=data['run_date'], name=data['func'])
         elif action == "remove":
             scheduler.remove_local_job(data['id'])
+        elif action == "shutdown_mule":
+            scheduler.get_scheduler().shutdown()
+            return
 
 
 if __name__ == '__main__':

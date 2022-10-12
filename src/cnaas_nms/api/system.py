@@ -7,7 +7,8 @@ from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.api import app
 import cnaas_nms.version
-from cnaas_nms.tools.security import jwt_required
+from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 
 
@@ -19,6 +20,9 @@ class ShutdownApi(Resource):
     @jwt_required
     def post(self):
         print("System shutdown API called, exiting...")
+        scheduler = Scheduler()
+        scheduler.shutdown_mule()
+        scheduler.shutdown()
         app.socketio.stop()
         exit()
 

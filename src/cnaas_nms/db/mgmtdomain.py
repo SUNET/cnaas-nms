@@ -2,6 +2,7 @@ import ipaddress
 import datetime
 import enum
 from ipaddress import IPv4Interface, IPv4Address
+from itertools import islice, dropwhile
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, Unicode, UniqueConstraint
@@ -14,6 +15,8 @@ import cnaas_nms.db.site
 import cnaas_nms.db.device
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.reservedip import ReservedIP
+
+RESERVED_SKIP_COUNT = 5  # Skip this number of reserved addresses on each management domain
 
 
 class Mgmtdomain(cnaas_nms.db.base.Base):
@@ -58,26 +61,16 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
         return d
 
     def find_free_mgmt_ip(self, session) -> Optional[IPv4Address]:
-        """Return first available IPv4 address from this Mgmtdomain's ipv4_gw network.""" 
-        used_ips = []
-        reserved_ips = []
+        """Return first available IPv4 address from this Mgmtdomain's ipv4_gw network."""
         device_query = session.query(Device).\
             filter(Device.management_ip != None).options(load_only("management_ip"))
-        for device in device_query:
-            used_ips.append(device.management_ip)
+        used_ips = set(device.management_ip for device in device_query)
         reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
-        for reserved_ip in reserved_ip_query:
-            reserved_ips.append(reserved_ip.ip)
+        reserved_ips = set(reserved_ip.ip for reserved_ip in reserved_ip_query)
 
+        taken_ips = used_ips | reserved_ips
         mgmt_net = IPv4Interface(self.ipv4_gw).network
-        for num, host in enumerate(mgmt_net.hosts()):
-            if num < 5:  # reserve 5 first hosts
-                continue
-            if host in reserved_ips:
-                continue
-            if host in used_ips:
-                continue
-            else:
-                return IPv4Address(host)
-        return None
-
+        candidates = islice(mgmt_net.hosts(), RESERVED_SKIP_COUNT, None)
+        free_ips = dropwhile(lambda ip: ip in taken_ips, candidates)
+        for host in free_ips:
+            return IPv4Address(host)

@@ -74,17 +74,21 @@ class InterfaceApi(Resource):
                         intfdata_original = {}
                         intfdata = {}
 
-                    if 'configtype' in if_dict:
-                        configtype = if_dict['configtype'].upper()
-                        if InterfaceConfigType.has_name(configtype):
-                            if intf.configtype != InterfaceConfigType[configtype]:
-                                intf.configtype = InterfaceConfigType[configtype]
-                                updated = True
-                                data[if_name] = {'configtype': configtype}
+                    if 'configtype' in if_dict and if_dict['configtype']:
+                        try:
+                            configtype = if_dict['configtype'].upper()
+                        except AttributeError:
+                            errors.append("configtype is not a string")
                         else:
-                            errors.append(f"Invalid configtype received: {configtype}")
+                            if InterfaceConfigType.has_name(configtype):
+                                if intf.configtype != InterfaceConfigType[configtype]:
+                                    intf.configtype = InterfaceConfigType[configtype]
+                                    updated = True
+                                    data[if_name] = {'configtype': configtype}
+                            else:
+                                errors.append(f"Invalid configtype received: {configtype}")
 
-                    if 'data' in if_dict:
+                    if 'data' in if_dict and if_dict['data']:
                         # TODO: maybe this validation should be done via
                         #  pydantic if it gets more complex
                         if not device_settings:
@@ -137,7 +141,7 @@ class InterfaceApi(Resource):
                                     del intfdata['description']
                             else:
                                 errors.append(
-                                    "Description must be a string of 0-64 characters for: {}".
+                                    "Description must be a string of 0-64 characters, got: {}".
                                     format(if_dict['data']['description']))
                         if 'enabled' in if_dict['data']:
                             if type(if_dict['data']['enabled']) == bool:
@@ -183,6 +187,8 @@ class InterfaceApi(Resource):
                             else:
                                 errors.append("cli_append_str must be a string, got: {}".format(
                                     if_dict['data']['cli_append_str']))
+                    elif 'data' in if_dict and not if_dict['data']:
+                        intfdata = None
 
                     if intfdata != intfdata_original:
                         intf.data = intfdata

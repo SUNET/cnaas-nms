@@ -1,4 +1,4 @@
-from ipaddress import IPv4Interface
+from ipaddress import IPv4Interface, IPv6Interface
 from typing import Optional
 
 from flask import request
@@ -29,6 +29,7 @@ mgmtdomain_model = mgmtdomain_api.model(
         "device_b": fields.String(required=True),
         "vlan": fields.Integer(required=True),
         "ipv4_gw": fields.String(required=True),
+        "ipv6_gw": fields.String(required=True),
         "description": fields.String(required=False),
     },
 )
@@ -37,6 +38,7 @@ mgmtdomain_model = mgmtdomain_api.model(
 class f_mgmtdomain(BaseModel):
     vlan: Optional[int] = vlan_id_schema_optional
     ipv4_gw: Optional[str] = None
+    ipv6_gw: Optional[str] = None
     description: Optional[str] = None
 
     @validator("ipv4_gw")
@@ -52,6 +54,24 @@ class f_mgmtdomain(BaseModel):
             if addr.ip == addr.network.broadcast_address:
                 raise ValueError("Specify gateway address, not broadcast address")
             if prefix_len >= 31 or prefix_len <= 16:
+                raise ValueError("Bad prefix length {} for management network".format(prefix_len))
+
+        return v
+
+    @validator("ipv6_gw")
+    @classmethod
+    def ipv6_gw_valid_address(cls, v, values, **kwargs):
+        try:
+            addr = IPv6Interface(v)
+            prefix_len = int(addr.network.prefixlen)
+        except Exception:  # noqa: S110
+            raise ValueError("Invalid ipv6_gw received. Must be correct IPv6 address with mask")
+        else:
+            if addr.ip == addr.network.network_address:
+                raise ValueError("Specify gateway address, not subnet address")
+            if addr.ip == addr.network.broadcast_address:
+                raise ValueError("Specify gateway address, not broadcast address")
+            if prefix_len >= 126 or prefix_len <= 63:
                 raise ValueError("Bad prefix length {} for management network".format(prefix_len))
 
         return v
@@ -163,12 +183,20 @@ class MgmtdomainsApi(Resource):
             except ValidationError as e:
                 errors += parse_pydantic_error(e, f_mgmtdomain, json_data)
 
-            required_keys = ["device_a", "device_b", "vlan", "ipv4_gw"]
-            if all([key in data for key in required_keys]) and all([key in json_data for key in required_keys]):
+            required_keys_1 = ["device_a", "device_b", "vlan", "ipv4_gw"]
+            required_keys_2 = ["device_a", "device_b", "vlan", "ipv6_gw"]
+            required_in_data = all(key in data for key in required_keys_1) or all(
+                key in data for key in required_keys_2
+            )
+            required_in_json_data = all(key in json_data for key in required_keys_1) or all(
+                key in json_data for key in required_keys_2
+            )
+            if required_in_data and required_in_json_data:
                 new_mgmtd = Mgmtdomain()
                 new_mgmtd.device_a = data["device_a"]
                 new_mgmtd.device_b = data["device_b"]
                 new_mgmtd.ipv4_gw = data["ipv4_gw"]
+                new_mgmtd.ipv6_gw = data["ipv6_gw"]
                 new_mgmtd.vlan = data["vlan"]
                 try:
                     session.add(new_mgmtd)
@@ -184,7 +212,11 @@ class MgmtdomainsApi(Resource):
                 device_b.synchronized = False
                 return empty_result(status="success", data={"added_mgmtdomain": new_mgmtd.as_dict()}), 200
             else:
-                errors.append("Not all required inputs were found: {}".format(", ".join(required_keys)))
+                errors.append(
+                    "Not all required inputs were found: {} OR {}".format(
+                        ", ".join(required_keys_1), ", ".join(required_keys_2)
+                    )
+                )
                 return empty_result("error", errors), 400
 
 

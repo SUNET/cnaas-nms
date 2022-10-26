@@ -25,6 +25,7 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
     )
     id = Column(Integer, autoincrement=True, primary_key=True)
     ipv4_gw = Column(Unicode(18))  # 255.255.255.255/32
+    ipv6_gw = Column(Unicode(43))  # fe80:0000:0000:0000:0000:0000:0000:0000/128
     device_a_id = Column(Integer, ForeignKey("device.id"))
     device_a = relationship("Device", foreign_keys=[device_a_id])
     device_a_ip = Column(IPAddressType)

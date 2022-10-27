@@ -105,7 +105,7 @@ class Device(cnaas_nms.db.base.Base):
                 value = value.name
             elif issubclass(value.__class__, cnaas_nms.db.base.Base):
                 continue
-            elif issubclass(value.__class__, ipaddress.IPv4Address):
+            elif issubclass(value.__class__, ipaddress._BaseAddress):
                 value = str(value)
             elif issubclass(value.__class__, datetime.datetime):
                 value = str(value)
@@ -379,9 +379,9 @@ class Device(cnaas_nms.db.base.Base):
         if "management_ip" in kwargs:
             if kwargs["management_ip"]:
                 try:
-                    addr = ipaddress.IPv4Address(kwargs["management_ip"])
+                    addr = ipaddress.ip_address(kwargs["management_ip"])
                 except Exception:
-                    errors.append("Invalid management_ip received. Must be correct IPv4 address.")
+                    errors.append("Invalid management_ip received. Must be a valid IP address.")
                 else:
                     data["management_ip"] = addr
             else:
@@ -390,9 +390,9 @@ class Device(cnaas_nms.db.base.Base):
         if "infra_ip" in kwargs:
             if kwargs["infra_ip"]:
                 try:
-                    addr = ipaddress.IPv4Address(kwargs["infra_ip"])
+                    addr = ipaddress.ip_address(kwargs["infra_ip"])
                 except Exception:
-                    errors.append("Invalid infra_ip received. Must be correct IPv4 address.")
+                    errors.append("Invalid infra_ip received. Must be valid IP address.")
                 else:
                     data["infra_ip"] = addr
             else:
@@ -401,9 +401,9 @@ class Device(cnaas_nms.db.base.Base):
         if "dhcp_ip" in kwargs:
             if kwargs["dhcp_ip"]:
                 try:
-                    addr = ipaddress.IPv4Address(kwargs["dhcp_ip"])
+                    addr = ipaddress.ip_address(kwargs["dhcp_ip"])
                 except Exception:
-                    errors.append("Invalid dhcp_ip received. Must be correct IPv4 address.")
+                    errors.append("Invalid dhcp_ip received. Must be valid IP address.")
                 else:
                     data["dhcp_ip"] = addr
             else:

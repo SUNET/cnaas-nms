@@ -1,6 +1,6 @@
 import datetime
 import os
-from ipaddress import IPv4Address, IPv4Interface
+from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import List, Optional, Union
 
 import yaml
@@ -507,9 +507,9 @@ def init_access_device_step1(
         session.add(reserved_ip)
         session.commit()
         # Populate variables for template rendering
-        mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
+        mgmt_gw_ipif = ip_interface(mgmtdomain.ipv6_gw or mgmtdomain.ipv4_gw)
         mgmt_variables = {
-            "mgmt_ipif": str(IPv4Interface("{}/{}".format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
+            "mgmt_ipif": str(ip_interface("{}/{}".format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
             "mgmt_ip": str(mgmt_ip),
             "mgmt_prefixlen": int(mgmt_gw_ipif.network.prefixlen),
             "mgmt_vlan_id": mgmtdomain.vlan,

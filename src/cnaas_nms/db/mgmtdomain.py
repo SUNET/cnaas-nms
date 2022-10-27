@@ -3,7 +3,7 @@ import datetime
 import enum
 from ipaddress import IPv4Interface, IPv4Address
 from itertools import islice, dropwhile
-from typing import Optional
+from typing import Optional, Set
 
 from sqlalchemy import Column, Integer, String, Unicode, UniqueConstraint
 from sqlalchemy import ForeignKey
@@ -62,14 +62,27 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
 
     def find_free_mgmt_ip(self, session) -> Optional[IPv4Address]:
         """Return first available IPv4 address from this Mgmtdomain's ipv4_gw network."""
-        device_query = session.query(Device).\
-            filter(Device.management_ip != None).options(load_only("management_ip"))
+        taken_ips = self._get_taken_ips(session)
+
+        def is_taken(addr):
+            return addr in taken_ips
+
+        mgmt_net = IPv4Interface(self.ipv4_gw).network
+        candidates = islice(mgmt_net.hosts(), RESERVED_SKIP_COUNT, None)
+        free_ips = dropwhile(is_taken, candidates)
+        return next(free_ips, None)
+
+    @staticmethod
+    def _get_taken_ips(session) -> Set[IPv4Address]:
+        """Returns the full set of taken (used + reserved) IP addresses"""
+        device_query = (
+            session.query(Device)
+            .filter(Device.management_ip is not None)
+            .options(load_only("management_ip"))
+        )
         used_ips = set(device.management_ip for device in device_query)
         reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
         reserved_ips = set(reserved_ip.ip for reserved_ip in reserved_ip_query)
 
-        taken_ips = used_ips | reserved_ips
-        mgmt_net = IPv4Interface(self.ipv4_gw).network
-        candidates = islice(mgmt_net.hosts(), RESERVED_SKIP_COUNT, None)
-        free_ips = dropwhile(lambda ip: ip in taken_ips, candidates)
-        return next(free_ips, None)
+        return used_ips | reserved_ips
+

@@ -72,5 +72,4 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
         mgmt_net = IPv4Interface(self.ipv4_gw).network
         candidates = islice(mgmt_net.hosts(), RESERVED_SKIP_COUNT, None)
         free_ips = dropwhile(lambda ip: ip in taken_ips, candidates)
-        for host in free_ips:
-            return IPv4Address(host)
+        return next(free_ips, None)

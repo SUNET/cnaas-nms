@@ -206,8 +206,9 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 else:
                     redundant_uplinks += 1
                 uplinks.append(neighbor)
-
-            neighbors.append(neighbor)
+                neighbors.append(neighbor)
+            elif mlag_peer_dev and neighbor_dev == mlag_peer_dev:
+                neighbors.append(neighbor)
 
         if len(uplinks) <= 0:
             raise InitVerificationError(

@@ -459,6 +459,7 @@ class DeviceInitCheckApi(Resource):
                     hostname=dev.hostname,
                     devtype=target_devtype,
                     ztp_hostname=target_hostname,
+                    mlag_peer_dev=mlag_peer_dev,
                     dry_run=True
                 )
                 if mlag_peer_dev:
@@ -467,6 +468,7 @@ class DeviceInitCheckApi(Resource):
                         hostname=mlag_peer_dev.hostname,
                         devtype=target_devtype,
                         ztp_hostname=mlag_peer_target_hostname,
+                        mlag_peer_dev=dev,
                         dry_run=True
                     )
                 ret['linknets'] = Linknet.deduplicate_linknet_dicts(linknets_all)

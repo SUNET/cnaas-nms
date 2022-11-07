@@ -242,7 +242,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
         if not remote_device_inst:
             logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
             continue
-        if remote_device_inst == mlag_peer_dev:
+        if remote_device_inst.id == mlag_peer_dev.id:
             # In case of MLAG init the peer does not have the correct devtype set yet,
             # use same devtype as local device instead
             remote_devtype = devtype

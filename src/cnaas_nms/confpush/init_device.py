@@ -403,6 +403,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 new_hostname, e
             ))
         except (Exception, NeighborError) as e:
+            session.rollback()
             raise e
 
         try:
@@ -428,6 +429,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 mgmtdomain.id, mgmtdomain.description))
         reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
         session.add(reserved_ip)
+        session.commit()
         # Populate variables for template rendering
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
         mgmt_variables = {

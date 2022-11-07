@@ -80,8 +80,11 @@ device_init_model = device_init_api.model('device_init', {
     'device_type': fields.String(required=False)})
 
 device_initcheck_model = device_initcheck_api.model('device_initcheck', {
-    'hostname': fields.String(required=False),
-    'device_type': fields.String(required=False)})
+    'hostname': fields.String(required=True),
+    'device_type': fields.String(required=True),
+    'mlag_peer_id': fields.Integer(required=False),
+    'mlag_peer_hostname': fields.String(required=False),
+})
 
 device_discover_model = device_discover_api.model('device_discover', {
     'ztp_mac': fields.String(required=True),

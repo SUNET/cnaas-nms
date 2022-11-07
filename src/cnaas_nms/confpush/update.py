@@ -46,7 +46,7 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete_all: b
     iflist = get_interfaces_names(dev.hostname)  # query nornir for current interfaces
     uplinks = get_uplinks(session, dev.hostname, recheck=replace, linknets=linknets)
     if mlag_peer_hostname:
-        mlag_ifs = get_mlag_ifs(session, dev.hostname, mlag_peer_hostname)
+        mlag_ifs = get_mlag_ifs(session, dev.hostname, mlag_peer_hostname, linknets=linknets)
     else:
         mlag_ifs = {}
     phy_interfaces = filter_interfaces(iflist, platform=dev.platform, include='physical')

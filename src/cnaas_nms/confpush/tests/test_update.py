@@ -31,7 +31,6 @@ class UpdateTests(unittest.TestCase):
             for ln in linknets:
                 ln['device_a_id'] = None
                 ln['device_b_id'] = None
-            breakpoint()
             self.assertListEqual(
                 linknets,
                 self.testdata['linknet_redundant'],

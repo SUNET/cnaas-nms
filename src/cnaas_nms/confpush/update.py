@@ -204,7 +204,8 @@ def update_facts(hostname: str,
 
 
 def update_linknets(session, hostname: str, devtype: DeviceType,
-                    ztp_hostname: Optional[str] = None, dry_run: bool = False,
+                    ztp_hostname: Optional[str] = None,
+                    mlag_peer_dev: Optional[Device] = None, dry_run: bool = False,
                     neighbors_arg: Optional[Dict[str, list]] = None) -> List[dict]:
     """Update linknet data for specified device using LLDP neighbor data.
 
@@ -241,7 +242,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
         if not remote_device_inst:
             logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
             continue
-        if remote_device_inst.state in [DeviceState.DISCOVERED, DeviceState.INIT]:
+        if remote_device_inst == mlag_peer_dev:
             # In case of MLAG init the peer does not have the correct devtype set yet,
             # use same devtype as local device instead
             remote_devtype = devtype

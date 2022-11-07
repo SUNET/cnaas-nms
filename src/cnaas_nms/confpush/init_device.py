@@ -362,17 +362,17 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         mlag_peer_dev: Optional[Device] = None
 
         # update linknets using LLDP data
-        linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS)
+        linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS, dry_run=True)
 
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
             mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
             linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
-            linknets_all += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
+            linknets_all += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS, dry_run=True)
             update_interfacedb_worker(session, dev, replace=True, delete_all=False,
-                                      mlag_peer_hostname=mlag_peer_dev.hostname)
+                                      mlag_peer_hostname=mlag_peer_dev.hostname, linknets=linknets_all)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
-                                      mlag_peer_hostname=dev.hostname)
+                                      mlag_peer_hostname=dev.hostname, linknets=linknets_all)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
             uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
             # check that both devices see the correct MLAG peer
@@ -385,7 +385,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             raise ValueError("mlag_peer_id and mlag_peer_new_hostname must be specified together")
         # If this device is not part of an MLAG pair
         else:
-            update_interfacedb_worker(session, dev, replace=True, delete_all=False)
+            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets_all)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         try:
@@ -403,6 +403,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 new_hostname, e
             ))
         except (Exception, NeighborError) as e:
+            raise e
+
+        try:
+            update_linknets(session, dev.hostname, DeviceType.ACCESS, dry_run=False)
+            if mlag_peer_dev:
+                update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS, dry_run=False)
+        except Exception as e:
+            session.rollback()
             raise e
 
         # TODO: check compatability, same dist pair and same ports on dists

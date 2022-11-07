@@ -65,7 +65,7 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None)\
 
 def get_uplinks(session, hostname: str, recheck: bool = False,
                 neighbors: Optional[List[Device]] = None,
-                linknets = None) -> Dict[str, str]:
+                linknets: Optional[List[dict]] = None) -> Dict[str, str]:
     """Returns dict with mapping of interface -> neighbor hostname"""
     logger = get_logger()
     uplinks = {}
@@ -89,11 +89,11 @@ def get_uplinks(session, hostname: str, recheck: bool = False,
 
     neighbor_d: Device
     if not neighbors:
-        neighbors = dev.get_neighbors(session)
+        neighbors = dev.get_neighbors(session, linknets)
 
     for neighbor_d in neighbors:
         if neighbor_d.device_type == DeviceType.DIST:
-            local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
+            local_if = dev.get_neighbor_local_ifname(session, neighbor_d, linknets)
             # Neighbor interface ifclass is already verified in
             # update_linknets -> verify_peer_iftype
             if local_if:
@@ -104,8 +104,8 @@ def get_uplinks(session, hostname: str, recheck: bool = False,
             if not intfs:
                 continue
             try:
-                local_if = dev.get_neighbor_local_ifname(session, neighbor_d)
-                remote_if = neighbor_d.get_neighbor_local_ifname(session, dev)
+                local_if = dev.get_neighbor_local_ifname(session, neighbor_d, linknets)
+                remote_if = neighbor_d.get_neighbor_local_ifname(session, dev, linknets)
             except ValueError as e:
                 logger.debug("Ignoring possible uplinks to neighbor {}: {}".format(
                     neighbor_d.hostname, e))

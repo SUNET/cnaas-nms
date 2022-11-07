@@ -160,7 +160,7 @@ class Device(cnaas_nms.db.base.Base):
                 'device_b_hostname': linknet.device_b.hostname,
                 **linknet_dict
             }
-            ret.append(linknet_dict)
+            ret.append({k: linknet_dict[k] for k in sorted(linknet_dict)})
         return ret
 
     def get_linknet_localif_mapping(self, session) -> dict[str, str]:

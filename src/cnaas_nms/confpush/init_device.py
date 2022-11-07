@@ -75,24 +75,24 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             management_ip=device_variables['mgmt_ip']
         )
     except NornirSubTaskError as e:
-        try:
-            assert not type(e.result[1][1].exception) is NMReadTimeout
-        except AssertionError:
-            logger.error("Read timeout while copying cert to device")
-        except (AttributeError, IndexError) as e:
-            pass
-        logger.exception(e)
+        copy_res: Result = next(iter(
+            [res for res in e.result if res.name == "arista_copy_cert"]), None)
+        if copy_res:
+            nm_res: Result = next(iter(
+                [sres for sres in copy_res if sres.name == "netmiko_file_transfer"]), None)
+            if nm_res and isinstance(nm_res.exception, NMReadTimeout):
+                logger.error("Read timeout while copying cert to device")
+
+        if api_settings.VERIFY_TLS_DEVICE:
+            logger.error("Unable to install device certificate for {}, aborting: {}".format(
+                task.host.name, str(e)))
+            raise e
+        else:
+            logger.debug("Unable to install device certificate for {}: {}".format(
+                task.host.name, str(e)))
     except Exception as e:
         logger.exception(e)
-    else:
-        if device_cert_res.failed:
-            if api_settings.VERIFY_TLS_DEVICE:
-                logger.error("Unable to install device certificate for {}, aborting".format(
-                    device_variables['host']))
-                raise Exception(device_cert_res[0].exception)
-            else:
-                logger.debug("Unable to install device certificate for {}".format(
-                    device_variables['host']))
+        raise e
 
     r = task.run(task=template_file,
                  name="Generate initial device config",
@@ -459,14 +459,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                                devtype=DeviceType.ACCESS,
                                job_id=job_id)
 
-    napalm_get_oldip_result: Result = \
-        [res for res in nrresult[hostname] if res.name == "napalm_get"][0]
+    napalm_get_oldip_result: Optional[Result] = \
+        next(iter([res for res in nrresult[hostname] if res.name == "napalm_get"]), None)
 
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         # If a get call to the old IP does not fail, it means management IP change did not work
         # Abort and rollback to initial state before device_init
-        if not napalm_get_oldip_result.failed:
+        if not napalm_get_oldip_result or not napalm_get_oldip_result.failed:
             dev.hostname = old_hostname
             linknets = dev.get_linknets(session)
             for linknet in linknets:
@@ -535,8 +535,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             mlag_peer_id, mlag_peer_job_id
         ))
 
+    res: Result
     for res in nrresult[hostname]:
+        # These tasks are supposed to get connection timeouts etc, setting them
+        # to failed=False will keep job history clean and cause less confusion
         if res.name in ["Push base management config", "push_base_management", "napalm_get"]:
+            res.failed = False
+            res.result = ""
+        if res.name == "ztp_device_cert" and not api_settings.VERIFY_TLS_DEVICE:
             res.failed = False
 
     return NornirJobResult(

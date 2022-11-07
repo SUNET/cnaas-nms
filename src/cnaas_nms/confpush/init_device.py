@@ -1,12 +1,12 @@
 import datetime
 import os
-from typing import Optional, List
+from typing import Optional, List, Union
 from ipaddress import IPv4Interface, IPv4Address
 
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
-from nornir.core.task import Result
+from nornir.core.task import Result, MultiResult
 from nornir.core.exceptions import NornirSubTaskError
 from netmiko.exceptions import ReadTimeout as NMReadTimeout
 from apscheduler.job import Job
@@ -544,7 +544,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             mlag_peer_id, mlag_peer_job_id
         ))
 
-    res: Result
+    res: Union[Result, MultiResult]
     for res in nrresult[hostname]:
         # These tasks are supposed to get connection timeouts etc, setting them
         # to failed=False will keep job history clean and cause less confusion
@@ -552,7 +552,12 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             res.failed = False
             res.result = ""
         if res.name == "ztp_device_cert" and not api_settings.VERIFY_TLS_DEVICE:
-            res.failed = False
+            if type(res) is Result:
+                res.failed = False
+            elif type(res) is MultiResult:
+                for sres in res:
+                    if type(sres) is Result:
+                        sres.failed = False
 
     return NornirJobResult(
         nrresult=nrresult,

@@ -232,7 +232,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
 
         if mlag_peer_dev and len(mlag_peers) < 2:
             raise InitVerificationError(
-                ("MLAG requires at least two MLAG peer links, {} found for"
+                ("MLAG requires at least two MLAG peer links, {} found for "
                  "device id {} ({})").format(
                     len(mlag_peers), dev.id, dev.hostname
                 ))
@@ -370,8 +370,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS,
                                             mlag_peer_dev=mlag_peer_dev, dry_run=True)
             linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
-            linknets_all += update_linknets(
-                session, mlag_peer_dev.hostname, DeviceType.ACCESS, dry_run=True)
+            linknets_all += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS,
+                                            mlag_peer_dev=dev, dry_run=True)
             update_interfacedb_worker(
                 session, dev, replace=True, delete_all=False,
                 mlag_peer_hostname=mlag_peer_dev.hostname, linknets=linknets_all)

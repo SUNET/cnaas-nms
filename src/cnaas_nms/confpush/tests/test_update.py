@@ -28,6 +28,10 @@ class UpdateTests(unittest.TestCase):
     def test_update_linknet_eosaccess(self):
         with sqla_session() as session:
             linknets = self.get_linknets(session)
+            for ln in linknets:
+                ln['device_a_id'] = None
+                ln['device_b_id'] = None
+            breakpoint()
             self.assertListEqual(
                 linknets,
                 self.testdata['linknet_redundant'],
@@ -37,6 +41,9 @@ class UpdateTests(unittest.TestCase):
     def test_update_linknet_eosaccess_nonredundant(self):
         with sqla_session() as session:
             linknets = self.get_linknets(session, self.testdata['lldp_data_nonredundant'])
+            for ln in linknets:
+                ln['device_a_id'] = None
+                ln['device_b_id'] = None
             self.assertListEqual(
                 linknets,
                 self.testdata['linknet_nonredundant'],

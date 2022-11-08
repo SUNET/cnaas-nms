@@ -123,14 +123,17 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             ))
 
 
-def pre_init_checks(session, device_id: int) -> Device:
+def pre_init_checks(session, device_id: int,
+                    accepted_state: Optional[List[DeviceState]] = None) -> Device:
     """Find device with device_id and check that it's ready for init, returns
     Device object or raises exception"""
+    if not accepted_state:
+        accepted_state: List[DeviceState] = [DeviceState.DISCOVERED]
     # Check that we can find device and that it's in the correct state to start init
     dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
     if not dev:
         raise ValueError(f"No device with id {device_id} found")
-    if dev.state != DeviceState.DISCOVERED:
+    if dev.state not in accepted_state:
         raise DeviceStateError("Device must be in state DISCOVERED to begin init")
     old_hostname = dev.hostname
     # Perform connectivity check
@@ -327,6 +330,49 @@ def ztp_device_cert(task, job_id: str, new_hostname: str, management_ip: str) ->
     return "Device certificate installed for {}".format(new_hostname)
 
 
+def schedule_mlag_peer_init(mlag_peer_id: int, mlag_peer_new_hostname: str,
+                            uplink_hostnames: List[str], scheduled_by: str) -> int:
+    logger = get_logger()
+    scheduler = Scheduler()
+    mlag_peer_job_id = scheduler.add_onetime_job(
+        'cnaas_nms.confpush.init_device:init_access_device_step1',
+        when=60,
+        scheduled_by=scheduled_by,
+        kwargs={
+            'device_id': mlag_peer_id,
+            'new_hostname': mlag_peer_new_hostname,
+            'uplink_hostnames_arg': uplink_hostnames,
+            'scheduled_by': scheduled_by
+        })
+    logger.info("MLAG peer (id {}) init scheduled as job # {}".format(
+        mlag_peer_id, mlag_peer_job_id
+    ))
+    return mlag_peer_job_id
+
+
+def init_mlag_peer_only(device_id: int, mlag_peer_id: int, mlag_peer_new_hostname: str,
+                        job_id: Optional[str] = None, scheduled_by: Optional[str] = None):
+    """Try to initialize second MLAG switch if first succeeded but second failed"""
+    logger = get_logger()
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+        if not dev:
+            raise ValueError(f"No device with id {device_id} found")
+        if dev.state != DeviceState.MANAGED:
+            raise DeviceStateError(
+                "First MLAG device must be in state MANAGED to restart MLAG peer init")
+        mlag_peer_dev: Device = pre_init_checks(
+            session, mlag_peer_id, accepted_state=[DeviceState.DISCOVERED, DeviceState.INIT])
+        logger.info(
+            "Found MLAG pair in MANAGED/INIT state: {}={}, {}={} restarting peer init".format(
+            device_id, dev.state, mlag_peer_id, mlag_peer_dev.state
+        ))
+        uplink_hostnames = dev.get_uplink_peer_hostnames(session)
+        uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
+        schedule_mlag_peer_init(
+            mlag_peer_id, mlag_peer_new_hostname, uplink_hostnames, scheduled_by)
+
+
 @job_wrapper
 def init_access_device_step1(device_id: int, new_hostname: str,
                              mlag_peer_id: Optional[int] = None,
@@ -357,7 +403,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     """
     logger = get_logger()
     with sqla_session() as session:
-        dev: Device = pre_init_checks(session, device_id)
+        try:
+            dev: Device = pre_init_checks(session, device_id)
+        except DeviceStateError as e:
+            if mlag_peer_id and mlag_peer_new_hostname:
+                init_mlag_peer_only(
+                    device_id, mlag_peer_id, mlag_peer_new_hostname, job_id, scheduled_by)
+            else:
+                raise e
         linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None
 
@@ -492,15 +545,6 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:
             session.delete(reserved_ip)
-        # Mark remote peers as unsynchronized so they can update interface descriptions
-        for linknet in linknets:
-            if linknet['device_a_id'] == device_id:
-                peer_hostname = linknet['device_b_hostname']
-            else:
-                peer_hostname = linknet['device_a_hostname']
-            peer_dev: Device = session.query(Device).filter(Device.hostname == peer_hostname).one_or_none()
-            if peer_dev:
-                peer_dev.synchronized = False
 
     # Plugin hook, allocated IP
     try:
@@ -530,19 +574,8 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     ))
 
     if mlag_peer_id and mlag_peer_new_hostname:
-        mlag_peer_job_id = scheduler.add_onetime_job(
-            'cnaas_nms.confpush.init_device:init_access_device_step1',
-            when=60,
-            scheduled_by=scheduled_by,
-            kwargs={
-                'device_id': mlag_peer_id,
-                'new_hostname': mlag_peer_new_hostname,
-                'uplink_hostnames_arg': uplink_hostnames,
-                'scheduled_by': scheduled_by
-            })
-        logger.info("MLAG peer (id {}) init scheduled as job # {}".format(
-            mlag_peer_id, mlag_peer_job_id
-        ))
+        schedule_mlag_peer_init(
+            mlag_peer_id, mlag_peer_new_hostname, uplink_hostnames, scheduled_by)
 
     res: Union[Result, MultiResult]
     for res in nrresult[hostname]:

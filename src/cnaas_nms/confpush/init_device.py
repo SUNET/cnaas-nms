@@ -384,6 +384,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         # If this is the second device in an MLAG pair
         elif uplink_hostnames_arg:
             uplink_hostnames = uplink_hostnames_arg
+            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
         elif mlag_peer_id or mlag_peer_new_hostname:
             raise ValueError("mlag_peer_id and mlag_peer_new_hostname must be specified together")
         # If this device is not part of an MLAG pair

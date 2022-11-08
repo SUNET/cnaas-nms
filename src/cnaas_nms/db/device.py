@@ -222,19 +222,6 @@ class Device(cnaas_nms.db.base.Base):
         elif linknet_dict['device_b_id'] == self.id:
             return linknet_dict['device_b_port']
 
-    def get_neighbor_local_ifnames(self, session, peer_device: Device) -> List[str]:
-        """Get the local interface name on this device that links to peer_device."""
-        linknets = self.get_links_to(session, peer_device)
-        ifnames = []
-        if not linknets:
-            return ifnames
-        for linknet in linknets:
-            if linknet.device_a_id == self.id:
-                ifnames.append(linknet.device_a_port)
-            elif linknet.device_b_id == self.id:
-                ifnames.append(linknet.device_b_port)
-        return ifnames
-
     def get_neighbor_local_ipif(self, session, peer_device: Device) -> Optional[str]:
         """Get the local interface IP on this device that links to peer_device."""
         linknets = self.get_links_to(session, peer_device)

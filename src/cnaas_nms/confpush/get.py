@@ -123,20 +123,32 @@ def get_uplinks(session, hostname: str, recheck: bool = False,
     return uplinks
 
 
-def get_mlag_ifs(session, hostname: str, mlag_peer_hostname: str,
+def get_local_ifnames(local_devid: int, peer_devid: int, linknets: List[dict]) -> List[str]:
+    ifnames = []
+    if not linknets:
+        return ifnames
+    for linknet in linknets:
+        if linknet['device_a_id'] == local_devid and linknet['device_b_id'] == peer_devid:
+            ifnames.append(linknet['device_a_port'])
+        elif linknet['device_b_id'] == local_devid and linknet['device_a_id'] == peer_devid:
+            ifnames.append(linknet['device_b_port'])
+    return ifnames
+
+
+def get_mlag_ifs(session, dev: Device, mlag_peer_hostname: str,
                  linknets: Optional[List[dict]] = None) -> Dict[str, int]:
     """Returns dict with mapping of interface -> neighbor id
     Return id instead of hostname since mlag peer will change hostname during init"""
     logger = get_logger()
     mlag_ifs = {}
 
-    dev = session.query(Device).filter(Device.hostname == hostname).one()
+    dev = session.query(Device).filter(Device.hostname == dev.hostname).one()
     for neighbor_d in dev.get_neighbors(session, linknets=linknets):
         if neighbor_d.hostname == mlag_peer_hostname:
-            for local_if in dev.get_neighbor_local_ifnames(session, neighbor_d):
+            for local_if in get_local_ifnames(dev.id, neighbor_d.id, linknets):
                 mlag_ifs[local_if] = neighbor_d.id
     logger.debug("MLAG peer interfaces for device {} detected: {}".
-                 format(hostname, ', '.join(["{}: {}".format(ifname, hostname)
+                 format(dev.hostname, ', '.join(["{}: {}".format(ifname, hostname)
                                              for ifname, hostname in mlag_ifs.items()])))
     return mlag_ifs
 

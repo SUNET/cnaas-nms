@@ -416,7 +416,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             update_linknets(session, dev.hostname, DeviceType.ACCESS,
                             mlag_peer_dev=mlag_peer_dev, dry_run=False)
             if mlag_peer_dev:
-                update_linknets(session, mlag_peer_dev, DeviceType.ACCESS, dry_run=False)
+                update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS, dry_run=False)
         except Exception as e:
             session.rollback()
             raise e

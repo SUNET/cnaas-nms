@@ -46,7 +46,7 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete_all: b
     iflist = get_interfaces_names(dev.hostname)  # query nornir for current interfaces
     uplinks = get_uplinks(session, dev.hostname, recheck=replace, linknets=linknets)
     if mlag_peer_hostname:
-        mlag_ifs = get_mlag_ifs(session, dev.hostname, mlag_peer_hostname, linknets=linknets)
+        mlag_ifs = get_mlag_ifs(session, dev, mlag_peer_hostname, linknets=linknets)
     else:
         mlag_ifs = {}
     phy_interfaces = filter_interfaces(iflist, platform=dev.platform, include='physical')
@@ -242,7 +242,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
         if not remote_device_inst:
             logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
             continue
-        if remote_device_inst.id == mlag_peer_dev.id:
+        if mlag_peer_dev and remote_device_inst.id == mlag_peer_dev.id:
             # In case of MLAG init the peer does not have the correct devtype set yet,
             # use same devtype as local device instead
             remote_devtype = devtype

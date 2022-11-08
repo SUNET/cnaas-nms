@@ -362,11 +362,11 @@ def init_mlag_peer_only(device_id: int, mlag_peer_id: int, mlag_peer_new_hostnam
             raise DeviceStateError(
                 "First MLAG device must be in state MANAGED to restart MLAG peer init")
         mlag_peer_dev: Device = pre_init_checks(
-            session, mlag_peer_id, accepted_state=[DeviceState.DISCOVERED, DeviceState.INIT])
+            session, mlag_peer_id, accepted_state=[DeviceState.DISCOVERED])
         logger.info(
             "Found MLAG pair in MANAGED/INIT state: {}={}, {}={} restarting peer init".format(
-            device_id, dev.state, mlag_peer_id, mlag_peer_dev.state
-        ))
+                device_id, dev.state, mlag_peer_id, mlag_peer_dev.state
+            ))
         uplink_hostnames = dev.get_uplink_peer_hostnames(session)
         uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
         schedule_mlag_peer_init(

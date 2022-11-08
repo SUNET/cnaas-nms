@@ -370,11 +370,12 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
             linknets_all += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS,
                                             mlag_peer_dev=dev, dry_run=True)
+            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
             update_interfacedb_worker(
                 session, dev, replace=True, delete_all=False,
-                mlag_peer_hostname=mlag_peer_dev.hostname, linknets=linknets_all)
+                mlag_peer_hostname=mlag_peer_dev.hostname, linknets=linknets)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
-                                      mlag_peer_hostname=dev.hostname, linknets=linknets_all)
+                                      mlag_peer_hostname=dev.hostname, linknets=linknets)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
             uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
             # check that both devices see the correct MLAG peer
@@ -390,12 +391,12 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             # update linknets using LLDP data
             linknets_all += update_linknets(
                 session, dev.hostname, DeviceType.ACCESS, dry_run=True)
+            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
             update_interfacedb_worker(
-                session, dev, replace=True, delete_all=False, linknets=linknets_all)
+                session, dev, replace=True, delete_all=False, linknets=linknets)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         try:
-            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
             # Verify uplink neighbors only for first device in MLAG pair
             if not uplink_hostnames_arg:
                 verified_neighbors = pre_init_check_neighbors(

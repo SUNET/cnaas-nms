@@ -123,7 +123,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             ))
 
 
-def pre_init_checks(session, device_id) -> Device:
+def pre_init_checks(session, device_id: int) -> Device:
     """Find device with device_id and check that it's ready for init, returns
     Device object or raises exception"""
     # Check that we can find device and that it's in the correct state to start init
@@ -199,6 +199,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
 
             if mlag_peer_dev and mlag_peer_dev == neighbor_dev:
                 mlag_peers.append(neighbor)
+                neighbors.append(neighbor)
             elif neighbor_dev.device_type in [DeviceType.ACCESS, DeviceType.DIST]:
                 if 'redundant_link' in linknet:
                     if linknet['redundant_link']:
@@ -206,8 +207,6 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 else:
                     redundant_uplinks += 1
                 uplinks.append(neighbor)
-                neighbors.append(neighbor)
-            elif mlag_peer_dev and neighbor_dev == mlag_peer_dev:
                 neighbors.append(neighbor)
 
         if len(uplinks) <= 0:
@@ -358,14 +357,13 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     """
     logger = get_logger()
     with sqla_session() as session:
-        dev = pre_init_checks(session, device_id)
+        dev: Device = pre_init_checks(session, device_id)
         linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None
 
-
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
-            mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
+            mlag_peer_dev: Device = pre_init_checks(session, mlag_peer_id)
             # update linknets using LLDP data
             linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS,
                                             mlag_peer_dev=mlag_peer_dev, dry_run=True)
@@ -418,7 +416,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
             update_linknets(session, dev.hostname, DeviceType.ACCESS,
                             mlag_peer_dev=mlag_peer_dev, dry_run=False)
             if mlag_peer_dev:
-                update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS, dry_run=False)
+                update_linknets(session, mlag_peer_dev, DeviceType.ACCESS, dry_run=False)
         except Exception as e:
             session.rollback()
             raise e

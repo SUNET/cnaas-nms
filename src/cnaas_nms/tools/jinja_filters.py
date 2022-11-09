@@ -2,7 +2,7 @@
 
 import ipaddress
 import re
-from typing import Union, Optional, Callable
+from typing import Union, Optional, Callable, Any
 
 # This global dict can be used to update the Jinja environment filters dict to include all
 # registered template filter function
@@ -22,6 +22,25 @@ def template_filter(name: Optional[str] = None) -> Callable:
         return func
 
     return decorator
+
+
+@template_filter()
+def ipwrap(address: Any) -> str:
+    """Wraps the input argument in brackets if it looks like an IPv6 address. Otherwise, returns
+    the input unchanged. This is useful in templates that need to build valid URLs from host name
+    variables that can be either FQDNs or any IPv4 or IPv6 address.
+
+    Args:
+        address: Any string or object that can be cast to a string
+    """
+    try:
+        if not isinstance(address, int):
+            ipaddress.IPv6Address(address)
+            return f"[{address}]"
+    except ValueError:
+        pass
+
+    return str(address)
 
 
 @template_filter()

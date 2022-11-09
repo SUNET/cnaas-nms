@@ -1,7 +1,8 @@
 import enum
 import os
 import datetime
-from typing import Set, Tuple
+from typing import Set, Tuple, Optional
+from urllib.parse import urldefrag
 
 from git import Repo
 from git import InvalidGitRepositoryError, NoSuchPathError
@@ -137,7 +138,8 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         logger.info("Local repository {} not found, cloning from remote".\
                     format(local_repo_path))
         try:
-            local_repo = Repo.clone_from(remote_repo_path, local_repo_path)
+            url, branch = parse_repo_url(remote_repo_path)
+            local_repo = Repo.clone_from(url, local_repo_path, branch=branch)
         except NoSuchPathError as e:
             raise ConfigException("Invalid remote repository {}: {}".format(
                 remote_repo_path,
@@ -300,3 +302,9 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
             logger.warn("Unhandled settings file found {}, syncstatus not updated".
                         format(filename))
     return (unsynced_devtypes, unsynced_hostnames)
+
+
+def parse_repo_url(url: str) -> Tuple[str, Optional[str]]:
+    """Parses a URL to a repository, returning the path and branch refspec separately"""
+    path, branch = urldefrag(url)
+    return path, branch if branch else None

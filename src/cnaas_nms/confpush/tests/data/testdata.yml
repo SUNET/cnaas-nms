@@ -56,3 +56,32 @@ lldp_data_nonredundant_error:
   Ethernet2:
     - hostname: eosdist1
       port: Ethernet2
+mlag_dev_a: mlagpeer1
+mlag_dev_b: mlagpeer2
+mlag_dev_nonpeer: nonpeer
+linknets_mlag_peers:
+- description: null
+  device_a_ip: null
+  device_a_port: Ethernet25
+  device_b_ip: null
+  device_b_port: Ethernet51
+  ipv4_network: null
+  redundant_link: true
+  site_id: null
+- description: null
+  device_a_ip: null
+  device_a_port: Ethernet26
+  device_b_ip: null
+  device_b_port: Ethernet52
+  ipv4_network: null
+  redundant_link: true
+  site_id: null
+linknets_mlag_nonpeers:
+  - description: null
+    device_a_ip: null
+    device_a_port: Ethernet20
+    device_b_ip: null
+    device_b_port: Ethernet20
+    ipv4_network: null
+    redundant_link: true
+    site_id: null

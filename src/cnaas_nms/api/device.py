@@ -80,8 +80,11 @@ device_init_model = device_init_api.model('device_init', {
     'device_type': fields.String(required=False)})
 
 device_initcheck_model = device_initcheck_api.model('device_initcheck', {
-    'hostname': fields.String(required=False),
-    'device_type': fields.String(required=False)})
+    'hostname': fields.String(required=True),
+    'device_type': fields.String(required=True),
+    'mlag_peer_id': fields.Integer(required=False),
+    'mlag_peer_hostname': fields.String(required=False),
+})
 
 device_discover_model = device_discover_api.model('device_discover', {
     'ztp_mac': fields.String(required=True),
@@ -432,7 +435,7 @@ class DeviceInitCheckApi(Resource):
 
         with sqla_session() as session:
             try:
-                dev = cnaas_nms.confpush.init_device.pre_init_checks(session, device_id)
+                dev: Device = cnaas_nms.confpush.init_device.pre_init_checks(session, device_id)
                 linknets_all = dev.get_linknets_as_dict(session)
             except ValueError as e:
                 return empty_result(status='error',
@@ -443,7 +446,7 @@ class DeviceInitCheckApi(Resource):
 
             if mlag_peer_id:
                 try:
-                    mlag_peer_dev = cnaas_nms.confpush.init_device.pre_init_checks(
+                    mlag_peer_dev: Device = cnaas_nms.confpush.init_device.pre_init_checks(
                         session, mlag_peer_id)
                     linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
                 except ValueError as e:
@@ -459,6 +462,7 @@ class DeviceInitCheckApi(Resource):
                     hostname=dev.hostname,
                     devtype=target_devtype,
                     ztp_hostname=target_hostname,
+                    mlag_peer_dev=mlag_peer_dev,
                     dry_run=True
                 )
                 if mlag_peer_dev:
@@ -467,6 +471,7 @@ class DeviceInitCheckApi(Resource):
                         hostname=mlag_peer_dev.hostname,
                         devtype=target_devtype,
                         ztp_hostname=mlag_peer_target_hostname,
+                        mlag_peer_dev=dev,
                         dry_run=True
                     )
                 ret['linknets'] = Linknet.deduplicate_linknet_dicts(linknets_all)
@@ -508,7 +513,7 @@ class DeviceInitCheckApi(Resource):
         ret['parsed_args'] = parsed_args
         if mlag_peer_id and not ret['mlag_compatible']:
             ret['compatible'] = False
-        if ret['linknets_compatible'] and ret['neighbors_compatible']:
+        elif ret['linknets_compatible'] and ret['neighbors_compatible']:
             ret['compatible'] = True
         else:
             ret['compatible'] = False

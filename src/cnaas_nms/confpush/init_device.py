@@ -1,12 +1,12 @@
 import datetime
 import os
-from typing import Optional, List
+from typing import Optional, List, Union
 from ipaddress import IPv4Interface, IPv4Address
 
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_utils.plugins.functions import print_result
-from nornir.core.task import Result
+from nornir.core.task import Result, MultiResult
 from nornir.core.exceptions import NornirSubTaskError
 from netmiko.exceptions import ReadTimeout as NMReadTimeout
 from apscheduler.job import Job
@@ -75,24 +75,24 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             management_ip=device_variables['mgmt_ip']
         )
     except NornirSubTaskError as e:
-        try:
-            assert not type(e.result[1][1].exception) is NMReadTimeout
-        except AssertionError:
-            logger.error("Read timeout while copying cert to device")
-        except (AttributeError, IndexError) as e:
-            pass
-        logger.exception(e)
+        copy_res: Result = next(iter(
+            [res for res in e.result if res.name == "arista_copy_cert"]), None)
+        if copy_res:
+            nm_res: Result = next(iter(
+                [sres for sres in copy_res if sres.name == "netmiko_file_transfer"]), None)
+            if nm_res and isinstance(nm_res.exception, NMReadTimeout):
+                logger.error("Read timeout while copying cert to device")
+
+        if api_settings.VERIFY_TLS_DEVICE:
+            logger.error("Unable to install device certificate for {}, aborting: {}".format(
+                task.host.name, str(e)))
+            raise e
+        else:
+            logger.debug("Unable to install device certificate for {}: {}".format(
+                task.host.name, str(e)))
     except Exception as e:
         logger.exception(e)
-    else:
-        if device_cert_res.failed:
-            if api_settings.VERIFY_TLS_DEVICE:
-                logger.error("Unable to install device certificate for {}, aborting".format(
-                    device_variables['host']))
-                raise Exception(device_cert_res[0].exception)
-            else:
-                logger.debug("Unable to install device certificate for {}".format(
-                    device_variables['host']))
+        raise e
 
     r = task.run(task=template_file,
                  name="Generate initial device config",
@@ -123,14 +123,17 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             ))
 
 
-def pre_init_checks(session, device_id) -> Device:
+def pre_init_checks(session, device_id: int,
+                    accepted_state: Optional[List[DeviceState]] = None) -> Device:
     """Find device with device_id and check that it's ready for init, returns
     Device object or raises exception"""
+    if not accepted_state:
+        accepted_state: List[DeviceState] = [DeviceState.DISCOVERED]
     # Check that we can find device and that it's in the correct state to start init
     dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
     if not dev:
         raise ValueError(f"No device with id {device_id} found")
-    if dev.state != DeviceState.DISCOVERED:
+    if dev.state not in accepted_state:
         raise DeviceStateError("Device must be in state DISCOVERED to begin init")
     old_hostname = dev.hostname
     # Perform connectivity check
@@ -199,6 +202,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
 
             if mlag_peer_dev and mlag_peer_dev == neighbor_dev:
                 mlag_peers.append(neighbor)
+                neighbors.append(neighbor)
             elif neighbor_dev.device_type in [DeviceType.ACCESS, DeviceType.DIST]:
                 if 'redundant_link' in linknet:
                     if linknet['redundant_link']:
@@ -206,8 +210,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
                 else:
                     redundant_uplinks += 1
                 uplinks.append(neighbor)
-
-            neighbors.append(neighbor)
+                neighbors.append(neighbor)
 
         if len(uplinks) <= 0:
             raise InitVerificationError(
@@ -231,7 +234,7 @@ def pre_init_check_neighbors(session, dev: Device, devtype: DeviceType,
 
         if mlag_peer_dev and len(mlag_peers) < 2:
             raise InitVerificationError(
-                ("MLAG requires at least two MLAG peer links, {} found for"
+                ("MLAG requires at least two MLAG peer links, {} found for "
                  "device id {} ({})").format(
                     len(mlag_peers), dev.id, dev.hostname
                 ))
@@ -327,6 +330,49 @@ def ztp_device_cert(task, job_id: str, new_hostname: str, management_ip: str) ->
     return "Device certificate installed for {}".format(new_hostname)
 
 
+def schedule_mlag_peer_init(mlag_peer_id: int, mlag_peer_new_hostname: str,
+                            uplink_hostnames: List[str], scheduled_by: str) -> int:
+    logger = get_logger()
+    scheduler = Scheduler()
+    mlag_peer_job_id = scheduler.add_onetime_job(
+        'cnaas_nms.confpush.init_device:init_access_device_step1',
+        when=60,
+        scheduled_by=scheduled_by,
+        kwargs={
+            'device_id': mlag_peer_id,
+            'new_hostname': mlag_peer_new_hostname,
+            'uplink_hostnames_arg': uplink_hostnames,
+            'scheduled_by': scheduled_by
+        })
+    logger.info("MLAG peer (id {}) init scheduled as job # {}".format(
+        mlag_peer_id, mlag_peer_job_id
+    ))
+    return mlag_peer_job_id
+
+
+def init_mlag_peer_only(device_id: int, mlag_peer_id: int, mlag_peer_new_hostname: str,
+                        job_id: Optional[str] = None, scheduled_by: Optional[str] = None):
+    """Try to initialize second MLAG switch if first succeeded but second failed"""
+    logger = get_logger()
+    with sqla_session() as session:
+        dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+        if not dev:
+            raise ValueError(f"No device with id {device_id} found")
+        if dev.state != DeviceState.MANAGED:
+            raise DeviceStateError(
+                "First MLAG device must be in state MANAGED to restart MLAG peer init")
+        mlag_peer_dev: Device = pre_init_checks(
+            session, mlag_peer_id, accepted_state=[DeviceState.DISCOVERED])
+        logger.info(
+            "Found MLAG pair in MANAGED/INIT state: {}={}, {}={} restarting peer init".format(
+                device_id, dev.state, mlag_peer_id, mlag_peer_dev.state
+            ))
+        uplink_hostnames = dev.get_uplink_peer_hostnames(session)
+        uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
+        schedule_mlag_peer_init(
+            mlag_peer_id, mlag_peer_new_hostname, uplink_hostnames, scheduled_by)
+
+
 @job_wrapper
 def init_access_device_step1(device_id: int, new_hostname: str,
                              mlag_peer_id: Optional[int] = None,
@@ -357,22 +403,32 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     """
     logger = get_logger()
     with sqla_session() as session:
-        dev = pre_init_checks(session, device_id)
+        try:
+            dev: Device = pre_init_checks(session, device_id)
+        except DeviceStateError as e:
+            if mlag_peer_id and mlag_peer_new_hostname:
+                init_mlag_peer_only(
+                    device_id, mlag_peer_id, mlag_peer_new_hostname, job_id, scheduled_by)
+            else:
+                raise e
         linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None
 
-        # update linknets using LLDP data
-        linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS)
-
         # If this is the first device in an MLAG pair
         if mlag_peer_id and mlag_peer_new_hostname:
-            mlag_peer_dev = pre_init_checks(session, mlag_peer_id)
+            mlag_peer_dev: Device = pre_init_checks(session, mlag_peer_id)
+            # update linknets using LLDP data
+            linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS,
+                                            mlag_peer_dev=mlag_peer_dev, dry_run=True)
             linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
-            linknets_all += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS)
-            update_interfacedb_worker(session, dev, replace=True, delete_all=False,
-                                      mlag_peer_hostname=mlag_peer_dev.hostname)
+            linknets_all += update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS,
+                                            mlag_peer_dev=dev, dry_run=True)
+            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
+            update_interfacedb_worker(
+                session, dev, replace=True, delete_all=False,
+                mlag_peer_hostname=mlag_peer_dev.hostname, linknets=linknets)
             update_interfacedb_worker(session, mlag_peer_dev, replace=True, delete_all=False,
-                                      mlag_peer_hostname=dev.hostname)
+                                      mlag_peer_hostname=dev.hostname, linknets=linknets)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
             uplink_hostnames += mlag_peer_dev.get_uplink_peer_hostnames(session)
             # check that both devices see the correct MLAG peer
@@ -381,15 +437,20 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         # If this is the second device in an MLAG pair
         elif uplink_hostnames_arg:
             uplink_hostnames = uplink_hostnames_arg
+            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
         elif mlag_peer_id or mlag_peer_new_hostname:
             raise ValueError("mlag_peer_id and mlag_peer_new_hostname must be specified together")
         # If this device is not part of an MLAG pair
         else:
-            update_interfacedb_worker(session, dev, replace=True, delete_all=False)
+            # update linknets using LLDP data
+            linknets_all += update_linknets(
+                session, dev.hostname, DeviceType.ACCESS, dry_run=True)
+            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
+            update_interfacedb_worker(
+                session, dev, replace=True, delete_all=False, linknets=linknets)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         try:
-            linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
             # Verify uplink neighbors only for first device in MLAG pair
             if not uplink_hostnames_arg:
                 verified_neighbors = pre_init_check_neighbors(
@@ -403,6 +464,16 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 new_hostname, e
             ))
         except (Exception, NeighborError) as e:
+            session.rollback()
+            raise e
+
+        try:
+            update_linknets(session, dev.hostname, DeviceType.ACCESS,
+                            mlag_peer_dev=mlag_peer_dev, dry_run=False)
+            if mlag_peer_dev:
+                update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS, dry_run=False)
+        except Exception as e:
+            session.rollback()
             raise e
 
         # TODO: check compatability, same dist pair and same ports on dists
@@ -420,6 +491,7 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                 mgmtdomain.id, mgmtdomain.description))
         reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
         session.add(reserved_ip)
+        session.commit()
         # Populate variables for template rendering
         mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
         mgmt_variables = {
@@ -449,14 +521,14 @@ def init_access_device_step1(device_id: int, new_hostname: str,
                                devtype=DeviceType.ACCESS,
                                job_id=job_id)
 
-    napalm_get_oldip_result: Result = \
-        [res for res in nrresult[hostname] if res.name == "napalm_get"][0]
+    napalm_get_oldip_result: Optional[Result] = \
+        next(iter([res for res in nrresult[hostname] if res.name == "napalm_get"]), None)
 
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         # If a get call to the old IP does not fail, it means management IP change did not work
         # Abort and rollback to initial state before device_init
-        if not napalm_get_oldip_result.failed:
+        if not napalm_get_oldip_result or not napalm_get_oldip_result.failed:
             dev.hostname = old_hostname
             linknets = dev.get_linknets(session)
             for linknet in linknets:
@@ -473,15 +545,6 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
         if reserved_ip:
             session.delete(reserved_ip)
-        # Mark remote peers as unsynchronized so they can update interface descriptions
-        for linknet in linknets:
-            if linknet['device_a_id'] == device_id:
-                peer_hostname = linknet['device_b_hostname']
-            else:
-                peer_hostname = linknet['device_a_hostname']
-            peer_dev: Device = session.query(Device).filter(Device.hostname == peer_hostname).one_or_none()
-            if peer_dev:
-                peer_dev.synchronized = False
 
     # Plugin hook, allocated IP
     try:
@@ -511,23 +574,23 @@ def init_access_device_step1(device_id: int, new_hostname: str,
     ))
 
     if mlag_peer_id and mlag_peer_new_hostname:
-        mlag_peer_job_id = scheduler.add_onetime_job(
-            'cnaas_nms.confpush.init_device:init_access_device_step1',
-            when=60,
-            scheduled_by=scheduled_by,
-            kwargs={
-                'device_id': mlag_peer_id,
-                'new_hostname': mlag_peer_new_hostname,
-                'uplink_hostnames_arg': uplink_hostnames,
-                'scheduled_by': scheduled_by
-            })
-        logger.info("MLAG peer (id {}) init scheduled as job # {}".format(
-            mlag_peer_id, mlag_peer_job_id
-        ))
+        schedule_mlag_peer_init(
+            mlag_peer_id, mlag_peer_new_hostname, uplink_hostnames, scheduled_by)
 
+    res: Union[Result, MultiResult]
     for res in nrresult[hostname]:
+        # These tasks are supposed to get connection timeouts etc, setting them
+        # to failed=False will keep job history clean and cause less confusion
         if res.name in ["Push base management config", "push_base_management", "napalm_get"]:
             res.failed = False
+            res.result = ""
+        if res.name == "ztp_device_cert" and not api_settings.VERIFY_TLS_DEVICE:
+            if type(res) is Result:
+                res.failed = False
+            elif type(res) is MultiResult:
+                for sres in res:
+                    if type(sres) is Result:
+                        sres.failed = False
 
     return NornirJobResult(
         nrresult=nrresult,

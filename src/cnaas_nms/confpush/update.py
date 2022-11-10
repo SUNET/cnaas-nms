@@ -19,7 +19,8 @@ import cnaas_nms.confpush.nornir_helper
 
 
 def update_interfacedb_worker(session, dev: Device, replace: bool, delete_all: bool,
-                              mlag_peer_hostname: Optional[str] = None) -> List[dict]:
+                              mlag_peer_hostname: Optional[str] = None,
+                              linknets: Optional[List[dict]] = None) -> List[dict]:
     """Perform actual work of updating database for update_interfacedb.
     If replace is set to true, configtype and data will get overwritten.
     If delete_all is set to true, delete all interfaces from database.
@@ -43,9 +44,9 @@ def update_interfacedb_worker(session, dev: Device, replace: bool, delete_all: b
         return ret
 
     iflist = get_interfaces_names(dev.hostname)  # query nornir for current interfaces
-    uplinks = get_uplinks(session, dev.hostname, recheck=replace)
+    uplinks = get_uplinks(session, dev.hostname, recheck=replace, linknets=linknets)
     if mlag_peer_hostname:
-        mlag_ifs = get_mlag_ifs(session, dev.hostname, mlag_peer_hostname)
+        mlag_ifs = get_mlag_ifs(session, dev, mlag_peer_hostname, linknets=linknets)
     else:
         mlag_ifs = {}
     phy_interfaces = filter_interfaces(iflist, platform=dev.platform, include='physical')
@@ -203,7 +204,8 @@ def update_facts(hostname: str,
 
 
 def update_linknets(session, hostname: str, devtype: DeviceType,
-                    ztp_hostname: Optional[str] = None, dry_run: bool = False,
+                    ztp_hostname: Optional[str] = None,
+                    mlag_peer_dev: Optional[Device] = None, dry_run: bool = False,
                     neighbors_arg: Optional[Dict[str, list]] = None) -> List[dict]:
     """Update linknet data for specified device using LLDP neighbor data.
 
@@ -240,7 +242,7 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
         if not remote_device_inst:
             logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
             continue
-        if remote_device_inst.state in [DeviceState.DISCOVERED, DeviceState.INIT]:
+        if mlag_peer_dev and remote_device_inst.id == mlag_peer_dev.id:
             # In case of MLAG init the peer does not have the correct devtype set yet,
             # use same devtype as local device instead
             remote_devtype = devtype
@@ -307,12 +309,16 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
                     if check_linknet.device_a_id == local_devid:
                         ret_dict = {
                             'device_a_hostname': local_device_inst.hostname,
+                            'device_a_id': local_device_inst.id,
                             'device_b_hostname': remote_device_inst.hostname,
+                            'device_b_id': remote_device_inst.id,
                         }
                     else:
                         ret_dict = {
                             'device_a_hostname': remote_device_inst.hostname,
+                            'device_a_id': remote_device_inst.id,
                             'device_b_hostname': local_device_inst.hostname,
+                            'device_b_id': local_device_inst.id,
                         }
                     ret_dict = {
                         **ret_dict,
@@ -344,8 +350,6 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
             strict_check=not dry_run  # Don't do strict check if this is a dry_run
         )
         if not dry_run:
-            local_device_inst.synchronized = False
-            remote_device_inst.synchronized = False
             session.add(new_link)
             session.commit()
         else:
@@ -353,10 +357,12 @@ def update_linknets(session, hostname: str, devtype: DeviceType,
             session.expunge(new_link)
         # Make return data pretty
         ret_dict = {
+            **new_link.as_dict(),
             'device_a_hostname': local_device_inst.hostname,
+            'device_a_id': local_device_inst.id,
             'device_b_hostname': remote_device_inst.hostname,
+            'device_b_id': remote_device_inst.id,
             'redundant_link': redundant_link,
-            **new_link.as_dict()
         }
         del ret_dict['id']
         ret.append({k: ret_dict[k] for k in sorted(ret_dict)})

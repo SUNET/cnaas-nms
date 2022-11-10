@@ -5,7 +5,7 @@ import datetime
 import enum
 import re
 import json
-from typing import Optional, List, Set
+from typing import Optional, List, Set, Union
 
 from sqlalchemy import Column, Integer, Unicode, String, UniqueConstraint
 from sqlalchemy import Enum, DateTime, Boolean
@@ -119,15 +119,23 @@ class Device(cnaas_nms.db.base.Base):
             d[col.name] = value
         return d
 
-    def get_neighbors(self, session) -> List[Device]:
+    def get_neighbors(self, session,
+                      linknets: Optional[List[dict]] = None) -> List[Device]:
         """Look up neighbors from cnaas_nms.db.linknet.Linknets and return them as a list of Device objects."""
-        linknets = self.get_linknets(session)
+        if not linknets:
+            linknets = self.get_linknets(session)
         ret = []
         for linknet in linknets:
-            if linknet.device_a_id == self.id:
-                ret.append(session.query(Device).filter(Device.id == linknet.device_b_id).one())
+            if isinstance(linknet, cnaas_nms.db.linknet.Linknet):
+                device_a_id = linknet.device_a_id
+                device_b_id = linknet.device_b_id
             else:
-                ret.append(session.query(Device).filter(Device.id == linknet.device_a_id).one())
+                device_a_id = linknet['device_a_id']
+                device_b_id = linknet['device_b_id']
+            if device_a_id == self.id:
+                ret.append(session.query(Device).filter(Device.id == device_b_id).one())
+            else:
+                ret.append(session.query(Device).filter(Device.id == device_a_id).one())
         return ret
 
     def get_linknets(self, session) -> List[cnaas_nms.db.linknet.Linknet]:
@@ -152,7 +160,7 @@ class Device(cnaas_nms.db.base.Base):
                 'device_b_hostname': linknet.device_b.hostname,
                 **linknet_dict
             }
-            ret.append(linknet_dict)
+            ret.append({k: linknet_dict[k] for k in sorted(linknet_dict)})
         return ret
 
     def get_linknet_localif_mapping(self, session) -> dict[str, str]:
@@ -182,32 +190,37 @@ class Device(cnaas_nms.db.base.Base):
                  (cnaas_nms.db.linknet.Linknet.device_a_id == peer_device.id))
             ).all()
 
-    def get_neighbor_local_ifname(self, session, peer_device: Device) -> Optional[str]:
+    def get_neighbor_local_ifname(self, session, peer_device: Device,
+                                  linknets_arg: [Optional[List[dict]]] = None) -> Optional[str]:
         """Get the local interface name on this device that links to peer_device."""
-        linknets = self.get_links_to(session, peer_device)
+        if linknets_arg:
+            def peer_linknet(linknet_match: dict):
+                if (
+                        linknet_match['device_a_id'] == self.id and
+                        linknet_match['device_b_id'] == peer_device.id
+                ) or (
+                        linknet_match['device_b_id'] == self.id and
+                        linknet_match['device_a_id'] == peer_device.id
+                ):
+                    return linknet_match
+            linknets = list(filter(peer_linknet, linknets_arg))
+        else:
+            linknets = self.get_links_to(session, peer_device)
         if not linknets:
             return None
         elif len(linknets) > 1:
             raise ValueError("Multiple linknets between devices not supported")
         else:
-            linknet = linknets[0]
-        if linknet.device_a_id == self.id:
-            return linknet.device_a_port
-        elif linknet.device_b_id == self.id:
-            return linknet.device_b_port
+            linknet_obj: Union[cnaas_nms.db.linknet.Linknet, dict] = linknets[0]
+            if isinstance(linknet_obj, cnaas_nms.db.linknet.Linknet):
+                linknet_dict = linknet_obj.as_dict()
+            else:
+                linknet_dict = linknet_obj
 
-    def get_neighbor_local_ifnames(self, session, peer_device: Device) -> List[str]:
-        """Get the local interface name on this device that links to peer_device."""
-        linknets = self.get_links_to(session, peer_device)
-        ifnames = []
-        if not linknets:
-            return ifnames
-        for linknet in linknets:
-            if linknet.device_a_id == self.id:
-                ifnames.append(linknet.device_a_port)
-            elif linknet.device_b_id == self.id:
-                ifnames.append(linknet.device_b_port)
-        return ifnames
+        if linknet_dict['device_a_id'] == self.id:
+            return linknet_dict['device_a_port']
+        elif linknet_dict['device_b_id'] == self.id:
+            return linknet_dict['device_b_port']
 
     def get_neighbor_local_ipif(self, session, peer_device: Device) -> Optional[str]:
         """Get the local interface IP on this device that links to peer_device."""

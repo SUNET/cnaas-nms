@@ -54,7 +54,8 @@ class CnaasInventory:
                         "enforce_verification": True,
                         "context": ssl_context
                     }
-                })
+                }),
+                "netmiko": ConnectionOptions(extras={})
             }
         )
         insecure_device_states = [
@@ -66,7 +67,8 @@ class CnaasInventory:
         insecure_connection_options = {
             "napalm": ConnectionOptions(extras={
                 "optional_args": {"enforce_verification": False}
-            })
+            }),
+            "netmiko": ConnectionOptions(extras={})
         }
 
         groups = Groups()

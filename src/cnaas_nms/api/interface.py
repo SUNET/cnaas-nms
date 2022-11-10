@@ -126,9 +126,21 @@ class InterfaceApi(Resource):
                             if isinstance(if_dict['data']['neighbor'], str) and \
                                     Device.valid_hostname(if_dict['data']['neighbor']):
                                 intfdata['neighbor'] = if_dict['data']['neighbor']
+                            elif if_dict['data']['neighbor'] is None:
+                                if 'neighbor' in intfdata:
+                                    del intfdata['neighbor']
                             else:
                                 errors.append("Neighbor must be valid hostname, got: {}".format(
                                     if_dict['data']['neighbor']))
+                        if 'neighbor_id' in if_dict['data']:
+                            if isinstance(if_dict['data']['neighbor_id'], int):
+                                intfdata['neighbor_id'] = if_dict['data']['neighbor_id']
+                            elif if_dict['data']['neighbor_id'] is None:
+                                if 'neighbor_id' in intfdata:
+                                    del intfdata['neighbor_id']
+                            else:
+                                errors.append("Neighbor_id must be valid integer, got: {}".format(
+                                    if_dict['data']['neighbor_id']))
                         if 'description' in if_dict['data']:
                             if isinstance(if_dict['data']['description'], str) and \
                                     len(if_dict['data']['description']) <= 64:

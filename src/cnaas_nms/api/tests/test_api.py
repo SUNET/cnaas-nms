@@ -313,6 +313,36 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(result.json['status'], 'success')
         self.assertEqual(ifname in result.json['data']['updated'], True)
 
+    def test_update_interface_data_neighbor(self):
+        ifname = self.testdata['interface_update']
+        data = {
+            "interfaces": {
+                ifname: {
+                    "data": {
+                        "neighbor_id": 123,
+                        "neighbor": "testhostname"
+                    }
+                }
+            }
+        }
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(ifname in result.json['data']['updated'], True)
+        # Reset
+        data['interfaces'][ifname]['data']['neighbor_id'] = None
+        data['interfaces'][ifname]['data']['neighbor'] = None
+        result = self.client.put(
+            "/api/v1.0/device/{}/interfaces".format(self.testdata['interface_device']),
+            json=data
+        )
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['status'], 'success')
+        self.assertEqual(ifname in result.json['data']['updated'], True)
+
     def test_add_new_device(self):
         data = {
             "hostname": "unittestdevice",

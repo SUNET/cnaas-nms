@@ -93,28 +93,29 @@ def get_uplinks(session, hostname: str, recheck: bool = False,
 
     for neighbor_d in neighbors:
         if neighbor_d.device_type == DeviceType.DIST:
-            local_if = dev.get_neighbor_local_ifname(session, neighbor_d, linknets)
+            local_ifs = dev.get_neighbor_ifnames(session, neighbor_d, linknets)
             # Neighbor interface ifclass is already verified in
             # update_linknets -> verify_peer_iftype
-            if local_if:
-                uplinks[local_if] = neighbor_d.hostname
+            for local_if in local_ifs:
+                uplinks[local_if[0]] = neighbor_d.hostname
         elif neighbor_d.device_type == DeviceType.ACCESS:
-            intfs: Interface = session.query(Interface).filter(Interface.device == neighbor_d).\
+            dl_intfs: List[Interface] = session.query(Interface).\
+                filter(Interface.device == neighbor_d).\
                 filter(Interface.configtype == InterfaceConfigType.ACCESS_DOWNLINK).all()
-            if not intfs:
-                continue
-            try:
-                local_if = dev.get_neighbor_local_ifname(session, neighbor_d, linknets)
-                remote_if = neighbor_d.get_neighbor_local_ifname(session, dev, linknets)
-            except ValueError as e:
-                logger.debug("Ignoring possible uplinks to neighbor {}: {}".format(
-                    neighbor_d.hostname, e))
-                continue
+            local_ifs = dev.get_neighbor_ifnames(session, neighbor_d, linknets)
 
+            dl_intf_names = []
             intf: Interface
-            for intf in intfs:
-                if intf.name == remote_if:
-                    uplinks[local_if] = neighbor_d.hostname
+            for dl_intf in dl_intfs:
+                dl_intf_names.append(dl_intf.name)
+
+            for local_if in local_ifs:
+                if local_if[1] not in dl_intf_names:
+                    logger.warning(
+                        "Interface {} from {} to {} not configured as DOWNLINK".format(
+                            local_if[1], neighbor_d.hostname, dev.hostname
+                        ))
+                uplinks[local_if[0]] = neighbor_d.hostname
 
     logger.debug("Uplinks for device {} detected: {}".
                  format(hostname, ', '.join(["{}: {}".format(ifname, hostname)

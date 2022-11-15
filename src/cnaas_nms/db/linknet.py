@@ -52,6 +52,27 @@ class Linknet(cnaas_nms.db.base.Base):
             d[col.name] = value
         return d
 
+    def get_port(self, device_id):
+        if device_id == self.device_a_id:
+            return self.device_a_port
+        if device_id == self.device_b_id:
+            return self.device_b_port
+        raise ValueError(f"The device_id {device_id} is not part of this linknet")
+
+    def get_ip(self, device_id):
+        if device_id == self.device_a_id:
+            return self.device_a_ip
+        if device_id == self.device_b_id:
+            return self.device_b_ip
+        raise ValueError(f"The device_id {device_id} is not part of this linknet")
+
+    def get_ipif(self, device_id):
+        if device_id == self.device_a_id:
+            return f"{self.device_a_ip}/{ipaddress.IPv4Network(self.ipv4_network).prefixlen}"
+        if device_id == self.device_b_id:
+            return f"{self.device_b_ip}/{ipaddress.IPv4Network(self.ipv4_network).prefixlen}"
+        raise ValueError(f"The device_id {device_id} is not part of this linknet")
+
     @staticmethod
     def deduplicate_linknet_dicts(linknets: List[dict]) -> List[dict]:
         """Take a list of dicts as returned from Device.get_linknets_as_dict

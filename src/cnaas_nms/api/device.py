@@ -143,6 +143,10 @@ stackmembers_model = device_api.model('stackmembers', {
     'stackmembers': fields.List(fields.Nested(stackmember_model)),
 })
 
+delete_device_model = device_api.model('delete_devcie', {
+    'factory_default': fields.Boolean(required=False),
+})
+
 
 def device_data_postprocess(device_list: List[Device]) -> List[dict]:
     device_primary_group = get_device_primary_groups()
@@ -170,6 +174,7 @@ class DeviceByIdApi(Resource):
         return result
 
     @jwt_required
+    @device_api.expect(delete_device_model)
     def delete(self, device_id):
         """ Delete device from ID """
         try:
@@ -192,6 +197,14 @@ class DeviceByIdApi(Resource):
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
             if not dev:
                 return empty_result('error', "Device not found"), 404
+            try:
+                for nei in dev.get_neighbors(session):
+                    nei.synchronized = False
+            except Exception as e:
+                logger.warning(
+                    "Could not mark neighbor as unsync after deleting {}: {}".format(
+                        dev.hostname, e
+                    ))
             try:
                 session.delete(dev)
                 session.commit()

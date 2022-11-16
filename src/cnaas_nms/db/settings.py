@@ -9,7 +9,7 @@ from pydantic.error_wrappers import ValidationError
 from redis import StrictRedis
 from redis_lru import RedisLRU
 
-from cnaas_nms.app_settings import app_settings
+from cnaas_nms.app_settings import app_settings, api_settings
 from cnaas_nms.db.settings_fields import f_groups
 from cnaas_nms.tools.mergedict import merge_dict_origin
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
@@ -825,3 +825,34 @@ def get_device_primary_groups(no_cache: bool = False) -> Dict[str, str]:
             logger.exception(
                 "Error while getting device_primary_group from redis: {} ".format(e))
     return device_primary_group
+
+
+def rebuild_settings_cache() -> None:
+    """Clear cache and rebuild for devicetypes.
+
+    Raises:
+        SettingsSyntaxError: Syntax is wrong in settings files
+        VlanConflictError: Multiple conflicting VLANs exists on same device
+    """
+    logger = get_logger()
+    logger.debug("Clearing redis-lru cache for settings")
+    with redis_session() as redis_db:
+        cache = RedisLRU(redis_db)
+        cache.clear_all_cache()
+    update_device_primary_groups()
+    get_settings()
+    test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
+    for devtype in test_devtypes:
+        get_settings(device_type=devtype)
+    for hostname in os.listdir(os.path.join(app_settings.SETTINGS_LOCAL, 'devices')):
+        hostname_path = os.path.join(app_settings.SETTINGS_LOCAL, 'devices', hostname)
+        if not os.path.isdir(hostname_path) or hostname.startswith('.'):
+            continue
+        if not Device.valid_hostname(hostname):
+            continue
+        get_settings(hostname)
+    for devtype_str, device_models in get_model_specific_configfiles(True).items():
+        devtype = DeviceType[devtype_str]
+        for device_model in device_models:
+            get_settings('nonexisting', devtype, device_model)
+    check_settings_collisions(api_settings.GLOBAL_UNIQUE_VLANS)

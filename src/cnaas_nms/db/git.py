@@ -5,19 +5,17 @@ from typing import Set, Tuple, Optional
 from urllib.parse import urldefrag
 
 from git import Repo
-from git import InvalidGitRepositoryError, NoSuchPathError
+from git import InvalidGitRepositoryError
 from git.exc import NoSuchPathError, GitCommandError
 import yaml
-from redis_lru import RedisLRU
 
-from cnaas_nms.app_settings import app_settings, api_settings
+from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.db.settings import get_settings, SettingsSyntaxError, DIR_STRUCTURE, \
-    check_settings_collisions, get_model_specific_configfiles, VlanConflictError, \
-    update_device_primary_groups
+from cnaas_nms.db.settings import SettingsSyntaxError, DIR_STRUCTURE, \
+    VlanConflictError, rebuild_settings_cache
 from cnaas_nms.db.device import Device, DeviceType
-from cnaas_nms.db.session import sqla_session, redis_session
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 
@@ -159,27 +157,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
 
     if repo_type == RepoType.SETTINGS:
         try:
-            logger.debug("Clearing redis-lru cache for settings")
-            with redis_session() as redis_db:
-                cache = RedisLRU(redis_db)
-                cache.clear_all_cache()
-            update_device_primary_groups()
-            get_settings()
-            test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
-            for devtype in test_devtypes:
-                get_settings(device_type=devtype)
-            for hostname in os.listdir(os.path.join(local_repo_path, 'devices')):
-                hostname_path = os.path.join(local_repo_path, 'devices', hostname)
-                if not os.path.isdir(hostname_path) or hostname.startswith('.'):
-                    continue
-                if not Device.valid_hostname(hostname):
-                    continue
-                get_settings(hostname)
-            for devtype_str, device_models in get_model_specific_configfiles(True).items():
-                devtype = DeviceType[devtype_str]
-                for device_model in device_models:
-                    get_settings('nonexisting', devtype, device_model)
-            check_settings_collisions(api_settings.GLOBAL_UNIQUE_VLANS)
+            rebuild_settings_cache()
         except SettingsSyntaxError as e:
             logger.exception("Error in settings repo configuration: {}".format(str(e)))
             raise e

@@ -513,6 +513,17 @@ def init_access_device_step1(device_id: int, new_hostname: str,
         session.commit()
         hostname = dev.hostname
 
+    # Rebuild settings caches to make sure group memberships are updated after
+    # setting new hostname
+    try:
+        rebuild_settings_cache()
+    except SettingsSyntaxError as e:
+        logger.error("Error in settings repo configuration: {}".format(e))
+        raise e
+    except VlanConflictError as e:
+        logger.error("VLAN conflict in repo configuration: {}".format(e))
+        raise e
+
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 

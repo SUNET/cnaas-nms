@@ -28,6 +28,7 @@ from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.confpush.update import update_interfacedb_worker, update_linknets, set_facts
 from cnaas_nms.confpush.sync_devices import populate_device_vars, confcheck_devices
 from cnaas_nms.db.git import RepoStructureException
+from cnaas_nms.db.settings import rebuild_settings_cache, VlanConflictError, SettingsSyntaxError
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.tools.log import get_logger
@@ -705,6 +706,17 @@ def init_fabric_device_step1(device_id: int, new_hostname: str, device_type: str
         dev.hostname = new_hostname
         session.commit()
         hostname = dev.hostname
+
+    # Rebuild settings caches to make sure group memberships are updated after
+    # setting new hostname
+    try:
+        rebuild_settings_cache()
+    except SettingsSyntaxError as e:
+        logger.error("Error in settings repo configuration: {}".format(e))
+        raise e
+    except VlanConflictError as e:
+        logger.error("VLAN conflict in repo configuration: {}".format(e))
+        raise e
 
     nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)

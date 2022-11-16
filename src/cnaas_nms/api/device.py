@@ -21,7 +21,8 @@ from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.job import Job, JobNotFoundError, InvalidJobError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups, get_device_primary_groups, \
-    update_device_primary_groups
+    update_device_primary_groups, rebuild_settings_cache, \
+    VlanConflictError, SettingsSyntaxError
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
@@ -235,6 +236,21 @@ class DeviceByIdApi(Resource):
             errors = dev.device_update(**json_data)
             if errors:
                 return empty_result(status='error', data=errors), 400
+            if 'hostname' in json_data:
+                # Rebuild settings caches to make sure group memberships are updated after
+                # setting new hostname
+                try:
+                    rebuild_settings_cache()
+                except SettingsSyntaxError as e:
+                    msg = "Error in settings repo configuration: {}".format(e)
+                    logger.error(msg)
+                    session.rollback()
+                    return empty_result(status='error', data=msg), 500
+                except VlanConflictError as e:
+                    msg = "VLAN conflict in repo configuration: {}".format(e)
+                    logger.error(msg)
+                    session.rollback()
+                    return empty_result(status='error', data=msg), 500
             session.commit()
             update_device_primary_groups()
             dev_dict = device_data_postprocess([dev])[0]

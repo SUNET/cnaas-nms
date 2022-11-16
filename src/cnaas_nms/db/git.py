@@ -159,10 +159,10 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         try:
             rebuild_settings_cache()
         except SettingsSyntaxError as e:
-            logger.exception("Error in settings repo configuration: {}".format(str(e)))
+            logger.error("Error in settings repo configuration: {}".format(e))
             raise e
         except VlanConflictError as e:
-            logger.exception("VLAN conflict in repo configuration: {}".format(str(e)))
+            logger.error("VLAN conflict in repo configuration: {}".format(e))
             raise e
         logger.debug("Files changed in settings repository: {}".format(changed_files))
         updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)

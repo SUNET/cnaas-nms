@@ -105,7 +105,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES,
             raise e
 
 
-def repo_chekout_working(repo_type: RepoType) -> bool:
+def repo_chekout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
     with redis_session() as redis:
         hexsha: Optional[str] = redis.get(repo_type.name+"_working_commit")
         if hexsha:
@@ -113,6 +113,8 @@ def repo_chekout_working(repo_type: RepoType) -> bool:
                 "Trying to check out last known working commit for repo {}: {}".format(
                     repo_type.name, hexsha
                 ))
+            if dry_run:
+                return True
         else:
             logger.error(
                 "Could not find previously known working commit in cache for repo: {}".format(

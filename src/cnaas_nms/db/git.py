@@ -15,7 +15,7 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.db.settings import SettingsSyntaxError, DIR_STRUCTURE, \
     VlanConflictError, rebuild_settings_cache
 from cnaas_nms.db.device import Device, DeviceType
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.session import sqla_session, redis_session
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 
@@ -104,6 +104,55 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES,
             raise e
 
 
+def repo_chekout_working(repo_type: RepoType) -> bool:
+    with redis_session() as redis:
+        hexsha: Optional[str] = redis.get(repo_type.name+"_working_commit")
+        if hexsha:
+            logger.info(
+                "Trying to check out last known working commit for repo {}: {}".format(
+                    repo_type.name, hexsha
+                ))
+        else:
+            logger.error(
+                "Could not find previously known working commit in cache for repo: {}".format(
+                    repo_type.name
+                ))
+            return False
+    if repo_type == RepoType.TEMPLATES:
+        local_repo_path = app_settings.TEMPLATES_LOCAL
+    elif repo_type == RepoType.SETTINGS:
+        local_repo_path = app_settings.SETTINGS_LOCAL
+    else:
+        raise ValueError("Invalid repository")
+
+    local_repo = Repo(local_repo_path)
+    local_repo.head.reference = local_repo.commit(hexsha)
+    local_repo.head.reset(index=True, working_tree=True)
+    return True
+
+
+def repo_save_working_commit(repo_type: RepoType, hexsha: str):
+    with redis_session() as redis:
+        logger.info("Saving known working comit for repo {} in cache: {}".format(
+            repo_type.name, hexsha
+        ))
+        redis.set(repo_type.name+"_working_commit", hexsha)
+
+
+def reset_repo(local_repo: Repo, remote_repo_path: str):
+    _, branch = parse_repo_url(remote_repo_path)
+    if branch:
+        new_head = next(h for h in local_repo.heads if h.name == branch)
+    else:
+        remote_head_name = \
+            next(ref for ref in local_repo.remotes.origin.refs if ref.name == "origin/HEAD"). \
+            ref.name.split('/')[-1]
+        new_head = next(h for h in local_repo.heads if h.name == remote_head_name)
+
+    local_repo.head.reference = new_head
+    local_repo.head.reset(index=True, working_tree=True)
+
+
 def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
     """Should only be called by refresh_repo function."""
     if repo_type == RepoType.TEMPLATES:
@@ -136,7 +185,6 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         logger.info("Local repository {} not found, cloning from remote".\
                     format(local_repo_path))
         try:
-            url, branch = parse_repo_url(remote_repo_path)
             local_repo = Repo.clone_from(url, local_repo_path, branch=branch)
         except NoSuchPathError as e:
             raise ConfigException("Invalid remote repository {}: {}".format(
@@ -160,10 +208,19 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
             rebuild_settings_cache()
         except SettingsSyntaxError as e:
             logger.error("Error in settings repo configuration: {}".format(e))
+            if repo_chekout_working(repo_type):
+                rebuild_settings_cache()
             raise e
         except VlanConflictError as e:
             logger.error("VLAN conflict in repo configuration: {}".format(e))
+            if repo_chekout_working(repo_type):
+                rebuild_settings_cache()
             raise e
+        else:
+            try:
+                repo_save_working_commit(repo_type, local_repo.head.commit.hexsha)
+            except Exception:
+                logger.error("Could not save last working commit: {}".format(e))
         logger.debug("Files changed in settings repository: {}".format(changed_files))
         updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)
         logger.debug("Devicestypes to be marked unsynced after repo refresh: {}".

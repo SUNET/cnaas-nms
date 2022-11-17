@@ -1,6 +1,7 @@
 import enum
 import os
 import datetime
+import shutil
 from typing import Set, Tuple, Optional
 from urllib.parse import urldefrag
 
@@ -167,7 +168,23 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
     ret = ''
     changed_files: Set[str] = set()
     try:
+        url, branch = parse_repo_url(remote_repo_path)
         local_repo = Repo(local_repo_path)
+        # If repo url has changed
+        current_repo_url = next(local_repo.remotes.origin.urls)
+        if current_repo_url != url or (branch and local_repo.head.ref.name != branch):
+            logger.info("Repo URL for {} has changed from {}#{} to {}#{}".format(
+                repo_type.name,
+                current_repo_url,
+                local_repo.head.ref.name,
+                url,
+                branch,
+            ))
+            shutil.rmtree(local_repo_path)
+            raise NoSuchPathError
+        # Reset head if it's detached
+        if local_repo.head.is_detached:
+            reset_repo(local_repo, remote_repo_path)
         prev_commit = local_repo.commit().hexsha
         diff = local_repo.remotes.origin.pull()
         for item in diff:
@@ -186,7 +203,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
                     format(local_repo_path))
         try:
             local_repo = Repo.clone_from(url, local_repo_path, branch=branch)
-        except NoSuchPathError as e:
+        except (InvalidGitRepositoryError, NoSuchPathError) as e:
             raise ConfigException("Invalid remote repository {}: {}".format(
                 remote_repo_path,
                 str(e)

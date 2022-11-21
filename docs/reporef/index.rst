@@ -196,6 +196,7 @@ Can contain the following dictionaries with specified keys:
   * infra_lo_net: A /16 of IPv4 addresses that CNaaS-NMS can use to automatically assign
     addresses for infrastructure loopback interfaces from.
   * mgmt_lo_net: A subnet for management loopbacks for dist/core devices.
+  * bgp_asn: Optional BGP autonomous system number, useful for iBGP underlay.
 
 - evpn_peers:
 
@@ -374,6 +375,8 @@ Contains base system settings like:
 - dhcp_relays
 - internal_vlans
 - dot1x_fail_vlan: Numeric ID of authentication fail VLAN
+- organization_name: Free format string describing organization name
+- domain_name: DNS domain (suffix)
 
 Example of base_system.yml:
 

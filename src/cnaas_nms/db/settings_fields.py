@@ -1,7 +1,7 @@
 from typing import List, Optional, Dict
 from ipaddress import IPv4Interface, AddressValueError
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, conint
 
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
@@ -23,10 +23,13 @@ IPV6_REGEX = (
 FQDN_REGEX = r'([a-z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+'
 HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
+DOMAIN_NAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})+$"
 host_schema = Field(..., regex=HOST_REGEX, max_length=253,
                     description="Hostname, FQDN or IP address")
 hostname_schema = Field(..., regex=HOSTNAME_REGEX, max_length=253,
                         description="Hostname or FQDN")
+domain_name_schema = Field(None, regex=DOMAIN_NAME_REGEX, max_length=251,
+                           description="DNS domain name")
 ipv4_schema = Field(..., regex=f"^{IPV4_REGEX}$",
                     description="IPv4 address")
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
@@ -50,7 +53,8 @@ vxlan_vni_schema = Field(..., gt=0, lt=16777215, description="VXLAN Network Iden
 vrf_id_schema = Field(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
 mtu_schema = Field(None, ge=68, le=9214,
                    description="MTU (Maximum transmission unit) value between 68-9214")
-as_num_schema = Field(..., gt=0, lt=4294967296, description="BGP Autonomous System number, 1-4294967295")
+as_num_schema = Field(None, description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)")
+as_num_type = conint(strict=True, gt=0, lt=4294967296)
 IFNAME_REGEX = r'([a-zA-Z0-9\/\.:-])+'
 ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$",
                       description="Interface name")
@@ -193,7 +197,7 @@ class f_extroute_ospfv3(BaseModel):
 
 class f_extroute_bgp_neighbor_v4(BaseModel):
     peer_ipv4: str = ipv4_schema
-    peer_as: int = as_num_schema
+    peer_as: as_num_type = as_num_schema
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
@@ -210,7 +214,7 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
 
 class f_extroute_bgp_neighbor_v6(BaseModel):
     peer_ipv6: str = ipv6_schema
-    peer_as: int = as_num_schema
+    peer_as: as_num_type = as_num_schema
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
@@ -227,7 +231,7 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
 
 class f_extroute_bgp_vrf(BaseModel):
     name: str
-    local_as: int = as_num_schema
+    local_as: as_num_type = as_num_schema
     neighbor_v4: List[f_extroute_bgp_neighbor_v4] = []
     neighbor_v6: List[f_extroute_bgp_neighbor_v6] = []
     cli_append_str: str = ""
@@ -296,6 +300,7 @@ class f_underlay(BaseModel):
     infra_lo_net: str = ipv4_if_schema
     infra_link_net: str = ipv4_if_schema
     mgmt_lo_net: str = ipv4_if_schema
+    bgp_asn: Optional[as_num_type] = as_num_schema
 
 
 class f_root(BaseModel):
@@ -318,6 +323,8 @@ class f_root(BaseModel):
     dot1x_fail_vlan: Optional[int] = vlan_id_schema_optional
     cli_prepend_str: str = ""
     cli_append_str: str = ""
+    organization_name: str = ""
+    domain_name: Optional[str] = domain_name_schema
 
 
 class f_group_item(BaseModel):

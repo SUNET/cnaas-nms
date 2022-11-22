@@ -2,6 +2,8 @@
 
 import ipaddress
 import re
+import base64
+import hashlib
 from typing import Union, Optional, Callable, Any
 
 # This global dict can be used to update the Jinja environment filters dict to include all
@@ -152,3 +154,63 @@ def get_interface(
 
     host = network[index]
     return ipaddress.ip_interface(f"{host}/{network.prefixlen}")
+
+
+@template_filter()
+def b64encode(s: str) -> str:
+    """Returns base64 encoded string.
+
+    Args:
+        s: String to encode"""
+    return base64.b64encode(s.encode()).decode()
+
+
+@template_filter()
+def b64decode(s: str) -> str:
+    """Returns base64 decoded string.
+
+    Args:
+        s: String to decode"""
+    return base64.b64decode(s.encode()).decode()
+
+
+@template_filter()
+def b16encode(s: str) -> str:
+    """Returns base16 encoded string.
+
+    Args:
+        s: String to encode"""
+    return base64.b16encode(s.encode()).decode()
+
+
+@template_filter()
+def b16decode(s: str) -> str:
+    """Returns base16 decoded string.
+
+    Args:
+        s: String to decode"""
+    return base64.b16decode(s.encode()).decode()
+
+
+@template_filter()
+def sha1(s: str) -> str:
+    """Return SHA1 hexdigest of string s."""
+    return hashlib.sha1(s.encode()).hexdigest()
+
+
+@template_filter()
+def sha256(s: str) -> str:
+    """Return SHA256 hexdigest of string s."""
+    return hashlib.sha256(s.encode()).hexdigest()
+
+
+@template_filter()
+def sha512(s: str) -> str:
+    """Return SHA256 hexdigest of string s."""
+    return hashlib.sha512(s.encode()).hexdigest()
+
+
+@template_filter()
+def md5(s: str) -> str:
+    """Return SHA256 hexdigest of string s."""
+    return hashlib.md5(s.encode()).hexdigest()

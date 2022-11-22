@@ -11,7 +11,8 @@ try:
     import jinja2
     import yaml
 except ModuleNotFoundError as e:
-    print("Please install python modules requests, jinja2 and yaml: {}".format(e))
+    print("Please install python modules requests, jinja2 and (ruamel.)yaml: {}".format(e))
+    print("Optionally install netutils for more filters")
     sys.exit(3)
 
 if 'CNAASURL' not in os.environ or 'JWT_AUTH_TOKEN' not in os.environ:
@@ -21,6 +22,7 @@ if 'CNAASURL' not in os.environ or 'JWT_AUTH_TOKEN' not in os.environ:
 api_url = os.environ['CNAASURL']
 headers = {"Authorization": "Bearer "+os.environ['JWT_AUTH_TOKEN']}
 verify_tls = True
+
 
 def get_entrypoint(platform, device_type):
     mapfile = os.path.join(platform, 'mapping.yml')
@@ -54,15 +56,24 @@ def get_device_details(hostname):
 
 
 def load_jinja_filters():
+    ret = {}
     try:
         import jinja_filters
-        return jinja_filters.FILTERS
-    except ModuleNotFoundError as error:
+        ret = jinja_filters.FILTERS
+    except ModuleNotFoundError as e:
         print(
-            f'jinja_filters.py could not be loaded from PYTHONPATH, proceeding without filters: '
-            '{error}'
+            'jinja_filters.py could not be loaded from PYTHONPATH, proceeding without filters: '
+            f'{e}'
         )
-        return {}
+    try:
+        from netutils.utils import jinja2_convenience_function
+        ret = {**ret, **jinja2_convenience_function()}
+    except ModuleNotFoundError as e:
+        print(
+            'netutils could not be loaded from PYTHONPATH, proceeding without filters: '
+            f'{e}'
+        )
+    return ret
 
 
 def render_template(platform, device_type, variables):

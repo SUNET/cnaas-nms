@@ -10,8 +10,10 @@ try:
     import requests
     import jinja2
     import yaml
+    from jinja2.meta import find_undeclared_variables
 except ModuleNotFoundError as e:
-    print("Please install python modules requests, jinja2 and yaml: {}".format(e))
+    print("Please install python modules requests, jinja2 and (ruamel.)yaml: {}".format(e))
+    print("Optionally install netutils for more filters")
     sys.exit(3)
 
 if 'CNAASURL' not in os.environ or 'JWT_AUTH_TOKEN' not in os.environ:
@@ -21,6 +23,7 @@ if 'CNAASURL' not in os.environ or 'JWT_AUTH_TOKEN' not in os.environ:
 api_url = os.environ['CNAASURL']
 headers = {"Authorization": "Bearer "+os.environ['JWT_AUTH_TOKEN']}
 verify_tls = True
+
 
 def get_entrypoint(platform, device_type):
     mapfile = os.path.join(platform, 'mapping.yml')
@@ -54,22 +57,31 @@ def get_device_details(hostname):
 
 
 def load_jinja_filters():
+    ret = {}
     try:
         import jinja_filters
-        return jinja_filters.FILTERS
-    except ModuleNotFoundError as error:
+        ret = jinja_filters.FILTERS
+    except ModuleNotFoundError as e:
         print(
-            f'jinja_filters.py could not be loaded from PYTHONPATH, proceeding without filters: '
-            '{error}'
+            'jinja_filters.py could not be loaded from PYTHONPATH, proceeding without filters: '
+            f'{e}'
         )
-        return {}
+    try:
+        from netutils.utils import jinja2_convenience_function
+        ret = {**ret, **jinja2_convenience_function()}
+    except ModuleNotFoundError as e:
+        print(
+            'netutils could not be loaded from PYTHONPATH, proceeding without filters: '
+            f'{e}'
+        )
+    return ret
 
 
 def render_template(platform, device_type, variables):
     # Jinja env should match nornir_helper.cnaas_ninja_env
     jinjaenv = jinja2.Environment(
         loader=jinja2.FileSystemLoader(platform),
-        undefined=jinja2.StrictUndefined,
+        undefined=jinja2.DebugUndefined,
         trim_blocks=True,
         lstrip_blocks=True,
         keep_trailing_newline=True
@@ -79,7 +91,19 @@ def render_template(platform, device_type, variables):
     print("Jinja filters added: {}".format([*jfilters]))
     template_vars = {**variables, **get_environment_secrets()}
     template = jinjaenv.get_template(get_entrypoint(platform, device_type))
-    return template.render(**template_vars)
+    rendered = template.render(**template_vars)
+    # Find undefined variables, if
+    ast = jinjaenv.parse(rendered)
+    undefined_vars = find_undeclared_variables(ast=ast)
+    if undefined_vars:
+        for var in undefined_vars:
+            if var.startswith("TEMPLATE_SECRET_"):
+                template_vars[var] = "dummyvalue"
+                print("Undefined secret variable, set to \"dummyvalue\": {}".format(var))
+            else:
+                print("Undefined variable: {}".format(var))
+        rendered = template.render(**template_vars)
+    return rendered
 
 
 def schedule_apply_dryrun(hostname, config):

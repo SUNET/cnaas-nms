@@ -7,6 +7,14 @@ from cnaas_nms.tools.jinja_filters import (
     ipv4_to_ipv6,
     get_interface,
     ipwrap,
+    b16encode,
+    b16decode,
+    b64encode,
+    b64decode,
+    sha1,
+    sha256,
+    sha512,
+    md5,
 )
 
 
@@ -134,6 +142,50 @@ class GetInterfaceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             invalid_network = '2001:700:0:::/64'
             get_interface(invalid_network, 2)
+
+
+class BaseCodingTests(unittest.TestCase):
+    def test_b64(self):
+        teststr = "aB1_/ö# [;"
+        self.assertEqual(
+            teststr,
+            b64decode(b64encode(teststr))
+        )
+
+    def test_b16(self):
+        teststr = "aB1_/ö# [;"
+        self.assertEqual(
+            teststr,
+            b16decode(b16encode(teststr))
+        )
+
+
+class HashTests(unittest.TestCase):
+    def test_sha1(self):
+        self.assertEqual(
+            sha1("M7urErP1V7Pi6S+PjR3/mQ6iXAs="),
+            "5196ef4746d7ea377114f2f052c74a1533621ec3",
+        )
+
+    def test_sha256(self):
+        self.assertEqual(
+            sha256("zaoW4e3+2R2nAt5uXolY0pwiU/CjpriaY6EOvi26UoY="),
+            "3525c9b29e65cc46645c755bb91c3bfbb36c6f122b8e33845b4e3e728854dba9",
+        )
+
+    def test_sha512(self):
+        self.assertEqual(
+            sha512("Zij3NjTWHt9W4Ljuez7QpJTo5O/Fg+z8bKzWMev+n3lXcEhTv9dnL1Zs"
+                   "fJBocAR19QBjLz747LhqkDiQBOuOuw=="),
+            "6f7affc55e52d24b6da48182ceae1007a3f7fcdee6ad7e3eae0858e02d98786"
+            "cc04e9a329126d31cdf427214ea07428dd61e67b56b9f568e221c4553f391d02e",
+        )
+
+    def test_md5(self):
+        self.assertEqual(
+            md5("zKEPXmRX2X9itoaaI2kWyQ=="),
+            "88a23549d423a601c96b4bf90018bde6",
+        )
 
 
 if __name__ == '__main__':

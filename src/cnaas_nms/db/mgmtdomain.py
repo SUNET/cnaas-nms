@@ -15,8 +15,7 @@ import cnaas_nms.db.site
 import cnaas_nms.db.device
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.reservedip import ReservedIP
-
-RESERVED_SKIP_COUNT = 5  # Skip this number of reserved addresses on each management domain
+from cnaas_nms.app_settings import api_settings
 
 
 class Mgmtdomain(cnaas_nms.db.base.Base):
@@ -68,7 +67,7 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
             return addr in taken_ips
 
         mgmt_net = IPv4Interface(self.ipv4_gw).network
-        candidates = islice(mgmt_net.hosts(), RESERVED_SKIP_COUNT, None)
+        candidates = islice(mgmt_net.hosts(), api_settings.MGMTDOMAIN_RESERVED_COUNT, None)
         free_ips = dropwhile(is_taken, candidates)
         return next(free_ips, None)
 

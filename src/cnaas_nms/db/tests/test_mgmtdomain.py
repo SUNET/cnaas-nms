@@ -91,6 +91,17 @@ class MgmtdomainTests(unittest.TestCase):
             mgmtdomain = session.query(Mgmtdomain).limit(1).one()
             mgmtdomain.find_free_mgmt_ip(session)
 
+    def test_find_free_mgmt_ip_v6(self):
+        with sqla_session() as session:
+            mgmtdomain = session.query(Mgmtdomain).limit(1).one()
+            mgmtdomain.find_free_mgmt_ip(session, version=6)
+
+    def test_find_free_mgmt_ip_should_fail_on_invalid_ip_version(self):
+        with sqla_session() as session:
+            mgmtdomain = session.query(Mgmtdomain).limit(1).one()
+            with self.assertRaises(ValueError):
+                mgmtdomain.find_free_mgmt_ip(session, version=42)
+
     def test_find_mgmtdomain_by_ip(self):
         with sqla_session() as session:
             mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, IPv4Address("10.0.6.6"))

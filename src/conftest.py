@@ -52,6 +52,12 @@ def postgresql(session_scoped_container_getter):
     # It could also just use pytest-postgresql (which has options to load specific SQL fixtures as
     # well)
     assert wait_for_port('127.0.0.1', 5432), "Could not connect to PostgreSQL"
+    # There is an apparent lag between the server responding to TCP port 5432 and actually being
+    # ready to serve database connections. Sleeping for 1 second is the naive solution here,
+    # but it's okay, since it only happens the first time the fixture is used in a test session.
+    # A more complete solution would check that we can actually establish a PostgreSQL client
+    # connection.
+    time.sleep(1)
     yield True
 
 

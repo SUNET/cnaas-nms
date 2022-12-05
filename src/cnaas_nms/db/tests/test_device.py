@@ -14,6 +14,11 @@ from cnaas_nms.db.session import sqla_session
 
 @pytest.mark.integration
 class DeviceTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, postgresql):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     def cleandb(self):
         with sqla_session() as session:
             for hardware_id in ["FO64534", "FO64535"]:

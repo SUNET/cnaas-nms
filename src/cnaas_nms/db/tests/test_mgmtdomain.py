@@ -18,6 +18,11 @@ from cnaas_nms.db.tests.test_device import DeviceTests
 
 @pytest.mark.integration
 class MgmtdomainTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, postgresql):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     @staticmethod
     def get_testdata():
         data_dir = pkg_resources.resource_filename(__name__, 'data')

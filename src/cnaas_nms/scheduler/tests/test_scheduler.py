@@ -29,6 +29,11 @@ def job_testfunc_exception(text='', job_id=None, scheduled_by=None):
 
 @pytest.mark.integration
 class InitTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, postgresql):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     @classmethod
     def setUpClass(cls) -> None:
         scheduler = Scheduler()

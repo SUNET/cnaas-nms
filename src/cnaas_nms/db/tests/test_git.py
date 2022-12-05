@@ -10,6 +10,11 @@ from cnaas_nms.db.session import redis_session
 
 @pytest.mark.integration
 class GitTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, redis):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     def setUp(self) -> None:
         with redis_session() as redis:
             redis.delete("SETTINGS_working_commit")

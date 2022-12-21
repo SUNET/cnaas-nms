@@ -57,7 +57,7 @@ def postgresql(session_scoped_container_getter):
     # but it's okay, since it only happens the first time the fixture is used in a test session.
     # A more complete solution would check that we can actually establish a PostgreSQL client
     # connection.
-    time.sleep(1)
+    time.sleep(5)
     yield True
 
 

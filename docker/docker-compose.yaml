@@ -32,9 +32,6 @@ services:
       - "cnaas_redis"
       - "cnaas_httpd"
     volumes:
-      - type: bind
-        source: ./coverage
-        target: /coverage
       - type: volume
         source: cnaas-templates
         target: /opt/cnaas/templates

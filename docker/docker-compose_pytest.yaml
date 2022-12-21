@@ -1,0 +1,22 @@
+version: '3.7'
+services:
+
+  #
+  # CNaaS service dependencies
+  #
+  test_postgres:
+    build:
+      context: ./postgres/
+      args:
+        - SQLFILE=nms_test.sql
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=cnaas
+      - POSTGRES_PASSWORD=cnaas
+      - POSTGRES_DB=cnaas
+
+  test_redis:
+    build: ./redis/
+    ports:
+      - 6379:6379

@@ -7,6 +7,8 @@ import os
 import pprint
 from ipaddress import IPv4Address, IPv4Network, IPv4Interface
 
+import pytest
+
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
@@ -14,7 +16,13 @@ from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.tests.test_device import DeviceTests
 
 
+@pytest.mark.integration
 class MgmtdomainTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, postgresql):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     @staticmethod
     def get_testdata():
         data_dir = pkg_resources.resource_filename(__name__, 'data')

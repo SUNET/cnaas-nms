@@ -27,6 +27,10 @@ services:
       - PASSWORD_INIT
       - USERNAME_MANAGED
       - PASSWORD_MANAGED
+      - PYTEST_POSTGRES_EXTERNAL
+      - PYTEST_REDIS_EXTERNAL
+      - PYTEST_SETTINGS_CLONED
+      - PYTEST_TEMPLATES_CLONED
     depends_on:
       - "cnaas_postgres"
       - "cnaas_redis"

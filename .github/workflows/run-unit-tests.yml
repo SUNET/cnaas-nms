@@ -71,7 +71,7 @@ jobs:
         run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 
       - name: Run unit tests in container
-        run: docker-compose -f docker/docker-compose_test.yaml exec -T cnaas_api /opt/cnaas/nosetests.sh
+        run: docker-compose -f docker/docker-compose_test.yaml exec -u www-data -T cnaas_api /opt/cnaas/pytest.sh
 
       - name: Check logs
         if: always()

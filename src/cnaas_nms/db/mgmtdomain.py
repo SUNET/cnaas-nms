@@ -2,7 +2,8 @@ import ipaddress
 import datetime
 import enum
 from ipaddress import IPv4Interface, IPv4Address
-from typing import Optional
+from itertools import islice, dropwhile
+from typing import Optional, Set
 
 from sqlalchemy import Column, Integer, String, Unicode, UniqueConstraint
 from sqlalchemy import ForeignKey
@@ -14,6 +15,7 @@ import cnaas_nms.db.site
 import cnaas_nms.db.device
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.reservedip import ReservedIP
+from cnaas_nms.app_settings import api_settings
 
 
 class Mgmtdomain(cnaas_nms.db.base.Base):
@@ -58,26 +60,28 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
         return d
 
     def find_free_mgmt_ip(self, session) -> Optional[IPv4Address]:
-        """Return first available IPv4 address from this Mgmtdomain's ipv4_gw network.""" 
-        used_ips = []
-        reserved_ips = []
-        device_query = session.query(Device).\
-            filter(Device.management_ip != None).options(load_only("management_ip"))
-        for device in device_query:
-            used_ips.append(device.management_ip)
-        reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
-        for reserved_ip in reserved_ip_query:
-            reserved_ips.append(reserved_ip.ip)
+        """Return first available IPv4 address from this Mgmtdomain's ipv4_gw network."""
+        taken_ips = self._get_taken_ips(session)
+
+        def is_taken(addr):
+            return addr in taken_ips
 
         mgmt_net = IPv4Interface(self.ipv4_gw).network
-        for num, host in enumerate(mgmt_net.hosts()):
-            if num < 5:  # reserve 5 first hosts
-                continue
-            if host in reserved_ips:
-                continue
-            if host in used_ips:
-                continue
-            else:
-                return IPv4Address(host)
-        return None
+        candidates = islice(mgmt_net.hosts(), api_settings.MGMTDOMAIN_RESERVED_COUNT, None)
+        free_ips = dropwhile(is_taken, candidates)
+        return next(free_ips, None)
+
+    @staticmethod
+    def _get_taken_ips(session) -> Set[IPv4Address]:
+        """Returns the full set of taken (used + reserved) IP addresses"""
+        device_query = (
+            session.query(Device)
+            .filter(Device.management_ip is not None)
+            .options(load_only("management_ip"))
+        )
+        used_ips = set(device.management_ip for device in device_query)
+        reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
+        reserved_ips = set(reserved_ip.ip for reserved_ip in reserved_ip_query)
+
+        return used_ips | reserved_ips
 

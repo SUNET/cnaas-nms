@@ -34,6 +34,10 @@ Defines parameters for the API:
   Defaults to True.
 - init_mgmt_timeout: Timeout to wait for device to apply changed management IP.
   Defaults to 30, specified in seconds (integer).
+- mgmtdomain_reserved_count: Number of IP addresses to reserve for internal use on
+  each defined management domain when assigning new management IP addresses to devices.
+  Defaults to 5 (e.g. meaning 10.0.0.1 through 10.0.0.5 would remain unassigned on
+  a domain for 10.0.0.0/24).
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -28,6 +28,10 @@ services:
       - PASSWORD_INIT
       - USERNAME_MANAGED
       - PASSWORD_MANAGED
+      - PYTEST_POSTGRES_EXTERNAL
+      - PYTEST_REDIS_EXTERNAL
+      - PYTEST_SETTINGS_CLONED
+      - PYTEST_TEMPLATES_CLONED
       - JWT_AUTH_TOKEN
     depends_on:
       - "cnaas_postgres"

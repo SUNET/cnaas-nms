@@ -64,11 +64,6 @@ docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
 docker-compose exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
 docker-compose exec -u root -T cnaas_api /opt/cnaas/createca.sh
 
-# TEMP
-docker-compose exec -u root -T cnaas_api /bin/mkdir /coverage
-docker-compose exec -u root -T cnaas_api /bin/chown -R www-data:www-data /coverage
-# /TEMP
-
 curl --connect-timeout 2 --max-time 2 --retry 10 --retry-delay 0 --retry-max-time 60 \
     -ks "https://localhost/api/v1.0/system/version"
 
@@ -132,9 +127,6 @@ then
 else
 	docker-compose exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh
 fi
-
-# Change owner back after code coverage is finished
-#docker-compose exec -u root -T cnaas_api chown -R root:www-data /opt/cnaas/venv/cnaas-nms/src/
 
 docker logs docker_cnaas_dhcpd_1
 docker logs docker_cnaas_api_1

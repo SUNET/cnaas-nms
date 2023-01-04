@@ -1,12 +1,11 @@
 import sys
-sys.path.append('src')
+
+sys.path.append("src")
 
 from logging.config import fileConfig
 
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
 import sqlalchemy_utils
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -15,7 +14,8 @@ from alembic import context
 config = context.config
 
 from cnaas_nms.app_settings import app_settings
-config.set_main_option('sqlalchemy.url', app_settings.POSTGRES_DSN)
+
+config.set_main_option("sqlalchemy.url", app_settings.POSTGRES_DSN)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -26,16 +26,15 @@ fileConfig(config.config_file_name)
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from cnaas_nms.db.base import Base
-from cnaas_nms.db.device import Device, DeviceType, DeviceState
-from cnaas_nms.db.site import Site
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface
+from cnaas_nms.db.job import Job
+from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
-from cnaas_nms.db.interface import Interface
-from cnaas_nms.db.stackmember import Stackmember
-from cnaas_nms.db.joblock import Joblock
-from cnaas_nms.db.job import Job
 from cnaas_nms.db.reservedip import ReservedIP
-
+from cnaas_nms.db.site import Site
+from cnaas_nms.db.stackmember import Stackmember
 
 target_metadata = Base.metadata
 
@@ -46,8 +45,8 @@ target_metadata = Base.metadata
 
 
 def include_object(object, name, type_, reflected, compare_to):
-    ignore_names = ['apscheduler_jobs']
-    if type_ == 'table' and name in ignore_names:
+    ignore_names = ["apscheduler_jobs"]
+    if type_ == "table" and name in ignore_names:
         return False
 
     return True
@@ -66,10 +65,7 @@ def run_migrations_offline():
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=url, target_metadata=target_metadata, include_object=include_object,
-        literal_binds=True
-    )
+    context.configure(url=url, target_metadata=target_metadata, include_object=include_object, literal_binds=True)
 
     with context.begin_transaction():
         context.run_migrations()
@@ -89,10 +85,7 @@ def run_migrations_online():
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata,
-            include_object=include_object
-        )
+        context.configure(connection=connection, target_metadata=target_metadata, include_object=include_object)
 
         with context.begin_transaction():
             context.run_migrations()

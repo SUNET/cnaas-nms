@@ -2,5 +2,4 @@
 templates_remote: https://github.com/SUNET/cnaas-nms-templates
 templates_local: /opt/cnaas/templates
 settings_remote: https://github.com/SUNET/cnaas-nms-settings
-settings_local: /opt/cnaas/settings 
-
+settings_local: /opt/cnaas/settings

@@ -92,4 +92,3 @@ Output:
      "status": "error",
      "message": "Validation error for setting radius_servers->0->host, bad value: 10.0.0.500 (value origin: API POST data)\nMessage: string does not match regex \"^((?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|([a-z0-9-]{1,63}\\.)([a-z-][a-z0-9-]{1,62}\\.?)+)$\", field should be: Hostname, FQDN or IP address\n"
    }
-

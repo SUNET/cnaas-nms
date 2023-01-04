@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 
-import unittest
-import pkg_resources
-import yaml
 import os
-import pprint
-from ipaddress import IPv4Address, IPv4Network, IPv4Interface
+import unittest
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 
+import pkg_resources
 import pytest
+import yaml
 
 import cnaas_nms.db.helper
-from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.tests.test_device import DeviceTests
 
 
@@ -25,8 +24,8 @@ class MgmtdomainTests(unittest.TestCase):
 
     @staticmethod
     def get_testdata():
-        data_dir = pkg_resources.resource_filename(__name__, 'data')
-        with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
+        data_dir = pkg_resources.resource_filename(__name__, "data")
+        with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             return yaml.safe_load(f_testdata)
 
     def setUp(self):
@@ -51,15 +50,15 @@ class MgmtdomainTests(unittest.TestCase):
             new_mgmtd = Mgmtdomain()
             new_mgmtd.device_a = d_a
             new_mgmtd.device_b = d_b
-            new_mgmtd.ipv4_gw = testdata['mgmtdomain_ipv4_gw']
-            new_mgmtd.vlan = testdata['mgmtdomain_vlan']
+            new_mgmtd.ipv4_gw = testdata["mgmtdomain_ipv4_gw"]
+            new_mgmtd.vlan = testdata["mgmtdomain_vlan"]
             session.add(new_mgmtd)
             session.commit()
 
     @classmethod
     def delete_mgmtdomain(cls):
         with sqla_session() as session:
-            d_a = session.query(Device).filter(Device.hostname == 'mgmtdomaintest1').one()
+            d_a = session.query(Device).filter(Device.hostname == "mgmtdomaintest1").one()
             instance = session.query(Mgmtdomain).filter(Mgmtdomain.device_a == d_a).first()
             session.delete(instance)
             d_a = session.query(Device).filter(Device.hostname == "mgmtdomaintest1").one()
@@ -74,17 +73,17 @@ class MgmtdomainTests(unittest.TestCase):
 
     def test_find_mgmtdomain_twodist(self):
         with sqla_session() as session:
-            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ['eosdist1', 'eosdist2'])
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ["eosdist1", "eosdist2"])
             self.assertIsNotNone(mgmtdomain, "No mgmtdomain found for eosdist1 + eosdist2")
 
     def test_find_mgmtdomain_onedist(self):
         with sqla_session() as session:
-            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ['eosdist1'])
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ["eosdist1"])
             self.assertIsNotNone(mgmtdomain, "No mgmtdomain found for eosdist1")
 
     def test_find_mgmtdomain_oneaccess(self):
         with sqla_session() as session:
-            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ['eosaccess'])
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ["eosaccess"])
             self.assertIsNotNone(mgmtdomain, "No mgmtdomain found for eosaccess")
 
     def test_find_free_mgmt_ip(self):
@@ -94,9 +93,9 @@ class MgmtdomainTests(unittest.TestCase):
 
     def test_find_mgmtdomain_by_ip(self):
         with sqla_session() as session:
-            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, IPv4Address('10.0.6.6'))
-            self.assertEqual(IPv4Interface(mgmtdomain.ipv4_gw).network, IPv4Network('10.0.6.0/24'))
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, IPv4Address("10.0.6.6"))
+            self.assertEqual(IPv4Interface(mgmtdomain.ipv4_gw).network, IPv4Network("10.0.6.0/24"))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

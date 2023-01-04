@@ -80,7 +80,7 @@ Additional variables available for distribution switches:
 
 - asn: A private unique Autonomous System number generated from the last two octets
   of the infra_lo IP address on the device.
- 
+
 All settings configured in the settings repository are also exposed to the templates.
 
 .. _settings_repo_ref:
@@ -349,7 +349,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * enabled: Optional. Set the administrative state of the interface. Defaults to true if not set.
   * aggregate_id: Optional. Identifier for configuring LACP etc. Integer value.
     Special value -1 means configure MLAG and use ID based on indexnum.
-  * cli_append_str: Optional. Custom configuration to append to this interface. 
+  * cli_append_str: Optional. Custom configuration to append to this interface.
 
 The "downlink" ifclass is used on DIST devices to specify that this interface
 is used to connect access devices. The "fabric" ifclass is used to specify that

@@ -1,20 +1,16 @@
 from typing import List
 
-import yaml
-from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_jinja2.plugins.tasks import template_file
+from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.confpush.nornir_helper import cnaas_init, get_jinja_env
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.tools.log import get_logger
 
 
 def get_interface_states(hostname) -> dict:
-    logger = get_logger()
-
     nr = cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     if len(nr_filtered.inventory) != 1:
@@ -23,10 +19,10 @@ def get_interface_states(hostname) -> dict:
     if not len(nrresult) == 1:
         raise Exception(f"Could not get interfaces for {hostname}: no Nornir result")
     if nrresult.failed or nrresult[hostname].failed:
-        raise Exception("Could not get interfaces for {}, NAPALM failed: {}".format(
-            hostname, nrresult[hostname].exception
-        ))
-    return nrresult[hostname][0].result['interfaces']
+        raise Exception(
+            "Could not get interfaces for {}, NAPALM failed: {}".format(hostname, nrresult[hostname].exception)
+        )
+    return nrresult[hostname][0].result["interfaces"]
 
 
 def pre_bounce_check(hostname: str, interfaces: List[str]):
@@ -37,30 +33,28 @@ def pre_bounce_check(hostname: str, interfaces: List[str]):
             raise ValueError(f"Hostname {hostname} not found in database")
         if dev.device_type != DeviceType.ACCESS or dev.state != DeviceState.MANAGED:
             raise ValueError(f"Hostname {hostname} is not of type ACCESS or not in state MANAGED")
-        db_intfs: List = session.query(Interface).filter(Interface.device == dev).\
-            filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK).all()
+        db_intfs: List = (
+            session.query(Interface)
+            .filter(Interface.device == dev)
+            .filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK)
+            .all()
+        )
         uplink_intf_names = [x.name for x in db_intfs]
         for interface in interfaces:
             if interface in uplink_intf_names:
-                raise ValueError("Can't bounce UPLINK port {} for device {}".format(
-                    interface, hostname
-                ))
+                raise ValueError("Can't bounce UPLINK port {} for device {}".format(interface, hostname))
     # Check2: Current interface state on device
     intf_states = get_interface_states(hostname)
     for interface in interfaces:
         if interface not in intf_states.keys():
-            raise ValueError("Specified interface {} not found on device {}".format(
-                interface, hostname
-            ))
-        if 'is_enabled' not in intf_states[interface] or not intf_states[interface]['is_enabled']:
-            raise ValueError("Specified interface {} on device {} is not enabled".format(
-                interface, hostname
-            ))
+            raise ValueError("Specified interface {} not found on device {}".format(interface, hostname))
+        if "is_enabled" not in intf_states[interface] or not intf_states[interface]["is_enabled"]:
+            raise ValueError("Specified interface {} on device {} is not enabled".format(interface, hostname))
     # Check3: config hash?
 
 
 def bounce_task(task, interfaces: List[str]):
-    template_vars = {'interfaces': interfaces}
+    template_vars = {"interfaces": interfaces}
     local_repo_path = app_settings.TEMPLATES_LOCAL
     r = task.run(
         task=template_file,
@@ -68,7 +62,7 @@ def bounce_task(task, interfaces: List[str]):
         template="bounce-down.j2",
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
         path=f"{local_repo_path}/{task.host.platform}",
-        **template_vars
+        **template_vars,
     )
     task.host["config"] = r.result
     task.run(
@@ -83,7 +77,7 @@ def bounce_task(task, interfaces: List[str]):
         template="bounce-up.j2",
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
         path=f"{local_repo_path}/{task.host.platform}",
-        **template_vars
+        **template_vars,
     )
     task.host["config"] = r.result
     task.run(
@@ -111,4 +105,3 @@ def bounce_interfaces(hostname: str, interfaces: List[str]) -> bool:
         return True
     else:
         return False
-

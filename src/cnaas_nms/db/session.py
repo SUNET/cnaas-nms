@@ -1,10 +1,10 @@
 from contextlib import contextmanager
-from cnaas_nms.app_settings import app_settings
 
+from redis import StrictRedis
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from redis import StrictRedis
 
+from cnaas_nms.app_settings import app_settings
 
 _sessionmaker = None
 
@@ -25,7 +25,7 @@ def sqla_session(**kwargs) -> sessionmaker:
     try:
         yield session
         session.commit()
-    except:
+    except Exception:  # noqa: S110
         session.rollback()
         raise
     finally:
@@ -43,5 +43,7 @@ def sqla_execute(**kwargs):
 
 @contextmanager
 def redis_session(**kwargs) -> StrictRedis:
-    with StrictRedis(host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, encoding="utf-8", decode_responses=True) as conn:
+    with StrictRedis(
+        host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, encoding="utf-8", decode_responses=True
+    ) as conn:
         yield conn

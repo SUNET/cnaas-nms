@@ -4,6 +4,7 @@ omit =
     */site-packages/*
     */templates/*
     */tests/*
+    conftest.py
 
 [paths]
 source =

@@ -2,6 +2,8 @@ import os
 
 
 class TestAppWrapper(object):
+    __test__ = False
+
     def __init__(self, app, jwt_auth_token):
         self.app = app
         self.jwt_auth_token = jwt_auth_token

@@ -4,13 +4,21 @@ import unittest
 
 from ipaddress import IPv4Address
 
+import pytest
+
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 
 
+@pytest.mark.integration
 class DeviceTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, postgresql):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     def cleandb(self):
         with sqla_session() as session:
             for hardware_id in ["FO64534", "FO64535"]:

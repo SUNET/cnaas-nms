@@ -4,6 +4,8 @@ import yaml
 import os
 from typing import Optional
 
+import pytest
+
 from cnaas_nms.confpush.update import update_linknets
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType
@@ -11,7 +13,13 @@ from cnaas_nms.db.interface import InterfaceError
 from cnaas_nms.confpush.init_device import pre_init_check_neighbors, InitVerificationError
 
 
+@pytest.mark.integration
 class UpdateTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, postgresql, settings_directory):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     def setUp(self):
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:

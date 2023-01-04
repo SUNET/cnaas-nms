@@ -4,13 +4,21 @@ import pkg_resources
 import yaml
 import os
 
+import pytest
+
 import cnaas_nms.confpush.get
 import cnaas_nms.confpush.update
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.device import Device, DeviceType, DeviceState
 
 
+@pytest.mark.integration
 class GetTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, postgresql, settings_directory):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     def setUp(self):
         data_dir = pkg_resources.resource_filename(__name__, 'data')
         with open(os.path.join(data_dir, 'testdata.yml'), 'r') as f_testdata:
@@ -78,7 +86,8 @@ class GetTests(unittest.TestCase):
                 session.delete(dev_b)
                 session.delete(dev_nonpeer)
 
-    def equipmenttest_update_links(self):
+    @pytest.mark.equipment
+    def test_update_links(self):
         with sqla_session() as session:
             new_links = cnaas_nms.confpush.update.update_linknets(
                 session, self.testdata['init_access_new_hostname'], DeviceType.ACCESS)

@@ -24,7 +24,7 @@ logger.info("Code coverage collection for mule in pid {}: {}".format(
     os.getpid(), is_coverage_enabled()))
 
 if is_coverage_enabled():
-    cov = coverage.coverage(data_file='/coverage/.coverage-{}'.format(os.getpid()))
+    cov = coverage.coverage(data_file='.coverage-{}'.format(os.getpid()))
     cov.start()
 
 

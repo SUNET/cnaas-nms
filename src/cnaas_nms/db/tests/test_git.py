@@ -1,12 +1,20 @@
 import unittest
 
+import pytest
+
 from cnaas_nms.db.git import template_syncstatus, repo_save_working_commit, \
     repo_chekout_working, RepoType
 from cnaas_nms.db.device import DeviceType
 from cnaas_nms.db.session import redis_session
 
 
+@pytest.mark.integration
 class GitTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, redis):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     def setUp(self) -> None:
         with redis_session() as redis:
             redis.delete("SETTINGS_working_commit")

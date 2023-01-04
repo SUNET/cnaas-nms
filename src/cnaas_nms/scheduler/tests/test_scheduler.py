@@ -4,6 +4,8 @@ import yaml
 import os
 import time
 
+import pytest
+
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.scheduler.jobresult import DictJobResult
@@ -12,7 +14,7 @@ from cnaas_nms.db.job import Job, JobStatus
 
 
 @job_wrapper
-def testfunc_success(text='', job_id=None, scheduled_by=None):
+def job_testfunc_success(text='', job_id=None, scheduled_by=None):
     print(text)
     return DictJobResult(
         result = {'status': 'success'}
@@ -20,12 +22,18 @@ def testfunc_success(text='', job_id=None, scheduled_by=None):
 
 
 @job_wrapper
-def testfunc_exception(text='', job_id=None, scheduled_by=None):
+def job_testfunc_exception(text='', job_id=None, scheduled_by=None):
     print(text)
     raise Exception("testfunc_exception raised exception")
 
 
+@pytest.mark.integration
 class InitTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def requirements(self, postgresql):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
+        pass
+
     @classmethod
     def setUpClass(cls) -> None:
         scheduler = Scheduler()
@@ -45,10 +53,10 @@ class InitTests(unittest.TestCase):
 
     def test_add_schedule(self):
         scheduler = Scheduler()
-        job1_id = scheduler.add_onetime_job(testfunc_success, when=1,
+        job1_id = scheduler.add_onetime_job(job_testfunc_success, when=1,
                                             scheduled_by='test_user',
                                             kwargs={'text': 'success'})
-        job2_id = scheduler.add_onetime_job(testfunc_exception, when=1,
+        job2_id = scheduler.add_onetime_job(job_testfunc_exception, when=1,
                                             scheduled_by='test_user',
                                             kwargs={'text': 'exception'})
         assert isinstance(job1_id, int)
@@ -68,7 +76,7 @@ class InitTests(unittest.TestCase):
 
     def test_abort_schedule(self):
         scheduler = Scheduler()
-        job3_id = scheduler.add_onetime_job(testfunc_success, when=600,
+        job3_id = scheduler.add_onetime_job(job_testfunc_success, when=600,
                                             scheduled_by='test_user',
                                             kwargs={'text': 'abort'})
         assert isinstance(job3_id, int)

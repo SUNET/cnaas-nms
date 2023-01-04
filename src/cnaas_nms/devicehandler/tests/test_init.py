@@ -8,11 +8,11 @@ from nornir.core.inventory import ConnectionOptions
 from nornir_napalm.plugins.tasks import napalm_configure
 from nornir_utils.plugins.functions import print_result
 
-import cnaas_nms.confpush.init_device
-from cnaas_nms.confpush.update import reset_interfacedb
+import cnaas_nms.devicehandler.init_device
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.devicehandler.update import reset_interfacedb
 from cnaas_nms.scheduler.scheduler import Scheduler
 
 
@@ -50,7 +50,7 @@ class InitTests(unittest.TestCase):
     def init_access_device(self):
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            cnaas_nms.confpush.init_device.init_access_device_step1,
+            cnaas_nms.devicehandler.init_device.init_access_device_step1,
             when=0,
             scheduled_by="test_user",
             kwargs={
@@ -61,7 +61,7 @@ class InitTests(unittest.TestCase):
         print(f"Step1 scheduled as ID { job_id }")
 
     def reset_access_device(self):
-        nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+        nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
         nr_filtered = nr.filter(name=self.testdata["init_access_new_hostname"])
         nr_filtered.inventory.hosts[self.testdata["init_access_new_hostname"]].connection_options[
             "napalm"

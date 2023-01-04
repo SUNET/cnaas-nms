@@ -40,7 +40,7 @@ def pre_schedule_checks(scheduler, kwargs):
     message = ""
     for job in scheduler.get_scheduler().get_jobs():
         # Only allow scheduling of one discover_device job at the same time
-        if job.name == "cnaas_nms.confpush.init_device:discover_device":
+        if job.name == "cnaas_nms.devicehandler.init_device:discover_device":
             if job.kwargs["kwargs"]["dhcp_ip"] == kwargs["kwargs"]["dhcp_ip"]:
                 message = "There is already another scheduled job to discover {} {}, skipping ".format(
                     kwargs["kwargs"]["ztp_mac"], kwargs["kwargs"]["dhcp_ip"]

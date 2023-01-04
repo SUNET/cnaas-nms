@@ -12,7 +12,7 @@ from nornir.core.filter import F
 from nornir.core.plugins.inventory import InventoryPluginRegister
 from nornir.core.task import AggregatedResult, MultiResult
 
-from cnaas_nms.confpush.nornir_plugins.cnaas_inventory import CnaasInventory
+from cnaas_nms.devicehandler.nornir_plugins.cnaas_inventory import CnaasInventory
 from cnaas_nms.scheduler.jobresult import JobResult
 from cnaas_nms.tools import jinja_filters
 

@@ -1,10 +1,10 @@
 from nornir_netmiko.tasks import netmiko_send_command
 from nornir_utils.plugins.functions import print_result
 
-import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.confpush.nornir_helper import NornirJobResult
+import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.devicehandler.nornir_helper import NornirJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
 
@@ -65,7 +65,7 @@ def device_erase(device_id: int = None, job_id: int = None) -> NornirJobResult:
     if device_state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
         raise Exception("Can only do factory default on MANAGED or UNMANAGED devices")
 
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
     device_list = list(nr_filtered.inventory.hosts.keys())

@@ -5,8 +5,8 @@ import pkg_resources
 import yaml
 from nornir_utils.plugins.functions import print_result
 
-from cnaas_nms.confpush.cert import arista_copy_cert
-from cnaas_nms.confpush.nornir_helper import cnaas_init
+from cnaas_nms.devicehandler.cert import arista_copy_cert
+from cnaas_nms.devicehandler.nornir_helper import cnaas_init
 
 
 class CertTests(unittest.TestCase):

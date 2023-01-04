@@ -9,9 +9,9 @@ from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.app_settings import api_settings
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.settings import get_groups
+from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
@@ -275,7 +275,10 @@ class FirmwareUpgradeApi(Resource):
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.confpush.firmware:device_upgrade", when=seconds, scheduled_by=get_jwt_identity(), kwargs=kwargs
+            "cnaas_nms.devicehandler.firmware:device_upgrade",
+            when=seconds,
+            scheduled_by=get_jwt_identity(),
+            kwargs=kwargs,
         )
         res = empty_result(data="Scheduled job to upgrade devices")
         res["job_id"] = job_id

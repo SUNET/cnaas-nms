@@ -6,8 +6,8 @@ import pkg_resources
 import pytest
 import yaml
 
-import cnaas_nms.confpush.get
-import cnaas_nms.confpush.update
+import cnaas_nms.devicehandler.get
+import cnaas_nms.devicehandler.update
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
 
@@ -36,7 +36,7 @@ class GetTests(unittest.TestCase):
         )
 
     def test_get_inventory(self):
-        result = cnaas_nms.confpush.get.get_inventory()
+        result = cnaas_nms.devicehandler.get.get_inventory()
         pprint.pprint(result)
         # Inventory dict should contain these top level keys
         self.assertListEqual(["hosts", "groups", "defaults"], list(result.keys()))
@@ -67,7 +67,7 @@ class GetTests(unittest.TestCase):
                     linknet["device_b_id"] = dev_nonpeer.id
                     linknets.append(linknet)
 
-                res = cnaas_nms.confpush.get.get_mlag_ifs(session, dev_a, self.testdata["mlag_dev_b"], linknets)
+                res = cnaas_nms.devicehandler.get.get_mlag_ifs(session, dev_a, self.testdata["mlag_dev_b"], linknets)
                 self.assertEqual(res, {"Ethernet25": dev_b.id, "Ethernet26": dev_b.id})
             except Exception as e:
                 session.rollback()
@@ -84,7 +84,7 @@ class GetTests(unittest.TestCase):
     @pytest.mark.equipment
     def test_update_links(self):
         with sqla_session() as session:
-            new_links = cnaas_nms.confpush.update.update_linknets(
+            new_links = cnaas_nms.devicehandler.update.update_linknets(
                 session, self.testdata["init_access_new_hostname"], DeviceType.ACCESS
             )
         pprint.pprint(new_links)

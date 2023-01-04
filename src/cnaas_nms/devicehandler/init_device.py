@@ -12,15 +12,11 @@ from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
 
-import cnaas_nms.confpush.get
-import cnaas_nms.confpush.nornir_helper
-import cnaas_nms.confpush.underlay
 import cnaas_nms.db.helper
+import cnaas_nms.devicehandler.get
+import cnaas_nms.devicehandler.nornir_helper
+import cnaas_nms.devicehandler.underlay
 from cnaas_nms.app_settings import api_settings, app_settings
-from cnaas_nms.confpush.cert import arista_copy_cert
-from cnaas_nms.confpush.nornir_helper import NornirJobResult, get_jinja_env
-from cnaas_nms.confpush.sync_devices import confcheck_devices, populate_device_vars
-from cnaas_nms.confpush.update import set_facts, update_interfacedb_worker, update_linknets
 from cnaas_nms.db.device import Device, DeviceError, DeviceState, DeviceStateError, DeviceSyncError, DeviceType
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
@@ -28,6 +24,10 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import SettingsSyntaxError, VlanConflictError, rebuild_settings_cache
+from cnaas_nms.devicehandler.cert import arista_copy_cert
+from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, get_jinja_env
+from cnaas_nms.devicehandler.sync_devices import confcheck_devices, populate_device_vars
+from cnaas_nms.devicehandler.update import set_facts, update_interfacedb_worker, update_linknets
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.thread_data import set_thread_data
@@ -130,7 +130,7 @@ def pre_init_checks(session, device_id: int, accepted_state: Optional[List[Devic
         raise DeviceStateError("Device must be in state DISCOVERED to begin init")
     old_hostname = dev.hostname
     # Perform connectivity check
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_old_filtered = nr.filter(name=old_hostname)
     try:
         nrresult_old = nr_old_filtered.run(task=napalm_get, getters=["facts"])
@@ -333,7 +333,7 @@ def schedule_mlag_peer_init(
     logger = get_logger()
     scheduler = Scheduler()
     mlag_peer_job_id = scheduler.add_onetime_job(
-        "cnaas_nms.confpush.init_device:init_access_device_step1",
+        "cnaas_nms.devicehandler.init_device:init_access_device_step1",
         when=60,
         scheduled_by=scheduled_by,
         kwargs={
@@ -534,7 +534,7 @@ def init_access_device_step1(
         logger.error("VLAN conflict in repo configuration: {}".format(e))
         raise e
 
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
     # step2. push management config
@@ -585,7 +585,7 @@ def init_access_device_step1(
         step2_delay = api_settings.INIT_MGMT_TIMEOUT
     scheduler = Scheduler()
     next_job_id = scheduler.add_onetime_job(
-        "cnaas_nms.confpush.init_device:init_device_step2",
+        "cnaas_nms.devicehandler.init_device:init_device_step2",
         when=step2_delay,
         scheduled_by=scheduled_by,
         kwargs={"device_id": device_id, "iteration": 1},
@@ -693,8 +693,8 @@ def init_fabric_device_step1(
         ReservedIP.clean_reservations(session, device=dev)
         session.commit()
 
-        mgmt_ip = cnaas_nms.confpush.underlay.find_free_mgmt_lo_ip(session)
-        infra_ip = cnaas_nms.confpush.underlay.find_free_infra_ip(session)
+        mgmt_ip = cnaas_nms.devicehandler.underlay.find_free_mgmt_lo_ip(session)
+        infra_ip = cnaas_nms.devicehandler.underlay.find_free_infra_ip(session)
 
         reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
         session.add(reserved_ip)
@@ -727,7 +727,7 @@ def init_fabric_device_step1(
         logger.error("VLAN conflict in repo configuration: {}".format(e))
         raise e
 
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
     # step2. push management config
@@ -754,7 +754,7 @@ def init_fabric_device_step1(
     # step3. resync neighbors
     scheduler = Scheduler()
     sync_nei_job_id = scheduler.add_onetime_job(
-        "cnaas_nms.confpush.sync_devices:sync_devices",
+        "cnaas_nms.devicehandler.sync_devices:sync_devices",
         when=1,
         scheduled_by=scheduled_by,
         kwargs={"hostnames": verified_neighbors, "dry_run": False},
@@ -764,7 +764,7 @@ def init_fabric_device_step1(
     # step4. register apscheduler job that continues steps
     scheduler = Scheduler()
     next_job_id = scheduler.add_onetime_job(
-        "cnaas_nms.confpush.init_device:init_device_step2",
+        "cnaas_nms.devicehandler.init_device:init_device_step2",
         when=60,
         scheduled_by=scheduled_by,
         kwargs={"device_id": device_id, "iteration": 1},
@@ -780,7 +780,7 @@ def schedule_init_device_step2(device_id: int, iteration: int, scheduled_by: str
     if iteration > 0 and iteration < max_iterations:
         scheduler = Scheduler()
         next_job_id = scheduler.add_onetime_job(
-            "cnaas_nms.confpush.init_device:init_device_step2",
+            "cnaas_nms.devicehandler.init_device:init_device_step2",
             when=(30 * iteration),
             scheduled_by=scheduled_by,
             kwargs={"device_id": device_id, "iteration": iteration + 1},
@@ -805,7 +805,7 @@ def init_device_step2(
             raise DeviceStateError("Device must be in state INIT to continue init step 2")
         hostname = dev.hostname
         devtype: DeviceType = dev.device_type
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
     nrresult = nr_filtered.run(task=napalm_get, getters=["facts"])
@@ -857,7 +857,7 @@ def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int, schedul
     if 0 < iteration <= max_iterations:
         scheduler = Scheduler()
         next_job_id = scheduler.add_onetime_job(
-            "cnaas_nms.confpush.init_device:discover_device",
+            "cnaas_nms.devicehandler.init_device:discover_device",
             when=(60 * iteration),
             scheduled_by=scheduled_by,
             kwargs={"ztp_mac": ztp_mac, "dhcp_ip": dhcp_ip, "iteration": iteration},
@@ -903,7 +903,7 @@ def discover_device(
             dev.dhcp_ip = dhcp_ip
         hostname = dev.hostname
 
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
     nrresult = nr_filtered.run(task=napalm_get, getters=["facts"])

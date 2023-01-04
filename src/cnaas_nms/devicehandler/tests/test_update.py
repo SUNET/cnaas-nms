@@ -6,11 +6,11 @@ import pkg_resources
 import pytest
 import yaml
 
-from cnaas_nms.confpush.init_device import InitVerificationError, pre_init_check_neighbors
-from cnaas_nms.confpush.update import update_linknets
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.interface import InterfaceError
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.devicehandler.init_device import InitVerificationError, pre_init_check_neighbors
+from cnaas_nms.devicehandler.update import update_linknets
 
 
 @pytest.mark.integration

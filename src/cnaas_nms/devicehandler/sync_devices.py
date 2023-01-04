@@ -12,15 +12,15 @@ from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
 from cnaas_nms.app_settings import app_settings
-from cnaas_nms.confpush.changescore import calculate_score
-from cnaas_nms.confpush.get import calc_config_hash
-from cnaas_nms.confpush.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings
+from cnaas_nms.devicehandler.changescore import calculate_score
+from cnaas_nms.devicehandler.get import calc_config_hash
+from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.scheduler.wrapper import job_wrapper
@@ -709,7 +709,7 @@ def sync_devices(
         elif total_change_score < AUTOPUSH_MAX_SCORE:
             scheduler = Scheduler()
             next_job_id = scheduler.add_onetime_job(
-                "cnaas_nms.confpush.sync_devices:sync_devices",
+                "cnaas_nms.devicehandler.sync_devices:sync_devices",
                 when=0,
                 scheduled_by=scheduled_by,
                 kwargs={"hostnames": hostnames, "dry_run": False, "force": force},

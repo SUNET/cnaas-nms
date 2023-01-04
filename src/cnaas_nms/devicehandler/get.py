@@ -7,19 +7,19 @@ from nornir.core.task import AggregatedResult
 from nornir_napalm.plugins.tasks import napalm_get
 from nornir_utils.plugins.functions import print_result
 
-import cnaas_nms.confpush.nornir_helper
+import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
 from cnaas_nms.tools.log import get_logger
 
 
 def get_inventory():
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     return nr.dict()["inventory"]
 
 
 def get_running_config(hostname):
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     if hostname:
         nr_filtered = nr.filter(name=hostname).filter(managed=True)
     else:
@@ -46,7 +46,7 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None) -
     Returns:
         Nornir result object
     """
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     if hostname:
         nr_filtered = nr.filter(name=hostname)
     elif group:
@@ -173,7 +173,7 @@ def get_interfaces(hostname: str) -> AggregatedResult:
     """Get a NAPALM/Nornir aggregated result of the current interfaces
     on the specified device.
     """
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
     if len(nr_filtered.inventory) != 1:
         raise ValueError(f"Hostname {hostname} not found in inventory")

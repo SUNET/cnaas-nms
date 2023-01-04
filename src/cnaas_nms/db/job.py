@@ -10,8 +10,8 @@ from sqlalchemy.orm import relationship
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device
-from cnaas_nms.confpush.nornir_helper import NornirJobResult, nr_result_serialize
 from cnaas_nms.db.helper import json_dumper
+from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, nr_result_serialize
 from cnaas_nms.scheduler.jobresult import DictJobResult, StrJobResult
 from cnaas_nms.tools.event import add_event
 from cnaas_nms.tools.log import get_logger

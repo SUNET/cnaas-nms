@@ -8,15 +8,14 @@ from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
-import cnaas_nms.confpush.get
-import cnaas_nms.confpush.init_device
-import cnaas_nms.confpush.sync_devices
-import cnaas_nms.confpush.underlay
-import cnaas_nms.confpush.update
+import cnaas_nms.devicehandler.get
+import cnaas_nms.devicehandler.init_device
+import cnaas_nms.devicehandler.sync_devices
+import cnaas_nms.devicehandler.underlay
+import cnaas_nms.devicehandler.update
 from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
 from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
-from cnaas_nms.confpush.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError
 from cnaas_nms.db.linknet import Linknet
@@ -30,6 +29,7 @@ from cnaas_nms.db.settings import (
     update_device_primary_groups,
 )
 from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_jwt_identity, jwt_required
@@ -222,7 +222,7 @@ class DeviceByIdApi(Resource):
             if isinstance(json_data["factory_default"], bool) and json_data["factory_default"] is True:
                 scheduler = Scheduler()
                 job_id = scheduler.add_onetime_job(
-                    "cnaas_nms.confpush.erase:device_erase",
+                    "cnaas_nms.devicehandler.erase:device_erase",
                     when=1,
                     scheduled_by=get_jwt_identity(),
                     kwargs={"device_id": device_id},
@@ -328,9 +328,9 @@ class DeviceApi(Resource):
                 return empty_result(status="error", data=errors), 400
             if data["device_type"] in ["DIST", "CORE"]:
                 if "management_ip" not in data or not data["management_ip"]:
-                    data["management_ip"] = cnaas_nms.confpush.underlay.find_free_mgmt_lo_ip(session)
+                    data["management_ip"] = cnaas_nms.devicehandler.underlay.find_free_mgmt_lo_ip(session)
                 if "infra_ip" not in data or not data["infra_ip"]:
-                    data["infra_ip"] = cnaas_nms.confpush.underlay.find_free_infra_ip(session)
+                    data["infra_ip"] = cnaas_nms.devicehandler.underlay.find_free_infra_ip(session)
             new_device = Device.device_create(**data)
             session.add(new_device)
             session.flush()
@@ -385,7 +385,7 @@ class DeviceInitApi(Resource):
             ):
                 scheduler = Scheduler()
                 job_id = scheduler.add_onetime_job(
-                    "cnaas_nms.confpush.init_device:init_device_step2",
+                    "cnaas_nms.devicehandler.init_device:init_device_step2",
                     when=1,
                     scheduled_by=get_jwt_identity(),
                     kwargs={"device_id": device_id, "iteration": 1},
@@ -401,7 +401,7 @@ class DeviceInitApi(Resource):
             del job_kwargs["neighbors"]
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
-                "cnaas_nms.confpush.init_device:init_access_device_step1",
+                "cnaas_nms.devicehandler.init_device:init_access_device_step1",
                 when=1,
                 scheduled_by=get_jwt_identity(),
                 kwargs=job_kwargs,
@@ -409,7 +409,7 @@ class DeviceInitApi(Resource):
         elif job_kwargs["device_type"] in [DeviceType.CORE.name, DeviceType.DIST.name]:
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
-                "cnaas_nms.confpush.init_device:init_fabric_device_step1",
+                "cnaas_nms.devicehandler.init_device:init_fabric_device_step1",
                 when=1,
                 scheduled_by=get_jwt_identity(),
                 kwargs=job_kwargs,
@@ -499,7 +499,7 @@ class DeviceInitCheckApi(Resource):
 
         with sqla_session() as session:
             try:
-                dev: Device = cnaas_nms.confpush.init_device.pre_init_checks(session, device_id)
+                dev: Device = cnaas_nms.devicehandler.init_device.pre_init_checks(session, device_id)
                 linknets_all = dev.get_linknets_as_dict(session)
             except ValueError as e:
                 return empty_result(status="error", data="ValueError in pre_init_checks: {}".format(e)), 400
@@ -508,7 +508,7 @@ class DeviceInitCheckApi(Resource):
 
             if mlag_peer_id:
                 try:
-                    mlag_peer_dev: Device = cnaas_nms.confpush.init_device.pre_init_checks(session, mlag_peer_id)
+                    mlag_peer_dev: Device = cnaas_nms.devicehandler.init_device.pre_init_checks(session, mlag_peer_id)
                     linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
                 except ValueError as e:
                     return empty_result(status="error", data="ValueError in pre_init_checks: {}".format(e)), 400
@@ -516,7 +516,7 @@ class DeviceInitCheckApi(Resource):
                     return empty_result(status="error", data="Exception in pre_init_checks: {}".format(e)), 500
 
             try:
-                linknets_all += cnaas_nms.confpush.update.update_linknets(
+                linknets_all += cnaas_nms.devicehandler.update.update_linknets(
                     session,
                     hostname=dev.hostname,
                     devtype=target_devtype,
@@ -525,7 +525,7 @@ class DeviceInitCheckApi(Resource):
                     dry_run=True,
                 )
                 if mlag_peer_dev:
-                    linknets_all += cnaas_nms.confpush.update.update_linknets(
+                    linknets_all += cnaas_nms.devicehandler.update.update_linknets(
                         session,
                         hostname=mlag_peer_dev.hostname,
                         devtype=target_devtype,
@@ -544,17 +544,17 @@ class DeviceInitCheckApi(Resource):
             try:
                 if "linknets" in ret and ret["linknets"]:
                     try:
-                        ret["neighbors"] = cnaas_nms.confpush.init_device.pre_init_check_neighbors(
+                        ret["neighbors"] = cnaas_nms.devicehandler.init_device.pre_init_check_neighbors(
                             session, dev, target_devtype, ret["linknets"], parsed_args["neighbors"], mlag_peer_dev
                         )
                         ret["neighbors_compatible"] = True
-                    except cnaas_nms.confpush.init_device.InitVerificationError as e:
+                    except cnaas_nms.devicehandler.init_device.InitVerificationError as e:
                         ret["neighbors_compatible"] = False
                         ret["neighbors_error"] = str(e)
                 else:
                     ret["neighbors_compatible"] = False
                     ret["neighbors_error"] = "No linknets found"
-            except (ValueError, cnaas_nms.confpush.init_device.InitVerificationError) as e:
+            except (ValueError, cnaas_nms.devicehandler.init_device.InitVerificationError) as e:
                 ret["neighbors_compatible"] = False
                 ret["neighbors_error"] = str(e)
             except Exception as e:
@@ -590,7 +590,7 @@ class DeviceDiscoverApi(Resource):
         ztp_mac = json_data["ztp_mac"]
         dhcp_ip = json_data["dhcp_ip"]
 
-        job_id = cnaas_nms.confpush.init_device.schedule_discover_device(
+        job_id = cnaas_nms.devicehandler.init_device.schedule_discover_device(
             ztp_mac=ztp_mac, dhcp_ip=dhcp_ip, iteration=1, scheduled_by=get_jwt_identity()
         )
 
@@ -664,7 +664,7 @@ class DeviceSyncApi(Resource):
             return empty_result(status="error", data="No devices to synchronize were specified"), 400
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.confpush.sync_devices:sync_devices", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+            "cnaas_nms.devicehandler.sync_devices:sync_devices", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
         )
 
         res = empty_result(data=f"Scheduled job to synchronize {what}")
@@ -705,7 +705,7 @@ class DeviceUpdateFactsApi(Resource):
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.confpush.update:update_facts", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+            "cnaas_nms.devicehandler.update:update_facts", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
         )
 
         res = empty_result(data=f"Scheduled job to update facts for {hostname}")
@@ -784,7 +784,7 @@ class DeviceUpdateInterfacesApi(Resource):
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.confpush.update:update_interfacedb", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+            "cnaas_nms.devicehandler.update:update_interfacedb", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
         )
 
         res = empty_result(data=f"Scheduled job to update interfaces for {hostname}")
@@ -807,7 +807,7 @@ class DeviceConfigApi(Resource):
             return empty_result(status="error", data="Invalid hostname specified"), 400
 
         try:
-            config, template_vars = cnaas_nms.confpush.sync_devices.generate_only(hostname)
+            config, template_vars = cnaas_nms.devicehandler.sync_devices.generate_only(hostname)
             template_vars["host"] = hostname
             result["data"]["config"] = {
                 "hostname": hostname,
@@ -914,7 +914,7 @@ class DevicePreviousConfigApi(Resource):
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.confpush.sync_devices:apply_config",
+            "cnaas_nms.devicehandler.sync_devices:apply_config",
             when=1,
             scheduled_by=get_jwt_identity(),
             kwargs=apply_kwargs,
@@ -952,7 +952,7 @@ class DeviceApplyConfigApi(Resource):
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.confpush.sync_devices:apply_config",
+            "cnaas_nms.devicehandler.sync_devices:apply_config",
             when=1,
             scheduled_by=get_jwt_identity(),
             kwargs=apply_kwargs,
@@ -1009,7 +1009,7 @@ class DeviceCertApi(Resource):
         if action == "RENEW":
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
-                "cnaas_nms.confpush.cert:renew_cert", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+                "cnaas_nms.devicehandler.cert:renew_cert", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
             )
 
             res = empty_result(data="Scheduled job to renew certificates")

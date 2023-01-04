@@ -7,10 +7,10 @@ from pydantic import BaseModel, validator
 from pydantic.error_wrappers import ValidationError
 
 from cnaas_nms.api.generic import empty_result, parse_pydantic_error, update_sqla_object
-from cnaas_nms.confpush.underlay import find_free_infra_linknet
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.devicehandler.underlay import find_free_infra_linknet
 from cnaas_nms.tools.security import jwt_required
 from cnaas_nms.version import __api_version__
 

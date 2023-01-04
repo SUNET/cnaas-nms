@@ -4,10 +4,10 @@ from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 
 from cnaas_nms.app_settings import app_settings
-from cnaas_nms.confpush.nornir_helper import cnaas_init, get_jinja_env
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.devicehandler.nornir_helper import cnaas_init, get_jinja_env
 
 
 def get_interface_states(hostname) -> dict:

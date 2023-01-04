@@ -3,8 +3,13 @@ from typing import Dict, List, Optional
 
 from nornir_napalm.plugins.tasks import napalm_get
 
-import cnaas_nms.confpush.nornir_helper
-from cnaas_nms.confpush.get import (
+import cnaas_nms.devicehandler.nornir_helper
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.linknet import Linknet
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.settings import get_settings
+from cnaas_nms.devicehandler.get import (
     filter_interfaces,
     get_interfaces_names,
     get_mlag_ifs,
@@ -12,13 +17,8 @@ from cnaas_nms.confpush.get import (
     get_uplinks,
     verify_peer_iftype,
 )
-from cnaas_nms.confpush.nornir_helper import NornirJobResult
-from cnaas_nms.confpush.underlay import find_free_infra_linknet
-from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.interface import Interface, InterfaceConfigType
-from cnaas_nms.db.linknet import Linknet
-from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import get_settings
+from cnaas_nms.devicehandler.nornir_helper import NornirJobResult
+from cnaas_nms.devicehandler.underlay import find_free_infra_linknet
 from cnaas_nms.scheduler.jobresult import DictJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
@@ -181,7 +181,7 @@ def update_facts(hostname: str, job_id: Optional[str] = None, scheduled_by: Opti
             raise ValueError("Device with hostname {} is in incorrect state: {}".format(hostname, str(dev.state)))
         hostname = dev.hostname
 
-    nr = cnaas_nms.confpush.nornir_helper.cnaas_init()
+    nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
 
     nrresult = nr_filtered.run(task=napalm_get, getters=["facts"])

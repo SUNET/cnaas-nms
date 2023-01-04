@@ -25,7 +25,7 @@ print("Code coverage collection for worker in pid {}: {}".format(
 
 if is_coverage_enabled():
     cov = coverage.coverage(
-        data_file='/coverage/.coverage-{}'.format(os.getpid()),
+        data_file='.coverage-{}'.format(os.getpid()),
         concurrency="gevent")
     cov.start()
 

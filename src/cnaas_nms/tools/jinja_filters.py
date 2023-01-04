@@ -107,22 +107,27 @@ def isofy_ipv4(ip_string, prefix=''):
 
 @template_filter()
 def ipv4_to_ipv6(
-    v6_network: Union[str, ipaddress.IPv6Network], v4_address: Union[str, ipaddress.IPv4Interface]
+    v4_address: Union[str, ipaddress.IPv4Interface],
+    v6_network: Union[str, ipaddress.IPv6Network],
+    keep_octets: int = 1,
 ):
-    """Transforms an IPv4 address to an IPv6 interface address. This will combine an arbitrary
-    IPv6 network address with the 32 address bytes of an IPv4 address into a valid IPv6 address
-    + prefix length notation - the equivalent of dotted quad compatible notation.
+    """Transforms an IPv4 address intoto an IPv6 interface address that should be more-or-less
+    identifiable as the same device on a different protocol family.
 
-    E.g.:
-    >>> ipv6 = ipv4_to_ipv6("2001:700:dead:babe::/64", "127.0.0.1")
-    >>> ipv6
-    IPv6Interface('2001:700:dead:babe::7f00:1/64')
-    >>> ipv6 == ipaddress.IPv6Interface('2001:700:dead:babe::127.0.0.1/64')
-    True
+    A selected number of octets, right-to-left, of the IPv4 address will be converted to
+    hexadecimal notation that can be read as the decimal IPv4 address. This will then be used as
+    a host address on the provided IPv6 network.
+
+    Examples:
+    >>> ipv4_to_ipv6("10.1.0.42", "2001:700:dead:babe::/64")
+    IPv6Interface('2001:700:dead:babe::42/64')
+    >>> ipv4_to_ipv6("10.1.0.42", "2001:700:dead:babe::/64", keep_octets=4)
+    IPv6Interface('2001:700:dead:babe:10:1:0:42/64')
 
     Args:
-        v6_network: IPv6 network in prefix notation
         v4_address: IPv4 address
+        v6_network: IPv6 network in prefix notation
+        keep_octets: The number of octets to keep from the IPv4 address (from right-to-left)
     Returns:
         An IPv6Address object on the given network
     """
@@ -130,8 +135,11 @@ def ipv4_to_ipv6(
         v6_network = ipaddress.IPv6Network(v6_network)
     if isinstance(v4_address, str):
         v4_address = ipaddress.IPv4Address(v4_address)
+    assert keep_octets > 0 <= 4
 
-    v6_address = v6_network[int(v4_address)]
+    octets = str(v4_address).split('.')[-keep_octets:]
+    v6ified = ipaddress.IPv6Address("::" + ":".join(octets))
+    v6_address = v6_network[int(v6ified)]
     return ipaddress.IPv6Interface(f"{v6_address}/{v6_network.prefixlen}")
 
 

@@ -1,20 +1,20 @@
 #!/bin/bash
 
-PYTESTARGS=""
+PYTESTARGS=()
 
 if [ ! -z "$NO_EQUIPMENTTEST" ] ; then
-	PYTESTARGS="$PYTESTARGS -m 'not equipment'"
+	PYTESTARGS+=("-m" "not equipment")
 fi
 
 if [ ! -z "$COVERAGE" ] ; then
-	PYTESTARGS="$PYTESTARGS --cov=cnaas_nms -p no:cacheprovider"
+	PYTESTARGS+=("--cov=cnaas_nms" "-p" "no:cacheprovider")
 fi
 
 cd /opt/cnaas/venv/cnaas-nms/src/
 
 source ../../bin/activate
 
-pytest $PYTESTARGS
+pytest ${PYTESTARGS[@]}
 EXITSTATUS="$?"
 
 if [ -f ".coverage" ] ; then

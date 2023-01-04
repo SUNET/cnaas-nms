@@ -14,7 +14,8 @@ cd /opt/cnaas/venv/cnaas-nms/src/
 
 source ../../bin/activate
 
-pytest ${PYTESTARGS[@]}
+echo "starting unittests: pytest ${PYTESTARGS[@]}"
+pytest "${PYTESTARGS[@]}"
 EXITSTATUS="$?"
 
 if [ -f ".coverage" ] ; then

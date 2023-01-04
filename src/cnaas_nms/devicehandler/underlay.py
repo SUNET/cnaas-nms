@@ -12,7 +12,7 @@ from cnaas_nms.db.settings import get_settings
 def find_free_infra_ip(session) -> Optional[IPv4Address]:
     """Returns first free IPv4 infra IP."""
     used_ips = []
-    device_query = session.query(Device).filter(Device.infra_ip is not None).options(load_only("infra_ip"))
+    device_query = session.query(Device).filter(Device.infra_ip != None).options(load_only("infra_ip"))  # noqa: E711
     for device in device_query:
         used_ips.append(device.infra_ip)
     settings, settings_origin = get_settings(device_type=DeviceType.CORE)
@@ -30,7 +30,9 @@ def find_free_mgmt_lo_ip(session) -> Optional[IPv4Address]:
     """Returns first free IPv4 infra IP."""
     used_ips = []
     reserved_ips = []
-    device_query = session.query(Device).filter(Device.management_ip is not None).options(load_only("management_ip"))
+    device_query = (
+        session.query(Device).filter(Device.management_ip != None).options(load_only("management_ip"))  # noqa: E711
+    )
     for device in device_query:
         used_ips.append(device.management_ip)
     reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
@@ -53,7 +55,7 @@ def find_free_mgmt_lo_ip(session) -> Optional[IPv4Address]:
 def find_free_infra_linknet(session) -> Optional[IPv4Network]:
     """Returns first free IPv4 infra linknet (/31)."""
     used_linknets = []
-    linknet_query = session.query(Linknet).filter(Linknet.device_a_ip is not None)
+    linknet_query = session.query(Linknet).filter(Linknet.device_a_ip != None)  # noqa: E711
     ln: Linknet
     for ln in linknet_query:
         used_linknets.append(IPv4Interface(ln.ipv4_network).network)

@@ -9,8 +9,11 @@ Coding style
 
 CNaaS-NMS is developed for python 3.7 and uses type hinting and dataclasses.
 
-PEP8 is used for style guidelines, we try to follow it as long as it makes things more readable,
-and we use a locally defined maximum line length of 99 characters.
+PEP8 is used for style guidelines and black for formatting, we try to follow it as long as it
+makes things more readable, and we use a locally defined maximum line length of 120 characters.
+
+Pre-commit hooks for black, isort and flake8 are used. Run ``pip install -r requirements-dev.txt`` and run
+"pre-commit install" to get the hooks installed.
 
 PEP440 is used for versioning using the style 0.1.0dev1, 0.1.0b1, 0.1.0rc1, 0.1.0 etc.
 

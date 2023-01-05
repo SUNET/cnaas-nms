@@ -1,22 +1,25 @@
-from typing import Optional, List
-from pydantic import BaseModel, validator, conint
+from typing import List, Optional
+
+from pydantic import BaseModel, conint, validator
+
 
 class StackmemberModel(BaseModel):
     member_no: Optional[conint(gt=-1)] = None
     hardware_id: str
     priority: Optional[conint(gt=-1)] = None
 
-    @validator('hardware_id')
+    @validator("hardware_id")
     def validate_non_empty_hardware_id(cls, hardware_id):
         """Validates that hardware_id is not an empty string"""
         if not hardware_id:
             raise ValueError("hardware_id cannot be an empty string")
         return hardware_id
 
+
 class StackmembersModel(BaseModel):
     stackmembers: List[StackmemberModel]
 
-    @validator('stackmembers')
+    @validator("stackmembers")
     def validate_unique_member_no(cls, stackmembers):
         """Validates that all StackmemberModel in stackmembers have unique member_no compared to each other"""
         member_no_count = len(set([stackmember.member_no for stackmember in stackmembers]))
@@ -24,7 +27,7 @@ class StackmembersModel(BaseModel):
             raise ValueError("member_no must be unique for stackmembers belonging to the same device")
         return stackmembers
 
-    @validator('stackmembers')
+    @validator("stackmembers")
     def validate_unique_hardware_id(cls, stackmembers):
         """Validates that all StackmemberModel in stackmembers have unique hardware_id compared to each other"""
         hardware_id_count = len(set([stackmember.hardware_id for stackmember in stackmembers]))

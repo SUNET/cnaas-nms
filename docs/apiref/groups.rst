@@ -79,4 +79,3 @@ Define groups
 -------------
 
 New groups can be defined in the settings repository. :ref:`settings_repo_ref`
-

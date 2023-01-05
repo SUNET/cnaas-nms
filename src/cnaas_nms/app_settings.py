@@ -1,8 +1,8 @@
-import yaml
+from pathlib import Path
 from typing import Optional
 
+import yaml
 from pydantic import BaseSettings, PostgresDsn
-from pathlib import Path
 
 
 class AppSettings(BaseSettings):
@@ -15,7 +15,9 @@ class AppSettings(BaseSettings):
     CNAAS_DB_PORT: int = 5432
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
-    POSTGRES_DSN: PostgresDsn = f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
+    POSTGRES_DSN: PostgresDsn = (
+        f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
+    )
     USERNAME_INIT: str = "admin"
     PASSWORD_INIT: str = "abc123abc123"
     USERNAME_DHCP_BOOT: str = "admin"
@@ -73,7 +75,7 @@ def construct_api_settings() -> ApiSettings:
             FIRMWARE_URL=firmware_url,
             GLOBAL_UNIQUE_VLANS=config.get("global_unique_vlans", True),
             INIT_MGMT_TIMEOUT=config.get("init_mgmt_timeout", 30),
-            MGMTDOMAIN_RESERVED_COUNT=config.get("mgmtdomain_reserved_count", 5)
+            MGMTDOMAIN_RESERVED_COUNT=config.get("mgmtdomain_reserved_count", 5),
         )
     else:
         return ApiSettings()

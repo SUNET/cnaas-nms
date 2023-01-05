@@ -42,4 +42,3 @@ Configuration lines relating to the description of an interface has a modifier t
 have a very low score, and configuration lines that will remove an IP-address from an interface
 for example will get a much higher score. Exactly how the score is calculated and what text
 patterns are being searched for can be found in the file changescore.py in the source code.
-

@@ -1,89 +1,89 @@
 import os
-import sys
 import re
+import sys
 from typing import Optional
 
-
-from flask import Flask, request
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+from flask_jwt_extended import JWTManager, decode_token
+from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
-from flask_jwt_extended import JWTManager, decode_token
-from flask_jwt_extended.exceptions import NoAuthorizationError
+from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError
 
-from flask import jsonify
-from flask_cors import CORS
-
-from cnaas_nms.api.json import CNaaSJSONEncoder
-from cnaas_nms.version import __api_version__
-from cnaas_nms.tools.log import get_logger
-from cnaas_nms.app_settings import api_settings
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
-
-from cnaas_nms.api.device import device_api, devices_api, device_init_api, \
-    device_initcheck_api, device_syncto_api, device_discover_api, \
-    device_update_facts_api, device_update_interfaces_api, device_cert_api
-from cnaas_nms.api.linknet import linknets_api, linknet_api
+from cnaas_nms.api.device import (
+    device_api,
+    device_cert_api,
+    device_discover_api,
+    device_init_api,
+    device_initcheck_api,
+    device_syncto_api,
+    device_update_facts_api,
+    device_update_interfaces_api,
+    devices_api,
+)
 from cnaas_nms.api.firmware import api as firmware_api
-from cnaas_nms.api.interface import api as interfaces_api
-from cnaas_nms.api.jobs import job_api, jobs_api, joblock_api
-from cnaas_nms.api.mgmtdomain import mgmtdomain_api, mgmtdomains_api
 from cnaas_nms.api.groups import api as groups_api
+from cnaas_nms.api.interface import api as interfaces_api
+from cnaas_nms.api.jobs import job_api, joblock_api, jobs_api
+from cnaas_nms.api.json import CNaaSJSONEncoder
+from cnaas_nms.api.linknet import linknet_api, linknets_api
+from cnaas_nms.api.mgmtdomain import mgmtdomain_api, mgmtdomains_api
+from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
-from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.system import api as system_api
-
-from jwt.exceptions import DecodeError, InvalidSignatureError, \
-    InvalidTokenError
-from flask_jwt_extended.exceptions import InvalidHeaderError
-
+from cnaas_nms.app_settings import api_settings
+from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.version import __api_version__
 
 logger = get_logger()
 
 
 authorizations = {
-    'apikey': {
-        'type': 'apiKey',
-        'in': 'header',
-        'name': 'Authorization',
-        'description': "Type in 'Bearer <your JWT token here' to authenticate."
+    "apikey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Type in 'Bearer <your JWT token here' to authenticate.",
     }
 }
 
-jwt_query_r = re.compile(r'jwt=[^ &]+')
+jwt_query_r = re.compile(r"jwt=[^ &]+")
 
 
 class CnaasApi(Api):
     def handle_error(self, e):
         if isinstance(e, DecodeError):
-            data = {'status': 'error', 'data': 'Could not decode JWT token'}
+            data = {"status": "error", "data": "Could not decode JWT token"}
         elif isinstance(e, InvalidTokenError):
-            data = {'status': 'error', 'data': 'Invalid authentication header: {}'.format(e)}
+            data = {"status": "error", "data": "Invalid authentication header: {}".format(e)}
         elif isinstance(e, InvalidSignatureError):
-            data = {'status': 'error', 'data': 'Invalid token signature'}
+            data = {"status": "error", "data": "Invalid token signature"}
         elif isinstance(e, IndexError):
             # We might catch IndexErrors which are not cuased by JWT,
             # but this is better than nothing.
-            data = {'status': 'error', 'data': 'JWT token missing?'}
+            data = {"status": "error", "data": "JWT token missing?"}
         elif isinstance(e, NoAuthorizationError):
-            data = {'status': 'error', 'data': 'JWT token missing?'}
+            data = {"status": "error", "data": "JWT token missing?"}
         elif isinstance(e, InvalidHeaderError):
-            data = {'status': 'error', 'data': 'Invalid header, JWT token missing? {}'.format(e)}
+            data = {"status": "error", "data": "Invalid header, JWT token missing? {}".format(e)}
         else:
             return super(CnaasApi, self).handle_error(e)
         return jsonify(data), 401
 
 
-
-
 app = Flask(__name__)
-app.config['RESTX_JSON'] = {'cls': CNaaSJSONEncoder}
+app.config["RESTX_JSON"] = {"cls": CNaaSJSONEncoder}
 
 # TODO: make origins configurable
-cors = CORS(app,
-            resources={r"/api/*": {"origins": "*"}},
-            expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link"])
-socketio = SocketIO(app, cors_allowed_origins='*')
+cors = CORS(
+    app,
+    resources={r"/api/*": {"origins": "*"}},
+    expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link"],
+)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 if api_settings.JWT_ENABLED:
     try:
@@ -92,18 +92,16 @@ if api_settings.JWT_ENABLED:
         print("Could not load public JWT cert from api.yml config: {}".format(e))
         sys.exit(1)
 
-    app.config['SECRET_KEY'] = os.urandom(128)
-    app.config['JWT_PUBLIC_KEY'] = jwt_pubkey
-    app.config['JWT_IDENTITY_CLAIM'] = 'sub'
-    app.config['JWT_ALGORITHM'] = 'ES256'
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False
-    app.config['JWT_TOKEN_LOCATION'] = ('headers', 'query_string')
+    app.config["SECRET_KEY"] = os.urandom(128)
+    app.config["JWT_PUBLIC_KEY"] = jwt_pubkey
+    app.config["JWT_IDENTITY_CLAIM"] = "sub"
+    app.config["JWT_ALGORITHM"] = "ES256"
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
+    app.config["JWT_TOKEN_LOCATION"] = ("headers", "query_string")
 
     jwt = JWTManager(app)
 
-api = CnaasApi(app, prefix='/api/{}'.format(__api_version__),
-               authorizations=authorizations,
-               security='apikey')
+api = CnaasApi(app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey")
 
 api.add_namespace(device_api)
 api.add_namespace(devices_api)
@@ -129,25 +127,27 @@ api.add_namespace(settings_api)
 api.add_namespace(plugins_api)
 api.add_namespace(system_api)
 
+
 # SocketIO on connect
-@socketio.on('connect')
+@socketio.on("connect")
 @jwt_required
 def socketio_on_connect():
     user = get_jwt_identity()
     if user:
-        logger.info('User: {} connected via socketio'.format(user))
+        logger.info("User: {} connected via socketio".format(user))
         return True
     else:
         return False
 
+
 # SocketIO join event rooms
-@socketio.on('events')
+@socketio.on("events")
 def socketio_on_events(data):
     room: Optional[str] = None
-    if 'loglevel' in data and data['loglevel'] in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
-        room = data['loglevel']
-    elif 'update' in data and data['update'] in ['device', 'job']:
-        room = "update_{}".format(data['update'])
+    if "loglevel" in data and data["loglevel"] in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+        room = data["loglevel"]
+    elif "update" in data and data["update"] in ["device", "job"]:
+        room = "update_{}".format(data["update"])
     else:
         return False  # TODO: how to send error message to client?
 
@@ -158,14 +158,17 @@ def socketio_on_events(data):
 @app.after_request
 def log_request(response):
     try:
-        token = request.headers.get('Authorization').split(' ')[-1]
-        user = decode_token(token).get('sub')
+        token = request.headers.get("Authorization").split(" ")[-1]
+        user = decode_token(token).get("sub")
     except Exception:
-        user = 'unknown'
+        user = "unknown"
     try:
-        url = re.sub(jwt_query_r, '', request.url)
-        logger.info('User: {}, Method: {}, Status: {}, URL: {}, JSON: {}'.format(
-            user, request.method, response.status_code, url, request.json))
+        url = re.sub(jwt_query_r, "", request.url)
+        logger.info(
+            "User: {}, Method: {}, Status: {}, URL: {}, JSON: {}".format(
+                user, request.method, response.status_code, url, request.json
+            )
+        )
     except Exception:
         pass
     return response

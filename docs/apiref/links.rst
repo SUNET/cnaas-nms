@@ -127,4 +127,3 @@ Example:
 ::
 
   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/linknet/<id> -X DELETE
-

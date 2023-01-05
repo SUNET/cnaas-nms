@@ -1,0 +1,17 @@
+black
+isort
+flake8
+flake8-bandit
+flake8-bugbear
+flake8-comprehensions
+flake8-docstrings
+flake8-junit-report
+flake8-logging-format
+flake8-pep3101
+flake8-print
+flake8-rst
+flake8-rst-docstrings
+flake8-tidy-imports
+pre-commit
+mypy
+mypy-extensions

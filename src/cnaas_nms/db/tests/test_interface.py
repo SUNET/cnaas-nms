@@ -1,6 +1,5 @@
 import unittest
 
-from cnaas_nms.db.device import Device
 from cnaas_nms.db.interface import Interface
 
 
@@ -14,5 +13,5 @@ class InterfaceTests(unittest.TestCase):
             Interface.interface_index_num("Ethernet")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

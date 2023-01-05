@@ -45,4 +45,3 @@ if [ $? -ne 0 ]; then
     echo "Error: Failed to run Alembic"
     exit 1
 fi
-

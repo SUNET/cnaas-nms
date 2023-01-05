@@ -1,14 +1,13 @@
-import ssl
-import os
 import datetime
+import os
+import ssl
 from ipaddress import IPv4Address
 
 from cryptography import x509
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import NameOID
 
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.tools.log import get_logger
@@ -62,13 +61,9 @@ def generate_device_cert(hostname: str, ipv4_address: IPv4Address):
         )
 
     with open(api_settings.CAFILE, "rb") as cafile:
-        root_cert = x509.load_pem_x509_certificate(
-            cafile.read()
-        )
+        root_cert = x509.load_pem_x509_certificate(cafile.read())
 
-    cert_key = rsa.generate_private_key(
-        public_exponent=65537, key_size=2048, backend=default_backend()
-    )
+    cert_key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
     new_subject = x509.Name(
         [
             x509.NameAttribute(NameOID.COMMON_NAME, hostname),
@@ -93,11 +88,13 @@ def generate_device_cert(hostname: str, ipv4_address: IPv4Address):
         f.write(cert.public_bytes(serialization.Encoding.PEM))
 
     with open(os.path.join(api_settings.CERTPATH, "{}.key".format(hostname)), "wb") as f:
-        f.write(cert_key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.NoEncryption(),
-        ))
+        f.write(
+            cert_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            )
+        )
 
 
 ssl_context = get_ssl_context()

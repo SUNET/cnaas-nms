@@ -118,10 +118,6 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
             return "Firmware download aborted"
 
     url = httpd_url + "/" + filename
-    # Make sure netmiko doesn't use fast_cli because it will change delay_factor
-    # that is set in task.run below and cause early timeouts
-    net_connect = task.host.get_connection("netmiko", task.nornir.config)
-    net_connect.fast_cli = False
 
     try:
         with sqla_session() as session:
@@ -134,11 +130,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
             firmware_download_cmd = "copy {} vrf MGMT flash:".format(url)
 
         res = task.run(
-            netmiko_send_command,
-            command_string=firmware_download_cmd.replace("//", "/"),
-            enable=True,
-            delay_factor=30,
-            max_loops=200,
+            netmiko_send_command, command_string=firmware_download_cmd.replace("//", "/"), enable=True, read_timeout=500
         )
 
         if "Copy completed successfully" in res.result:
@@ -196,7 +188,7 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[str] = None) 
 
         res = task.run(netmiko_send_command, command_string="conf t", expect_string=".*config.*#")
 
-        res = task.run(netmiko_send_command, command_string=boot_file_cmd)
+        res = task.run(netmiko_send_command, command_string=boot_file_cmd, read_timeout=60)
 
         res = task.run(netmiko_send_command, command_string="end", expect_string=".*#")
 

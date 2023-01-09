@@ -5,18 +5,20 @@ import enum
 import ipaddress
 import json
 import re
-from typing import List, Optional, Set
+from typing import TYPE_CHECKING, List, Optional, Set
 
 from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Unicode, UniqueConstraint, event
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
-import cnaas_nms.db.linknet
 import cnaas_nms.db.site
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.tools.event import add_event
+
+if TYPE_CHECKING:
+    from cnaas_nms.db.linknet import Linknet
 
 
 class DeviceError(Exception):
@@ -118,7 +120,7 @@ class Device(cnaas_nms.db.base.Base):
             linknets = self.get_linknets(session)
         ret = []
         for linknet in linknets:
-            if isinstance(linknet, cnaas_nms.db.linknet.Linknet):
+            if isinstance(linknet, Linknet):
                 device_a_id = linknet.device_a_id
                 device_b_id = linknet.device_b_id
             else:
@@ -130,13 +132,10 @@ class Device(cnaas_nms.db.base.Base):
                 ret.append(session.query(Device).filter(Device.id == device_a_id).one())
         return ret
 
-    def get_linknets(self, session) -> List[cnaas_nms.db.linknet.Linknet]:
+    def get_linknets(self, session) -> List[Linknet]:
         """Look up linknets and return a list of Linknet objects."""
         ret = []
-        linknets = session.query(cnaas_nms.db.linknet.Linknet).filter(
-            (cnaas_nms.db.linknet.Linknet.device_a_id == self.id)
-            | (cnaas_nms.db.linknet.Linknet.device_b_id == self.id)
-        )
+        linknets = session.query(Linknet).filter((Linknet.device_a_id == self.id) | (Linknet.device_b_id == self.id))
         for linknet in linknets:
             ret.append(linknet)
         return ret
@@ -156,7 +155,7 @@ class Device(cnaas_nms.db.base.Base):
     def get_linknet_localif_mapping(self, session) -> dict[str, str]:
         """Return a mapping with local interface name and what peer device hostname
         that interface is connected to."""
-        linknets: List[cnaas_nms.db.linknet.Linknet] = self.get_linknets(session)
+        linknets: List[Linknet] = self.get_linknets(session)
         ret = {}
         for linknet in linknets:
             if linknet.device_a == self:
@@ -167,19 +166,13 @@ class Device(cnaas_nms.db.base.Base):
                 raise Exception("Got invalid linknets for device {}: {}".format(self.hostname, linknets))
         return ret
 
-    def get_links_to(self, session, peer_device: Device) -> List[cnaas_nms.db.linknet.Linknet]:
+    def get_links_to(self, session, peer_device: Device) -> List[Linknet]:
         """Return linknet connecting to device peer_device."""
         return (
-            session.query(cnaas_nms.db.linknet.Linknet)
+            session.query(Linknet)
             .filter(
-                (
-                    (cnaas_nms.db.linknet.Linknet.device_a_id == self.id)
-                    & (cnaas_nms.db.linknet.Linknet.device_b_id == peer_device.id)
-                )
-                | (
-                    (cnaas_nms.db.linknet.Linknet.device_b_id == self.id)
-                    & (cnaas_nms.db.linknet.Linknet.device_a_id == peer_device.id)
-                )
+                ((Linknet.device_a_id == self.id) & (Linknet.device_b_id == peer_device.id))
+                | ((Linknet.device_b_id == self.id) & (Linknet.device_a_id == peer_device.id))
             )
             .all()
         )

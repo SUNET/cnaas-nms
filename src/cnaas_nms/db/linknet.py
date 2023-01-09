@@ -7,8 +7,9 @@ from sqlalchemy import Column, ForeignKey, Integer, Unicode, UniqueConstraint
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy_utils import IPAddressType
 
+import cnaas_nms.db.base
+import cnaas_nms.db.device
 import cnaas_nms.db.site
-from cnaas_nms.db.device import Device, DeviceType
 
 
 class Linknet(cnaas_nms.db.base.Base):
@@ -51,42 +52,6 @@ class Linknet(cnaas_nms.db.base.Base):
                 value = str(value)
             d[col.name] = value
         return d
-
-    @staticmethod
-    def validate_dict(linknet_dict: dict):
-        try:
-            assert "device_a_hostname" in linknet_dict
-            assert "device_b_hostname" in linknet_dict
-        except AssertionError:
-            assert "device_a_id" in linknet_dict
-            assert "device_b_id" in linknet_dict
-        assert "device_a_port" in linknet_dict
-        assert "device_b_port" in linknet_dict
-
-    @classmethod
-    def from_dict(cls, session, linknet_dict: dict):
-        cls.validate_dict(linknet_dict)
-
-        if "device_a_hostname" in linknet_dict and "device_b_hostname" in linknet_dict:
-            dev_a: Device = (
-                session.query(Device).filter(Device.hostname == linknet_dict["device_a_hostname"]).one_or_none()
-            )
-            dev_b: Device = (
-                session.query(Device).filter(Device.hostname == linknet_dict["device_b_hostname"]).one_or_none()
-            )
-        else:
-            dev_a: Device = session.query(Device).filter(Device.id == linknet_dict["device_a_id"]).one_or_none()
-            dev_b: Device = session.query(Device).filter(Device.id == linknet_dict["device_b_id"]).one_or_none()
-
-        if not dev_a or not dev_b:
-            raise ValueError("device_a or device_b not found in database for linknet: {}".format(linknet_dict))
-
-        new_linknet: Linknet = Linknet()
-        new_linknet.device_a = dev_a
-        new_linknet.device_a_port = linknet_dict["device_a_port"]
-        new_linknet.device_b = dev_b
-        new_linknet.device_b_port = linknet_dict["device_b_port"]
-        return new_linknet
 
     def get_port(self, device_id):
         if device_id == self.device_a_id:
@@ -153,18 +118,34 @@ class Linknet(cnaas_nms.db.base.Base):
     ):
         """Add a linknet between two devices. If ipv4_network is specified both
         devices must be of type CORE or DIST."""
-        dev_a: Device = session.query(Device).filter(Device.hostname == hostname_a).one_or_none()
+        dev_a: cnaas_nms.db.device.Device = (
+            session.query(cnaas_nms.db.device.Device)
+            .filter(cnaas_nms.db.device.Device.hostname == hostname_a)
+            .one_or_none()
+        )
         if not dev_a:
             raise ValueError(f"Hostname {hostname_a} not found in database")
-        if strict_check and ipv4_network and dev_a.device_type not in [DeviceType.DIST, DeviceType.CORE]:
+        if (
+            strict_check
+            and ipv4_network
+            and dev_a.device_type not in [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]
+        ):
             raise ValueError(
                 "Linknets can only be added between two core/dist devices "
                 + "(hostname_a is {})".format(str(dev_a.device_type))
             )
-        dev_b: Device = session.query(Device).filter(Device.hostname == hostname_b).one_or_none()
+        dev_b: cnaas_nms.db.device.Device = (
+            session.query(cnaas_nms.db.device.Device)
+            .filter(cnaas_nms.db.device.Device.hostname == hostname_b)
+            .one_or_none()
+        )
         if not dev_b:
             raise ValueError(f"Hostname {hostname_b} not found in database")
-        if strict_check and ipv4_network and dev_b.device_type not in [DeviceType.DIST, DeviceType.CORE]:
+        if (
+            strict_check
+            and ipv4_network
+            and dev_b.device_type not in [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]
+        ):
             raise ValueError(
                 "Linknets can only be added between two core/dist devices "
                 + "(hostname_b is {})".format(str(dev_b.device_type))

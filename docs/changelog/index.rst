@@ -1,6 +1,49 @@
 Changelog
 =========
 
+Version 1.4.0
+-------------
+
+New features:
+
+ - Save last know working settings commit, so we can revert if last commit contains errors
+   (only saved in memory, not persistent across reboots)
+ - Allow sync of devices with multiple links between same peers.
+ - Allow updating of neighbor_id on interface (useful if manually changing uplink connections)
+ - New settings: organization_name, domain_name, underlay->bgp_asn
+ - New jinja filters: different base-encodings, hashes, netutils for IP, MAC, ASNs etc
+ - New global config settings:
+  * global_unique_vlans: If True VLAN IDs has to be globally unique, if False
+    different DIST switches can reuse same VLAN IDs for different L2 domains.
+    Defaults to True.
+  * init_mgmt_timeout: Timeout to wait for device to apply changed management IP.
+    Defaults to 30, specified in seconds (integer).
+
+Bug fixes:
+
+ - Recalculate group memberships after ZTP init.
+ - Mark neighbors as unsynchronized after deleting a device.
+ - If device is not reachable on new IP after ZTP init, then change back to use old IP so we can
+   attempt new ZTP init later.
+ - Restore previous config version apply bug fixed.
+ - Allow resetting entire interfaca data to null, instead of having to specify each value as null.
+ - During ZTP init, don't update and save linknets unless device can actually proceed with ZTP.
+
+Version 1.3.2
+-------------
+
+Bug fixes:
+
+ - Fix for ZTP init of dist devices (#219,#218)
+
+Version 1.3.1
+-------------
+
+New settings:
+
+    New settings for vxlans: acl_ipv4_in, acl_ipv4_out, acl_ipv6_in, acl_ipv6_out, cli_append_str
+    New data options in interfaces API: bpdu_filter, tags, cli_append_str
+
 Version 1.3.0
 -------------
 

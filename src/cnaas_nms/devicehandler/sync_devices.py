@@ -5,7 +5,7 @@ from ipaddress import IPv4Address, IPv4Interface
 from typing import List, Optional
 
 import yaml
-from nornir.core.task import MultiResult
+from nornir.core.task import MultiResult, Result
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
@@ -343,6 +343,21 @@ def populate_device_vars(
     return device_variables
 
 
+def napalm_configure_confirmed(task, dry_run=None, configuration=None, replace=None):
+    n_device = task.host.get_connection("napalm")
+    n_device.load_replace_candidate(config=configuration)
+    diff = n_device.compare_config()
+    if diff:
+        n_device.commit_config(revert_in=300)
+        if n_device.has_pending_commit():
+            n_device.confirm_commit()
+        else:
+            n_device.discard_config()
+    else:
+        n_device.discard_config()
+    return Result(host=task.host, diff=diff, changed=len(diff) > 0)
+
+
 def push_sync_device(
     task,
     dry_run: bool = True,
@@ -404,12 +419,12 @@ def push_sync_device(
         )
 
         task.host.open_connection("napalm", configuration=task.nornir.config)
+        if dry_run:
+            run_task = napalm_configure
+        else:
+            run_task = napalm_configure_confirmed
         task.run(
-            task=napalm_configure,
-            name="Sync device config",
-            replace=True,
-            configuration=task.host["config"],
-            dry_run=dry_run,
+            task=run_task, name="Sync device config", replace=True, configuration=task.host["config"], dry_run=dry_run
         )
         task.host.close_connection("napalm")
 
@@ -543,7 +558,7 @@ def sync_devices(
     of sync.
 
     Args:
-        hostname: Specify a single host by hostname to synchronize
+        hostnames: Specify a single host by hostname to synchronize
         device_type: Specify a device type to synchronize
         group: Specify a group of devices to synchronize
         dry_run: Don't commit generated config to device

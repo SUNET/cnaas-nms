@@ -49,6 +49,8 @@ class ApiSettings(BaseSettings):
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
     MGMTDOMAIN_RESERVED_COUNT: int = 5
+    COMMIT_CONFIRMED_MODE: int = 1
+    COMMIT_CONFIRMED_TIMEOUT: int = 300
 
 
 def construct_api_settings() -> ApiSettings:
@@ -76,6 +78,8 @@ def construct_api_settings() -> ApiSettings:
             GLOBAL_UNIQUE_VLANS=config.get("global_unique_vlans", True),
             INIT_MGMT_TIMEOUT=config.get("init_mgmt_timeout", 30),
             MGMTDOMAIN_RESERVED_COUNT=config.get("mgmtdomain_reserved_count", 5),
+            COMMIT_CONFIRMED_MODE=config.get("commit_confirmed_mode", 1),
+            COMMIT_CONFIRMED_TIMEOUT=config.get("commit_confirmed_timeout", 300),
         )
     else:
         return ApiSettings()

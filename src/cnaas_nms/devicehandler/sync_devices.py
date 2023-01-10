@@ -11,7 +11,7 @@ from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
-from cnaas_nms.app_settings import app_settings
+from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.git import RepoStructureException
@@ -419,13 +419,21 @@ def push_sync_device(
         )
 
         task.host.open_connection("napalm", configuration=task.nornir.config)
+        task_args = {
+            "name": "Sync device config",
+            "replace": True,
+            "configuration": task.host["config"],
+            "dry_run": dry_run,
+            "commit_message": "Job id {}".format(job_id),
+        }
         if dry_run:
-            run_task = napalm_configure
+            task_args["task"] = napalm_configure
+        elif api_settings.COMMIT_CONFIRMED_MODE == 0:
+            task_args["task"] = napalm_configure
         else:
-            run_task = napalm_configure_confirmed
-        task.run(
-            task=run_task, name="Sync device config", replace=True, configuration=task.host["config"], dry_run=dry_run
-        )
+            task_args["task"] = napalm_configure_confirmed
+            task_args["job_id"] = job_id
+        task.run(**task_args)
         task.host.close_connection("napalm")
 
         if task.results[1].diff:

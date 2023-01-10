@@ -5,6 +5,7 @@ from ipaddress import IPv4Address, IPv4Interface
 from typing import List, Optional
 
 import yaml
+from napalm.eos import EOSDriver as NapalmEOSDriver
 from nornir.core.task import MultiResult, Result
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
@@ -343,19 +344,43 @@ def populate_device_vars(
     return device_variables
 
 
-def napalm_configure_confirmed(task, dry_run=None, configuration=None, replace=None):
-    n_device = task.host.get_connection("napalm")
+def napalm_configure_confirmed(
+    task, dry_run=None, configuration=None, replace=None, commit_message: str = "", job_id: int = 0
+):
+    """Configure device and set configure confirmed timeout to revert changes unless a confirm is received"""
+    logger = get_logger()
+    n_device = task.host.get_connection("napalm", task.nornir.config)
     n_device.load_replace_candidate(config=configuration)
     diff = n_device.compare_config()
     if diff:
-        n_device.commit_config(revert_in=300)
-        if n_device.has_pending_commit():
-            n_device.confirm_commit()
-        else:
-            n_device.discard_config()
+        n_device.commit_config(revert_in=api_settings.COMMIT_CONFIRMED_TIMEOUT)
+        mode_2_supported = False
+        if api_settings.COMMIT_CONFIRMED_MODE == 2:
+            if isinstance(n_device, NapalmEOSDriver):
+                mode_2_supported = True
+                n_device.session_config = "job{}".format(job_id)
+            else:
+                logger.warn(
+                    f"commit_confirmed_mode is set to 2, but it's unsupported for device OS '{task.host.platform}'. "
+                    f"Falling back to mode 1 for device: {task.host.name}."
+                )
+
+        if api_settings.COMMIT_CONFIRMED_MODE == 1 or not mode_2_supported:
+            if n_device.has_pending_commit():
+                n_device.confirm_commit()
+            else:
+                n_device.discard_config()
     else:
         n_device.discard_config()
     return Result(host=task.host, diff=diff, changed=len(diff) > 0)
+
+
+def napalm_confirm_commit(task, job_id: int = 0):
+    """Confirm a previous pending configure session"""
+    n_device = task.host.get_connection("napalm")
+    if isinstance(n_device, NapalmEOSDriver):
+        n_device.session_config = "job{}".format(job_id)
+        n_device.confirm_commit()
 
 
 def push_sync_device(

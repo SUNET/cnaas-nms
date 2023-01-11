@@ -77,6 +77,7 @@ class Device(cnaas_nms.db.base.Base):
     site = relationship("Site")
     description = Column(Unicode(255))
     management_ip = Column(IPAddressType)
+    secondary_management_ip = Column(IPAddressType)
     dhcp_ip = Column(IPAddressType)
     infra_ip = Column(IPAddressType)
     oob_ip = Column(IPAddressType)

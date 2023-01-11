@@ -2,10 +2,11 @@ import datetime
 import os
 from hashlib import sha256
 from ipaddress import IPv4Address, IPv4Interface
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import yaml
 from napalm.eos import EOSDriver as NapalmEOSDriver
+from nornir.core import Nornir
 from nornir.core.task import MultiResult, Result
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
@@ -350,6 +351,8 @@ def napalm_configure_confirmed(
     """Configure device and set configure confirmed timeout to revert changes unless a confirm is received"""
     logger = get_logger()
     n_device = task.host.get_connection("napalm", task.nornir.config)
+    if isinstance(n_device, NapalmEOSDriver):
+        n_device.config_session = "job{}".format(job_id)
     n_device.load_replace_candidate(config=configuration)
     diff = n_device.compare_config()
     if diff:
@@ -358,7 +361,6 @@ def napalm_configure_confirmed(
         if api_settings.COMMIT_CONFIRMED_MODE == 2:
             if isinstance(n_device, NapalmEOSDriver):
                 mode_2_supported = True
-                n_device.session_config = "job{}".format(job_id)
             else:
                 logger.warn(
                     f"commit_confirmed_mode is set to 2, but it's unsupported for device OS '{task.host.platform}'. "
@@ -375,11 +377,11 @@ def napalm_configure_confirmed(
     return Result(host=task.host, diff=diff, changed=len(diff) > 0)
 
 
-def napalm_confirm_commit(task, job_id: int = 0):
+def napalm_confirm_commit(task, prev_job_id: int = 0):
     """Confirm a previous pending configure session"""
-    n_device = task.host.get_connection("napalm")
+    n_device = task.host.get_connection("napalm", task.nornir.config)
     if isinstance(n_device, NapalmEOSDriver):
-        n_device.session_config = "job{}".format(job_id)
+        n_device.config_session = "job{}".format(prev_job_id)
         n_device.confirm_commit()
 
 
@@ -574,6 +576,98 @@ def confcheck_devices(hostnames: List[str], job_id=None):
             raise Exception("Configuration hash check failed for {}".format(" ".join(nrresult.failed_hosts.keys())))
 
 
+def select_devices(
+    nr: Nornir,
+    hostnames: Optional[List[str]] = None,
+    device_type: Optional[str] = None,
+    group: Optional[str] = None,
+    resync: bool = False,
+    **kwargs,
+) -> Tuple[Nornir, int, List[str]]:
+    """Get device selection for devices to synchronize.
+
+    Returns:
+        Nornir: A filtered Nornir object based on the input arg nr
+        int: A count of number of devices selected
+        List[str]: A list of hostnames that will be skipped from the initial nr object
+    """
+    logger = get_logger()
+    if hostnames:
+        nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, hostname=hostnames)
+    else:
+        if device_type:
+            nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, resync=resync, device_type=device_type)
+        elif group:
+            nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, resync=resync, group=group)
+        else:
+            # all devices
+            nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, resync=resync)
+
+    if skipped_hostnames:
+        logger.info(
+            "Device(s) already synchronized, skipping ({}): {}".format(
+                len(skipped_hostnames), ", ".join(skipped_hostnames)
+            )
+        )
+    return nr_filtered, dev_count, skipped_hostnames
+
+
+@job_wrapper
+def confirm_devices(
+    prev_job_id: int,
+    hostnames: List[str],
+    job_id: Optional[int] = None,
+    scheduled_by: Optional[str] = None,
+    resync: bool = False,
+) -> NornirJobResult:
+    logger = get_logger()
+    nr = cnaas_init()
+
+    nr_filtered, dev_count, skipped_hostnames = select_devices(nr, hostnames, resync)
+
+    device_list = list(nr_filtered.inventory.hosts.keys())
+    logger.info("Device(s) selected for commit-confirm ({}): {}".format(dev_count, ", ".join(device_list)))
+
+    try:
+        nrresult = nr_filtered.run(task=napalm_confirm_commit, prev_job_id=prev_job_id)
+    except Exception as e:
+        logger.exception("Exception while confirm-commit devices: {}".format(str(e)))
+        try:
+            with sqla_session() as session:
+                logger.info(
+                    "Releasing lock for devices from syncto job: {} (in commit-job {})".format(prev_job_id, job_id)
+                )
+                Joblock.release_lock(session, job_id=prev_job_id)
+        except Exception:
+            logger.error("Unable to release devices lock after syncto job")
+        return NornirJobResult(nrresult=nrresult)
+
+    failed_hosts = list(nrresult.failed_hosts.keys())
+    for hostname in failed_hosts:
+        logger.error("Commit-confirm failed for device '{}'".format(hostname))
+
+    # mark synced, remove mark sync and release job from sync_devices. break into functions?
+    if nrresult.failed:
+        logger.error("Not all devices were successfully commit-confirmed")
+
+    with sqla_session() as session:
+        for host, results in nrresult.items():
+            if host in failed_hosts or len(results) != 1:
+                logger.debug("Setting device as unsync for failed commit-confirm on device {}".format(host))
+                dev: Device = session.query(Device).filter(Device.hostname == host).one()
+                dev.synchronized = False
+                dev.last_seen = datetime.datetime.utcnow()
+            else:
+                dev: Device = session.query(Device).filter(Device.hostname == host).one()
+                dev.synchronized = True
+                dev.last_seen = datetime.datetime.utcnow()
+
+        logger.info("Releasing lock for devices from syncto job: {} (in commit-job {})".format(prev_job_id, job_id))
+        Joblock.release_lock(session, job_id=prev_job_id)
+
+    return NornirJobResult(nrresult=nrresult)
+
+
 @job_wrapper
 def sync_devices(
     hostnames: Optional[List[str]] = None,
@@ -608,25 +702,7 @@ def sync_devices(
     """
     logger = get_logger()
     nr = cnaas_init()
-    dev_count = 0
-    skipped_hostnames = []
-    if hostnames:
-        nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, hostname=hostnames)
-    else:
-        if device_type:
-            nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, resync=resync, device_type=device_type)
-        elif group:
-            nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, resync=resync, group=group)
-        else:
-            # all devices
-            nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, resync=resync)
-
-    if skipped_hostnames:
-        logger.info(
-            "Device(s) already synchronized, skipping ({}): {}".format(
-                len(skipped_hostnames), ", ".join(skipped_hostnames)
-            )
-        )
+    nr_filtered, dev_count, skipped_hostnames = select_devices(nr, hostnames, device_type, group, resync)
 
     device_list = list(nr_filtered.inventory.hosts.keys())
     logger.info("Device(s) selected for synchronization ({}): {}".format(dev_count, ", ".join(device_list)))
@@ -689,6 +765,7 @@ def sync_devices(
             change_scores.append(0)
             logger.debug("Empty diff for host {}, 0 change score".format(host))
 
+    # break into separate function?
     nr_confighash = None
     if dry_run and force:
         # update config hash for devices that had an empty diff because local
@@ -729,7 +806,8 @@ def sync_devices(
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = False
                 dev.last_seen = datetime.datetime.utcnow()
-            else:
+            # if next job will commit, that job will mark synchronized on success
+            elif api_settings.COMMIT_CONFIRMED_MODE != 2:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
                 dev.last_seen = datetime.datetime.utcnow()
@@ -737,7 +815,7 @@ def sync_devices(
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
             dev.synchronized = True
             dev.last_seen = datetime.datetime.utcnow()
-        if not dry_run:
+        if not dry_run and api_settings.COMMIT_CONFIRMED_MODE != 2:
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)
 
@@ -772,6 +850,20 @@ def sync_devices(
                 f"Auto-push of config to device {hostnames} failed because change score of "
                 f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
             )
+    elif api_settings.COMMIT_CONFIRMED_MODE == 2:
+        if not changed_hosts:
+            logger.info("None of the selected host has any changes (diff), skipping commit-confirm")
+            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+            Joblock.release_lock(session, job_id=job_id)
+        else:
+            scheduler = Scheduler()
+            next_job_id = scheduler.add_onetime_job(
+                "cnaas_nms.devicehandler.sync_devices:confirm_devices",
+                when=0,
+                scheduled_by=scheduled_by,
+                kwargs={"prev_job_id": job_id, "hostnames": changed_hosts},
+            )
+            logger.info(f"Commit-confirm for job id {job_id} scheduled as job id {next_job_id}")
 
     return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id, change_score=total_change_score)
 

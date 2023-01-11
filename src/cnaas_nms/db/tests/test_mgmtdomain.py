@@ -86,6 +86,29 @@ class MgmtdomainTests(unittest.TestCase):
             mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ["eosaccess"])
             self.assertIsNotNone(mgmtdomain, "No mgmtdomain found for eosaccess")
 
+    def test_is_dual_stack_should_be_false_for_default_domain(self):
+        with sqla_session() as session:
+            mgmtdomain = session.query(Mgmtdomain).limit(1).one()
+            self.assertFalse(mgmtdomain.is_dual_stack)  # domain in test data is not dual stack
+
+    def test_primary_gw_should_be_ipv4_for_default_domain(self):
+        with sqla_session() as session:
+            mgmtdomain = session.query(Mgmtdomain).limit(1).one()
+            self.assertEqual(mgmtdomain.ipv4_gw, mgmtdomain.primary_gw)
+
+    def test_find_free_primary_mgmt_ip_should_return_an_ipv4_address(self):
+        with sqla_session() as session:
+            mgmtdomain = session.query(Mgmtdomain).limit(1).one()
+            value = mgmtdomain.find_free_primary_mgmt_ip(session)
+            self.assertTrue(value)
+            self.assertIsInstance(value, IPv4Address)
+
+    def test_find_free_secondary_mgmt_ip_should_return_none(self):
+        with sqla_session() as session:
+            mgmtdomain = session.query(Mgmtdomain).limit(1).one()
+            value = mgmtdomain.find_free_secondary_mgmt_ip(session)
+            self.assertIsNone(value)  # domain in test data has no secondary network
+
     def test_find_free_mgmt_ip(self):
         with sqla_session() as session:
             mgmtdomain = session.query(Mgmtdomain).limit(1).one()

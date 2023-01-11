@@ -61,6 +61,42 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
             pass
         return d
 
+    @property
+    def is_dual_stack(self) -> bool:
+        """Returns True if this mgmt domain is dual-stack"""
+        return bool(self.ipv4_gw) and bool(self.ipv6_gw)
+
+    @property
+    def primary_gw(self) -> Optional[str]:
+        """Returns the primary gateway interface for this Mgmtdomain, depending on the configured preference"""
+        primary_version = api_settings.MGMTDOMAIN_PRIMARY_IP_VERSION
+        return self.ipv4_gw if primary_version == 4 else self.ipv6_gw
+
+    @property
+    def secondary_gw(self) -> Optional[str]:
+        """Returns the secondary gateway interface for this Mgmtdomain, depending on the configured preference"""
+        primary_version = api_settings.MGMTDOMAIN_PRIMARY_IP_VERSION
+        return self.ipv6_gw if primary_version == 4 else self.ipv4_gw
+
+    def find_free_primary_mgmt_ip(self, session) -> Optional[IPAddress]:
+        """Returns the first available IP address from this Mgmtdomain's primary network.
+
+        The return value type depends on what IP version CNaaS-NMS is configured to use for
+        primary management addresses.
+        """
+        primary_version = api_settings.MGMTDOMAIN_PRIMARY_IP_VERSION
+        return self.find_free_mgmt_ip(session, version=primary_version)
+
+    def find_free_secondary_mgmt_ip(self, session) -> Optional[IPAddress]:
+        """Returns the first available IP address from this Mgmtdomain's secondary network (if
+        such a network is configured).
+
+        The return value type depends on what IP version CNaaS-NMS is configured to use for
+        primary management addresses.
+        """
+        secondary_version = 6 if api_settings.MGMTDOMAIN_PRIMARY_IP_VERSION == 4 else 4
+        return self.find_free_mgmt_ip(session, version=secondary_version)
+
     def find_free_mgmt_ip(self, session, version: int = 4) -> Optional[IPAddress]:
         """Returns the first available IP address from this Mgmtdomain's network.
 

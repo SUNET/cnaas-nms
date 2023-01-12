@@ -6,6 +6,7 @@ Version 1.4.0
 
 New features:
 
+ - Support interface range expressions like Ethernet[10-11] in settings device interface config
  - Save last know working settings commit, so we can revert if last commit contains errors
    (only saved in memory, not persistent across reboots)
  - Allow sync of devices with multiple links between same peers.

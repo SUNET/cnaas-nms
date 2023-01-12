@@ -536,6 +536,8 @@ def init_access_device_step1(
                         ip_interface("{}/{}".format(secondary_mgmt_ip, secondary_mgmt_gw_ipif.network.prefixlen))
                     ),
                     "secondary_mgmt_ip": secondary_mgmt_ip,
+                    "secondary_mgmt_prefixlen": int(secondary_mgmt_gw_ipif.network.prefixlen),
+                    "secondary_mgmt_gw": secondary_mgmt_gw_ipif.ip,
                 }
             )
         device_variables = populate_device_vars(session, dev, new_hostname, DeviceType.ACCESS)

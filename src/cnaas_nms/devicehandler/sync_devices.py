@@ -165,6 +165,20 @@ def populate_device_vars(
                 "mgmt_prefixlen": int(mgmt_gw_ipif.network.prefixlen),
                 "interfaces": [],
             }
+            if dev.secondary_management_ip:
+                secondary_mgmt_gw_ipif = ip_interface(mgmtdomain.secondary_gw)
+                access_device_variables.update(
+                    {
+                        "secondary_mgmt_ipif": str(
+                            ip_interface(
+                                "{}/{}".format(dev.secondary_management_ip, secondary_mgmt_gw_ipif.network.prefixlen)
+                            )
+                        ),
+                        "secondary_mgmt_ip": dev.secondary_management_ip,
+                        "secondary_mgmt_prefixlen": int(secondary_mgmt_gw_ipif.network.prefixlen),
+                        "secondary_mgmt_gw": secondary_mgmt_gw_ipif.ip,
+                    }
+                )
 
         # Check peer names for populating description on ACCESS_DOWNLINK ports
         ifname_peer_map = dev.get_linknet_localif_mapping(session)

@@ -13,6 +13,7 @@ from nornir_utils.plugins.functions import print_result
 import cnaas_nms.db.helper
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.joblock import Joblock, JoblockError
@@ -241,7 +242,7 @@ def populate_device_vars(
                         )
         ifname_peer_map = dev.get_linknet_localif_mapping(session)
         if "interfaces" in settings and settings["interfaces"]:
-            for intf in settings["interfaces"]:
+            for intf in expand_interface_settings(settings["interfaces"]):
                 try:
                     ifindexnum: int = Interface.interface_index_num(intf["name"])
                 except ValueError:

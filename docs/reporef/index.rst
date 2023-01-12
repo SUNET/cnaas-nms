@@ -337,7 +337,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
 
 * interfaces: List of dicctionaries with keys:
 
-  * name: Interface name, like "Ethernet1"
+  * name: Interface name, like "Ethernet1". Can also be an interface range like "Ethernet[1-4]".
   * ifclass: Interface class, one of: downlink, fabric, custom, port_template_*
   * config: Optional. Raw CLI config used in case "custom" ifclass was selected
 

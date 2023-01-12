@@ -3,3 +3,14 @@ query_neighbor_device: 'mac-080027F60C55'
 testdevice: eosaccess
 mgmtdomain_ipv4_gw: '10.0.66.1/24'
 mgmtdomain_vlan: 660
+settings_ifdict:
+  'name': 'Ethernet1'
+  'ifclass': 'downlink'
+  'redundant_link': True
+  'config': None
+  'description': None
+  'enabled': None
+  'untagged_vlan': None
+  'tagged_vlan_list': None
+  'aggregate_id': None
+  'cli_append_str': ''

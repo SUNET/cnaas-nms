@@ -47,6 +47,10 @@ as_num_schema = Field(None, description="BGP Autonomous System number, 1-4294967
 as_num_type = conint(strict=True, gt=0, lt=4294967296)
 IFNAME_REGEX = r"([a-zA-Z0-9\/\.:-])+"
 ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$", description="Interface name")
+IFNAME_RANGE_REGEX = r"([a-zA-Z0-9\/\.:\-\[\]])+"
+ifname_range_schema = Field(
+    None, regex=f"^{IFNAME_RANGE_REGEX}$", description="Interface range pattern or interface name"
+)
 IFCLASS_REGEX = r"(custom|downlink|fabric|port_template_[a-zA-Z0-9_]+)"
 ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$", description="Interface class: custom, downlink or uplink")
 ifdescr_schema = Field(None, max_length=64, description="Interface description, 0-64 characters")
@@ -120,7 +124,7 @@ class f_evpn_peer(BaseModel):
 
 
 class f_interface(BaseModel):
-    name: str = ifname_schema
+    name: str = ifname_range_schema
     ifclass: str = ifclass_schema
     redundant_link: bool = True
     config: Optional[str] = None

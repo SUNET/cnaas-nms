@@ -168,9 +168,9 @@ def populate_device_vars(
         intfs = session.query(Interface).filter(Interface.device == dev).all()
         intf: Interface
         for intf in intfs:
-            untagged_vlan = None
-            tagged_vlan_list = []
-            intfdata = None
+            untagged_vlan: Optional[int] = None
+            tagged_vlan_list: List = []
+            intfdata: Optional[dict] = None
             try:
                 ifindexnum: int = Interface.interface_index_num(intf.name)
             except ValueError:
@@ -181,8 +181,11 @@ def populate_device_vars(
                 if "tagged_vlan_list" in intf.data:
                     tagged_vlan_list = resolve_vlanid_list(intf.data["tagged_vlan_list"], settings["vxlans"])
                 intfdata = dict(intf.data)
-            elif intf.name in ifname_peer_map:
-                intfdata = {"description": ifname_peer_map[intf.name]}
+            if intf.name in ifname_peer_map:
+                if isinstance(intfdata, dict):
+                    intfdata["description"] = ifname_peer_map[intf.name]
+                else:
+                    intfdata = {"description": ifname_peer_map[intf.name]}
 
             access_device_variables["interfaces"].append(
                 {

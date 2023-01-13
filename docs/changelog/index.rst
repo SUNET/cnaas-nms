@@ -6,11 +6,15 @@ Version 1.4.0
 
 New features:
 
+ - Allow ZTP init of access switches with non-redundant uplinks to other access switch via non_redundant option
+ - Each device can belong to a primary group, and settings can be defined (overridden) per primary group.
+   Inheritence levels are now Global -> Fabric -> Core/Dist/Access -> Group -> Device specific
  - Support interface range expressions like Ethernet[10-11] in settings device interface config
  - Save last know working settings commit, so we can revert if last commit contains errors
    (only saved in memory, not persistent across reboots)
  - Allow sync of devices with multiple links between same peers.
  - Allow updating of neighbor_id on interface (useful if manually changing uplink connections)
+ - device_id variable is accessible at template rendering, host and hostname variables documented
  - New settings: organization_name, domain_name, underlay->bgp_asn
  - New jinja filters: different base-encodings, hashes, netutils for IP, MAC, ASNs etc
  - New global config settings:
@@ -19,6 +23,8 @@ New features:
     Defaults to True.
   * init_mgmt_timeout: Timeout to wait for device to apply changed management IP.
     Defaults to 30, specified in seconds (integer).
+ - Initial work on API to set/update and get stack members. Not working for ZTP init yet.
+ - Linknet API updated to allow PUT/update, allow GET of single linknet, DELETE syntax harmonized with rest of API
 
 Bug fixes:
 

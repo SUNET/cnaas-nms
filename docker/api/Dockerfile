@@ -65,7 +65,7 @@ USER www-data
 RUN mkdir /tmp/devicecerts \
     && chmod -R u=rwX,g=,o= /tmp/devicecerts
 
-ARG BUILDBRANCH=develop
+ARG BUILDBRANCH=master
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 # Branch specific, don't cache
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit

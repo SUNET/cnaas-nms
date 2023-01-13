@@ -46,10 +46,11 @@ Bug fixes:
 Version 1.3.1
 -------------
 
-New settings:
 
-    New settings for vxlans: acl_ipv4_in, acl_ipv4_out, acl_ipv6_in, acl_ipv6_out, cli_append_str
-    New data options in interfaces API: bpdu_filter, tags, cli_append_str
+New features:
+
+ - New settings for vxlans: acl_ipv4_in, acl_ipv4_out, acl_ipv6_in, acl_ipv6_out, cli_append_str
+ - New data options in interfaces API: bpdu_filter, tags, cli_append_str
 
 Version 1.3.0
 -------------

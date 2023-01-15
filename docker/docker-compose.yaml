@@ -4,7 +4,7 @@ services:
   #
   # CNaaS services
   #
-  
+
   cnaas_api:
     build:
       context: ./api/
@@ -27,14 +27,15 @@ services:
       - PASSWORD_INIT
       - USERNAME_MANAGED
       - PASSWORD_MANAGED
+      - PYTEST_POSTGRES_EXTERNAL
+      - PYTEST_REDIS_EXTERNAL
+      - PYTEST_SETTINGS_CLONED
+      - PYTEST_TEMPLATES_CLONED
     depends_on:
       - "cnaas_postgres"
       - "cnaas_redis"
       - "cnaas_httpd"
     volumes:
-      - type: bind
-        source: ./coverage
-        target: /coverage
       - type: volume
         source: cnaas-templates
         target: /opt/cnaas/templates
@@ -81,7 +82,7 @@ services:
   #
   # Databases
   #
-  
+
   cnaas_postgres:
     build: ./postgres/
     volumes:
@@ -92,11 +93,9 @@ services:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWORD=cnaas
       - POSTGRES_DB=cnaas
-    ports:
-      - 5432:5432
     networks:
       - cnaas
-  
+
   cnaas_redis:
     build: ./redis/
     ports:

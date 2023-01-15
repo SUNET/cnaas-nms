@@ -19,7 +19,7 @@ Download firmware
 To download firmware from a URL, the following method can be used:
 
 ::
-   
+
    curl https://hostname/api/v1.0/firmware -X POST -H "Content-Type: application/json" -d '{"url": "http://remote_host/firmware.bin", "sha1": "e0537400b5f134aa960603c9b715a8ce30306071", "verify_tls": false}'
 
 
@@ -66,7 +66,7 @@ firmware images no job is scheuled.
 To list a single firmware image:
 
 ::
-   
+
    curl https://hostname/api/v1.0/firmware/firmware.bin
 
    {
@@ -135,7 +135,7 @@ To remove a firmware image:
     "data": "Scheduled job to remove firmware",
     "job_id": "5d849177dd428720db72c693"
    }
-    
+
 
 Upgrade firmware on device(s)
 -----------------------------

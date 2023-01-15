@@ -1,5 +1,5 @@
-Links
-=====
+Linknets
+========
 
 This API is used to retreive and modify information about links between
 devices. Links between access switches and distribution switches are normally
@@ -9,8 +9,8 @@ core devices are Layer3 ports and have information about IP addressing.
 An access switch normally has two uplink ports connected to two different
 distribution switches like in the example below.
 
-Show links
-----------
+Show linknets
+-------------
 
 To get information about existing links in the database, use a GET query to
 api/v1.0/linknets
@@ -60,8 +60,14 @@ The result will look like this:
 In the result above device_a is the access switch and device_b is the
 dist switch.
 
-Manually provision a new link
------------------------------
+You can also specify one specifc link to query by using:
+
+::
+
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/linknet/10
+
+Manually provision a new linknet
+--------------------------------
 
 When adding switches manually instead of using ZTP you might also need to
 manually create linknets.
@@ -95,15 +101,29 @@ Output:
 A new IP subnet is automatically allocated as the next free /31 from the
 settings variable underlay->infra_link_net
 
-Manually deleting a link
-------------------------
+It's also possible to specify a linknet manually with the "ipv4_network"
+argument but it has to be a /31 network.
 
-If you made some error while manually adding a link you can delete it and
-recreate it. Use this carefully since it might affect reachability for
-the entire fabric.
+Update linknet
+--------------
+
+To update a linknet, we can send a PUT request and specify its ID. You can
+update the fields "ipv4_network" (must be /31 to /29), "device_a_port",
+"device_b_port", "device_a_ip", "device_b_ip" (both must be within ipv4_network)
+
+::
+
+   curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/linknet/4 -H "Content-Type: application/json" -X PUT -d '{"device_b_port": "Ethernet3"}'
+
+
+Manually deleting a linknet
+---------------------------
+
+To delete a linknet from use the DELETE method. Use this carefully
+since it might affect reachability!
 
 Example:
 
 ::
 
-  curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/linknets -X DELETE -d '{"id": 25}' -H "Content-Type: application/json"
+  curl -s -H "Authorization: Bearer $JWT_AUTH_TOKEN" ${CNAASURL}/api/v1.0/linknet/<id> -X DELETE

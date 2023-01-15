@@ -14,7 +14,7 @@ A clear and concise description of what the bug is.
 Steps to reproduce the behavior:
 1. Add devices x,y,z , configure settings a,b,c
 2. Do API-call to URL x with data y
-3. See error in job output / syslog output 
+3. See error in job output / syslog output
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.

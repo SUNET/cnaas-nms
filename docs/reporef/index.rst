@@ -28,6 +28,10 @@ will depend on things defined in a file called "managed-full.j2".
 The template files themselves are written using the Jinja2 templating language. Variables
 that are exposed from CNaaS includes:
 
+- hostname: Short hostname of device
+
+- host: Short hostname of device (implicitly added by nornir-jinja2)
+
 - mgmt_ip: IPv4 management address (ex 192.168.0.10)
 
 - mgmt_ipif: IPv4 management address including prefix length (ex 192.168.0.10/24)
@@ -49,6 +53,10 @@ that are exposed from CNaaS includes:
 
 - device_os_version: Device OS version string, same as "os_version" in the
   device API. Can be used if you need OS version specific configuration lines.
+
+- device_id: CNaaS-NMS internal ID number of the device
+
+- stack_members: CNaaS-NMS stack members if they are include. Each stackmember has a hardware id, and member number, priority is optional.
 
 Additional variables available for distribution switches:
 
@@ -72,7 +80,7 @@ Additional variables available for distribution switches:
 
 - asn: A private unique Autonomous System number generated from the last two octets
   of the infra_lo IP address on the device.
- 
+
 All settings configured in the settings repository are also exposed to the templates.
 
 .. _settings_repo_ref:
@@ -83,7 +91,8 @@ settings
 Settings are defined at different levels and inherited (possibly overridden) in several steps.
 For example, NTP servers might be defined in the "global" settings to impact the entire
 managed network, but then overridden for a specific device type that needs custom NTP servers.
-The inheritence is defined in these steps: Global -> Core/Dist/Access -> Device specific.
+The inheritence is defined in these steps:
+Global -> Fabric -> Core/Dist/Access -> Group -> Device specific.
 The directory structure looks like this:
 
 - global
@@ -91,6 +100,10 @@ The directory structure looks like this:
   * groups.yml: Definition of custom device groups
   * routing.yml: Definition of global routing settings like fabric underlay and VRFs
   * vxlans.yml: Definition of VXLAN/VLANs
+  * base_system.yml: Base system settings
+
+- fabric (core+dist)
+
   * base_system.yml: Base system settings
 
 - core
@@ -107,6 +120,14 @@ The directory structure looks like this:
 
   * base_system.yml: Base system settings
 
+- groups:
+
+  * <group name>
+
+    + base_system.yml
+    + interfaces.yml
+    + routing.yml
+
 - devices:
 
   * <hostname>
@@ -117,12 +138,24 @@ The directory structure looks like this:
 
 groups.yml:
 
-Contains a dictionary named "groups", that contains a list of groups.
+A device in CNaaS-NMS will be a member of exactly one primary group, and
+optionally any number of secandary groups. Primary groups can be used to
+configure settings per group. Secondary groups can be used to assign VXLAN
+memberships, select devices for synchronization or firmware upgrade etc.
+
+groups.yml contains a dictionary named "groups", that contains a list of groups.
 Each group is defined as a dictionary with a single key named "group",
 and that key contains a dictionary with two keys:
 
 - name: A string representing a name. No spaces.
-- regex: A Python style regex that matches on device hostnames
+- regex: A Python style regex that matches on device hostnames.
+- group_priority: Optional integer value 0-100. Specifies which group should
+  have the highest priority when determining the primary group for a device.
+  Higher value means higher priority. Defaults to 0, value of 1 is reserved
+  for builtin group DEFAULT.
+
+There will always exist a group called DEFAULT with group_priority 1 even
+if it's not specified in groups.yml.
 
 All devices that matches the regex will be included in the group.
 
@@ -142,6 +175,15 @@ All devices that matches the regex will be included in the group.
      - group:
          name: 'DIST_ODD'
          regex: '.*-dist[0-9][13579]'
+     - group:
+         name: 'E1'
+         regex: 'eosdist1$'
+         group_priority: 100
+     - group:
+         name: 'E'
+         regex: 'eosdist.*'
+         group_priority: 99
+
 
 routing.yml:
 
@@ -154,6 +196,7 @@ Can contain the following dictionaries with specified keys:
   * infra_lo_net: A /16 of IPv4 addresses that CNaaS-NMS can use to automatically assign
     addresses for infrastructure loopback interfaces from.
   * mgmt_lo_net: A subnet for management loopbacks for dist/core devices.
+  * bgp_asn: Optional BGP autonomous system number, useful for iBGP underlay.
 
 - evpn_peers:
 
@@ -294,7 +337,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
 
 * interfaces: List of dicctionaries with keys:
 
-  * name: Interface name, like "Ethernet1"
+  * name: Interface name, like "Ethernet1". Can also be an interface range like "Ethernet[1-4]".
   * ifclass: Interface class, one of: downlink, fabric, custom, port_template_*
   * config: Optional. Raw CLI config used in case "custom" ifclass was selected
 
@@ -306,7 +349,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * enabled: Optional. Set the administrative state of the interface. Defaults to true if not set.
   * aggregate_id: Optional. Identifier for configuring LACP etc. Integer value.
     Special value -1 means configure MLAG and use ID based on indexnum.
-  * cli_append_str: Optional. Custom configuration to append to this interface. 
+  * cli_append_str: Optional. Custom configuration to append to this interface.
 
 The "downlink" ifclass is used on DIST devices to specify that this interface
 is used to connect access devices. The "fabric" ifclass is used to specify that
@@ -332,6 +375,8 @@ Contains base system settings like:
 - dhcp_relays
 - internal_vlans
 - dot1x_fail_vlan: Numeric ID of authentication fail VLAN
+- organization_name: Free format string describing organization name
+- domain_name: DNS domain (suffix)
 
 Example of base_system.yml:
 

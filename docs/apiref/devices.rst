@@ -40,7 +40,8 @@ This will return the entire device entry from the database:
                   "device_type": "DIST",
                   "confhash": null,
                   "last_seen": "2019-02-27 10:30:23.338681",
-                  "port": null
+                  "port": null,
+                  "primary_group": "DEFAULT"
               }
           ]
       }
@@ -96,6 +97,9 @@ have the following format:
 
 There are four mandatory fields that can not be left out: hostname,
 state, platform and device_type.
+
+The field "primary_group" can not be configured via the API but is instead
+assigned via the groups.yml file in the :ref:`settings_repo_ref` repository.
 
 Device state can be one of the following:
 
@@ -364,3 +368,59 @@ NMS CA (specified in api.yml).
 
 Either one of "hostname" or "group" arguments must be specified. The "action"
 argument must be specified and the only valid action for now is "RENEW".
+
+
+Show stackmembers
+-----------------
+Stackmembers for a device can be listed with the following API call:
+
+::
+
+   curl https://hostname/api/v1.0/device/<device_hostname>/stackmember
+
+This will return all stackmember entries from the database that are tied to the specified device.
+Example output:
+
+::
+
+  {
+      "status": "success",
+      "data": {
+          "stackmembers": [
+              {
+                 "member_no": 1,
+                 "hardware_id": "4AE008A",
+                 "priority": 55,
+              },
+              {
+                 "member_no": 2,
+                 "hardware_id": "B77C34F",
+                 "priority": 125,
+              },
+          ]
+      }
+  }
+
+Set stackmembers
+----------------
+
+Stackmembers for a device can be set using a PUT operation.
+This replaces any existing stackmembers.
+
+The JSON structure for the API call is a list of data
+defining the stackmembers under the key "stackmembers". Each stackmember
+has three fields available:
+
+   * member_no (optional)
+   * hardware_id (mandatory)
+   * priority (optional)
+
+member_no and hardware_id must be unique for each stackmember in the same device.
+
+Example for defining two stackmembers:
+
+::
+
+   curl -H "Content-Type: application/json" -X PUT -d
+   '{"stackmembers": [{"member_no": 1,"hardware_id": "4AE008A","priority": 55}, {"member_no": 2, "hardware_id": "B77C34F", "priority": 125}]}'
+   https://hostname/api/v1.0/device/<device_hostname>/stackmember

@@ -6,3 +6,6 @@ verify_tls_device: False
 cafile: /opt/cnaas/cacert/rootCA.crt
 cakeyfile: /opt/cnaas/cacert/rootCA.key
 certpath: /tmp/devicecerts/
+global_unique_vlans: True
+init_mgmt_timeout: 30
+mgmtdomain_reserved_count: 5

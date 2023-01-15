@@ -1,14 +1,16 @@
 import enum
 import re
 
-from sqlalchemy import Column, Integer, Unicode
-from sqlalchemy import ForeignKey
+from sqlalchemy import Column, Enum, ForeignKey, Integer, Unicode
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.orm import relationship, backref
-from sqlalchemy import Enum
+from sqlalchemy.orm import backref, relationship
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device
+
+
+class InterfaceError(Exception):
+    pass
 
 
 class InterfaceConfigType(enum.Enum):
@@ -34,13 +36,12 @@ class InterfaceConfigType(enum.Enum):
 
 
 class Interface(cnaas_nms.db.base.Base):
-    __tablename__ = 'interface'
-    __table_args__ = (
-        None,
+    __tablename__ = "interface"
+    __table_args__ = (None,)
+    device_id = Column(Integer, ForeignKey("device.id"), primary_key=True, index=True)
+    device = relationship(
+        "Device", foreign_keys=[device_id], backref=backref("Interfaces", cascade="all, delete-orphan")
     )
-    device_id = Column(Integer, ForeignKey('device.id'), primary_key=True, index=True)
-    device = relationship("Device", foreign_keys=[device_id],
-                          backref=backref("Interfaces", cascade="all, delete-orphan"))
     name = Column(Unicode(255), primary_key=True)
     configtype = Column(Enum(InterfaceConfigType), nullable=False)
     data = Column(JSONB)
@@ -82,9 +83,8 @@ class Interface(cnaas_nms.db.base.Base):
         missing_groups = 0
         for index, item in reversed(list(enumerate(groups, start=1))):
             if item:
-                item_num = int(item.rstrip('/'))
-                index_num += (100**(4-index-missing_groups)) * (item_num+1)
+                item_num = int(item.rstrip("/"))
+                index_num += (100 ** (4 - index - missing_groups)) * (item_num + 1)
             else:
                 missing_groups += 1
         return index_num
-

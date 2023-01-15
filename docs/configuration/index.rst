@@ -29,11 +29,22 @@ Defines parameters for the API:
 - cakeyfile: Path to CA key, used to sign device certificates after generation.
 - certpath: Path to store generated device certificates in.
 - allow_apply_config_liverun: Allow liverun on apply_config API call. Defaults to False.
+- global_unique_vlans: If True VLAN IDs has to be globally unique, if False
+  different DIST switches can reuse same VLAN IDs for different L2 domains.
+  Defaults to True.
+- init_mgmt_timeout: Timeout to wait for device to apply changed management IP.
+  Defaults to 30, specified in seconds (integer).
+- mgmtdomain_reserved_count: Number of IP addresses to reserve for internal use on
+  each defined management domain when assigning new management IP addresses to devices.
+  Defaults to 5 (e.g. meaning 10.0.0.1 through 10.0.0.5 would remain unassigned on
+  a domain for 10.0.0.0/24).
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Defines paths to git repositories.
+
+.. _configuration_environment_ref:
 
 Environment variables
 ---------------------
@@ -62,6 +73,8 @@ cnaas_api
 - ``PASSWORD_INIT``
 - ``USERNAME_MANAGED`` -- user name for managed devices
 - ``PASSWORD_MANAGED``
+- ``PLUGIN_SETTINGS_FIELDS_MODULE`` - Use a custom module path to override
+  settings_fields, defaults to: cnaas_nms.plugins.settings_fields
 
 cnaas_httpd
 
@@ -79,3 +92,20 @@ cnaas_postgres
 - ``POSTGRES_USER`` -- database username
 - ``POSTGRES_PASSWORD`` -- database password
 - ``POSTGRES_DB`` -- name of the cnaas-nms database
+
+Git repository URLs
+-------------------
+
+All the options that point to various GIT repositories (``GITREPO_*``) support typical Git-compatible URLs, including,
+but not limited to:
+
+- ``ssh://user@host.xz:port/path/to/repo.git/``
+- ``https://host.xz/path/to/repo.git/``
+- ``git://host.xz/path/to/repo.git/``
+
+Additionally, specific commits or branches can be specified by adding a URL anchor containing a Git reference such as
+a branch name, tag or commit ID. Examples:
+
+- ``ssh://user@host.xz:port/path/to/repo.git/#stable``
+- ``https://host.xz/path/to/repo.git/#v1.2.3``
+- ``git://host.xz/path/to/repo.git/#2a8c7f6c6544dd438808ab1bec560115783a2f2a``

@@ -1,23 +1,20 @@
-import enum
 import datetime
+import enum
 import json
-from typing import Optional, Dict
+from typing import Dict, Optional
 
-from sqlalchemy import Column, Integer, Unicode, SmallInteger
-from sqlalchemy import Enum, DateTime
-from sqlalchemy import ForeignKey
+from nornir.core.task import AggregatedResult
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, SmallInteger, Unicode
 from sqlalchemy.dialects.postgresql.json import JSONB
 from sqlalchemy.orm import relationship
-from nornir.core.task import AggregatedResult
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device
-from cnaas_nms.confpush.nornir_helper import nr_result_serialize, NornirJobResult
-from cnaas_nms.scheduler.jobresult import StrJobResult, DictJobResult
 from cnaas_nms.db.helper import json_dumper
-from cnaas_nms.tools.log import get_logger
+from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, nr_result_serialize
+from cnaas_nms.scheduler.jobresult import DictJobResult, StrJobResult
 from cnaas_nms.tools.event import add_event
-
+from cnaas_nms.tools.log import get_logger
 
 logger = get_logger()
 
@@ -49,10 +46,8 @@ class JobStatus(enum.Enum):
 
 
 class Job(cnaas_nms.db.base.Base):
-    __tablename__ = 'job'
-    __table_args__ = (
-        None,
-    )
+    __tablename__ = "job"
+    __table_args__ = (None,)
     id = Column(Integer, autoincrement=True, primary_key=True)
     status = Column(Enum(JobStatus), index=True, default=JobStatus.SCHEDULED)
     scheduled_time = Column(DateTime, default=datetime.datetime.utcnow)
@@ -62,7 +57,7 @@ class Job(cnaas_nms.db.base.Base):
     scheduled_by = Column(Unicode(255))
     comment = Column(Unicode(255))
     ticket_ref = Column(Unicode(32), index=True)
-    next_job_id = Column(Integer, ForeignKey('job.id'))
+    next_job_id = Column(Integer, ForeignKey("job.id"))
     next_job = relationship("Job", remote_side=[id])
     result = Column(JSONB)
     exception = Column(JSONB)
@@ -95,20 +90,22 @@ class Job(cnaas_nms.db.base.Base):
         if scheduled_by:
             self.scheduled_by = scheduled_by
         try:
-            json_data = json.dumps({
-                "job_id": self.id,
-                "status": "RUNNING",
-                "function_name": self.function_name,
-                "scheduled_by": self.scheduled_by
-            })
+            json_data = json.dumps(
+                {
+                    "job_id": self.id,
+                    "status": "RUNNING",
+                    "function_name": self.function_name,
+                    "scheduled_by": self.scheduled_by,
+                }
+            )
             add_event(json_data=json_data, event_type="update", update_type="job")
-        except Exception as e:
+        except Exception:  # noqa: S110
             pass
 
     def finish_success(self, res: dict, next_job_id: Optional[int]):
         try:
             if isinstance(res, NornirJobResult) and isinstance(res.nrresult, AggregatedResult):
-                self.result = {'devices': nr_result_serialize(res.nrresult)}
+                self.result = {"devices": nr_result_serialize(res.nrresult)}
                 if res.change_score and type(res.change_score) == int:
                     self.change_score = res.change_score
             elif isinstance(res, (StrJobResult, DictJobResult)):
@@ -116,8 +113,9 @@ class Job(cnaas_nms.db.base.Base):
             else:
                 self.result = json.dumps(res, default=json_dumper)
         except Exception as e:
-            logger.exception("Job {} got unserializable ({}) result after finishing: {}". \
-                           format(self.id, str(e), self.result))
+            logger.exception(
+                "Job {} got unserializable ({}) result after finishing: {}".format(self.id, str(e), self.result)
+            )
             self.result = {"error": "unserializable"}
 
         self.finish_time = datetime.datetime.utcnow()
@@ -129,15 +127,12 @@ class Job(cnaas_nms.db.base.Base):
             # TODO: check if this exists in the db?
             self.next_job_id = next_job_id
         try:
-            event_data = {
-                "job_id": self.id,
-                "status": self.status.name
-            }
+            event_data = {"job_id": self.id, "status": self.status.name}
             if next_job_id:
-                event_data['next_job_id'] = next_job_id
+                event_data["next_job_id"] = next_job_id
             json_data = json.dumps(event_data)
             add_event(json_data=json_data, event_type="update", update_type="job")
-        except Exception as e:
+        except Exception:  # noqa: S110
             pass
 
     def finish_exception(self, e: Exception, traceback: str):
@@ -146,24 +141,23 @@ class Job(cnaas_nms.db.base.Base):
         self.status = JobStatus.EXCEPTION
         try:
             self.exception = json.dumps(
-                {
-                    'message': str(e),
-                    'type': type(e).__name__,
-                    'args': e.args,
-                    'traceback': traceback
-                }, default=json_dumper)
+                {"message": str(e), "type": type(e).__name__, "args": e.args, "traceback": traceback},
+                default=json_dumper,
+            )
         except Exception as e:
             errmsg = "Unable to serialize exception or traceback: {}".format(str(e))
             logger.exception(errmsg)
             self.exception = {"error": errmsg}
         try:
-            json_data = json.dumps({
-                "job_id": self.id,
-                "status": "EXCEPTION",
-                "exception": str(e),
-            })
+            json_data = json.dumps(
+                {
+                    "job_id": self.id,
+                    "status": "EXCEPTION",
+                    "exception": str(e),
+                }
+            )
             add_event(json_data=json_data, event_type="update", update_type="job")
-        except Exception as e:
+        except Exception:  # noqa: S110
             pass
 
     def finish_abort(self, message: str):
@@ -172,13 +166,15 @@ class Job(cnaas_nms.db.base.Base):
         self.status = JobStatus.ABORTED
         self.result = {"message": message}
         try:
-            json_data = json.dumps({
-                "job_id": self.id,
-                "status": "ABORTED",
-                "message": message,
-            })
+            json_data = json.dumps(
+                {
+                    "job_id": self.id,
+                    "status": "ABORTED",
+                    "message": message,
+                }
+            )
             add_event(json_data=json_data, event_type="update", update_type="job")
-        except Exception as e:
+        except Exception:  # noqa: S110
             pass
 
     @classmethod
@@ -187,17 +183,13 @@ class Job(cnaas_nms.db.base.Base):
         running_jobs = session.query(Job).filter(Job.status == JobStatus.RUNNING).all()
         job: Job
         for job in running_jobs:
-            logger.warning(
-                "Job found in unfinished RUNNING state at startup moved to ABORTED, id: {}".
-                format(job.id))
+            logger.warning("Job found in unfinished RUNNING state at startup moved to ABORTED, id: {}".format(job.id))
             job.status = JobStatus.ABORTED
 
         aborting_jobs = session.query(Job).filter(Job.status == JobStatus.ABORTING).all()
         job: Job
         for job in aborting_jobs:
-            logger.warning(
-                "Job found in unfinished ABORTING state at startup moved to ABORTED, id: {}".
-                format(job.id))
+            logger.warning("Job found in unfinished ABORTING state at startup moved to ABORTED, id: {}".format(job.id))
             job.status = JobStatus.ABORTED
 
         scheduled_jobs = session.query(Job).filter(Job.status == JobStatus.SCHEDULED).all()
@@ -207,15 +199,18 @@ class Job(cnaas_nms.db.base.Base):
             # APschedulers misfire_grace_time is modified
             aps_misfire_grace_time = datetime.timedelta(seconds=1)
             if job.scheduled_time < (datetime.datetime.utcnow() - aps_misfire_grace_time):
-                logger.warning(
-                    "Job found in past SCHEDULED state at startup moved to ABORTED, id: {}".
-                    format(job.id))
+                logger.warning("Job found in past SCHEDULED state at startup moved to ABORTED, id: {}".format(job.id))
                 job.status = JobStatus.ABORTED
 
     @classmethod
-    def get_previous_config(cls, session, hostname: str, previous: Optional[int] = None,
-                            job_id: Optional[int] = None,
-                            before: Optional[datetime.datetime] = None) -> Dict[str, str]:
+    def get_previous_config(
+        cls,
+        session,
+        hostname: str,
+        previous: Optional[int] = None,
+        job_id: Optional[int] = None,
+        before: Optional[datetime.datetime] = None,
+    ) -> Dict[str, str]:
         """Get full configuration for a device from a previous job.
 
         Args:
@@ -229,8 +224,12 @@ class Job(cnaas_nms.db.base.Base):
             Returns a result dict with keys: config, job_id and finish_time
         """
         result = {}
-        query_part = session.query(Job).filter(Job.function_name == 'sync_devices'). \
-            filter(Job.result.has_key('devices')).filter(Job.result['devices'].has_key(hostname))
+        query_part = (
+            session.query(Job)
+            .filter(Job.function_name == "sync_devices")
+            .filter(Job.result.has_key("devices"))  # noqa: W601 TODO: fix deprecation
+            .filter(Job.result["devices"].has_key(hostname))
+        )
 
         if job_id and type(job_id) == int:
             query_part = query_part.filter(Job.id == job_id)
@@ -245,18 +244,17 @@ class Job(cnaas_nms.db.base.Base):
         if not job:
             raise JobNotFoundError("No matching job found")
 
-        result['job_id'] = job.id
-        result['finish_time'] = job.finish_time.isoformat(timespec='seconds')
+        result["job_id"] = job.id
+        result["finish_time"] = job.finish_time.isoformat(timespec="seconds")
 
-        if 'job_tasks' not in job.result['devices'][hostname] or \
-                'failed' not in job.result['devices'][hostname]:
+        if "job_tasks" not in job.result["devices"][hostname] or "failed" not in job.result["devices"][hostname]:
             raise InvalidJobError("Invalid job data found in database: missing job_tasks")
 
-        for task in job.result['devices'][hostname]['job_tasks']:
-            if task['task_name'] == 'Generate device config':
-                result['config'] = task['result']
+        for task in job.result["devices"][hostname]["job_tasks"]:
+            if task["task_name"] == "Generate device config":
+                result["config"] = task["result"]
 
-        result['failed'] = job.result['devices'][hostname]['failed']
+        result["failed"] = job.result["devices"][hostname]["failed"]
 
         return result
 

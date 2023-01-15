@@ -1,6 +1,5 @@
 FROM debian:buster
 
-
 USER root
 
 # Install system packages
@@ -37,6 +36,7 @@ COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY config/nginx_app.conf /etc/nginx/sites-available/
 COPY config/nginx.conf /etc/nginx/
 COPY cert/* /etc/nginx/conf.d/
+COPY config/gitconfig /var/www/.gitconfig
 # Prepare running nginx as www-data
 RUN unlink /etc/nginx/sites-enabled/default \
     && ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default \
@@ -50,10 +50,10 @@ RUN mkdir -p /opt/cnaas /etc/cnaas-nms \
     && chown -R root:www-data /opt/cnaas /etc/cnaas-nms \
     && chmod -R u=rwX,g=rX,o= /opt/cnaas
 RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv \
-    && chown www-data:www-data /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv
+    && chown www-data:www-data /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv /var/www/.gitconfig
 
 # Copy cnaas scripts
-COPY --chown=root:www-data cnaas-setup.sh createca.sh exec-pre-app.sh nosetests.sh /opt/cnaas/
+COPY --chown=root:www-data cnaas-setup.sh createca.sh exec-pre-app.sh pytest.sh coverage.sh /opt/cnaas/
 
 # Copy cnaas configuration files
 COPY --chown=www-data:www-data config/api.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/
@@ -65,7 +65,7 @@ USER www-data
 RUN mkdir /tmp/devicecerts \
     && chmod -R u=rwX,g=,o= /tmp/devicecerts
 
-ARG BUILDBRANCH=master
+ARG BUILDBRANCH=develop
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 # Branch specific, don't cache
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit

@@ -140,12 +140,22 @@ You can check what VLAN names exist on a specific switch by using the /settings
 API call and specifying the hostname and then look for the vlan_name field
 under a specific vxlan.
 
-Data can also contain any of these optional keys:
+Data can contain any of these optional keys:
 
+- untagged_vlan: Numeric or string representation of a VLAN/VXLAN from vxlans.yml
+- tagged_vlan_list: List of VLANs/VXLANs
 - description: Description for the interface, this should be a string 0-64 characters.
 - enabled: Set the administrative state of the interface. Defaults to true if not set.
 - aggregate_id: Identifier for configuring LACP etc. Integer value.
   Special value -1 means configure MLAG and use ID based on indexnum.
+- bpdu_filter: bool defining STP BPDU feature enabled/disabled
+- redundant_link: bool allows specifying if this link allows non-redundant downlinks
+- tags: List of strings, user-defined custom tags to use in templates
+- cli_append_str: String of custom config that is appended to generated CLI config
+- neighbor: Populated at init, contains hostname of peer. Should normally never
+  have to be updated via API.
+- neighbor_id: Populated at init, contains device id of peer. Should normally never
+  have to be updated via API.
 
 Setting an optional value to JSON null will remove it from the database.
 

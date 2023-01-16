@@ -445,7 +445,8 @@ def push_sync_device(
             "Synchronize device config for host: {} ({}:{})".format(task.host.name, task.host.hostname, task.host.port)
         )
 
-        task.host.open_connection("napalm", configuration=task.nornir.config)
+        if api_settings.COMMIT_CONFIRMED_MODE != 2:
+            task.host.open_connection("napalm", configuration=task.nornir.config)
         task_args = {
             "name": "Sync device config",
             "replace": True,
@@ -461,7 +462,8 @@ def push_sync_device(
             task_args["task"] = napalm_configure_confirmed
             task_args["job_id"] = job_id
         task.run(**task_args)
-        task.host.close_connection("napalm")
+        if api_settings.COMMIT_CONFIRMED_MODE != 2:
+            task.host.close_connection("napalm")
 
         if task.results[1].diff:
             config = task.results[1].host["config"]
@@ -609,6 +611,10 @@ def select_devices(
                 len(skipped_hostnames), ", ".join(skipped_hostnames)
             )
         )
+
+    if dev_count > 50 and api_settings.COMMIT_CONFIRMED_MODE == 2:
+        logger.warning("commit_confirmed_mode 2 might not be reliable for syncs of more than 50 devices")
+
     return nr_filtered, dev_count, skipped_hostnames
 
 

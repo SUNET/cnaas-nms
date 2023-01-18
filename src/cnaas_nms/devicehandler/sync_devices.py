@@ -465,6 +465,11 @@ def push_sync_device(
         else:
             task_args["task"] = napalm_configure_confirmed
             task_args["job_id"] = job_id
+        logger.debug(
+            "Commit confirm mode for host {}: {} (dry_run: {})".format(
+                task.host.name, api_settings.COMMIT_CONFIRMED_MODE, dry_run
+            )
+        )
         task.run(**task_args)
         if api_settings.COMMIT_CONFIRMED_MODE != 2:
             task.host.close_connection("napalm")

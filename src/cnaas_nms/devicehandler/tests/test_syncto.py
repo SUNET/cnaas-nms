@@ -5,6 +5,7 @@ from typing import Optional
 import pkg_resources
 import pytest
 import yaml
+from apscheduler.schedulers.base import STATE_STOPPED
 
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.session import sqla_session
@@ -23,7 +24,8 @@ def testdata(scope="session"):
 @pytest.fixture
 def scheduler(scope="session"):
     scheduler = Scheduler()
-    scheduler.start()
+    if scheduler.get_scheduler().state == STATE_STOPPED:
+        scheduler.start()
     return scheduler
 
 
@@ -49,6 +51,5 @@ def test_syncto_commitmode_1(testdata, scheduler):
                 job_dict = job_res.as_dict()
             else:
                 break
-    breakpoint()
     assert job_dict["status"] == "FINISHED"
     assert job_dict["result"]["devices"]["eosdist1"]["failed"] is False

@@ -337,11 +337,15 @@ def populate_device_vars(
     # the list of configuration variables. The idea is to store secret
     # configuration outside of the templates repository.
     template_secrets = get_environment_secrets()
+    # For testing purposes allow overriding of settings instead of requiring git updates
+    override_dict = {}
+    if api_settings.SETTINGS_OVERRIDE and isinstance(api_settings.SETTINGS_OVERRIDE, dict):
+        override_dict = api_settings.SETTINGS_OVERRIDE
     # Merge all dicts with variables into one, later row overrides
     # Device variables override any names from settings, for example the
     # interfaces list from settings are replaced with an interface list from
     # device variables that contains more information
-    device_variables = {**settings, **device_variables, **template_secrets}
+    device_variables = {**settings, **device_variables, **template_secrets, **override_dict}
     return device_variables
 
 
@@ -856,7 +860,7 @@ def sync_devices(
                 f"Auto-push of config to device {hostnames} failed because change score of "
                 f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
             )
-    elif api_settings.COMMIT_CONFIRMED_MODE == 2:
+    elif api_settings.COMMIT_CONFIRMED_MODE == 2 and not dry_run:
         if not changed_hosts:
             logger.info("None of the selected host has any changes (diff), skipping commit-confirm")
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))

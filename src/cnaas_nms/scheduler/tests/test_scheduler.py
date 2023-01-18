@@ -5,6 +5,7 @@ import unittest
 import pkg_resources
 import pytest
 import yaml
+from apscheduler.schedulers.base import STATE_STOPPED
 
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.session import sqla_session
@@ -35,7 +36,8 @@ class InitTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         scheduler = Scheduler()
-        scheduler.start()
+        if scheduler.get_scheduler().state == STATE_STOPPED:
+            scheduler.start()
 
     @classmethod
     def tearDownClass(cls) -> None:

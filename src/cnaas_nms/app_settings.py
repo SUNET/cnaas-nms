@@ -51,6 +51,7 @@ class ApiSettings(BaseSettings):
     MGMTDOMAIN_RESERVED_COUNT: int = 5
     COMMIT_CONFIRMED_MODE: int = 1
     COMMIT_CONFIRMED_TIMEOUT: int = 300
+    SETTINGS_OVERRIDE: Optional[dict] = None
 
 
 def construct_api_settings() -> ApiSettings:
@@ -80,6 +81,7 @@ def construct_api_settings() -> ApiSettings:
             MGMTDOMAIN_RESERVED_COUNT=config.get("mgmtdomain_reserved_count", 5),
             COMMIT_CONFIRMED_MODE=config.get("commit_confirmed_mode", 1),
             COMMIT_CONFIRMED_TIMEOUT=config.get("commit_confirmed_timeout", 300),
+            SETTINGS_OVERRIDE=config.get("settings_override", None),
         )
     else:
         return ApiSettings()

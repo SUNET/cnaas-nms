@@ -29,7 +29,7 @@ def scheduler(scope="session"):
     return scheduler
 
 
-@pytest.mark.integration
+@pytest.mark.equipment
 def test_syncto_commitmode_1(testdata, scheduler):
     api_settings.COMMIT_CONFIRMED_MODE = 1
     api_settings.SETTINGS_OVERRIDE = {"cli_append_str": "interface Management1\ndescription test"}

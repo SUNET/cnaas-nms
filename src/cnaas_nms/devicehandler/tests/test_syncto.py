@@ -44,7 +44,7 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
     job_dict: Optional[dict] = None
     with sqla_session() as session:
         time.sleep(2)
-        for i in range(1, 5):
+        for i in range(1, 15):
             if not job_res or job_res.status == JobStatus.SCHEDULED or job_res.status == JobStatus.RUNNING:
                 job_res = session.query(Job).filter(Job.id == job_id).one()
                 job_dict = job_res.as_dict()

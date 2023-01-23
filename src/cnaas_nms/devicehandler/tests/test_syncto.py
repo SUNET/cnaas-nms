@@ -38,6 +38,7 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
         kwargs={
             "hostnames": testdata["syncto_device_hostnames"],
             "dry_run": dry_run,
+            "resync": True,
         },
     )
     job_res: Optional[Job] = None

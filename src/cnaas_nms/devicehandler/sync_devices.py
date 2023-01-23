@@ -1,5 +1,6 @@
 import datetime
 import os
+import time
 from hashlib import sha256
 from ipaddress import IPv4Address, IPv4Interface
 from typing import List, Optional, Tuple
@@ -739,7 +740,15 @@ def sync_devices(
     if not dry_run:
         with sqla_session() as session:
             logger.info("Trying to acquire lock for devices to run syncto job: {}".format(job_id))
-            if not Joblock.acquire_lock(session, name="devices", job_id=job_id):
+            max_attempts = 5
+            lock_ok: bool = False
+            for i in range(max_attempts):
+                lock_ok = Joblock.acquire_lock(session, name="devices", job_id=job_id)
+                if lock_ok:
+                    break
+                else:
+                    time.sleep(2)
+            if not lock_ok:
                 raise JoblockError("Unable to acquire lock for configuring devices")
 
     try:

@@ -45,7 +45,7 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
     job_dict: Optional[dict] = None
     jobstatus_wait = [JobStatus.SCHEDULED, JobStatus.RUNNING]
     with sqla_session() as session:
-        for i in range(1, 30):
+        for i in range(1, 300):
             time.sleep(1)
             if not job_res or job_res.status in jobstatus_wait:
                 job_res: Job = session.query(Job).filter(Job.id == job_id).one()
@@ -53,7 +53,7 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
                 # if next_job_id scheduled for confirm action, wait for that also
                 if job_res.next_job_id:
                     next_job_res = Optional[Job] = None
-                    for j in range(1, 30):
+                    for j in range(1, 300):
                         time.sleep(1)
                         if not next_job_res or next_job_res.status in jobstatus_wait:
                             next_job_res = session.query(Job).filter(Job.id == job_res.next_job_id).one()

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PYTESTARGS=()
+PYTESTARGS=("-vv" "--showlocals")
 
 if [ ! -z "$NO_EQUIPMENTTEST" ] ; then
 	PYTESTARGS+=("-m" "not equipment")

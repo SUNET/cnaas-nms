@@ -11,25 +11,14 @@ from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import api_settings
 from cnaas_nms.devicehandler.sync_devices import sync_devices
-from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 
 
 @pytest.fixture
-def testdata(scope="session"):
+def testdata(scope="module"):
     data_dir = pkg_resources.resource_filename(__name__, "data")
     with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
         return yaml.safe_load(f_testdata)
-
-
-@pytest.fixture
-def scheduler(scope="module"):
-    scheduler = Scheduler()
-    scheduler.start()
-    yield scheduler
-    time.sleep(3)
-    scheduler.get_scheduler().print_jobs()
-    scheduler.shutdown()
 
 
 def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[dict]:

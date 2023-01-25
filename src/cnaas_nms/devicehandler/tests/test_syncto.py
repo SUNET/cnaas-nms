@@ -13,6 +13,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import api_settings
 from cnaas_nms.devicehandler.sync_devices import sync_devices
 from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.tools.log import get_logger
 
 
 @pytest.fixture
@@ -27,10 +28,14 @@ def scheduler(scope="session"):
     scheduler = Scheduler()
     if scheduler.get_scheduler().state == STATE_STOPPED:
         scheduler.start()
-    return scheduler
+    yield scheduler
+    time.sleep(3)
+    scheduler.get_scheduler().print_jobs()
+    scheduler.shutdown()
 
 
 def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[dict]:
+    logger = get_logger()
     job_id = scheduler.add_onetime_job(
         sync_devices,
         when=0,
@@ -45,7 +50,7 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
     job_dict: Optional[dict] = None
     jobstatus_wait = [JobStatus.SCHEDULED, JobStatus.RUNNING]
     with sqla_session() as session:
-        for i in range(1, 300):
+        for i in range(1, 30):
             time.sleep(1)
             if not job_res or job_res.status in jobstatus_wait:
                 job_res: Job = session.query(Job).filter(Job.id == job_id).one()
@@ -53,15 +58,16 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
                 # if next_job_id scheduled for confirm action, wait for that also
                 if job_res.next_job_id:
                     next_job_res = Optional[Job] = None
-                    for j in range(1, 300):
+                    for j in range(1, 30):
                         time.sleep(1)
                         if not next_job_res or next_job_res.status in jobstatus_wait:
                             next_job_res = session.query(Job).filter(Job.id == job_res.next_job_id).one()
                         else:
                             break
             else:
-                print("test run_syncto_job run {} status {}".format(i, JobStatus.name))
                 break
+    if job_dict["status"] != "FINISHED":
+        logger.debug("test run_syncto_job job status '{}': {}".format(job_dict["status"], job_dict))
     return job_dict
 
 

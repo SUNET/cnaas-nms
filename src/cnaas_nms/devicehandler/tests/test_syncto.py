@@ -6,7 +6,6 @@ from typing import Optional
 import pkg_resources
 import pytest
 import yaml
-from apscheduler.schedulers.base import STATE_STOPPED
 
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.session import sqla_session
@@ -24,10 +23,9 @@ def testdata(scope="session"):
 
 
 @pytest.fixture
-def scheduler(scope="session"):
+def scheduler(scope="module"):
     scheduler = Scheduler()
-    if scheduler.get_scheduler().state == STATE_STOPPED:
-        scheduler.start()
+    scheduler.start()
     yield scheduler
     time.sleep(3)
     scheduler.get_scheduler().print_jobs()
@@ -54,6 +52,7 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
             time.sleep(1)
             if not job_res or job_res.status in jobstatus_wait:
                 job_res: Job = session.query(Job).filter(Job.id == job_id).one()
+                session.refresh(job_res)
                 job_dict = job_res.as_dict()
                 # if next_job_id scheduled for confirm action, wait for that also
                 if job_res.next_job_id:
@@ -62,6 +61,7 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
                         time.sleep(1)
                         if not next_job_res or next_job_res.status in jobstatus_wait:
                             next_job_res = session.query(Job).filter(Job.id == job_res.next_job_id).one()
+                            session.refresh(next_job_res)
                         else:
                             break
             else:

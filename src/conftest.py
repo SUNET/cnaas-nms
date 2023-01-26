@@ -96,8 +96,8 @@ def wait_for_port(host: str, port: int, tries=10) -> bool:
     return False
 
 
-@pytest.fixture
-def scheduler(scope="session"):
+@pytest.fixture(scope="session")
+def scheduler():
     scheduler = Scheduler()
     scheduler.start()
     yield scheduler

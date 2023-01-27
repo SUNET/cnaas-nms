@@ -36,6 +36,23 @@ The status success in this case only means that the job was scheduled successful
 you have to poll the job API to see that result of what was done, the job itself might still
 fail.
 
+Configuration changes can be made in a way that requires a separate confirm call since version 1.5.
+If the change can not be confirmed because the device is not unreachable for example, the device
+will roll back the configuration. Before version 1.5 this concept was not supported, but from this
+version it's supported and enabled by default using mode 1.
+
+Commit confirm modes:
+ - 0 = No confirm commit (default up to version 1.4)
+ - 1 = Commit is immediately confirmed for each device when that device is configured
+   (default from version 1.5)
+ - 2 = Commit is confirmed after all devices in the job has been configured, but only if all were
+   successful. This mode is only supported for EOS and JunOS so far, and only supported for small
+   number of devices per commit (max 50). If mode 2 is specified and an unsupported device is
+   selected that device will use mode 1 instead.
+
+Commit confirm mode can be specified in the configuration file, but it's also possible to override
+that setting for a specific job using the API argument confirm_mode (see below).
+
 Arguments:
 ----------
 
@@ -59,6 +76,8 @@ Arguments:
    This should be a string with max 255 characters.
  - ticket_ref: Optionally reference a service ticket associated with this job.
    This should be a string with max 32 characters.
+ - confirm_mode: Optionally override the default commit confirm mode (see above) for this job.
+   Must be an integer 0, 1 or 2 if specified.
 
 If neither hostname or device_type is specified all devices that needs to be sycnhronized
 will be selected.

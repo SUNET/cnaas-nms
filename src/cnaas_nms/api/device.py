@@ -116,6 +116,7 @@ device_syncto_model = device_syncto_api.model(
         "force": fields.Boolean(required=False),
         "auto_push": fields.Boolean(required=False),
         "resync": fields.Boolean(required=False),
+        "confirm_mode": fields.Integer(required=False),
     },
 )
 
@@ -623,6 +624,16 @@ class DeviceSyncApi(Resource):
             kwargs["job_comment"] = json_data["comment"]
         if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
             kwargs["job_ticket_ref"] = json_data["ticket_ref"]
+        if "confirm_mode" in json_data and isinstance(json_data["confirm_mode"], int):
+            if 0 >= json_data["confirm_mode"] >= 2:
+                kwargs["confirm_mode_override"] = json_data["confirm_mode"]
+            else:
+                return (
+                    empty_result(
+                        status="error", data="If optional value confirm_mode is specified it must be an integer 0-2"
+                    ),
+                    400,
+                )
 
         total_count: Optional[int] = None
         nr = cnaas_init()

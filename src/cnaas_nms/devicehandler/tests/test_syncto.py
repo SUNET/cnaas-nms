@@ -45,18 +45,22 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
                 job_dict = job_res.as_dict()
                 # if next_job_id scheduled for confirm action, wait for that also
                 if job_res.next_job_id:
-                    next_job_res = Optional[Job] = None
+                    confirm_job_res: Optional[Job] = None
+                    confirm_job_dict: Optional[dict] = None
                     for j in range(1, 30):
                         time.sleep(1)
-                        if not next_job_res or next_job_res.status in jobstatus_wait:
-                            next_job_res = session.query(Job).filter(Job.id == job_res.next_job_id).one()
-                            session.refresh(next_job_res)
+                        if not confirm_job_res or confirm_job_res.status in jobstatus_wait:
+                            confirm_job_res = session.query(Job).filter(Job.id == job_res.next_job_id).one()
+                            session.refresh(confirm_job_res)
+                            confirm_job_dict = confirm_job_res.as_dict()
                         else:
                             break
+                    if confirm_job_dict and confirm_job_dict["status"] != "FINISHED":
+                        logger.warning("test run_syncto_job confirm job bad status: {}".format(confirm_job_dict))
             else:
                 break
     if job_dict["status"] != "FINISHED":
-        logger.debug("test run_syncto_job job status '{}': {}".format(job_dict["status"], job_dict))
+        logger.warning("test run_syncto_job job bad status: {}".format(job_dict))
     return job_dict
 
 

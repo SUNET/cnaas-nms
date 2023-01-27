@@ -41,6 +41,8 @@ If the change can not be confirmed because the device is not unreachable for exa
 will roll back the configuration. Before version 1.5 this concept was not supported, but from this
 version it's supported and enabled by default using mode 1.
 
+.. _commit_confirm_modes:
+
 Commit confirm modes:
  - 0 = No confirm commit (default up to version 1.4)
  - 1 = Commit is immediately confirmed for each device when that device is configured

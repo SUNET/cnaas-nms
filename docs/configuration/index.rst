@@ -38,6 +38,10 @@ Defines parameters for the API:
   each defined management domain when assigning new management IP addresses to devices.
   Defaults to 5 (e.g. meaning 10.0.0.1 through 10.0.0.5 would remain unassigned on
   a domain for 10.0.0.0/24).
+- commit_confirmed_mode: Integer specifying default commit confirm mode
+  (see :ref:`commit_confirm_modes`). Defaults to 1.
+- commit_confirmed_timeout: Time to wait before rolling back an unconfirmed commit,
+  specified in seconds. Defaults to 300.
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

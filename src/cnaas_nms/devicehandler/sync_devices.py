@@ -351,8 +351,24 @@ def populate_device_vars(
     return device_variables
 
 
+def get_confirm_mode(confirm_mode_override: Optional[int] = None) -> int:
+    valid_modes = [0, 1, 2]
+    if confirm_mode_override and confirm_mode_override in valid_modes:
+        return confirm_mode_override
+    elif api_settings.COMMIT_CONFIRMED_MODE and api_settings.COMMIT_CONFIRMED_MODE in valid_modes:
+        return api_settings.COMMIT_CONFIRMED_MODE
+    else:
+        return 1
+
+
 def napalm_configure_confirmed(
-    task, dry_run=None, configuration=None, replace=None, commit_message: str = "", job_id: int = 0
+    task,
+    dry_run=None,
+    configuration=None,
+    replace=None,
+    commit_message: str = "",
+    job_id: int = 0,
+    commit_confirm_override: Optional[int] = None,
 ):
     """Configure device and set configure confirmed timeout to revert changes unless a confirm is received"""
     logger = get_logger()
@@ -364,7 +380,7 @@ def napalm_configure_confirmed(
     if diff:
         n_device.commit_config(revert_in=api_settings.COMMIT_CONFIRMED_TIMEOUT)
         mode_2_supported = False
-        if api_settings.COMMIT_CONFIRMED_MODE == 2:
+        if get_confirm_mode(commit_confirm_override) == 2:
             if isinstance(n_device, (NapalmEOSDriver, NapalmJunOSDriver)):
                 mode_2_supported = True
             else:
@@ -373,7 +389,7 @@ def napalm_configure_confirmed(
                     f"Falling back to mode 1 for device: {task.host.name}."
                 )
 
-        if api_settings.COMMIT_CONFIRMED_MODE == 1 or not mode_2_supported:
+        if get_confirm_mode(commit_confirm_override) == 1 or not mode_2_supported:
             if n_device.has_pending_commit():
                 n_device.confirm_commit()
             else:
@@ -399,6 +415,7 @@ def push_sync_device(
     generate_only: bool = False,
     job_id: Optional[str] = None,
     scheduled_by: Optional[str] = None,
+    confirm_mode_override: Optional[int] = None,
 ):
     """
     Nornir task to generate config and push to device
@@ -408,7 +425,9 @@ def push_sync_device(
         dry_run: Don't commit config to device, just do compare/diff
         generate_only: Only generate text config, don't try to commit or
                        even do dry_run compare to running config
-
+        job_id: Job ID integer
+        scheduled_by: username of users that scheduled job
+        confirm_mode_override: integer to specify commit confirm mode
     Returns:
 
     """
@@ -469,6 +488,7 @@ def push_sync_device(
         else:
             task_args["task"] = napalm_configure_confirmed
             task_args["job_id"] = job_id
+            task_args["confirm_mode_override"] = confirm_mode_override
         logger.debug(
             "Commit confirm mode for host {}: {} (dry_run: {})".format(
                 task.host.name, api_settings.COMMIT_CONFIRMED_MODE, dry_run
@@ -698,6 +718,7 @@ def sync_devices(
     job_id: Optional[int] = None,
     scheduled_by: Optional[str] = None,
     resync: bool = False,
+    confirm_mode_override: Optional[int] = None,
 ) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
@@ -715,6 +736,8 @@ def sync_devices(
         scheduled_by: Username from JWT
         resync: Re-synchronize a device even if it's marked as synced in the
                 database, a device selected by hostname is always re-synced
+        confirm_mode_override: Override settings commit confirm mode, optional int
+                               with value 0, 1 or 2
 
     Returns:
         NornirJobResult
@@ -755,7 +778,12 @@ def sync_devices(
                 raise JoblockError("Unable to acquire lock for configuring devices")
 
     try:
-        nrresult = nr_filtered.run(task=push_sync_device, dry_run=dry_run, job_id=job_id)
+        nrresult = nr_filtered.run(
+            task=push_sync_device,
+            dry_run=dry_run,
+            job_id=job_id,
+            confirm_mode_override=get_confirm_mode(confirm_mode_override),
+        )
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
         try:
@@ -834,7 +862,7 @@ def sync_devices(
                 dev.synchronized = False
                 dev.last_seen = datetime.datetime.utcnow()
             # if next job will commit, that job will mark synchronized on success
-            elif api_settings.COMMIT_CONFIRMED_MODE != 2:
+            elif get_confirm_mode(confirm_mode_override) != 2:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
                 dev.last_seen = datetime.datetime.utcnow()
@@ -842,7 +870,7 @@ def sync_devices(
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
             dev.synchronized = True
             dev.last_seen = datetime.datetime.utcnow()
-        if not dry_run and api_settings.COMMIT_CONFIRMED_MODE != 2:
+        if not dry_run and get_confirm_mode(confirm_mode_override) != 2:
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)
 
@@ -877,7 +905,7 @@ def sync_devices(
                 f"Auto-push of config to device {hostnames} failed because change score of "
                 f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
             )
-    elif api_settings.COMMIT_CONFIRMED_MODE == 2 and not dry_run:
+    elif get_confirm_mode(confirm_mode_override) == 2 and not dry_run:
         if not changed_hosts:
             logger.info("None of the selected host has any changes (diff), skipping commit-confirm")
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))

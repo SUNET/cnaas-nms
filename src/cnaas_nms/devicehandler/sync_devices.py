@@ -888,7 +888,7 @@ def sync_devices(
                 "cnaas_nms.devicehandler.sync_devices:confirm_devices",
                 when=0,
                 scheduled_by=scheduled_by,
-                kwargs={"prev_job_id": job_id, "hostnames": changed_hosts},
+                kwargs={"prev_job_id": job_id, "hostnames": changed_hosts, "scheduled_by": scheduled_by},
             )
             logger.info(f"Commit-confirm for job id {job_id} scheduled as job id {next_job_id}")
 

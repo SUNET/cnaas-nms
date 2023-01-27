@@ -401,12 +401,14 @@ def napalm_configure_confirmed(
 
 def napalm_confirm_commit(task, prev_job_id: int = 0):
     """Confirm a previous pending configure session"""
+    logger = get_logger()
     n_device = task.host.get_connection("napalm", task.nornir.config)
     if isinstance(n_device, NapalmEOSDriver):
         n_device.config_session = "job{}".format(prev_job_id)
         n_device.confirm_commit()
     elif isinstance(n_device, NapalmJunOSDriver):
         n_device.confirm_commit()
+    logger.debug("Commit for job {} confirmed on device {}".format(prev_job_id, task.host.name))
 
 
 def push_sync_device(

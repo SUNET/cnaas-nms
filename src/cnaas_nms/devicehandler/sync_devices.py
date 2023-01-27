@@ -368,7 +368,7 @@ def napalm_configure_confirmed(
     replace=None,
     commit_message: str = "",
     job_id: int = 0,
-    commit_confirm_override: Optional[int] = None,
+    confirm_mode_override: Optional[int] = None,
 ):
     """Configure device and set configure confirmed timeout to revert changes unless a confirm is received"""
     logger = get_logger()
@@ -380,7 +380,7 @@ def napalm_configure_confirmed(
     if diff:
         n_device.commit_config(revert_in=api_settings.COMMIT_CONFIRMED_TIMEOUT)
         mode_2_supported = False
-        if get_confirm_mode(commit_confirm_override) == 2:
+        if get_confirm_mode(confirm_mode_override) == 2:
             if isinstance(n_device, (NapalmEOSDriver, NapalmJunOSDriver)):
                 mode_2_supported = True
             else:
@@ -389,7 +389,7 @@ def napalm_configure_confirmed(
                     f"Falling back to mode 1 for device: {task.host.name}."
                 )
 
-        if get_confirm_mode(commit_confirm_override) == 1 or not mode_2_supported:
+        if get_confirm_mode(confirm_mode_override) == 1 or not mode_2_supported:
             if n_device.has_pending_commit():
                 n_device.confirm_commit()
             else:

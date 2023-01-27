@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple
 
 import yaml
 from napalm.eos import EOSDriver as NapalmEOSDriver
+from napalm.junos import JunOSDriver as NapalmJunOSDriver
 from nornir.core import Nornir
 from nornir.core.task import MultiResult, Result
 from nornir_jinja2.plugins.tasks import template_file
@@ -364,7 +365,7 @@ def napalm_configure_confirmed(
         n_device.commit_config(revert_in=api_settings.COMMIT_CONFIRMED_TIMEOUT)
         mode_2_supported = False
         if api_settings.COMMIT_CONFIRMED_MODE == 2:
-            if isinstance(n_device, NapalmEOSDriver):
+            if isinstance(n_device, (NapalmEOSDriver, NapalmJunOSDriver)):
                 mode_2_supported = True
             else:
                 logger.warn(
@@ -387,6 +388,8 @@ def napalm_confirm_commit(task, prev_job_id: int = 0):
     n_device = task.host.get_connection("napalm", task.nornir.config)
     if isinstance(n_device, NapalmEOSDriver):
         n_device.config_session = "job{}".format(prev_job_id)
+        n_device.confirm_commit()
+    elif isinstance(n_device, NapalmJunOSDriver):
         n_device.confirm_commit()
 
 

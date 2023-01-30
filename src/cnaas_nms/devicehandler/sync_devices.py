@@ -361,6 +361,52 @@ def get_confirm_mode(confirm_mode_override: Optional[int] = None) -> int:
         return 1
 
 
+def post_sync_update_cofighash(
+    dry_run: bool, force: bool, nr_filtered: Nornir, unchanged_hosts: List, failed_hosts: List
+):
+    """Update configuration hashes for device that were configured after sync has completed.
+    Args:
+        dry_run: bool
+        force: bool
+        nr_filtered: Nornir inventory of hosts to run on
+        unchanged_hosts: List of hosts that has not been changed, don't update confhosh
+        failed_hosts: List of hosts that failed with change, don't update confhash
+    """
+    logger = get_logger()
+    nr_confighash = None
+    if dry_run and force:
+        # update config hash for devices that had an empty diff because local
+        # changes on a device can cause reordering of CLI commands that results
+        # in config hash mismatch even if the calculated diff was empty
+        def include_filter(host, include_list=unchanged_hosts):
+            if host.name in include_list:
+                return True
+            else:
+                return False
+
+        nr_confighash = nr_filtered.filter(filter_func=include_filter)
+    elif not dry_run:
+        # set new config hash for devices that was successfully updated
+        def exclude_filter(host, exclude_list=failed_hosts + unchanged_hosts):
+            if host.name in exclude_list:
+                return False
+            else:
+                return True
+
+        nr_confighash = nr_filtered.filter(filter_func=exclude_filter)
+
+    if nr_confighash:
+        try:
+            nrresult_confighash = nr_confighash.run(task=update_config_hash)
+        except Exception as e:
+            logger.exception("Exception while updating config hashes: {}".format(str(e)))
+        else:
+            if nrresult_confighash.failed:
+                logger.error(
+                    "Unable to update some config hashes: {}".format(list(nrresult_confighash.failed_hosts.keys()))
+                )
+
+
 def napalm_configure_confirmed(
     task,
     dry_run=None,
@@ -691,13 +737,17 @@ def confirm_devices(
     if nrresult.failed:
         logger.error("Not all devices were successfully commit-confirmed")
 
+    post_sync_update_cofighash(
+        dry_run=False, force=False, nr_filtered=nr_filtered, unchanged_hosts=[], failed_hosts=failed_hosts
+    )
+
     with sqla_session() as session:
         for host, results in nrresult.items():
             if host in failed_hosts or len(results) != 1:
                 logger.debug("Setting device as unsync for failed commit-confirm on device {}".format(host))
                 dev: Device = session.query(Device).filter(Device.hostname == host).one()
                 dev.synchronized = False
-                dev.last_seen = datetime.datetime.utcnow()
+                dev.confhash = None
             else:
                 dev: Device = session.query(Device).filter(Device.hostname == host).one()
                 dev.synchronized = True
@@ -822,39 +872,13 @@ def sync_devices(
             change_scores.append(0)
             logger.debug("Empty diff for host {}, 0 change score".format(host))
 
-    # break into separate function?
-    nr_confighash = None
-    if dry_run and force:
-        # update config hash for devices that had an empty diff because local
-        # changes on a device can cause reordering of CLI commands that results
-        # in config hash mismatch even if the calculated diff was empty
-        def include_filter(host, include_list=unchanged_hosts):
-            if host.name in include_list:
-                return True
-            else:
-                return False
-
-        nr_confighash = nr_filtered.filter(filter_func=include_filter)
-    elif not dry_run:
-        # set new config hash for devices that was successfully updated
-        def exclude_filter(host, exclude_list=failed_hosts + unchanged_hosts):
-            if host.name in exclude_list:
-                return False
-            else:
-                return True
-
-        nr_confighash = nr_filtered.filter(filter_func=exclude_filter)
-
-    if nr_confighash:
-        try:
-            nrresult_confighash = nr_confighash.run(task=update_config_hash)
-        except Exception as e:
-            logger.exception("Exception while updating config hashes: {}".format(str(e)))
-        else:
-            if nrresult_confighash.failed:
-                logger.error(
-                    "Unable to update some config hashes: {}".format(list(nrresult_confighash.failed_hosts.keys()))
-                )
+    post_sync_update_cofighash(
+        dry_run=dry_run,
+        force=force,
+        nr_filtered=nr_filtered,
+        unchanged_hosts=unchanged_hosts,
+        failed_hosts=failed_hosts,
+    )
 
     # set devices as synchronized if needed
     with sqla_session() as session:
@@ -918,7 +942,7 @@ def sync_devices(
                 "cnaas_nms.devicehandler.sync_devices:confirm_devices",
                 when=0,
                 scheduled_by=scheduled_by,
-                kwargs={"prev_job_id": job_id, "hostnames": changed_hosts, "scheduled_by": scheduled_by},
+                kwargs={"prev_job_id": job_id, "hostnames": changed_hosts},
             )
             logger.info(f"Commit-confirm for job id {job_id} scheduled as job id {next_job_id}")
 

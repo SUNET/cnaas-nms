@@ -873,13 +873,14 @@ def sync_devices(
             change_scores.append(0)
             logger.debug("Empty diff for host {}, 0 change score".format(host))
 
-    post_sync_update_cofighash(
-        dry_run=dry_run,
-        force=force,
-        nr_filtered=nr_filtered,
-        unchanged_hosts=unchanged_hosts,
-        failed_hosts=failed_hosts,
-    )
+    if get_confirm_mode(confirm_mode_override) != 2:
+        post_sync_update_cofighash(
+            dry_run=dry_run,
+            force=force,
+            nr_filtered=nr_filtered,
+            unchanged_hosts=unchanged_hosts,
+            failed_hosts=failed_hosts,
+        )
 
     # set devices as synchronized if needed
     with sqla_session() as session:
@@ -935,6 +936,14 @@ def sync_devices(
     elif get_confirm_mode(confirm_mode_override) == 2 and not dry_run:
         if not changed_hosts:
             logger.info("None of the selected host has any changes (diff), skipping commit-confirm")
+            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+            Joblock.release_lock(session, job_id=job_id)
+        elif len(failed_hosts) > 0:
+            logger.error(
+                "No confirm job scheduled since one or more devices failed in commitmode 2"
+                ", all devices will rollback in {}s".format(api_settings.COMMIT_CONFIRMED_TIMEOUT)
+            )
+            time.sleep(api_settings.COMMIT_CONFIRMED_TIMEOUT)
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)
         else:

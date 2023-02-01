@@ -445,8 +445,9 @@ def napalm_configure_confirmed(
     return Result(host=task.host, diff=diff, changed=len(diff) > 0)
 
 
-def napalm_confirm_commit(task, prev_job_id: int = 0):
+def napalm_confirm_commit(task, job_id: int, prev_job_id: int):
     """Confirm a previous pending configure session"""
+    set_thread_data(job_id)
     logger = get_logger()
     n_device = task.host.get_connection("napalm", task.nornir.config)
     if isinstance(n_device, NapalmEOSDriver):
@@ -716,7 +717,7 @@ def confirm_devices(
     logger.info("Device(s) selected for commit-confirm ({}): {}".format(dev_count, ", ".join(device_list)))
 
     try:
-        nrresult = nr_filtered.run(task=napalm_confirm_commit, prev_job_id=prev_job_id)
+        nrresult = nr_filtered.run(task=napalm_confirm_commit, job_id=job_id, prev_job_id=prev_job_id)
     except Exception as e:
         logger.exception("Exception while confirm-commit devices: {}".format(str(e)))
         try:

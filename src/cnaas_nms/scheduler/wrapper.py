@@ -53,7 +53,7 @@ def job_wrapper(func):
             errmsg = "Missing job_id when starting job for {}".format(func.__name__)
             logger.error(errmsg)
             raise ValueError(errmsg)
-        progress_funcitons = ["sync_devices", "device_upgrade"]
+        progress_funcitons = ["sync_devices", "device_upgrade", "confirm_devices"]
         with sqla_session() as session:
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             if not job:

@@ -456,6 +456,9 @@ def napalm_confirm_commit(task, job_id: int, prev_job_id: int):
     elif isinstance(n_device, NapalmJunOSDriver):
         n_device.confirm_commit()
     logger.debug("Commit for job {} confirmed on device {}".format(prev_job_id, task.host.name))
+    if job_id:
+        with redis_session() as db:
+            db.lpush("finished_devices_" + str(job_id), task.host.name)
 
 
 def push_sync_device(

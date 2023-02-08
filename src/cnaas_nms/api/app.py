@@ -101,7 +101,9 @@ if api_settings.JWT_ENABLED:
 
     jwt = JWTManager(app)
 
-api = CnaasApi(app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey")
+api = CnaasApi(
+    app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey", doc="/api/doc/"
+)
 
 api.add_namespace(device_api)
 api.add_namespace(devices_api)

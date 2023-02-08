@@ -222,7 +222,6 @@ class InterfaceApi(Resource):
                     elif "data" in if_dict and not if_dict["data"]:
                         intfdata = None
 
-
                     if intfdata != intfdata_original:
                         intf.data = intfdata
                         updated = True

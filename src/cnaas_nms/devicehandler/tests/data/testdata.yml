@@ -85,3 +85,7 @@ linknets_mlag_nonpeers:
     ipv4_network: null
     redundant_link: true
     site_id: null
+syncto_device_hostnames:
+  - "eosdist1"
+syncto_settings_override:
+  cli_append_str: "interface Management1\ndescription test"

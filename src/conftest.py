@@ -5,6 +5,8 @@ import time
 from contextlib import closing
 
 import pytest
+
+from cnaas_nms.scheduler.scheduler import Scheduler
 from git import Repo
 
 
@@ -92,3 +94,13 @@ def wait_for_port(host: str, port: int, tries=10) -> bool:
         time.sleep(0.5)
     print(f"NO RESPONSE from {host}:{port}")
     return False
+
+
+@pytest.fixture(scope="session")
+def scheduler():
+    scheduler = Scheduler()
+    scheduler.start()
+    yield scheduler
+    time.sleep(3)
+    scheduler.get_scheduler().print_jobs()
+    scheduler.shutdown()

@@ -9,6 +9,7 @@ from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
 from cnaas_nms.tools.log import get_logger
 
@@ -241,7 +242,7 @@ def verify_peer_iftype(
     # Make sure interface with peers are configured in settings for CORE and DIST devices
     if remote_dev.device_type in [DeviceType.DIST, DeviceType.CORE]:
         match = False
-        for intf in remote_device_settings["interfaces"]:
+        for intf in expand_interface_settings(remote_device_settings["interfaces"]):
             if intf["name"] == remote_if:
                 match = True
         if not match:
@@ -250,7 +251,7 @@ def verify_peer_iftype(
             )
     if local_dev.device_type in [DeviceType.DIST, DeviceType.CORE]:
         match = False
-        for intf in local_device_settings["interfaces"]:
+        for intf in expand_interface_settings(local_device_settings["interfaces"]):
             if intf["name"] == local_if:
                 match = True
         if not match:
@@ -263,13 +264,13 @@ def verify_peer_iftype(
         DeviceType.DIST,
         DeviceType.CORE,
     ]:
-        for intf in local_device_settings["interfaces"]:
+        for intf in expand_interface_settings(local_device_settings["interfaces"]):
             if intf["name"] == local_if and intf["ifclass"] != "fabric":
                 raise InterfaceError(
                     "Local device interface is not configured as fabric: "
                     "{} {} ifclass: {}".format(local_dev.hostname, intf["name"], intf["ifclass"])
                 )
-        for intf in remote_device_settings["interfaces"]:
+        for intf in expand_interface_settings(remote_device_settings["interfaces"]):
             if intf["name"] == remote_if and intf["ifclass"] != "fabric":
                 raise InterfaceError(
                     "Peer device interface is not configured as fabric: "
@@ -279,7 +280,7 @@ def verify_peer_iftype(
     # Make sure that an access switch is connected to an interface
     # configured as "downlink" on the remote end
     if local_dev.device_type == DeviceType.ACCESS and remote_dev.device_type == DeviceType.DIST:
-        for intf in remote_device_settings["interfaces"]:
+        for intf in expand_interface_settings(remote_device_settings["interfaces"]):
             if intf["name"] == remote_if and intf["ifclass"] != "downlink":
                 raise InterfaceError(
                     "Peer device interface is not configured as downlink: "

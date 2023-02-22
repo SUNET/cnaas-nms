@@ -1,6 +1,15 @@
 Changelog
 =========
 
+Version 1.4.1
+-------------
+
+Bug fixes:
+
+ - Fixed interface range expansion logic for downlink ports during init
+ - Allow setting of untagged_vlan to null in interfaces API (#290)
+ - Fix duplicate generation of underlay BGP peers (#291)
+
 Version 1.4.0
 -------------
 

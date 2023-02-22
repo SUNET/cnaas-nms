@@ -81,8 +81,8 @@ class DeviceTests(unittest.TestCase):
             Linknet(device_a=device1, device_b=device2)
             device1 = session.query(Device).filter(Device.hostname == "test-device1").one()
             device2 = session.query(Device).filter(Device.hostname == "test-device2").one()
-            self.assertEqual([device2], device1.get_neighbors(session))
-            self.assertEqual([device1], device2.get_neighbors(session))
+            self.assertEqual(set([device2]), device1.get_neighbors(session))
+            self.assertEqual(set([device1]), device2.get_neighbors(session))
 
     def test_is_stack(self):
         with sqla_session() as session:

@@ -18,10 +18,10 @@ IPV6_REGEX = (
     r"[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|"  # 1::3:4:5:6:7:8   1::3:4:5:6:7:8  1::8
     r":((:[0-9a-fA-F]{1,4}){1,7}|:))"
 )
-FQDN_REGEX = r"([a-z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+"
+FQDN_REGEX = r"([a-zA-Z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+"
 HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{FQDN_REGEX})$"
-HOSTNAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
-DOMAIN_NAME_REGEX = r"^([a-z0-9-]{1,63})(\.[a-z0-9-]{1,63})+$"
+HOSTNAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
+DOMAIN_NAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-z0-9-]{1,63})+$"
 host_schema = Field(..., regex=HOST_REGEX, max_length=253, description="Hostname, FQDN or IP address")
 hostname_schema = Field(..., regex=HOSTNAME_REGEX, max_length=253, description="Hostname or FQDN")
 domain_name_schema = Field(None, regex=DOMAIN_NAME_REGEX, max_length=251, description="DNS domain name")

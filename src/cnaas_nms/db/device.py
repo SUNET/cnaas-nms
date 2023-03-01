@@ -112,11 +112,11 @@ class Device(cnaas_nms.db.base.Base):
             d[col.name] = value
         return d
 
-    def get_neighbors(self, session, linknets: Optional[List[dict]] = None) -> List[Device]:
+    def get_neighbors(self, session, linknets: Optional[List[dict]] = None) -> Set[Device]:
         """Look up neighbors from cnaas_nms.db.linknet.Linknets and return them as a list of Device objects."""
         if not linknets:
             linknets = self.get_linknets(session)
-        ret = []
+        ret: Set = set()
         for linknet in linknets:
             if isinstance(linknet, cnaas_nms.db.linknet.Linknet):
                 device_a_id = linknet.device_a_id
@@ -125,9 +125,9 @@ class Device(cnaas_nms.db.base.Base):
                 device_a_id = linknet["device_a_id"]
                 device_b_id = linknet["device_b_id"]
             if device_a_id == self.id:
-                ret.append(session.query(Device).filter(Device.id == device_b_id).one())
+                ret.add(session.query(Device).filter(Device.id == device_b_id).one())
             else:
-                ret.append(session.query(Device).filter(Device.id == device_a_id).one())
+                ret.add(session.query(Device).filter(Device.id == device_a_id).one())
         return ret
 
     def get_linknets(self, session) -> List[cnaas_nms.db.linknet.Linknet]:

@@ -31,5 +31,5 @@ SQLAlchemy==1.4.41
 sqlalchemy-stubs==0.4
 SQLAlchemy-Utils==0.38.3
 pydantic==1.10.2
-Werkzeug==2.1.2
+Werkzeug==2.2.3
 greenlet==1.1.3

@@ -58,7 +58,7 @@ tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port nu
 ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
 maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer")
 
-GROUP_NAME = r"^([a-zA-Z0-9_]{1,63}\.?)+$"
+GROUP_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
 group_priority_schema = Field(
     0, ge=0, le=100, description="Group priority 0-100, default 0, higher value means higher priority"

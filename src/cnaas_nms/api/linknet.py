@@ -1,4 +1,4 @@
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import IPv4Address, IPv4Network, IPv6Network
 from typing import Optional
 
 from flask import request
@@ -138,6 +138,13 @@ class LinknetsApi(Resource):
                 except Exception as e:
                     errors.append("Invalid ipv4_network: {}".format(e))
 
+        new_prefix_v6 = None
+        if json_data.get("ipv6_network"):
+            try:
+                new_prefix_v6 = IPv6Network(json_data["ipv6_network"])
+            except Exception as e:
+                errors.append("Invalid ipv6_network: {}".format(e))
+
         if errors:
             return empty_result(status="error", data=errors), 400
 
@@ -170,7 +177,8 @@ class LinknetsApi(Resource):
                     json_data["device_a_port"],
                     json_data["device_b"],
                     json_data["device_b_port"],
-                    new_prefix,
+                    ipv4_network=new_prefix,
+                    ipv6_network=new_prefix_v6,
                 )
                 session.add(new_linknet)
                 session.commit()

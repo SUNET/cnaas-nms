@@ -1,6 +1,7 @@
 import datetime
 import enum
 import ipaddress
+import itertools
 from typing import List, Optional
 
 from sqlalchemy import Column, ForeignKey, Integer, Unicode, UniqueConstraint
@@ -117,9 +118,10 @@ class Linknet(cnaas_nms.db.base.Base):
         hostname_b: str,
         interface_b: str,
         ipv4_network: Optional[ipaddress.IPv4Network] = None,
+        ipv6_network: Optional[ipaddress.IPv6Network] = None,
         strict_check: bool = True,
     ):
-        """Add a linknet between two devices. If ipv4_network is specified both
+        """Add a linknet between two devices. If ipv4_network/ipv6_network is specified both
         devices must be of type CORE or DIST."""
         dev_a: cnaas_nms.db.device.Device = (
             session.query(cnaas_nms.db.device.Device)
@@ -130,7 +132,7 @@ class Linknet(cnaas_nms.db.base.Base):
             raise ValueError(f"Hostname {hostname_a} not found in database")
         if (
             strict_check
-            and ipv4_network
+            and (ipv4_network or ipv6_network)
             and dev_a.device_type not in [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]
         ):
             raise ValueError(
@@ -146,7 +148,7 @@ class Linknet(cnaas_nms.db.base.Base):
             raise ValueError(f"Hostname {hostname_b} not found in database")
         if (
             strict_check
-            and ipv4_network
+            and (ipv4_network or ipv6_network)
             and dev_b.device_type not in [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]
         ):
             raise ValueError(
@@ -166,6 +168,13 @@ class Linknet(cnaas_nms.db.base.Base):
             new_linknet.device_a_ip = ip_a
             new_linknet.device_b_ip = ip_b
             new_linknet.ipv4_network = str(ipv4_network)
+        if ipv6_network:
+            if not isinstance(ipv6_network, ipaddress.IPv6Network):
+                raise ValueError("IPv6 Linknet must be an IPv6Network")
+            ip_a, ip_b = itertools.islice(ipv6_network.hosts(), 2)
+            new_linknet.device_a_ipv6 = str(ip_a)
+            new_linknet.device_b_ipv6 = str(ip_b)
+            new_linknet.ipv6_network = str(ipv6_network)
         if strict_check:
             dev_a.synchronized = False
             dev_b.synchronized = False

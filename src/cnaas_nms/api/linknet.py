@@ -1,4 +1,4 @@
-from ipaddress import IPv4Address, IPv4Network, IPv6Network
+from ipaddress import IPv4Address, IPv4Network, IPv6Network, IPv6Address
 from typing import Optional
 
 from flask import request
@@ -27,6 +27,7 @@ linknets_model = linknets_api.model(
         "device_a_port": fields.String(required=True),
         "device_b_port": fields.String(required=True),
         "ipv4_network": fields.String(required=False),
+        "ipv6_network": fields.String(required=False),
     },
 )
 
@@ -39,16 +40,22 @@ linknet_model = linknet_api.model(
         "device_a_port": fields.String(required=False),
         "device_b_port": fields.String(required=False),
         "ipv4_network": fields.String(required=False),
+        "ipv6_network": fields.String(required=False),
         "device_a_ip": fields.String(required=False),
+        "device_a_ipv6": fields.String(required=False),
         "device_b_ip": fields.String(required=False),
+        "device_b_ipv6": fields.String(required=False),
     },
 )
 
 
 class f_linknet(BaseModel):
     ipv4_network: Optional[str] = None
+    ipv6_network: Optional[str] = None
     device_a_ip: Optional[str] = None
+    device_a_ipv6: Optional[str] = None
     device_b_ip: Optional[str] = None
+    device_b_ipv6: Optional[str] = None
 
     @validator("device_a_ip", "device_b_ip")
     def device_ip_validator(cls, v, values, **kwargs):
@@ -71,6 +78,27 @@ class f_linknet(BaseModel):
 
         return v
 
+    @validator("device_a_ipv6", "device_b_ipv6")
+    def device_ipv6_validator(cls, v, values, **kwargs):
+        if not v:
+            return v
+        if not values["ipv6_network"]:
+            raise ValueError("ipv6_network must be set")
+        try:
+            addr = IPv6Address(v)
+            net = IPv6Network(values["ipv6_network"])
+        except Exception:  # noqa: S110
+            raise ValueError("Invalid device IP or ipv6_network")
+        else:
+            if addr not in net:
+                raise ValueError("device IP must be part of ipv6_network")
+            if "device_a_ipv6" in values and v == values["device_a_ipv6"]:
+                raise ValueError("device_a_ipv6 and device_b_ipv6 can not be the same")
+            if "device_b_ipv6" in values and v == values["device_b_ipv6"]:
+                raise ValueError("device_a_ipv6 and device_b_ipv6 can not be the same")
+
+        return v
+
     @validator("ipv4_network")
     def ipv4_network_validator(cls, v, values, **kwargs):
         if not v:
@@ -86,6 +114,20 @@ class f_linknet(BaseModel):
 
         return v
 
+    @validator("ipv6_network")
+    def ipv6_network_validator(cls, v, values, **kwargs):
+        if not v:
+            return v
+        try:
+            net = IPv6Network(v)
+            prefix_len = int(net.prefixlen)
+        except Exception:  # noqa: S110
+            raise ValueError("Invalid ipv6_network received. Must be IPv6 network address with mask")
+        else:
+            if prefix_len < 64:
+                raise ValueError("Bad prefix length {} for linknet IPv6 network".format(prefix_len))
+
+        return v
 
 class LinknetsApi(Resource):
     @staticmethod

@@ -7,38 +7,47 @@ linknet_redundant:
   - description: null
     device_a_hostname: eosaccess
     device_a_ip: null
+    device_a_ipv6: null
     device_a_id: null
     device_a_port: Ethernet2
     device_b_hostname: eosdist1
     device_b_id: null
     device_b_ip: null
+    device_b_ipv6: null
     device_b_port: Ethernet2
     ipv4_network: null
+    ipv6_network: null
     redundant_link: true
     site_id: null
   - description: null
     device_a_hostname: eosaccess
     device_a_ip: null
+    device_a_ipv6: null
     device_a_id: null
     device_a_port: Ethernet3
     device_b_hostname: eosdist2
     device_b_ip: null
+    device_b_ipv6: null
     device_b_id: null
     device_b_port: Ethernet2
     ipv4_network: null
+    ipv6_network: null
     redundant_link: true
     site_id: null
 linknet_nonredundant:
   - description: null
     device_a_hostname: eosaccess
     device_a_ip: null
+    device_a_ipv6: null
     device_a_id: null
     device_a_port: Ethernet2
     device_b_hostname: eosdist1
     device_b_ip: null
+    device_b_ipv6: null
     device_b_id: null
     device_b_port: Ethernet20
     ipv4_network: null
+    ipv6_network: null
     redundant_link: false
     site_id: null
 lldp_data_redundant:
@@ -62,25 +71,33 @@ mlag_dev_nonpeer: nonpeer
 linknets_mlag_peers:
 - description: null
   device_a_ip: null
+  device_a_ipv6: null
   device_a_port: Ethernet25
   device_b_ip: null
+  device_b_ipv6: null
   device_b_port: Ethernet51
   ipv4_network: null
+  ipv6_network: null
   redundant_link: true
   site_id: null
 - description: null
   device_a_ip: null
+  device_a_ipv6: null
   device_a_port: Ethernet26
   device_b_ip: null
+  device_b_ipv6: null
   device_b_port: Ethernet52
   ipv4_network: null
+  ipv6_network: null
   redundant_link: true
   site_id: null
 linknets_mlag_nonpeers:
   - description: null
     device_a_ip: null
+    device_a_ipv6: null
     device_a_port: Ethernet20
     device_b_ip: null
+    device_b_ipv6: null
     device_b_port: Ethernet20
     ipv4_network: null
     redundant_link: true

@@ -71,11 +71,29 @@ class Linknet(cnaas_nms.db.base.Base):
             return self.device_b_ip
         raise ValueError(f"The device_id {device_id} is not part of this linknet")
 
-    def get_ipif(self, device_id):
+    def get_ipv6(self, device_id):
         if device_id == self.device_a_id:
-            return f"{self.device_a_ip}/{ipaddress.IPv4Network(self.ipv4_network).prefixlen}"
+            return self.device_a_ipv6
         if device_id == self.device_b_id:
-            return f"{self.device_b_ip}/{ipaddress.IPv4Network(self.ipv4_network).prefixlen}"
+            return self.device_b_ipv6
+        raise ValueError(f"The device_id {device_id} is not part of this linknet")
+
+    def get_ipif(self, device_id):
+        prefixlen = ipaddress.IPv4Network(self.ipv4_network).prefixlen
+        if device_id == self.device_a_id:
+            return f"{self.device_a_ip}/{prefixlen}"
+        if device_id == self.device_b_id:
+            return f"{self.device_b_ip}/{prefixlen}"
+        raise ValueError(f"The device_id {device_id} is not part of this linknet")
+
+    def get_ipifv6(self, device_id):
+        if not self.ipv6_network:
+            return  # we treat ipv6 as optional (for now)
+        prefixlen = ipaddress.IPv6Network(self.ipv6_network).prefixlen
+        if device_id == self.device_a_id:
+            return f"{self.device_a_ip}/{prefixlen}"
+        if device_id == self.device_b_id:
+            return f"{self.device_b_ip}/{prefixlen}"
         raise ValueError(f"The device_id {device_id} is not part of this linknet")
 
     @staticmethod

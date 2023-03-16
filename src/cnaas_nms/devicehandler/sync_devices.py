@@ -228,15 +228,19 @@ def populate_device_vars(
                 for linknet in dev.get_links_to(session, neighbor_d):
                     local_if = linknet.get_port(dev.id)
                     local_ipif = linknet.get_ipif(dev.id)
+                    local_ipifv6 = linknet.get_ipifv6(dev.id)
                     neighbor_ip = linknet.get_ip(neighbor_d.id)
+                    neighbor_ipv6 = linknet.get_ipv6(neighbor_d.id)
                     if local_if:
                         fabric_interfaces[local_if] = {
                             "name": local_if,
                             "ifclass": "fabric",
                             "ipv4if": local_ipif,
+                            "ipv6if": local_ipifv6,
                             "peer_hostname": neighbor_d.hostname,
                             "peer_infra_lo": str(neighbor_d.infra_ip),
                             "peer_ip": str(neighbor_ip),
+                            "peer_ipv6": str(neighbor_ipv6),
                             "peer_asn": generate_asn(neighbor_d.infra_ip),
                         }
                         fabric_device_variables["bgp_ipv4_peers"].append(
@@ -291,9 +295,11 @@ def populate_device_vars(
                                 "ifclass": intf["ifclass"],
                                 "indexnum": ifindexnum,
                                 "ipv4if": None,
+                                "ipv6if": None,
                                 "peer_hostname": "ztp",
                                 "peer_infra_lo": None,
                                 "peer_ip": None,
+                                "peer_ipv6": None,
                                 "peer_asn": None,
                             }
                         )

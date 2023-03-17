@@ -80,6 +80,7 @@ class Device(cnaas_nms.db.base.Base):
     secondary_management_ip = Column(IPAddressType)
     dhcp_ip = Column(IPAddressType)
     infra_ip = Column(IPAddressType)
+    infra_ipv6 = Column(IPAddressType)
     oob_ip = Column(IPAddressType)
     serial = Column(String(64))
     ztp_mac = Column(String(12))

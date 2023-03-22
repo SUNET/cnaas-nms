@@ -1,5 +1,6 @@
 import datetime
 from ipaddress import IPv4Address, IPv4Interface
+from pathlib import Path
 from typing import List, Optional
 
 import netaddr
@@ -147,3 +148,5 @@ def get_all_mgmtdomains(session, hostname: str) -> List[Mgmtdomain]:
 def json_dumper(obj):
     if isinstance(obj, datetime.datetime):
         return obj.isoformat()
+    if isinstance(obj, Path):
+        return str(obj)

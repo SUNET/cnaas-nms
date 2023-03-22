@@ -116,9 +116,10 @@ networks:
     name: cnaas
     ipam:
       config:
-      - subnet: 172.30.0.0/24
+        - subnet: 172.30.0.0/24
     driver_opts:
       com.docker.network.bridge.name: br-cnaas
+      com.docker.network.bridge.host_binding_ipv4: "172.30.0.1"
 
 volumes:
   cnaas-templates:

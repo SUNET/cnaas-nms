@@ -73,6 +73,7 @@ device_model = device_api.model(
         "description": fields.String(required=False),
         "management_ip": fields.String(required=False),
         "infra_ip": fields.String(required=False),
+        "infra_ipv6": fields.String(required=False),
         "dhcp_ip": fields.String(required=False),
         "serial": fields.String(required=False),
         "ztp_mac": fields.String(required=False),

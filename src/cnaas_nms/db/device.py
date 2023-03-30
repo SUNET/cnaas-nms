@@ -390,6 +390,18 @@ class Device(cnaas_nms.db.base.Base):
                 else:
                     data[ip_field] = None
 
+        for ipv6_field in ("infra_ipv6",):
+            if ipv6_field in kwargs:
+                if kwargs[ipv6_field]:
+                    try:
+                        addr = ipaddress.IPv6Address(kwargs[ipv6_field])
+                    except Exception:
+                        errors.append("Invalid {} received. Must be a valid IPv6 address.".format(ipv6_field))
+                    else:
+                        data[ipv6_field] = addr
+                else:
+                    data[ipv6_field] = None
+
         if "serial" in kwargs:
             try:
                 serial = str(kwargs["serial"]).upper()

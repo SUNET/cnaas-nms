@@ -77,6 +77,7 @@ class Device(cnaas_nms.db.base.Base):
     site = relationship("Site")
     description = Column(Unicode(255))
     management_ip = Column(IPAddressType)
+    secondary_management_ip = Column(IPAddressType)
     dhcp_ip = Column(IPAddressType)
     infra_ip = Column(IPAddressType)
     oob_ip = Column(IPAddressType)
@@ -105,7 +106,7 @@ class Device(cnaas_nms.db.base.Base):
                 value = value.name
             elif issubclass(value.__class__, cnaas_nms.db.base.Base):
                 continue
-            elif issubclass(value.__class__, ipaddress.IPv4Address):
+            elif issubclass(value.__class__, ipaddress._BaseAddress):
                 value = str(value)
             elif issubclass(value.__class__, datetime.datetime):
                 value = str(value)
@@ -376,38 +377,17 @@ class Device(cnaas_nms.db.base.Base):
         if "description" in kwargs:
             data["description"] = kwargs["description"]
 
-        if "management_ip" in kwargs:
-            if kwargs["management_ip"]:
-                try:
-                    addr = ipaddress.IPv4Address(kwargs["management_ip"])
-                except Exception:
-                    errors.append("Invalid management_ip received. Must be correct IPv4 address.")
+        for ip_field in ("management_ip", "secondary_management_ip", "infra_ip", "dhcp_ip"):
+            if ip_field in kwargs:
+                if kwargs[ip_field]:
+                    try:
+                        addr = ipaddress.ip_address(kwargs[ip_field])
+                    except Exception:
+                        errors.append("Invalid {} received. Must be a valid IP address.".format(ip_field))
+                    else:
+                        data[ip_field] = addr
                 else:
-                    data["management_ip"] = addr
-            else:
-                data["management_ip"] = None
-
-        if "infra_ip" in kwargs:
-            if kwargs["infra_ip"]:
-                try:
-                    addr = ipaddress.IPv4Address(kwargs["infra_ip"])
-                except Exception:
-                    errors.append("Invalid infra_ip received. Must be correct IPv4 address.")
-                else:
-                    data["infra_ip"] = addr
-            else:
-                data["infra_ip"] = None
-
-        if "dhcp_ip" in kwargs:
-            if kwargs["dhcp_ip"]:
-                try:
-                    addr = ipaddress.IPv4Address(kwargs["dhcp_ip"])
-                except Exception:
-                    errors.append("Invalid dhcp_ip received. Must be correct IPv4 address.")
-                else:
-                    data["dhcp_ip"] = addr
-            else:
-                data["dhcp_ip"] = None
+                    data[ip_field] = None
 
         if "serial" in kwargs:
             try:

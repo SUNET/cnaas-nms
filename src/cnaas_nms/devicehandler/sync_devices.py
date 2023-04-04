@@ -2,7 +2,7 @@ import datetime
 import os
 import time
 from hashlib import sha256
-from ipaddress import IPv4Address, IPv4Interface
+from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import List, Optional, Tuple
 
 import yaml
@@ -156,15 +156,29 @@ def populate_device_vars(
                     "Could not find appropriate management domain for management_ip: {}".format(dev.management_ip)
                 )
 
-            mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
+            mgmt_gw_ipif = ip_interface(mgmtdomain.primary_gw)
             access_device_variables = {
                 "mgmt_vlan_id": mgmtdomain.vlan,
                 "mgmt_gw": str(mgmt_gw_ipif.ip),
-                "mgmt_ipif": str(IPv4Interface("{}/{}".format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
+                "mgmt_ipif": str(ip_interface("{}/{}".format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
                 "mgmt_ip": str(mgmt_ip),
                 "mgmt_prefixlen": int(mgmt_gw_ipif.network.prefixlen),
                 "interfaces": [],
             }
+            if dev.secondary_management_ip:
+                secondary_mgmt_gw_ipif = ip_interface(mgmtdomain.secondary_gw)
+                access_device_variables.update(
+                    {
+                        "secondary_mgmt_ipif": str(
+                            ip_interface(
+                                "{}/{}".format(dev.secondary_management_ip, secondary_mgmt_gw_ipif.network.prefixlen)
+                            )
+                        ),
+                        "secondary_mgmt_ip": dev.secondary_management_ip,
+                        "secondary_mgmt_prefixlen": int(secondary_mgmt_gw_ipif.network.prefixlen),
+                        "secondary_mgmt_gw": secondary_mgmt_gw_ipif.ip,
+                    }
+                )
 
         # Check peer names for populating description on ACCESS_DOWNLINK ports
         ifname_peer_map = dev.get_linknet_localif_mapping(session)

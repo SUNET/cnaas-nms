@@ -307,7 +307,7 @@ def verify_peer_iftype(
             raise InterfaceError(
                 "Peer device interface not configured as ACCESS_DOWNLINK: {} {}".format(remote_dev.hostname, remote_if)
             )
-        if "redundant_link" in remote_intf.data and not remote_intf.data["redundant_link"]:
+        if remote_intf.data and "redundant_link" in remote_intf.data and not remote_intf.data["redundant_link"]:
             return False
 
     return True

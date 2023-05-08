@@ -161,6 +161,9 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         local_repo = Repo(local_repo_path)
         # If repo url has changed
         current_repo_url = next(local_repo.remotes.origin.urls)
+        # Reset head if it's detached
+        if local_repo.head.is_detached:
+            reset_repo(local_repo, remote_repo_path)
         if current_repo_url != url or (branch and local_repo.head.ref.name != branch):
             logger.info(
                 "Repo URL for {} has changed from {}#{} to {}#{}".format(
@@ -173,9 +176,6 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
             )
             shutil.rmtree(local_repo_path)
             raise NoSuchPathError
-        # Reset head if it's detached
-        if local_repo.head.is_detached:
-            reset_repo(local_repo, remote_repo_path)
         prev_commit = local_repo.commit().hexsha
         diff = local_repo.remotes.origin.pull()
         for item in diff:

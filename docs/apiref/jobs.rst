@@ -107,6 +107,18 @@ It's also possible to query a single job by job ID:
    curl http://hostname/api/v1.0/job/5
 
 
+Abort scheduled job
+-------------------
+
+To abort a scheduled job send a request like this:
+
+::
+
+   curl http://hostname/api/v1.0/job/5 -X PUT -d '{"action": "ABORT"}' -H "Content-Type: application/json"
+
+You can also send the request to a running job, but currently only firmware
+upgrade will listen for aborts while running and devices that already passed
+the check will continue with their upgrades.
 
 Locks
 -----

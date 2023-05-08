@@ -161,21 +161,30 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         local_repo = Repo(local_repo_path)
         # If repo url has changed
         current_repo_url = next(local_repo.remotes.origin.urls)
-        if current_repo_url != url or (branch and local_repo.head.ref.name != branch):
+        # Reset head if it's detached
+        reset_head_failed = False
+        if local_repo.head.is_detached:
+            try:
+                reset_repo(local_repo, remote_repo_path)
+            except Exception:
+                logger.exception("Git repo had detached head and repo reset failed: {}".format(remote_repo_path))
+                reset_head_failed = True
+        if reset_head_failed or current_repo_url != url or (branch and local_repo.head.ref.name != branch):
+            if reset_head_failed:
+                current_branch = "detached"  # unable to get head.ref.name if head was detached
+            else:
+                current_branch = local_repo.head.ref.name
             logger.info(
-                "Repo URL for {} has changed from {}#{} to {}#{}".format(
+                "Repo URL for {} has changed from {}#{} to {}#{}, hard reset repo clone".format(
                     repo_type.name,
                     current_repo_url,
-                    local_repo.head.ref.name,
+                    current_branch,
                     url,
                     branch,
                 )
             )
             shutil.rmtree(local_repo_path)
             raise NoSuchPathError
-        # Reset head if it's detached
-        if local_repo.head.is_detached:
-            reset_repo(local_repo, remote_repo_path)
         prev_commit = local_repo.commit().hexsha
         diff = local_repo.remotes.origin.pull()
         for item in diff:

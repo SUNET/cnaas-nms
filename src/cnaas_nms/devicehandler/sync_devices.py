@@ -664,7 +664,7 @@ def update_config_hash(task):
             logger.debug("Config hash for {} updated to {}".format(task.host.name, new_config_hash))
 
 
-def confcheck_devices(hostnames: List[str], job_id=None):
+def confcheck_devices(session, hostnames: List[str], job_id=None):
     nr = cnaas_init()
     nr_filtered, dev_count, skipped_hostnames = inventory_selector(nr, hostname=hostnames)
 
@@ -674,6 +674,9 @@ def confcheck_devices(hostnames: List[str], job_id=None):
         raise e
     else:
         if nrresult.failed:
+            for hostname in nrresult.failed_hosts.keys():
+                dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+                dev.synchronized = False
             raise Exception("Configuration hash check failed for {}".format(" ".join(nrresult.failed_hosts.keys())))
 
 

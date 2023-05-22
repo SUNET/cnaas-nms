@@ -657,7 +657,7 @@ def check_neighbor_sync(session, hostnames: List[str]):
             raise DeviceStateError("Neighbor device {} not in state MANAGED".format(hostname))
         if not dev.synchronized:
             raise DeviceSyncError("Neighbor device {} not synchronized".format(hostname))
-    confcheck_devices(hostnames)
+    confcheck_devices(session, hostnames)
 
 
 @job_wrapper

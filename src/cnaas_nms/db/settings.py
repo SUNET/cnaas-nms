@@ -556,9 +556,17 @@ def get_settings(
         settings_origin[k] = "default"
 
     # 2. Get settings repo global settings
-    settings, settings_origin = read_settings(
-        local_repo_path, ["global", "base_system.yml"], "global->base_system.yml", settings, settings_origin
-    )
+    if hostname:
+        # Some settings parsing require knowledge of group memberships
+        groups = get_groups(hostname)
+        settings, settings_origin = read_settings(
+            local_repo_path, ["global", "base_system.yml"], "global->base_system.yml", settings, settings_origin, groups
+        )
+    else:
+        settings, settings_origin = read_settings(
+            local_repo_path, ["global", "base_system.yml"], "global->base_system.yml", settings, settings_origin
+        )
+
     # 3. Get settings from special fabric classification (dist + core)
     if device_type and (device_type == DeviceType.DIST or device_type == DeviceType.CORE):
         settings, settings_origin = read_settings(
@@ -576,8 +584,6 @@ def get_settings(
             settings_origin,
         )
     if hostname:
-        # Some settings parsing require knowledge of group memberships
-        groups = get_groups(hostname)
         settings, settings_origin = read_settings(
             local_repo_path, ["global", "routing.yml"], "global->routing.yml", settings, settings_origin, groups
         )

@@ -296,6 +296,19 @@ class f_underlay(BaseModel):
     bgp_asn: Optional[as_num_type] = as_num_schema
 
 
+class f_user(BaseModel):
+    username: str
+    ssh_key: Optional[str] = None
+    uid: Optional[int] = None
+    password_hash_arista: Optional[str] = None
+    password_hash_cisco: Optional[str] = None
+    password_hash_juniper: Optional[str] = None
+    permission_arista: Optional[str] = None
+    permission_cisco: Optional[str] = None
+    permission_juniper: Optional[str] = None
+    groups: List[str] = []
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -318,6 +331,9 @@ class f_root(BaseModel):
     cli_append_str: str = ""
     organization_name: str = ""
     domain_name: Optional[str] = domain_name_schema
+    users: List[f_user] = []
+    dot1x_multi_host: bool = False
+    poe_reboot_maintain: bool = False
 
 
 class f_group_item(BaseModel):

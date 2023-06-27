@@ -367,14 +367,55 @@ base_system.yml:
 
 Contains base system settings like:
 
-- ntp_servers
-- snmp_servers
-- dns_servers
-- syslog_servers
-- flow_collectors
-- dhcp_relays
-- internal_vlans
+- ntp_servers: List of
+
+  * host: IP address or hostname of NTP server
+
+- snmp_servers: List of
+
+  * host: IP address or hostname of SNMP trap target
+  * port: Port number. Optional
+
+- dns_servers: List of
+
+  * host: IP address to DNS server
+
+- syslog_servers: List of
+
+  * host: IP address or hostname to syslog server
+  * port: Port number. Optional
+
+- flow_collectors: List of
+
+  * host: IP address or hostname to flow collector
+  * port: Port number. Optional
+
+- dhcp_relays: List of
+
+  * host: IP address or hostname to DHCP relay
+
+- users: List of
+
+  * username: Username string
+  * ssh_key: SSH public key string. Optional
+  * uid: UserID number. Optional
+  * password_hash_arista: Hashed password string for Arista devices. Optional
+  * password_hash_cisco: Hashed password string for Cisco devices. Optional
+  * password_hash_juniper: Hashed password string for Juniper devices. Optional
+  * permission_arista: String to specify user access level for Arista, ex "privilege 15 role network-admin". Optional
+  * permission_cisco: String to specify user access level for Cisco, ex "privilege 15". Optional
+  * permission_juniper: String to specify user access level for Juniper, ex "superuser". Optional
+  * groups: A list of device groups that this user should be provisioned on
+
+- internal_vlans:
+
+  * vlan_low: Low end of internal VLAN range
+  * vlan_high: High end of internal VLAN range
+  * allocation_order: Allocation order, default "ascending"
+
 - dot1x_fail_vlan: Numeric ID of authentication fail VLAN
+- dot1x_multi_host: Allow multiple clients behind a dot1x authenticated port. Default false
+- poe_reboot_maintain: Maintain POE supply during reboot of the switch. Default false
 - organization_name: Free format string describing organization name
 - domain_name: DNS domain (suffix)
 
@@ -405,9 +446,6 @@ Example of base_system.yml:
      vlan_id_high: 4094
    dot1x_fail_vlan: 13
 
-
-syslog_servers and radius_severs can optionally have the key "port" specified
-to indicate a non-defalut layer4 (TCP/UDP) port number.
 
 internal_vlans can optionally be specified if you want to manually define
 the range of internal VLANs on L3 switches. You can also specify the option

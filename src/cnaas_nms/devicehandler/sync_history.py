@@ -4,8 +4,10 @@ from dataclasses import asdict, dataclass
 from typing import Dict, List, Optional
 
 from cnaas_nms.db.session import redis_session
+from cnaas_nms.tools.log import get_logger
 
 REDIS_SYNC_HISTORY_KEYNAME = "sync_history"
+logger = get_logger()
 
 
 @dataclass(frozen=True)
@@ -36,14 +38,18 @@ def add_sync_event(hostname: str, cause: str, by: str, job_id: Optional[int] = N
         if not redis.exists(REDIS_SYNC_HISTORY_KEYNAME):
             new_history = SyncHistory(history={hostname: [sync_event]})
             redis.hset(REDIS_SYNC_HISTORY_KEYNAME, mapping=new_history.redis_dump())
+            logger.debug("New sync_history hash created in redis")
         else:
-            sync_history = SyncHistory(history={})
-            sync_history.redis_load(redis.hgetall(REDIS_SYNC_HISTORY_KEYNAME))
-            if hostname in sync_history.history.keys():
-                sync_history.history[hostname].append(sync_event)
+            current_sync_event_data = redis.hget(REDIS_SYNC_HISTORY_KEYNAME, hostname)
+            current_sync_events: List[SyncEvent] = []
+            if current_sync_event_data:
+                current_sync_events = [SyncEvent(**e) for e in json.loads(current_sync_event_data)]
+                current_sync_events.append(sync_event)
             else:
-                sync_history.history[hostname] = [sync_event]
-            redis.hset(REDIS_SYNC_HISTORY_KEYNAME, mapping=sync_history.redis_dump())
+                current_sync_events = [sync_event]
+            redis.hset(
+                REDIS_SYNC_HISTORY_KEYNAME, key=hostname, value=json.dumps([asdict(e) for e in current_sync_events])
+            )
 
 
 def get_sync_events(hostnames: List[str]) -> SyncHistory:
@@ -56,3 +62,8 @@ def get_sync_events(hostnames: List[str]) -> SyncHistory:
             ret.history[hostname] = events
 
     return ret
+
+
+def remove_sync_events(hostname: str):
+    with redis_session() as redis:
+        redis.hdel(REDIS_SYNC_HISTORY_KEYNAME, hostname)

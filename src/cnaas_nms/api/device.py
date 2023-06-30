@@ -30,6 +30,7 @@ from cnaas_nms.db.settings import (
 )
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
+from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_jwt_identity, jwt_required
@@ -238,6 +239,7 @@ class DeviceByIdApi(Resource):
             try:
                 for nei in dev.get_neighbors(session):
                     nei.synchronized = False
+                    add_sync_event(nei.hostname, "neighbor_deleted", get_jwt_identity())
             except Exception as e:
                 logger.warning("Could not mark neighbor as unsync after deleting {}: {}".format(dev.hostname, e))
             try:

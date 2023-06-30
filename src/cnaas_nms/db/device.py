@@ -16,6 +16,7 @@ import cnaas_nms.db.linknet
 import cnaas_nms.db.site
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.tools.event import add_event
 
 
@@ -309,7 +310,9 @@ class Device(cnaas_nms.db.base.Base):
         return all(hostname_part_re.match(x) for x in hostname.split("."))
 
     @classmethod
-    def set_devtype_syncstatus(cls, session, devtype: DeviceType, platform: Optional[str] = None, syncstatus=False):
+    def set_devtype_syncstatus(
+        cls, session, devtype: DeviceType, by: str, platform: Optional[str] = None, job_id: Optional[int] = None
+    ):
         """Update sync status of devices of type devtype"""
         dev: Device
         if platform:
@@ -319,7 +322,8 @@ class Device(cnaas_nms.db.base.Base):
         else:
             dev_query = session.query(Device).filter(Device.device_type == devtype).all()
         for dev in dev_query:
-            dev.synchronized = syncstatus
+            dev.synchronized = False
+            add_sync_event(dev.hostname, "refresh_templates", by, job_id)
 
     @classmethod
     def device_create(cls, **kwargs) -> Device:

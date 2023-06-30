@@ -10,6 +10,7 @@ from sqlalchemy_utils import IPAddressType
 import cnaas_nms.db.base
 import cnaas_nms.db.device
 import cnaas_nms.db.site
+from cnaas_nms.devicehandler.sync_history import add_sync_event
 
 
 class Linknet(cnaas_nms.db.base.Base):
@@ -165,5 +166,7 @@ class Linknet(cnaas_nms.db.base.Base):
             new_linknet.ipv4_network = str(ipv4_network)
         if strict_check:
             dev_a.synchronized = False
+            add_sync_event(dev_a.hostname, "linknet_created")
             dev_b.synchronized = False
+            add_sync_event(dev_b.hostname, "linknet_created")
         return new_linknet

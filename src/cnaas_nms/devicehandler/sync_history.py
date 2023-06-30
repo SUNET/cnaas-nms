@@ -3,6 +3,8 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Dict, List, Optional
 
+from redis.exceptions import RedisError
+
 from cnaas_nms.db.session import redis_session
 from cnaas_nms.tools.log import get_logger
 
@@ -32,24 +34,31 @@ class SyncHistory:
         self.history = {k: [SyncEvent(**e) for e in json.loads(v)] for (k, v) in redis_dict.items()}
 
 
-def add_sync_event(hostname: str, cause: str, by: str, job_id: Optional[int] = None):
-    sync_event = SyncEvent(cause, time.time(), by, job_id)
-    with redis_session() as redis:
-        if not redis.exists(REDIS_SYNC_HISTORY_KEYNAME):
-            new_history = SyncHistory(history={hostname: [sync_event]})
-            redis.hset(REDIS_SYNC_HISTORY_KEYNAME, mapping=new_history.redis_dump())
-            logger.debug("New sync_history hash created in redis")
-        else:
-            current_sync_event_data = redis.hget(REDIS_SYNC_HISTORY_KEYNAME, hostname)
-            current_sync_events: List[SyncEvent] = []
-            if current_sync_event_data:
-                current_sync_events = [SyncEvent(**e) for e in json.loads(current_sync_event_data)]
-                current_sync_events.append(sync_event)
+def add_sync_event(hostname: str, cause: str, by: Optional[str] = None, job_id: Optional[int] = None):
+    try:
+        if not by:
+            by = "unknown"
+        sync_event = SyncEvent(cause, time.time(), by, job_id)
+        with redis_session() as redis:
+            if not redis.exists(REDIS_SYNC_HISTORY_KEYNAME):
+                new_history = SyncHistory(history={hostname: [sync_event]})
+                redis.hset(REDIS_SYNC_HISTORY_KEYNAME, mapping=new_history.redis_dump())
+                logger.debug("New sync_history hash created in redis")
             else:
-                current_sync_events = [sync_event]
-            redis.hset(
-                REDIS_SYNC_HISTORY_KEYNAME, key=hostname, value=json.dumps([asdict(e) for e in current_sync_events])
-            )
+                current_sync_event_data = redis.hget(REDIS_SYNC_HISTORY_KEYNAME, hostname)
+                current_sync_events: List[SyncEvent] = []
+                if current_sync_event_data:
+                    current_sync_events = [SyncEvent(**e) for e in json.loads(current_sync_event_data)]
+                    current_sync_events.append(sync_event)
+                else:
+                    current_sync_events = [sync_event]
+                redis.hset(
+                    REDIS_SYNC_HISTORY_KEYNAME, key=hostname, value=json.dumps([asdict(e) for e in current_sync_events])
+                )
+    except RedisError as e:
+        logger.exception(f"Redis Error while adding sync event (not critical): {e}")
+    except Exception as e:
+        logger.exception(f"Exception while adding sync event (not critical): {e}")
 
 
 def get_sync_events(hostnames: List[str]) -> SyncHistory:

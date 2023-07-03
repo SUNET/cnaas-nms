@@ -189,6 +189,9 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
         prev_commit = local_repo.commit().hexsha
         diff = local_repo.remotes.origin.pull()
         for item in diff:
+            if item.ref.remote_head != local_repo.head.ref.name:
+                continue
+
             ret += "Commit {} by {} at {}\n".format(
                 item.commit.name_rev, item.commit.committer, item.commit.committed_datetime
             )

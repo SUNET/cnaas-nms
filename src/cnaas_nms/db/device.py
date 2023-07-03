@@ -311,7 +311,13 @@ class Device(cnaas_nms.db.base.Base):
 
     @classmethod
     def set_devtype_syncstatus(
-        cls, session, devtype: DeviceType, by: str, platform: Optional[str] = None, job_id: Optional[int] = None
+        cls,
+        session,
+        devtype: DeviceType,
+        by: str,
+        repo_type: str,
+        platform: Optional[str] = None,
+        job_id: Optional[int] = None,
     ):
         """Update sync status of devices of type devtype"""
         dev: Device
@@ -323,7 +329,7 @@ class Device(cnaas_nms.db.base.Base):
             dev_query = session.query(Device).filter(Device.device_type == devtype).all()
         for dev in dev_query:
             dev.synchronized = False
-            add_sync_event(dev.hostname, "refresh_templates", by, job_id)
+            add_sync_event(dev.hostname, f"refresh_{repo_type}", by, job_id)
 
     @classmethod
     def device_create(cls, **kwargs) -> Device:

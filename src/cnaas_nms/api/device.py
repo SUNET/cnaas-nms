@@ -30,7 +30,7 @@ from cnaas_nms.db.settings import (
 )
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
-from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.devicehandler.sync_history import SyncHistory, add_sync_event, get_sync_events
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_jwt_identity, jwt_required
@@ -63,6 +63,9 @@ device_update_interfaces_api = Namespace(
 )
 device_cert_api = Namespace(
     "device_cert", description="API to handle device certificates", prefix="/api/{}".format(__api_version__)
+)
+device_synchistory_api = Namespace(
+    "device_synchistory", description="API to query sync history for devices", prefix="/api/{}".format(__api_version__)
 )
 
 
@@ -1090,6 +1093,25 @@ class DeviceStackmembersApi(Resource):
         return return_errors
 
 
+class DeviceSyncHistoryApi(Resource):
+    @jwt_required
+    @device_synchistory_api.param("hostname")
+    def get(self):
+        args = request.args
+        result = empty_result()
+        result["data"] = {"hostnames": {}}
+
+        if "hostname" in args:
+            if not Device.valid_hostname(args["hostname"]):
+                return empty_result(status="error", data="Invalid hostname specified"), 400
+            sync_history: SyncHistory = get_sync_events([args["hostname"]])
+        else:
+            sync_history: SyncHistory = get_sync_events()
+
+        result["data"]["hostnames"] = sync_history.asdict()
+        return result
+
+
 # Devices
 device_api.add_resource(DeviceByIdApi, "/<int:device_id>")
 device_api.add_resource(DeviceByHostnameApi, "/<string:hostname>")
@@ -1106,4 +1128,5 @@ device_update_facts_api.add_resource(DeviceUpdateFactsApi, "")
 device_update_interfaces_api.add_resource(DeviceUpdateInterfacesApi, "")
 device_cert_api.add_resource(DeviceCertApi, "")
 device_api.add_resource(DeviceStackmembersApi, "/<string:hostname>/stackmember")
+device_synchistory_api.add_resource(DeviceSyncHistoryApi, "")
 # device/<string:hostname>/current_config

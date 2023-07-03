@@ -218,6 +218,14 @@ class DeviceTests(unittest.TestCase):
         result = self.client.put(f"/api/v1.0/device/{self.hostname}/stackmember", json=stackmember_data)
         self.assertEqual(result.status_code, 400)
 
+    def test_get_synchistory(self):
+        result = self.client.get("/api/v1.0/device_synchistory", query_string={"hostname": "eosaccess"})
+        self.assertEqual(result.status_code, 200, "Get synchistory for single device failed")
+        self.assertTrue("data" in result.json)
+        result = self.client.get("/api/v1.0/device_synchistory")
+        self.assertEqual(result.status_code, 200, "Get synchistory for all devices failed")
+        self.assertTrue("data" in result.json)
+
 
 if __name__ == "__main__":
     unittest.main()

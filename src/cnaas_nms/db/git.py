@@ -240,7 +240,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
         with sqla_session() as session:
             devtype: DeviceType
             for devtype in updated_devtypes:
-                Device.set_devtype_syncstatus(session, devtype, ret, job_id=job_id)
+                Device.set_devtype_syncstatus(session, devtype, ret, "settings", job_id=job_id)
             for hostname in updated_hostnames:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if dev:
@@ -257,7 +257,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
         with sqla_session() as session:
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
-                Device.set_devtype_syncstatus(session, devtype, ret, platform, job_id)
+                Device.set_devtype_syncstatus(session, devtype, ret, "templates", platform, job_id)
 
     return ret
 

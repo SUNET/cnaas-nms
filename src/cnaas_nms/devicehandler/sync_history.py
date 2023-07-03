@@ -26,6 +26,9 @@ class SyncHistory:
 
     history: Dict[str, List[SyncEvent]]
 
+    def asdict(self) -> Dict[str, List]:
+        return {k: [asdict(e) for e in v] for (k, v) in self.history.items()}
+
     def redis_dump(self) -> Dict[str, str]:
         # redis doesn't support nested datatypes, so save inner list as string of json instead
         return {k: json.dumps([asdict(e) for e in v]) for (k, v) in self.history.items()}
@@ -61,14 +64,17 @@ def add_sync_event(hostname: str, cause: str, by: Optional[str] = None, job_id: 
         logger.exception(f"Exception while adding sync event (not critical): {e}")
 
 
-def get_sync_events(hostnames: List[str]) -> SyncHistory:
+def get_sync_events(hostnames: Optional[List[str]] = None) -> SyncHistory:
     ret = SyncHistory(history={})
     sync_history = SyncHistory(history={})
     with redis_session() as redis:
         sync_history.redis_load(redis.hgetall(REDIS_SYNC_HISTORY_KEYNAME))
-    for hostname, events in sync_history.history.items():
-        if hostname in hostnames:
-            ret.history[hostname] = events
+    if hostnames:
+        for hostname, events in sync_history.history.items():
+            if hostname in hostnames:
+                ret.history[hostname] = events
+    else:
+        ret = sync_history
 
     return ret
 

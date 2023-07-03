@@ -17,6 +17,7 @@ from cnaas_nms.api.device import (
     device_discover_api,
     device_init_api,
     device_initcheck_api,
+    device_synchistory_api,
     device_syncto_api,
     device_update_facts_api,
     device_update_interfaces_api,
@@ -114,6 +115,7 @@ api.add_namespace(device_discover_api)
 api.add_namespace(device_update_facts_api)
 api.add_namespace(device_update_interfaces_api)
 api.add_namespace(device_cert_api)
+api.add_namespace(device_synchistory_api)
 api.add_namespace(linknets_api)
 api.add_namespace(linknet_api)
 api.add_namespace(firmware_api)

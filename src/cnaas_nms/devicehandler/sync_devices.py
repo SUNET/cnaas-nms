@@ -911,8 +911,9 @@ def sync_devices(
         for hostname in changed_hosts:
             if dry_run:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-                dev.synchronized = False
-                add_sync_event(hostname, "syncto_dryrun", scheduled_by, job_id)
+                if dev.synchronized:
+                    dev.synchronized = False
+                    add_sync_event(hostname, "syncto_dryrun", scheduled_by, job_id)
                 dev.last_seen = datetime.datetime.utcnow()
             # if next job will commit, that job will mark synchronized on success
             elif get_confirm_mode(confirm_mode_override) != 2:

@@ -3,6 +3,7 @@ import time
 from dataclasses import asdict, dataclass
 from typing import Dict, List, Optional
 
+from pydantic import BaseModel, Field
 from redis.exceptions import RedisError
 
 from cnaas_nms.db.session import redis_session
@@ -12,10 +13,17 @@ REDIS_SYNC_HISTORY_KEYNAME = "sync_history"
 logger = get_logger()
 
 
+class NewSyncEventModel(BaseModel):
+    hostname: str
+    cause: str
+    timestamp: Optional[float] = Field(default_factory=time.time)
+    by: str
+
+
 @dataclass(frozen=True)
 class SyncEvent:
     cause: str
-    time: float
+    timestamp: float
     by: str
     job_id: Optional[int]
 
@@ -37,11 +45,15 @@ class SyncHistory:
         self.history = {k: [SyncEvent(**e) for e in json.loads(v)] for (k, v) in redis_dict.items()}
 
 
-def add_sync_event(hostname: str, cause: str, by: Optional[str] = None, job_id: Optional[int] = None):
+def add_sync_event(
+    hostname: str, cause: str, timestamp: Optional[float] = None, by: Optional[str] = None, job_id: Optional[int] = None
+):
     try:
         if not by:
             by = "unknown"
-        sync_event = SyncEvent(cause, time.time(), by, job_id)
+        if not timestamp:
+            timestamp = time.time()
+        sync_event = SyncEvent(cause, timestamp, by, job_id)
         with redis_session() as redis:
             if not redis.exists(REDIS_SYNC_HISTORY_KEYNAME):
                 new_history = SyncHistory(history={hostname: [sync_event]})

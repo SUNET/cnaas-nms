@@ -13,7 +13,7 @@ import cnaas_nms.devicehandler.init_device
 import cnaas_nms.devicehandler.sync_devices
 import cnaas_nms.devicehandler.underlay
 import cnaas_nms.devicehandler.update
-from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
+from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers, parse_pydantic_error
 from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -30,7 +30,13 @@ from cnaas_nms.db.settings import (
 )
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
-from cnaas_nms.devicehandler.sync_history import SyncHistory, add_sync_event, get_sync_events
+from cnaas_nms.devicehandler.sync_history import (
+    NewSyncEventModel,
+    SyncHistory,
+    add_sync_event,
+    get_sync_events,
+    remove_sync_events,
+)
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_jwt_identity, jwt_required
@@ -188,6 +194,16 @@ delete_device_model = device_api.model(
     },
 )
 
+synchistory_event_model = device_synchistory_api.model(
+    "add_event",
+    {
+        "hostname": fields.String(required=True),
+        "cause": fields.String(required=True),
+        "time": fields.Float(required=False),
+        "by": fields.String(required=True),
+    },
+)
+
 
 def device_data_postprocess(device_list: List[Device]) -> List[dict]:
     device_primary_group = get_device_primary_groups()
@@ -287,6 +303,8 @@ class DeviceByIdApi(Resource):
                     logger.error(msg)
                     session.rollback()
                     return empty_result(status="error", data=msg), 500
+            if "synchronized" in json_data and json_data["synchronized"]:
+                remove_sync_events(dev.hostname)
             session.commit()
             update_device_primary_groups()
             dev_dict = device_data_postprocess([dev])[0]
@@ -1110,6 +1128,19 @@ class DeviceSyncHistoryApi(Resource):
 
         result["data"]["hostnames"] = sync_history.asdict()
         return result
+
+    @jwt_required
+    @device_synchistory_api.expect(device_synchistory_api)
+    def post(self):
+        try:
+            validated_json_data = NewSyncEventModel(**request.get_json()).dict()
+        except ValidationError as e:
+            return empty_result("error", parse_pydantic_error(e, NewSyncEventModel, request.get_json())), 400
+        try:
+            add_sync_event(**validated_json_data)
+        except Exception as e:
+            return empty_result("error", str(e))
+        return empty_result(data=validated_json_data)
 
 
 # Devices

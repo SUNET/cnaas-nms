@@ -46,7 +46,7 @@ class SyncHistory:
 
 
 def add_sync_event(
-    hostname: str, cause: str, timestamp: Optional[float] = None, by: Optional[str] = None, job_id: Optional[int] = None
+    hostname: str, cause: str, by: Optional[str] = None, job_id: Optional[int] = None, timestamp: Optional[float] = None
 ):
     try:
         if not by:

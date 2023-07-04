@@ -31,6 +31,7 @@ ipv4_if_schema = Field(None, regex=f"^{IPV4_IF_REGEX}$", description="IPv4 addre
 ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$", description="IPv6 address")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
 ipv6_if_schema = Field(None, regex=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)")
+ipv4_or_ipv6_if_schema = Field(None, regex=f"({IPV4_IF_REGEX}|{IPV6_IF_REGEX})", description="IPv4 or IPv6 prefix")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
@@ -57,6 +58,10 @@ ifdescr_schema = Field(None, max_length=64, description="Interface description, 
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
 ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
 maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer")
+accept_or_reject_schema = Field(..., regex=r"^(accept|reject)$", description="Value has to be 'accept' or 'reject'")
+prefix_size_or_range_schema = Field(
+    None, regex=r"^[0-9]{1,3}([-][0-9]{1,3})?$", description="Prefix size or range 0-128"
+)
 
 GROUP_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
@@ -309,6 +314,30 @@ class f_user(BaseModel):
     groups: List[str] = []
 
 
+class f_prefixset_item(BaseModel):
+    prefix: str = ipv4_or_ipv6_if_schema
+    masklength_range: Optional[str] = prefix_size_or_range_schema
+
+
+class f_prefixset(BaseModel):
+    mode: str = "ipv4"
+    prefixes: List[f_prefixset_item]
+
+
+class f_rpolicy_condition(BaseModel):
+    match_type: str
+    match_target: str
+
+
+class f_rpolicy_statement(BaseModel):
+    action: str = accept_or_reject_schema
+    conditions: List[f_rpolicy_condition]
+
+
+class f_routingpolicy(BaseModel):
+    statements: List[f_rpolicy_statement]
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -334,6 +363,8 @@ class f_root(BaseModel):
     users: List[f_user] = []
     dot1x_multi_host: bool = False
     poe_reboot_maintain: bool = False
+    prefix_sets: Dict[str, f_prefixset] = {}
+    routing_policies: Dict[str, f_routingpolicy] = {}
 
 
 class f_group_item(BaseModel):

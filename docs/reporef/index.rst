@@ -275,6 +275,25 @@ Can contain the following dictionaries with specified keys:
       * peer_ipv6: IPv6 address of peer
       * other options are the same as neighbor_v4
 
+- prefix_sets: Dictionary of {<name>, <entry>}:
+
+  * mode: String, either "ipv4", "ipv6" or "mixed"
+  * prefixes: list of
+
+    * prefix: String for ipv4 or ipv6 prefix, ex: 10.0.0.0/8
+    * masklength_range: Optional string defining range of prefixes to match, ex: 24-32 or 32-32
+
+- routing_policies: Dictionary of {<name>, <entry>}:
+
+  * statements: List of:
+
+    * action: Action to perform on match, either "accept" or "reject"
+    * conditions: List of:
+
+      * match_type: String, ex "ipv4 prefix-set"
+      * match_target: String, referring to prefix-set for example: "default-route"
+
+
 routing.yml examples:
 
 ::
@@ -299,11 +318,46 @@ routing.yml examples:
            - destination: 172.12.0.0/24
              nexthop: 10.0.254.1
              name: cnaas-mgmt
+   prefix_sets:
+     "default":
+       mode: "ipv4"
+       prefixes:
+         - prefix: 0.0.0.0/0
+           masklength_range: 0
+     "24_or_longer":
+       mode: "ipv4"
+       prefixes:
+         - prefix: 0.0.0.0/0
+           masklength_range: 24-32
+     "v6default":
+       mode: "ipv6"
+       prefixes:
+         - prefix: ::/0
+     "all-ipv6":
+       mode: "ipv6"
+       prefixes:
+         - prefix: ::/0
+           masklength_range: 0-128
+   routing_policies:
+     "allow_default":
+       statements:
+         - action: "accept"
+           conditions:
+             - match_type: "ipv4 prefix-set"
+               match_target: "default"
+     "allow_all_v6":
+       statements:
+         - action: "accept"
+           conditions:
+             - match_type: "ipv6 prefix-set"
+               match_target: "all-ipv6"
 
 vxlans.yml:
 
 Contains a dictinary called "vxlans", which in turn has one dictinoary per vxlan, vxlan
 name is the dictionary key and dictionaly values are:
+
+- vxlans: Dictionary of {<name>, <entry>}:
 
   * vni: VXLAN ID, 1-16777215
   * vrf: VRF name. Optional unless ipv4_gw is also specified.

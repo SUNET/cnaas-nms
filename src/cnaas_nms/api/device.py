@@ -1136,10 +1136,16 @@ class DeviceSyncHistoryApi(Resource):
             validated_json_data = NewSyncEventModel(**request.get_json()).dict()
         except ValidationError as e:
             return empty_result("error", parse_pydantic_error(e, NewSyncEventModel, request.get_json())), 400
+        with sqla_session() as session:
+            device_instance = (
+                session.query(Device).filter(Device.hostname == validated_json_data["hostname"]).one_or_none()
+            )
+            if not device_instance:
+                return empty_result("error", "Device not found"), 400
         try:
             add_sync_event(**validated_json_data)
         except Exception as e:
-            return empty_result("error", str(e))
+            return empty_result("error", str(e)), 500
         return empty_result(data=validated_json_data)
 
 

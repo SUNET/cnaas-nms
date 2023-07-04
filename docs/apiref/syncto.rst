@@ -43,7 +43,8 @@ version it's supported and enabled by default using mode 1.
 
 .. _commit_confirm_modes:
 
-Commit confirm modes:
+**Commit confirm modes:**
+
  - 0 = No confirm commit (default up to version 1.4)
  - 1 = Commit is immediately confirmed for each device when that device is configured
    (default from version 1.5)
@@ -55,8 +56,7 @@ Commit confirm modes:
 Commit confirm mode can be specified in the configuration file, but it's also possible to override
 that setting for a specific job using the API argument confirm_mode (see below).
 
-Arguments:
-----------
+**Arguments:**
 
  - hostname: Optional, the hostname of a device
  - device_type: Optional, a device type (access, dist or core)
@@ -83,3 +83,54 @@ Arguments:
 
 If neither hostname or device_type is specified all devices that needs to be sycnhronized
 will be selected.
+
+Sync history
+------------
+
+When an API call causes a device to become unsynchronized a synchronization event is created
+in the synchistory log. You can query or manually add events from this history using the API.
+
+Get synchistory events:
+
+::
+
+   curl https://hostname/api/v1.0/device_synchistory?hostname=eosaccess
+
+Example output:
+
+::
+
+   {
+     "status": "success",
+     "data": {
+       "hostnames": {
+         "eosaccess": [
+           {
+             "cause": "refresh_settings",
+             "timestamp": 1688458956.684019,
+             "by": "indy",
+             "job_id": 123
+           }
+         ]
+       }
+     }
+   }
+
+If the query parameter "hostname" is left out the API will return events for
+all devices.
+
+"cause" is a text string reference to the thing that caused the device to become
+unsynchronized. For more details on events see :ref:`sync_status_tutorial`.
+"timestamp" is a floating point number representing the seconds since Unix epoch (UTC).
+"by" is string referring to what user triggered the event. "job_id" is an integer
+referring to a job if this event was triggered by a job, or otherwise it's null.
+
+Manually adding a synchistory event:
+
+::
+
+   curl https://hostname/api/v1.0/device_synchistory -d '{"hostname": "eosaccess", "cause": "oob", "by": "indy"}'
+   -X POST -H "Content-Type: application/json"
+
+The "time" paramater can optionally be specified as a floating point number of seconds
+since Unix epoch (UTC). If not provided the current time will be used.

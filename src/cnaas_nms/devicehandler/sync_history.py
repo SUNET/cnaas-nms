@@ -70,7 +70,10 @@ def add_sync_event(
                     current_sync_events = [sync_event]
                 json_data = json.dumps([asdict(e) for e in current_sync_events])
                 redis.hset(REDIS_SYNC_HISTORY_KEYNAME, key=hostname, value=json_data)
-                add_event(event_type="sync", json_data=json_data)
+                add_event(
+                    event_type="sync",
+                    json_data=json.dumps({"syncevent_hostname": hostname, "syncevent_data": asdict(sync_event)}),
+                )
     except RedisError as e:
         logger.exception(f"Redis Error while adding sync event (not critical): {e}")
     except Exception as e:

@@ -152,6 +152,8 @@ def socketio_on_events(data):
         room = data["loglevel"]
     elif "update" in data and data["update"] in ["device", "job"]:
         room = "update_{}".format(data["update"])
+    elif "sync" in data and data["sync"] == "all":
+        room = "sync"
     else:
         return False  # TODO: how to send error message to client?
 

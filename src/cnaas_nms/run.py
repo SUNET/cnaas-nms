@@ -106,6 +106,8 @@ def emit_redis_event(event):
             socketio_emit(event["message"], loglevel_to_rooms(event["level"]))
         elif event["type"] == "update":
             socketio_emit(json.loads(event["json"]), ["update_{}".format(event["update_type"])])
+        elif event["type"] == "sync":
+            socketio_emit(json.loads(event["json"]), ["sync"])
     except Exception:  # noqa: S110
         pass
 

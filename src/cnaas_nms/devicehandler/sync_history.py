@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from redis.exceptions import RedisError
 
 from cnaas_nms.db.session import redis_session
+from cnaas_nms.tools.event import add_event
 from cnaas_nms.tools.log import get_logger
 
 REDIS_SYNC_HISTORY_KEYNAME = "sync_history"
@@ -67,9 +68,9 @@ def add_sync_event(
                     current_sync_events.append(sync_event)
                 else:
                     current_sync_events = [sync_event]
-                redis.hset(
-                    REDIS_SYNC_HISTORY_KEYNAME, key=hostname, value=json.dumps([asdict(e) for e in current_sync_events])
-                )
+                json_data = json.dumps([asdict(e) for e in current_sync_events])
+                redis.hset(REDIS_SYNC_HISTORY_KEYNAME, key=hostname, value=json_data)
+                add_event(event_type="sync", json_data=json_data)
     except RedisError as e:
         logger.exception(f"Redis Error while adding sync event (not critical): {e}")
     except Exception as e:

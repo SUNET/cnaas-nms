@@ -281,6 +281,7 @@ class DeviceByIdApi(Resource):
         json_data = request.get_json()
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            dev_prev_state: DeviceState = dev.state
 
             if not dev:
                 return empty_result(status="error", data=f"No device with id {device_id}"), 404
@@ -305,6 +306,12 @@ class DeviceByIdApi(Resource):
                     return empty_result(status="error", data=msg), 500
             if "synchronized" in json_data and json_data["synchronized"]:
                 remove_sync_events(dev.hostname)
+            if (
+                "state" in json_data
+                and json_data["state"].upper() == "UNMANAGED"
+                and dev_prev_state == DeviceState.MANAGED
+            ):
+                add_sync_event(dev.hostname, "was_unmanaged", by=get_jwt_identity())
             session.commit()
             update_device_primary_groups()
             dev_dict = device_data_postprocess([dev])[0]

@@ -350,8 +350,6 @@ class Device(cnaas_nms.db.base.Base):
             if field == "state" and data[field] == DeviceState.UNMANAGED:
                 remove_sync_events(self.hostname)
                 self.synchronized = False
-            elif field == "state" and data[field] == DeviceState.MANAGED and self.state == DeviceState.UNMANAGED:
-                add_sync_event(self.hostname, "was_unmanaged")
             setattr(self, field, data[field])
 
     @classmethod

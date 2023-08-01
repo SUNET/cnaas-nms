@@ -16,7 +16,7 @@ import cnaas_nms.db.linknet
 import cnaas_nms.db.site
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.stackmember import Stackmember
-from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
 from cnaas_nms.tools.event import add_event
 
 
@@ -347,6 +347,9 @@ class Device(cnaas_nms.db.base.Base):
         if error != []:
             return error
         for field in data:
+            if field == "state" and data[field] == DeviceState.UNMANAGED:
+                remove_sync_events(self.hostname)
+                self.synchronized = False
             setattr(self, field, data[field])
 
     @classmethod

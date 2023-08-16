@@ -478,11 +478,11 @@ def napalm_confirm_commit(task, job_id: int, prev_job_id: int):
 
 def push_sync_device(
     task,
+    confirm_mode: int,
     dry_run: bool = True,
     generate_only: bool = False,
     job_id: Optional[str] = None,
     scheduled_by: Optional[str] = None,
-    confirm_mode_override: Optional[int] = None,
 ):
     """
     Nornir task to generate config and push to device
@@ -494,7 +494,7 @@ def push_sync_device(
                        even do dry_run compare to running config
         job_id: Job ID integer
         scheduled_by: username of users that scheduled job
-        confirm_mode_override: integer to specify commit confirm mode
+        confirm_mode: integer to specify commit confirm mode
     Returns:
 
     """
@@ -550,19 +550,15 @@ def push_sync_device(
         }
         if dry_run:
             task_args["task"] = napalm_configure
-        elif api_settings.COMMIT_CONFIRMED_MODE == 0:
+        elif confirm_mode == 0:
             task_args["task"] = napalm_configure
         else:
             task_args["task"] = napalm_configure_confirmed
             task_args["job_id"] = job_id
-            task_args["confirm_mode_override"] = confirm_mode_override
-        logger.debug(
-            "Commit confirm mode for host {}: {} (dry_run: {})".format(
-                task.host.name, api_settings.COMMIT_CONFIRMED_MODE, dry_run
-            )
-        )
+            task_args["confirm_mode_override"] = confirm_mode
+        logger.debug("Commit confirm mode for host {}: {} (dry_run: {})".format(task.host.name, confirm_mode, dry_run))
         task.run(**task_args)
-        if api_settings.COMMIT_CONFIRMED_MODE != 2:
+        if confirm_mode != 2:
             task.host.close_connection("napalm")
 
         if task.results[1].diff:
@@ -593,7 +589,7 @@ def generate_only(hostname: str) -> (str, dict):
     if len(nr_filtered.inventory.hosts) != 1:
         raise ValueError("Invalid hostname: {}".format(hostname))
     try:
-        nrresult = nr_filtered.run(task=push_sync_device, generate_only=True)
+        nrresult = nr_filtered.run(task=push_sync_device, generate_only=True, confirm_mode=0)
         if nrresult[hostname][0].failed:
             raise Exception(
                 "Could not generate config for device {}: {}".format(hostname, nrresult[hostname][0].result)
@@ -859,7 +855,7 @@ def sync_devices(
             task=push_sync_device,
             dry_run=dry_run,
             job_id=job_id,
-            confirm_mode_override=get_confirm_mode(confirm_mode_override),
+            confirm_mode=get_confirm_mode(confirm_mode_override),
         )
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))

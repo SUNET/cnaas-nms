@@ -655,7 +655,7 @@ class DeviceSyncApi(Resource):
         if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
             kwargs["job_ticket_ref"] = json_data["ticket_ref"]
         if "confirm_mode" in json_data and isinstance(json_data["confirm_mode"], int):
-            if 0 >= json_data["confirm_mode"] >= 2:
+            if 0 <= json_data["confirm_mode"] <= 2:
                 kwargs["confirm_mode_override"] = json_data["confirm_mode"]
             else:
                 return (

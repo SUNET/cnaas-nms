@@ -539,7 +539,7 @@ def push_sync_device(
             "Synchronize device config for host: {} ({}:{})".format(task.host.name, task.host.hostname, task.host.port)
         )
 
-        if api_settings.COMMIT_CONFIRMED_MODE != 2:
+        if confirm_mode != 2:
             task.host.open_connection("napalm", configuration=task.nornir.config)
         task_args = {
             "name": "Sync device config",

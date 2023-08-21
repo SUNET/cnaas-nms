@@ -268,12 +268,15 @@ class DeviceByIdApi(Resource):
                 session.commit()
             except IntegrityError as e:
                 session.rollback()
-                return empty_result(
-                    status="error", data="Could not remove device because existing references: {}".format(e)
+                return (
+                    empty_result(
+                        status="error", data="Could not remove device because existing references: {}".format(e)
+                    ),
+                    500,
                 )
             except Exception as e:
                 session.rollback()
-                return empty_result(status="error", data="Could not remove device: {}".format(e))
+                return empty_result(status="error", data="Could not remove device: {}".format(e)), 500
             return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
 
     @jwt_required

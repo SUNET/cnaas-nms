@@ -248,7 +248,9 @@ class DeviceByIdApi(Resource):
                     scheduled_by=get_jwt_identity(),
                     kwargs={"device_id": device_id},
                 )
-                return empty_result(data="Scheduled job {} to factory default device".format(job_id))
+                res = empty_result(data="Scheduled job {} to factory default device".format(job_id))
+                res["job_id"] = job_id
+                return res
             elif not isinstance(json_data["factory_default"], bool):
                 return empty_result(status="error", data="Argument factory_default must be boolean"), 400
         with sqla_session() as session:

@@ -1,24 +1,26 @@
+from typing import Optional
+
 from nornir_netmiko.tasks import netmiko_send_command
 from nornir_utils.plugins.functions import print_result
+from sqlalchemy.exc import IntegrityError
 
 import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult
+from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
 
-logger = get_logger()
 
-
-def device_erase_task(task, hostname: str) -> str:
+def device_erase_task(task, hostname: str, job_id: int) -> str:
+    logger = get_logger()
     try:
-        res = task.run(netmiko_send_command, command_string="enable", expect_string=".*#", name="Enable")
-
+        task.run(netmiko_send_command, command_string="enable", expect_string=".*#", name="Enable")
         res = task.run(netmiko_send_command, command_string="write erase now", expect_string=".*#", name="Write rase")
         print_result(res)
     except Exception as e:
-        logger.info("Failed to factory default device {}, reason: {}".format(task.host.name, e))
+        logger.exception("Failed to factory default device {}, reason: {}".format(task.host.name, e))
         raise Exception("Factory default device")
 
     # Remove cnaas device certificates if they are found
@@ -48,8 +50,8 @@ def device_erase_task(task, hostname: str) -> str:
 
 
 @job_wrapper
-def device_erase(device_id: int = None, job_id: int = None) -> NornirJobResult:
-
+def device_erase(device_id: int = None, job_id: int = None, scheduled_by: Optional[str] = None) -> NornirJobResult:
+    logger = get_logger()
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
         if dev:
@@ -69,13 +71,13 @@ def device_erase(device_id: int = None, job_id: int = None) -> NornirJobResult:
     nr_filtered = nr.filter(name=hostname)
 
     device_list = list(nr_filtered.inventory.hosts.keys())
-    logger.info("Device selected: {}".format(device_list))
+    logger.info("Device selected for factory default: {}".format(device_list))
 
     try:
-        nrresult = nr_filtered.run(task=device_erase_task, hostname=hostname)
+        nrresult = nr_filtered.run(task=device_erase_task, hostname=hostname, job_id=job_id)
         print_result(nrresult)
     except Exception as e:
-        logger.exception("Exception while erasing device: {}".format(str(e)))
+        logger.exception("Exception while doing factory default of device: {}".format(str(e)))
         return NornirJobResult(nrresult=nrresult)
 
     failed_hosts = list(nrresult.failed_hosts.keys())
@@ -88,7 +90,20 @@ def device_erase(device_id: int = None, job_id: int = None) -> NornirJobResult:
     if failed_hosts == []:
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
-            session.delete(dev)
-            session.commit()
+            try:
+                for nei in dev.get_neighbors(session):
+                    nei.synchronized = False
+                    add_sync_event(nei.hostname, "neighbor_deleted", scheduled_by)
+            except Exception as e:
+                logger.warning("Could not mark neighbor as unsync after deleting {}: {}".format(dev.hostname, e))
+            try:
+                session.delete(dev)
+                session.commit()
+            except IntegrityError as e:
+                session.rollback()
+                logger.exception("Could not delete device because existing references: {}".format(e))
+            except Exception as e:
+                session.rollback()
+                logger.exception("Could not delete device: {}".format(e))
 
     return NornirJobResult(nrresult=nrresult)

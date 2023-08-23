@@ -490,3 +490,17 @@ def after_update_device(mapper, connection, target: Device):
     update_data = {"action": "UPDATED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
     json_data = json.dumps(update_data)
     add_event(json_data=json_data, event_type="update", update_type="device")
+
+
+@event.listens_for(Device, "before_delete")
+def before_delete_device(mapper, connection, target: Device):
+    update_data = {"action": "DELETED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
+    json_data = json.dumps(update_data)
+    add_event(json_data=json_data, event_type="update", update_type="device")
+
+
+@event.listens_for(Device, "after_insert")
+def after_insert_device(mapper, connection, target: Device):
+    update_data = {"action": "CREATED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
+    json_data = json.dumps(update_data)
+    add_event(json_data=json_data, event_type="update", update_type="device")

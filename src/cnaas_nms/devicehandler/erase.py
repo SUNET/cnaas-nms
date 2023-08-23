@@ -8,7 +8,7 @@ import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult
-from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
 
@@ -90,6 +90,7 @@ def device_erase(device_id: int = None, job_id: int = None, scheduled_by: Option
     if failed_hosts == []:
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            remove_sync_events(dev.hostname)
             try:
                 for nei in dev.get_neighbors(session):
                     nei.synchronized = False

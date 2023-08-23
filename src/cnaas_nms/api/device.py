@@ -258,6 +258,7 @@ class DeviceByIdApi(Resource):
             if not dev:
                 return empty_result("error", "Device not found"), 404
             try:
+                remove_sync_events(dev.hostname)
                 for nei in dev.get_neighbors(session):
                     nei.synchronized = False
                     add_sync_event(nei.hostname, "neighbor_deleted", get_jwt_identity())

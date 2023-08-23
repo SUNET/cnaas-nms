@@ -3,6 +3,7 @@ import re
 import sys
 from typing import Optional
 
+from engineio.payload import Payload
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, decode_token
@@ -84,6 +85,7 @@ cors = CORS(
     resources={r"/api/*": {"origins": "*"}},
     expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link"],
 )
+Payload.max_decode_packets = 500
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 if api_settings.JWT_ENABLED:

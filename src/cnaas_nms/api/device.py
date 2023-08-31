@@ -13,7 +13,7 @@ import cnaas_nms.devicehandler.init_device
 import cnaas_nms.devicehandler.sync_devices
 import cnaas_nms.devicehandler.underlay
 import cnaas_nms.devicehandler.update
-from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
+from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers, parse_pydantic_error
 from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -30,6 +30,13 @@ from cnaas_nms.db.settings import (
 )
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
+from cnaas_nms.devicehandler.sync_history import (
+    NewSyncEventModel,
+    SyncHistory,
+    add_sync_event,
+    get_sync_events,
+    remove_sync_events,
+)
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_jwt_identity, jwt_required
@@ -62,6 +69,9 @@ device_update_interfaces_api = Namespace(
 )
 device_cert_api = Namespace(
     "device_cert", description="API to handle device certificates", prefix="/api/{}".format(__api_version__)
+)
+device_synchistory_api = Namespace(
+    "device_synchistory", description="API to query sync history for devices", prefix="/api/{}".format(__api_version__)
 )
 
 
@@ -184,6 +194,16 @@ delete_device_model = device_api.model(
     },
 )
 
+synchistory_event_model = device_synchistory_api.model(
+    "add_event",
+    {
+        "hostname": fields.String(required=True),
+        "cause": fields.String(required=True),
+        "time": fields.Float(required=False),
+        "by": fields.String(required=True),
+    },
+)
+
 
 def device_data_postprocess(device_list: List[Device]) -> List[dict]:
     device_primary_group = get_device_primary_groups()
@@ -228,7 +248,9 @@ class DeviceByIdApi(Resource):
                     scheduled_by=get_jwt_identity(),
                     kwargs={"device_id": device_id},
                 )
-                return empty_result(data="Scheduled job {} to factory default device".format(job_id))
+                res = empty_result(data="Scheduled job {} to factory default device".format(job_id))
+                res["job_id"] = job_id
+                return res
             elif not isinstance(json_data["factory_default"], bool):
                 return empty_result(status="error", data="Argument factory_default must be boolean"), 400
         with sqla_session() as session:
@@ -236,8 +258,10 @@ class DeviceByIdApi(Resource):
             if not dev:
                 return empty_result("error", "Device not found"), 404
             try:
+                remove_sync_events(dev.hostname)
                 for nei in dev.get_neighbors(session):
                     nei.synchronized = False
+                    add_sync_event(nei.hostname, "neighbor_deleted", get_jwt_identity())
             except Exception as e:
                 logger.warning("Could not mark neighbor as unsync after deleting {}: {}".format(dev.hostname, e))
             try:
@@ -245,12 +269,15 @@ class DeviceByIdApi(Resource):
                 session.commit()
             except IntegrityError as e:
                 session.rollback()
-                return empty_result(
-                    status="error", data="Could not remove device because existing references: {}".format(e)
+                return (
+                    empty_result(
+                        status="error", data="Could not remove device because existing references: {}".format(e)
+                    ),
+                    500,
                 )
             except Exception as e:
                 session.rollback()
-                return empty_result(status="error", data="Could not remove device: {}".format(e))
+                return empty_result(status="error", data="Could not remove device: {}".format(e)), 500
             return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
 
     @jwt_required
@@ -260,6 +287,7 @@ class DeviceByIdApi(Resource):
         json_data = request.get_json()
         with sqla_session() as session:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            dev_prev_state: DeviceState = dev.state
 
             if not dev:
                 return empty_result(status="error", data=f"No device with id {device_id}"), 404
@@ -282,6 +310,14 @@ class DeviceByIdApi(Resource):
                     logger.error(msg)
                     session.rollback()
                     return empty_result(status="error", data=msg), 500
+            if "synchronized" in json_data and json_data["synchronized"]:
+                remove_sync_events(dev.hostname)
+            if (
+                "state" in json_data
+                and json_data["state"].upper() == "UNMANAGED"
+                and dev_prev_state == DeviceState.MANAGED
+            ):
+                add_sync_event(dev.hostname, "was_unmanaged", by=get_jwt_identity())
             session.commit()
             update_device_primary_groups()
             dev_dict = device_data_postprocess([dev])[0]
@@ -625,7 +661,7 @@ class DeviceSyncApi(Resource):
         if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
             kwargs["job_ticket_ref"] = json_data["ticket_ref"]
         if "confirm_mode" in json_data and isinstance(json_data["confirm_mode"], int):
-            if 0 >= json_data["confirm_mode"] >= 2:
+            if 0 <= json_data["confirm_mode"] <= 2:
                 kwargs["confirm_mode_override"] = json_data["confirm_mode"]
             else:
                 return (
@@ -1088,6 +1124,44 @@ class DeviceStackmembersApi(Resource):
         return return_errors
 
 
+class DeviceSyncHistoryApi(Resource):
+    @jwt_required
+    @device_synchistory_api.param("hostname")
+    def get(self):
+        args = request.args
+        result = empty_result()
+        result["data"] = {"hostnames": {}}
+
+        if "hostname" in args:
+            if not Device.valid_hostname(args["hostname"]):
+                return empty_result(status="error", data="Invalid hostname specified"), 400
+            sync_history: SyncHistory = get_sync_events([args["hostname"]])
+        else:
+            sync_history: SyncHistory = get_sync_events()
+
+        result["data"]["hostnames"] = sync_history.asdict()
+        return result
+
+    @jwt_required
+    @device_synchistory_api.expect(device_synchistory_api)
+    def post(self):
+        try:
+            validated_json_data = NewSyncEventModel(**request.get_json()).dict()
+        except ValidationError as e:
+            return empty_result("error", parse_pydantic_error(e, NewSyncEventModel, request.get_json())), 400
+        with sqla_session() as session:
+            device_instance = (
+                session.query(Device).filter(Device.hostname == validated_json_data["hostname"]).one_or_none()
+            )
+            if not device_instance:
+                return empty_result("error", "Device not found"), 400
+        try:
+            add_sync_event(**validated_json_data)
+        except Exception as e:
+            return empty_result("error", str(e)), 500
+        return empty_result(data=validated_json_data)
+
+
 # Devices
 device_api.add_resource(DeviceByIdApi, "/<int:device_id>")
 device_api.add_resource(DeviceByHostnameApi, "/<string:hostname>")
@@ -1104,4 +1178,5 @@ device_update_facts_api.add_resource(DeviceUpdateFactsApi, "")
 device_update_interfaces_api.add_resource(DeviceUpdateInterfacesApi, "")
 device_cert_api.add_resource(DeviceCertApi, "")
 device_api.add_resource(DeviceStackmembersApi, "/<string:hostname>/stackmember")
+device_synchistory_api.add_resource(DeviceSyncHistoryApi, "")
 # device/<string:hostname>/current_config

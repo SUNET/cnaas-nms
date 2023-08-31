@@ -218,6 +218,51 @@ class DeviceTests(unittest.TestCase):
         result = self.client.put(f"/api/v1.0/device/{self.hostname}/stackmember", json=stackmember_data)
         self.assertEqual(result.status_code, 400)
 
+    def test_put_synchistory_event_valid(self):
+        data = {
+            "hostname": "eosaccess",
+            "cause": "unittest_cause",
+            "by": "unittest_user",
+        }
+        result = self.client.post("/api/v1.0/device_synchistory", json=data)
+        json_data = json.loads(result.data.decode())
+        self.assertEqual(result.status_code, 200, msg=json_data)
+        self.assertEqual(len(json_data["data"].keys()), 4, msg=json_data)
+
+    def test_put_synchistory_event_no_hostname(self):
+        data = {
+            "cause": "unittest_cause",
+            "by": "unittest_user",
+        }
+        result = self.client.post("/api/v1.0/device_synchistory", json=data)
+        self.assertEqual(result.status_code, 400)
+
+    def test_put_synchistory_event_invalid_hostname(self):
+        data = {
+            "hostname": "devicethatdoesnotexist",
+            "cause": "unittest_cause",
+            "by": "unittest_user",
+        }
+        result = self.client.post("/api/v1.0/device_synchistory", json=data)
+        self.assertEqual(result.status_code, 400)
+
+    def test_put_synchistory_event_invalid_timestamp(self):
+        data = {
+            "cause": "unittest_cause",
+            "by": "unittest_user",
+            "timestamp": "2023",
+        }
+        result = self.client.post("/api/v1.0/device_synchistory", json=data)
+        self.assertEqual(result.status_code, 400)
+
+    def test_get_synchistory(self):
+        result = self.client.get("/api/v1.0/device_synchistory", query_string={"hostname": "eosaccess"})
+        self.assertEqual(result.status_code, 200, "Get synchistory for single device failed")
+        self.assertTrue("data" in result.json)
+        result = self.client.get("/api/v1.0/device_synchistory")
+        self.assertEqual(result.status_code, 200, "Get synchistory for all devices failed")
+        self.assertTrue("data" in result.json)
+
 
 if __name__ == "__main__":
     unittest.main()

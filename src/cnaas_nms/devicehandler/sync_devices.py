@@ -26,6 +26,7 @@ from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
+from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.scheduler.wrapper import job_wrapper
@@ -477,11 +478,11 @@ def napalm_confirm_commit(task, job_id: int, prev_job_id: int):
 
 def push_sync_device(
     task,
+    confirm_mode: int,
     dry_run: bool = True,
     generate_only: bool = False,
     job_id: Optional[str] = None,
     scheduled_by: Optional[str] = None,
-    confirm_mode_override: Optional[int] = None,
 ):
     """
     Nornir task to generate config and push to device
@@ -493,7 +494,7 @@ def push_sync_device(
                        even do dry_run compare to running config
         job_id: Job ID integer
         scheduled_by: username of users that scheduled job
-        confirm_mode_override: integer to specify commit confirm mode
+        confirm_mode: integer to specify commit confirm mode
     Returns:
 
     """
@@ -538,7 +539,7 @@ def push_sync_device(
             "Synchronize device config for host: {} ({}:{})".format(task.host.name, task.host.hostname, task.host.port)
         )
 
-        if api_settings.COMMIT_CONFIRMED_MODE != 2:
+        if confirm_mode != 2:
             task.host.open_connection("napalm", configuration=task.nornir.config)
         task_args = {
             "name": "Sync device config",
@@ -549,19 +550,15 @@ def push_sync_device(
         }
         if dry_run:
             task_args["task"] = napalm_configure
-        elif api_settings.COMMIT_CONFIRMED_MODE == 0:
+        elif confirm_mode == 0:
             task_args["task"] = napalm_configure
         else:
             task_args["task"] = napalm_configure_confirmed
             task_args["job_id"] = job_id
-            task_args["confirm_mode_override"] = confirm_mode_override
-        logger.debug(
-            "Commit confirm mode for host {}: {} (dry_run: {})".format(
-                task.host.name, api_settings.COMMIT_CONFIRMED_MODE, dry_run
-            )
-        )
+            task_args["confirm_mode_override"] = confirm_mode
+        logger.debug("Commit confirm mode for host {}: {} (dry_run: {})".format(task.host.name, confirm_mode, dry_run))
         task.run(**task_args)
-        if api_settings.COMMIT_CONFIRMED_MODE != 2:
+        if confirm_mode != 2:
             task.host.close_connection("napalm")
 
         if task.results[1].diff:
@@ -592,7 +589,7 @@ def generate_only(hostname: str) -> (str, dict):
     if len(nr_filtered.inventory.hosts) != 1:
         raise ValueError("Invalid hostname: {}".format(hostname))
     try:
-        nrresult = nr_filtered.run(task=push_sync_device, generate_only=True)
+        nrresult = nr_filtered.run(task=push_sync_device, generate_only=True, confirm_mode=0)
         if nrresult[hostname][0].failed:
             raise Exception(
                 "Could not generate config for device {}: {}".format(hostname, nrresult[hostname][0].result)
@@ -677,6 +674,7 @@ def confcheck_devices(session, hostnames: List[str], job_id=None):
             for hostname in nrresult.failed_hosts.keys():
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = False
+                add_sync_event(hostname, "confighash", "unknown", job_id)
             raise Exception("Configuration hash check failed for {}".format(" ".join(nrresult.failed_hosts.keys())))
 
 
@@ -768,10 +766,12 @@ def confirm_devices(
                 logger.debug("Setting device as unsync for failed commit-confirm on device {}".format(host))
                 dev: Device = session.query(Device).filter(Device.hostname == host).one()
                 dev.synchronized = False
+                add_sync_event(host, "commit_confirm_failed", scheduled_by, job_id)
                 dev.confhash = None
             else:
                 dev: Device = session.query(Device).filter(Device.hostname == host).one()
                 dev.synchronized = True
+                remove_sync_events(host)
                 dev.last_seen = datetime.datetime.utcnow()
 
         logger.info("Releasing lock for devices from syncto job: {} (in commit-job {})".format(prev_job_id, job_id))
@@ -855,7 +855,7 @@ def sync_devices(
             task=push_sync_device,
             dry_run=dry_run,
             job_id=job_id,
-            confirm_mode_override=get_confirm_mode(confirm_mode_override),
+            confirm_mode=get_confirm_mode(confirm_mode_override),
         )
     except Exception as e:
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
@@ -907,16 +907,20 @@ def sync_devices(
         for hostname in changed_hosts:
             if dry_run:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-                dev.synchronized = False
+                if dev.synchronized:
+                    dev.synchronized = False
+                    add_sync_event(hostname, "syncto_dryrun", scheduled_by, job_id)
                 dev.last_seen = datetime.datetime.utcnow()
             # if next job will commit, that job will mark synchronized on success
             elif get_confirm_mode(confirm_mode_override) != 2:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
+                remove_sync_events(hostname)
                 dev.last_seen = datetime.datetime.utcnow()
         for hostname in unchanged_hosts:
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
             dev.synchronized = True
+            remove_sync_events(hostname)
             dev.last_seen = datetime.datetime.utcnow()
         if not dry_run and get_confirm_mode(confirm_mode_override) != 2:
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
@@ -1039,5 +1043,6 @@ def apply_config(
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 dev.state = DeviceState.UNMANAGED
                 dev.synchronized = False
+                add_sync_event(hostname, "apply_config", scheduled_by, job_id)
 
     return NornirJobResult(nrresult=nrresult)

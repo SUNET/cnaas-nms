@@ -16,6 +16,7 @@ import cnaas_nms.db.linknet
 import cnaas_nms.db.site
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
 from cnaas_nms.tools.event import add_event
 
 
@@ -309,7 +310,15 @@ class Device(cnaas_nms.db.base.Base):
         return all(hostname_part_re.match(x) for x in hostname.split("."))
 
     @classmethod
-    def set_devtype_syncstatus(cls, session, devtype: DeviceType, platform: Optional[str] = None, syncstatus=False):
+    def set_devtype_syncstatus(
+        cls,
+        session,
+        devtype: DeviceType,
+        by: str,
+        repo_type: str,
+        platform: Optional[str] = None,
+        job_id: Optional[int] = None,
+    ):
         """Update sync status of devices of type devtype"""
         dev: Device
         if platform:
@@ -319,7 +328,8 @@ class Device(cnaas_nms.db.base.Base):
         else:
             dev_query = session.query(Device).filter(Device.device_type == devtype).all()
         for dev in dev_query:
-            dev.synchronized = syncstatus
+            dev.synchronized = False
+            add_sync_event(dev.hostname, f"refresh_{repo_type}", by, job_id)
 
     @classmethod
     def device_create(cls, **kwargs) -> Device:
@@ -337,6 +347,9 @@ class Device(cnaas_nms.db.base.Base):
         if error != []:
             return error
         for field in data:
+            if field == "state" and data[field] == DeviceState.UNMANAGED:
+                remove_sync_events(self.hostname)
+                self.synchronized = False
             setattr(self, field, data[field])
 
     @classmethod
@@ -475,5 +488,19 @@ class Device(cnaas_nms.db.base.Base):
 @event.listens_for(Device, "after_update")
 def after_update_device(mapper, connection, target: Device):
     update_data = {"action": "UPDATED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
+    json_data = json.dumps(update_data)
+    add_event(json_data=json_data, event_type="update", update_type="device")
+
+
+@event.listens_for(Device, "before_delete")
+def before_delete_device(mapper, connection, target: Device):
+    update_data = {"action": "DELETED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
+    json_data = json.dumps(update_data)
+    add_event(json_data=json_data, event_type="update", update_type="device")
+
+
+@event.listens_for(Device, "after_insert")
+def after_insert_device(mapper, connection, target: Device):
+    update_data = {"action": "CREATED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
     json_data = json.dumps(update_data)
     add_event(json_data=json_data, event_type="update", update_type="device")

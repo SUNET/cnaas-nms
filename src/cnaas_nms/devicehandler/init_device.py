@@ -27,6 +27,7 @@ from cnaas_nms.db.settings import SettingsSyntaxError, VlanConflictError, rebuil
 from cnaas_nms.devicehandler.cert import arista_copy_cert
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.devicehandler.sync_devices import confcheck_devices, populate_device_vars
+from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.update import set_facts, update_interfacedb_worker, update_linknets
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -855,6 +856,7 @@ def init_device_step2(
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
         dev.synchronized = False
+        add_sync_event(hostname, "device_init", scheduled_by, job_id)
         set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None

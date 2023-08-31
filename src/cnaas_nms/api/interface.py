@@ -10,7 +10,8 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.interface_state import bounce_interfaces, get_interface_states
 from cnaas_nms.devicehandler.sync_devices import resolve_vlanid, resolve_vlanid_list
-from cnaas_nms.tools.security import jwt_required
+from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 
 api = Namespace("device", description="API for handling interfaces", prefix="/api/{}".format(__api_version__))
@@ -236,6 +237,7 @@ class InterfaceApi(Resource):
 
             if updated:
                 dev.synchronized = False
+                add_sync_event(hostname, "interface_updated", get_jwt_identity())
 
         if errors:
             if data:

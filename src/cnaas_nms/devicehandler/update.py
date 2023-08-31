@@ -18,6 +18,7 @@ from cnaas_nms.devicehandler.get import (
     verify_peer_iftype,
 )
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult
+from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.underlay import find_free_infra_linknet
 from cnaas_nms.scheduler.jobresult import DictJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
@@ -137,6 +138,7 @@ def update_interfacedb(
 
         if result:
             dev.synchronized = False
+            add_sync_event(hostname, "update_interfacedb", scheduled_by, job_id)
     return DictJobResult(result={"interfaces": result})
 
 

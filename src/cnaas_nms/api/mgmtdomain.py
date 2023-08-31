@@ -12,7 +12,8 @@ from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings_fields import vlan_id_schema_optional
-from cnaas_nms.tools.security import jwt_required
+from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 
 mgmtdomains_api = Namespace(
@@ -98,7 +99,9 @@ class MgmtdomainByIdApi(Resource):
             instance: Mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
+                add_sync_event(instance.device_a.hostname, "mgmtdomain_deleted", get_jwt_identity())
                 instance.device_b.synchronized = False
+                add_sync_event(instance.device_b.hostname, "mgmtdomain_deleted", get_jwt_identity())
                 session.delete(instance)
                 session.commit()
                 return empty_result(status="success", data={"deleted_mgmtdomain": instance.as_dict()}), 200
@@ -125,7 +128,9 @@ class MgmtdomainByIdApi(Resource):
                 changed: bool = update_sqla_object(instance, json_data)
                 if changed:
                     instance.device_a.synchronized = False
+                    add_sync_event(instance.device_a.hostname, "mgmtdomain_updated", get_jwt_identity())
                     instance.device_b.synchronized = False
+                    add_sync_event(instance.device_b.hostname, "mgmtdomain_updated", get_jwt_identity())
                     return empty_result(status="success", data={"updated_mgmtdomain": instance.as_dict()}), 200
                 else:
                     return empty_result(status="success", data={"unchanged_mgmtdomain": instance.as_dict()}), 200
@@ -209,7 +214,9 @@ class MgmtdomainsApi(Resource):
                         return empty_result("error", "Integrity error: {}".format(e)), 400
 
                 device_a.synchronized = False
+                add_sync_event(device_a.hostname, "mgmtdomain_created", get_jwt_identity())
                 device_b.synchronized = False
+                add_sync_event(device_b.hostname, "mgmtdomain_created", get_jwt_identity())
                 return empty_result(status="success", data={"added_mgmtdomain": new_mgmtd.as_dict()}), 200
             else:
                 errors.append(

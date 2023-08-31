@@ -14,6 +14,7 @@ from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import DIR_STRUCTURE, SettingsSyntaxError, VlanConflictError, rebuild_settings_cache
+from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.tools.log import get_logger
 from git import InvalidGitRepositoryError, Repo
 from git.exc import GitCommandError, NoSuchPathError
@@ -77,7 +78,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
         if not Joblock.acquire_lock(session, name="devices", job_id=job_id):
             raise JoblockError("Unable to acquire lock for configuring devices")
         try:
-            result = _refresh_repo_task(repo_type)
+            result = _refresh_repo_task(repo_type, job_id=job_id)
             job.finish_time = datetime.datetime.utcnow()
             job.status = JobStatus.FINISHED
             job.result = {"message": result, "repository": repo_type.name}
@@ -143,7 +144,7 @@ def reset_repo(local_repo: Repo, remote_repo_path: str):
     local_repo.head.reset(index=True, working_tree=True)
 
 
-def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
+def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optional[int] = None) -> str:
     """Should only be called by refresh_repo function."""
     if repo_type == RepoType.TEMPLATES:
         local_repo_path = app_settings.TEMPLATES_LOCAL
@@ -188,6 +189,9 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         prev_commit = local_repo.commit().hexsha
         diff = local_repo.remotes.origin.pull()
         for item in diff:
+            if item.ref.remote_head != local_repo.head.ref.name:
+                continue
+
             ret += "Commit {} by {} at {}\n".format(
                 item.commit.name_rev, item.commit.committer, item.commit.committed_datetime
             )
@@ -236,11 +240,12 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         with sqla_session() as session:
             devtype: DeviceType
             for devtype in updated_devtypes:
-                Device.set_devtype_syncstatus(session, devtype, syncstatus=False)
+                Device.set_devtype_syncstatus(session, devtype, ret, "settings", job_id=job_id)
             for hostname in updated_hostnames:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if dev:
                     dev.synchronized = False
+                    add_sync_event(hostname, "refresh_settings", ret, job_id)
                 else:
                     logger.warn("Settings updated for unknown device: {}".format(hostname))
 
@@ -252,7 +257,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         with sqla_session() as session:
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
-                Device.set_devtype_syncstatus(session, devtype, platform, syncstatus=False)
+                Device.set_devtype_syncstatus(session, devtype, ret, "templates", platform, job_id)
 
     return ret
 

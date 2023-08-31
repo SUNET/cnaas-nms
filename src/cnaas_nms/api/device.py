@@ -874,6 +874,35 @@ class DeviceConfigApi(Resource):
         return result
 
 
+class DeviceRunningConfigApi(Resource):
+    @jwt_required
+    @device_api.param("interface")
+    def get(self, hostname: str):
+        args = request.args
+        result = empty_result()
+        result["data"] = {"config": None}
+        if not Device.valid_hostname(hostname):
+            return empty_result(status="error", data="Invalid hostname specified"), 400
+
+        with sqla_session() as session:
+            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if not dev:
+                return empty_result("error", "Device not found"), 404
+
+            try:
+                if "interface" in args:
+                    running_config = cnaas_nms.devicehandler.get.get_running_config_interface(
+                        session, hostname, args["interface"]
+                    )
+                else:
+                    running_config = cnaas_nms.devicehandler.get.get_running_config(hostname)
+            except Exception as e:
+                return empty_result("error", "Exception: {}".format(str(e))), 500
+
+        result["data"]["config"] = running_config
+        return result
+
+
 class DevicePreviousConfigApi(Resource):
     @jwt_required
     @device_api.param("job_id")
@@ -1166,6 +1195,7 @@ class DeviceSyncHistoryApi(Resource):
 device_api.add_resource(DeviceByIdApi, "/<int:device_id>")
 device_api.add_resource(DeviceByHostnameApi, "/<string:hostname>")
 device_api.add_resource(DeviceConfigApi, "/<string:hostname>/generate_config")
+device_api.add_resource(DeviceRunningConfigApi, "/<string:hostname>/running_config")
 device_api.add_resource(DevicePreviousConfigApi, "/<string:hostname>/previous_config")
 device_api.add_resource(DeviceApplyConfigApi, "/<string:hostname>/apply_config")
 device_api.add_resource(DeviceApi, "")

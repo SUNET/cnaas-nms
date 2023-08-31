@@ -89,6 +89,12 @@ class GetTests(unittest.TestCase):
             )
         pprint.pprint(new_links)
 
+    @pytest.mark.equipment
+    def test_get_running_config_interface(self):
+        with sqla_session() as session:
+            if_config: str = cnaas_nms.devicehandler.get.get_running_config_interface(session, "eosdist1", "Ethernet1")
+            assert if_config.strip(), "no config found"
+
 
 if __name__ == "__main__":
     unittest.main()

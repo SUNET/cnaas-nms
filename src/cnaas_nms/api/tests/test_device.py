@@ -263,6 +263,18 @@ class DeviceTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200, "Get synchistory for all devices failed")
         self.assertTrue("data" in result.json)
 
+    @pytest.mark.equipment
+    def test_get_running_config(self):
+        hostname = self.testdata["managed_dist"]
+        result = self.client.get(f"/api/v1.0/device/{hostname}/running_config")
+        self.assertEqual(result.status_code, 200, "Get running config failed")
+
+    @pytest.mark.equipment
+    def test_get_running_config_interface(self):
+        hostname = self.testdata["managed_dist"]
+        result = self.client.get(f"/api/v1.0/device/{hostname}/running_config", query_string={"interface": "Ethernet1"})
+        self.assertEqual(result.status_code, 200, "Get running config interface failed")
+
 
 if __name__ == "__main__":
     unittest.main()

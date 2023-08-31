@@ -190,6 +190,32 @@ This will return both the generated configuration based on the template for
 this device type, and also a list of available vaiables that could be used
 in the template.
 
+Running config
+--------------
+
+To get the latest running config from the device you can use running_config:
+
+::
+
+  curl https://hostname/api/v1.0/device/<device_hostname>/running_config
+
+You can also specify to only get the running config for a specific interface:
+
+::
+
+  curl https://hostname/api/v1.0/device/<device_hostname>/running_config?interface=Ethernet1
+
+Example output:
+
+::
+
+   {
+       "status": "success",
+       "data": {
+           "config": "no switchport\nvrf MGMT\nip address 10.100.2.101/24\nno lldp transmit\nno lldp receive"
+       }
+   }
+
 View previous config
 --------------------
 

@@ -11,7 +11,7 @@ from napalm.junos import JunOSDriver as NapalmJunOSDriver
 from nornir.core import Nornir
 from nornir.core.task import MultiResult, Result
 from nornir_jinja2.plugins.tasks import template_file
-from nornir_napalm.plugins.tasks import napalm_configure, napalm_get, napalm_ping
+from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
@@ -562,7 +562,7 @@ def push_sync_device(
             task.host.close_connection("napalm")
         if confirm_mode == 2:
             time.sleep(1)
-            task.run(task=napalm_ping, name="Verify reachability")
+            task.run(task=napalm_get, getters=["facts"], name="Verify reachability")
 
         if task.results[1].diff:
             config = task.results[1].host["config"]

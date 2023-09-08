@@ -561,7 +561,7 @@ def push_sync_device(
         if confirm_mode != 2:
             task.host.close_connection("napalm")
         if confirm_mode == 2 and not dry_run:
-            time.sleep(1)
+            time.sleep(api_settings.COMMIT_CONFIRMED_WAIT)
             try:
                 task.run(task=napalm_get, getters=["facts"], name="Verify reachability")
             except Exception as e:

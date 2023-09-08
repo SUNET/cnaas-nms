@@ -565,6 +565,7 @@ def push_sync_device(
             try:
                 task.run(task=napalm_get, getters=["facts"], name="Verify reachability")
             except Exception as e:
+                add_sync_event(task.host.name, "commit_confirm_failed", scheduled_by, job_id)
                 logger.error(
                     "Could not reach device {} after commit, rollback in: {}s".format(
                         task.host.name, api_settings.COMMIT_CONFIRMED_TIMEOUT
@@ -976,16 +977,16 @@ def sync_devices(
                 f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
             )
     elif get_confirm_mode(confirm_mode_override) == 2 and not dry_run:
-        if not changed_hosts:
-            logger.info("None of the selected host has any changes (diff), skipping commit-confirm")
-            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
-            Joblock.release_lock(session, job_id=job_id)
-        elif len(failed_hosts) > 0:
+        if len(failed_hosts) > 0:
             logger.error(
                 "No confirm job scheduled since one or more devices failed in commitmode 2"
                 ", all devices will rollback in {}s".format(api_settings.COMMIT_CONFIRMED_TIMEOUT)
             )
             time.sleep(api_settings.COMMIT_CONFIRMED_TIMEOUT)
+            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+            Joblock.release_lock(session, job_id=job_id)
+        elif not changed_hosts:
+            logger.info("None of the selected host has any changes (diff), skipping commit-confirm")
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)
         else:

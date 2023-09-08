@@ -560,9 +560,22 @@ def push_sync_device(
         task.run(**task_args)
         if confirm_mode != 2:
             task.host.close_connection("napalm")
-        if confirm_mode == 2:
+        if confirm_mode == 2 and not dry_run:
             time.sleep(1)
             task.run(task=napalm_get, getters=["facts"], name="Verify reachability")
+            if task.results[2].failed:
+                logger.error(
+                    "Could not reach device {} after commit, rollback in: {}s".format(
+                        task.host.name, api_settings.COMMIT_CONFIRMED_TIMEOUT
+                    )
+                )
+            else:
+                short_facts = {"fqdn": "unknown"}
+                try:
+                    short_facts["fqdn"] = task.results[2].result["facts"]["fqdn"]
+                    task.results[2].result["facts"] = short_facts
+                except Exception:
+                    pass
 
         if task.results[1].diff:
             config = task.results[1].host["config"]

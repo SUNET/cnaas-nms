@@ -949,6 +949,12 @@ def sync_devices(
             dev.last_seen = datetime.datetime.utcnow()
         if not dry_run and get_confirm_mode(confirm_mode_override) != 2:
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+            if failed_hosts:
+                logger.error(
+                    "One or more devices failed to commit configuration, they will roll back configuration"
+                    " in {}s: {}".format(api_settings.COMMIT_CONFIRMED_TIMEOUT, ", ".join(failed_hosts))
+                )
+                time.sleep(api_settings.COMMIT_CONFIRMED_TIMEOUT)
             Joblock.release_lock(session, job_id=job_id)
 
     if len(device_list) == 0:
@@ -983,7 +989,7 @@ def sync_devices(
                 f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
             )
     elif get_confirm_mode(confirm_mode_override) == 2 and not dry_run:
-        if len(failed_hosts) > 0:
+        if failed_hosts:
             logger.error(
                 "No confirm job scheduled since one or more devices failed in commitmode 2"
                 ", all devices will rollback in {}s".format(api_settings.COMMIT_CONFIRMED_TIMEOUT)

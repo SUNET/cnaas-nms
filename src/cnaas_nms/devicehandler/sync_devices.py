@@ -557,9 +557,14 @@ def push_sync_device(
             task_args["job_id"] = job_id
             task_args["confirm_mode_override"] = confirm_mode
         logger.debug("Commit confirm mode for host {}: {} (dry_run: {})".format(task.host.name, confirm_mode, dry_run))
-        task.run(**task_args)
-        if confirm_mode != 2:
-            task.host.close_connection("napalm")
+        try:
+            task.run(**task_args)
+        except Exception as e:
+            logger.exception("Exception while running task napalm_configure for device {}".format(task.host.name))
+            raise e
+        finally:
+            if confirm_mode != 2:
+                task.host.close_connection("napalm")
         if confirm_mode == 2 and not dry_run:
             time.sleep(api_settings.COMMIT_CONFIRMED_WAIT)
             try:
@@ -874,6 +879,7 @@ def sync_devices(
             task=push_sync_device,
             dry_run=dry_run,
             job_id=job_id,
+            scheduled_by=scheduled_by,
             confirm_mode=get_confirm_mode(confirm_mode_override),
         )
     except Exception as e:
@@ -900,7 +906,7 @@ def sync_devices(
     unchanged_hosts = []
     # calculate change impact score
     for host, results in nrresult.items():
-        if host in failed_hosts or len(results) != 3:
+        if host in failed_hosts or len(results) < 3:
             logger.debug("Unable to calculate change score for failed device {}".format(host))
         elif results[2].diff:
             changed_hosts.append(host)

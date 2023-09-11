@@ -212,6 +212,7 @@ class Scheduler(object, metaclass=SingletonType):
 
         kwargs["job_id"] = job_id
         kwargs["scheduled_by"] = scheduled_by
+        kwargs["kwargs"]["scheduled_by"] = scheduled_by
         if self.use_mule:
             try:
                 import uwsgi

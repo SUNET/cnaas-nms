@@ -846,8 +846,12 @@ class DeviceUpdateInterfacesApi(Resource):
 
 class DeviceConfigApi(Resource):
     @jwt_required
+    @device_api.param("variables_only", "Only return available variables")
+    @device_api.param("interface_variables_only", "Only return available interface variables")
+    @device_api.param("config_only", "Only return full generated config")
     def get(self, hostname: str):
         """Get device configuration"""
+        args = request.args
         result = empty_result()
         result["data"] = {"config": None}
         if not Device.valid_hostname(hostname):
@@ -861,6 +865,15 @@ class DeviceConfigApi(Resource):
                 "generated_config": config,
                 "available_variables": template_vars,
             }
+            if "variables_only" in args and args["variables_only"]:
+                del result["data"]["config"]["generated_config"]
+            elif "interface_variables_only" in args and args["interface_variables_only"]:
+                del result["data"]["config"]["generated_config"]
+                interface_variables = result["data"]["available_variables"]["interfaces"]
+                result["data"]["available_variables"] = {"interfaces": interface_variables}
+            elif "config_only" in args and args["config_only"]:
+                del result["data"]["available_variables"]
+
         except Exception as e:
             logger.exception(f"Exception while generating config for device {hostname}")
             return (

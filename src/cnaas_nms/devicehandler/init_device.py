@@ -27,7 +27,7 @@ from cnaas_nms.db.settings import SettingsSyntaxError, VlanConflictError, rebuil
 from cnaas_nms.devicehandler.cert import arista_copy_cert
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.devicehandler.sync_devices import confcheck_devices, populate_device_vars
-from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
 from cnaas_nms.devicehandler.update import set_facts, update_interfacedb_worker, update_linknets
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -548,6 +548,7 @@ def init_access_device_step1(
         dev.hostname = new_hostname
         session.commit()
         hostname = dev.hostname
+        remove_sync_events(old_hostname)
 
     # Rebuild settings caches to make sure group memberships are updated after
     # setting new hostname

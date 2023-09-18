@@ -38,9 +38,18 @@ def get_running_config_interface(session: sqla_session, hostname: str, interface
     os_parser = compliance.parser_map[NAPALM_LIB_MAPPER.get(dev.platform)]
     config_parsed = os_parser(running_config)
     ret = []
+    leading_whitespace: Optional[int] = None
     for line in config_parsed.config_lines:
-        if f"interface {interface}" in line.parents:
-            ret.append(line.config_line.strip())
+        find_pattern = f"interface {interface}"
+        if dev.platform == "junos":
+            find_pattern = f"    {interface} {{"
+        if find_pattern in line.parents:
+            try:
+                if not leading_whitespace:
+                    leading_whitespace = len(line.config_line) - len(line.config_line.lstrip(" "))
+                ret.append(line.config_line[leading_whitespace:])
+            except Exception:
+                ret.append(line.config_line.strip())
     return "\n".join(ret)
 
 

@@ -869,10 +869,10 @@ class DeviceConfigApi(Resource):
                 del result["data"]["config"]["generated_config"]
             elif "interface_variables_only" in args and args["interface_variables_only"]:
                 del result["data"]["config"]["generated_config"]
-                interface_variables = result["data"]["available_variables"]["interfaces"]
-                result["data"]["available_variables"] = {"interfaces": interface_variables}
+                interface_variables = result["data"]["config"]["available_variables"]["interfaces"]
+                result["data"]["config"]["available_variables"] = {"interfaces": interface_variables}
             elif "config_only" in args and args["config_only"]:
-                del result["data"]["available_variables"]
+                del result["data"]["config"]["available_variables"]
 
         except Exception as e:
             logger.exception(f"Exception while generating config for device {hostname}")

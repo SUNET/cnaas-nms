@@ -138,6 +138,7 @@ class f_interface(BaseModel):
     untagged_vlan: Optional[int] = vlan_id_schema_optional
     tagged_vlan_list: Optional[List[int]] = None
     aggregate_id: Optional[int] = None
+    tags: Optional[List[str]] = None
     cli_append_str: str = ""
 
     @validator("tagged_vlan_list", each_item=True)

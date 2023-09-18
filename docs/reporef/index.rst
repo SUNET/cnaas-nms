@@ -403,6 +403,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * enabled: Optional. Set the administrative state of the interface. Defaults to true if not set.
   * aggregate_id: Optional. Identifier for configuring LACP etc. Integer value.
     Special value -1 means configure MLAG and use ID based on indexnum.
+  * tags: Optional list of strings, custom user defined tags to apply.
   * cli_append_str: Optional. Custom configuration to append to this interface.
 
 The "downlink" ifclass is used on DIST devices to specify that this interface

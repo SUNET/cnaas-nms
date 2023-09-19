@@ -11,6 +11,7 @@ from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationErr
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
 from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError
+from authlib.integrations.flask_client import OAuth
 
 from cnaas_nms.api.device import (
     device_api,
@@ -24,6 +25,7 @@ from cnaas_nms.api.device import (
     device_update_interfaces_api,
     devices_api,
 )
+from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.firmware import api as firmware_api
 from cnaas_nms.api.groups import api as groups_api
 from cnaas_nms.api.interface import api as interfaces_api
@@ -35,10 +37,14 @@ from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.system import api as system_api
+
+from cnaas_nms.app_settings import auth_settings
 from cnaas_nms.app_settings import api_settings
+
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
+
 
 logger = get_logger()
 
@@ -77,6 +83,19 @@ class CnaasApi(Api):
 
 
 app = Flask(__name__)
+
+# To register the OAuth client
+oauth = OAuth(app)
+client = oauth.register(
+    "connext",
+    server_metadata_url=auth_settings.OIDC_CONF_WELL_KNOWN_URL,
+    client_id=auth_settings.OIDC_CLIENT_ID,
+    client_secret=auth_settings.OIDC_CLIENT_SECRET,
+    client_kwargs={"scope": "openid"},
+    response_type="code",
+    response_mode="query",
+)
+
 app.config["RESTX_JSON"] = {"cls": CNaaSJSONEncoder}
 
 # TODO: make origins configurable
@@ -108,6 +127,7 @@ api = CnaasApi(
     app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey", doc="/api/doc/"
 )
 
+api.add_namespace(auth_api)
 api.add_namespace(device_api)
 api.add_namespace(devices_api)
 api.add_namespace(device_init_api)

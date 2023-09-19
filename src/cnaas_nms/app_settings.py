@@ -7,7 +7,6 @@ from pydantic import BaseSettings, PostgresDsn, validator
 
 class AppSettings(BaseSettings):
     # Database settings
-
     CNAAS_DB_HOSTNAME: str = "127.0.0.1"
     CNAAS_DB_USERNAME: str = "cnaas"
     CNAAS_DB_PASSWORD: str = "cnaas"
@@ -60,6 +59,14 @@ class ApiSettings(BaseSettings):
         if version not in (4, 6):
             raise ValueError("must be either 4 or 6")
         return version
+
+
+class AuthSettings(BaseSettings):
+    # Authorization settings
+    OIDC_CONF_WELL_KNOWN_URL: str = "well-known-openid-configuration-endpoint"
+    OIDC_CLIENT_SECRET: str = "xxx"
+    OIDC_CLIENT_ID: str = "client-id"
+    FE_CALLBACK_URL: str = "http://localhost/callback"
 
 
 def construct_api_settings() -> ApiSettings:
@@ -130,5 +137,11 @@ def construct_app_settings() -> AppSettings:
     return app_settings
 
 
+def construct_auth_settings() -> AuthSettings:
+    auth_settings = AuthSettings()
+    return auth_settings
+
+
 app_settings = construct_app_settings()
 api_settings = construct_api_settings()
+auth_settings = construct_auth_settings()

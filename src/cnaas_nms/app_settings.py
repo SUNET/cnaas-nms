@@ -63,9 +63,9 @@ class ApiSettings(BaseSettings):
 
 class AuthSettings(BaseSettings):
     # Authorization settings
-    OIDC_CONF_WELL_KNOWN_URL: str = "https://connect.test.surfconext.nl/.well-known/openid-configuration"
-    OIDC_CLIENT_SECRET: str = "sKKJVdYyVWYyEwVlncVI"
-    OIDC_CLIENT_ID: str = "cnaas.test.surfwired.nl"
+    OIDC_CONF_WELL_KNOWN_URL: str = "well-known-openid-configuration-endpoint"
+    OIDC_CLIENT_SECRET: str = "xxx"
+    OIDC_CLIENT_ID: str = "client-id"
     FE_CALLBACK_URL: str = "http://localhost/callback"
 
 

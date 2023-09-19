@@ -15,7 +15,7 @@ logger = get_logger()
 api = Namespace("auth", description="API for handling auth", prefix="/api/{}".format(__api_version__))
 
 
-class loginApi(Resource):
+class LoginApi(Resource):
     def get(self):
         """Function to initiate a login of the user.
         The user will be sent to the page to login.
@@ -43,7 +43,7 @@ s
             return empty_result(status="error", data="Exception during authorized redirect."), 500
 
 
-class authApi(Resource):
+class AuthApi(Resource):
     def get(self):
         """Function to authenticate the user.
         This API call is called by the OAUTH login after the user has logged in.
@@ -72,5 +72,5 @@ class authApi(Resource):
         return redirect(req.url, code=302)
 
 
-api.add_resource(loginApi, "/login")
-api.add_resource(authApi, "/auth")
+api.add_resource(LoginApi, "/login")
+api.add_resource(AuthApi, "/auth")

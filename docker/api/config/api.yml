@@ -12,3 +12,4 @@ mgmtdomain_reserved_count: 5
 mgmtdomain_primary_ip_version: 4
 commit_confirmed_mode: 1
 commit_confirmed_timeout: 300
+commit_confirmed_wait: 1

@@ -1,6 +1,36 @@
 Changelog
 =========
 
+Version 1.5.0
+-------------
+
+New features:
+
+ - Add commit confirm modes: mode 0 - no commit confirm (previous behavior), mode 1 - confirm each device individually
+   after it has commited, mode 2 - confirm devices only when all devices in the job has comitted successfully
+ - Add API to query configured API settings
+ - New settings for:
+  * users: username, ssh_key, password_hash etc to handle device user accounts
+  * dot1x_multi_host, poe_reboot_maintain
+  * prefix_sets and routing_policies to describe policies for router peerings etc
+ - Sync history events, save what event caused devices to become unsynchronized
+ - API to query running config
+
+Bug fixes:
+
+ - Don't return duplicates of neighbor entries
+ - Fix error "Error in repository: HEAD is a detached" when refreshing settings repo
+ - Mark init neighbors as unsync if they have local changes
+ - Log events was not always sent from redis to websocket
+
+Version 1.4.2
+-------------
+
+Bug fixes:
+
+ - Fix ZTP of access switch connected to another access switch with type downlink but empty data
+
+
 Version 1.4.1
 -------------
 

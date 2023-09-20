@@ -3,7 +3,7 @@ import json
 from typing import List, Optional
 
 from flask import make_response, request
-from flask_restx import Namespace, Resource, fields
+from flask_restx import Namespace, Resource, fields, marshal
 from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -168,6 +168,15 @@ device_cert_model = device_syncto_api.model(
         "hostname": fields.String(required=False, description="Device hostname", example="myhostname"),
         "group": fields.String(required=False, description="Device group", example="mygroup"),
         "action": fields.String(required=True, description="Action to execute, one of: RENEW", example="RENEW"),
+    },
+)
+
+device_generate_config_model = device_api.model(
+    "generate_config",
+    {
+        "hostname": fields.String,
+        "generated_config": fields.String,
+        "available_variables": fields.Raw,
     },
 )
 
@@ -844,14 +853,11 @@ class DeviceUpdateInterfacesApi(Resource):
         return resp
 
 
-class DeviceConfigApi(Resource):
+class DeviceGenerateConfigApi(Resource):
     @jwt_required
-    @device_api.param("variables_only", "Only return available variables")
-    @device_api.param("interface_variables_only", "Only return available interface variables")
-    @device_api.param("config_only", "Only return full generated config")
+    @device_api.doc(model=device_generate_config_model)
     def get(self, hostname: str):
         """Get device configuration"""
-        args = request.args
         result = empty_result()
         result["data"] = {"config": None}
         if not Device.valid_hostname(hostname):
@@ -860,19 +866,13 @@ class DeviceConfigApi(Resource):
         try:
             config, template_vars = cnaas_nms.devicehandler.sync_devices.generate_only(hostname)
             template_vars["host"] = hostname
-            result["data"]["config"] = {
+            data = {
                 "hostname": hostname,
                 "generated_config": config,
                 "available_variables": template_vars,
             }
-            if "variables_only" in args and args["variables_only"]:
-                del result["data"]["config"]["generated_config"]
-            elif "interface_variables_only" in args and args["interface_variables_only"]:
-                del result["data"]["config"]["generated_config"]
-                interface_variables = result["data"]["config"]["available_variables"]["interfaces"]
-                result["data"]["config"]["available_variables"] = {"interfaces": interface_variables}
-            elif "config_only" in args and args["config_only"]:
-                del result["data"]["config"]["available_variables"]
+
+            result["data"]["config"] = marshal(data, device_generate_config_model, mask=request.headers.get("X-Fields"))
 
         except Exception as e:
             logger.exception(f"Exception while generating config for device {hostname}")
@@ -1207,7 +1207,7 @@ class DeviceSyncHistoryApi(Resource):
 # Devices
 device_api.add_resource(DeviceByIdApi, "/<int:device_id>")
 device_api.add_resource(DeviceByHostnameApi, "/<string:hostname>")
-device_api.add_resource(DeviceConfigApi, "/<string:hostname>/generate_config")
+device_api.add_resource(DeviceGenerateConfigApi, "/<string:hostname>/generate_config")
 device_api.add_resource(DeviceRunningConfigApi, "/<string:hostname>/running_config")
 device_api.add_resource(DevicePreviousConfigApi, "/<string:hostname>/previous_config")
 device_api.add_resource(DeviceApplyConfigApi, "/<string:hostname>/apply_config")

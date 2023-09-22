@@ -139,7 +139,23 @@ class f_interface(BaseModel):
     tagged_vlan_list: Optional[List[int]] = None
     aggregate_id: Optional[int] = None
     tags: Optional[List[str]] = None
+    vrf: Optional[str] = vlan_name_schema
+    ipv4_address: Optional[str] = None
+    ipv6_address: Optional[str] = ipv6_if_schema
+    mtu: Optional[int] = mtu_schema
+    acl_ipv4_in: Optional[str] = None
+    acl_ipv4_out: Optional[str] = None
+    acl_ipv6_in: Optional[str] = None
+    acl_ipv6_out: Optional[str] = None
     cli_append_str: str = ""
+
+    @validator("ipv4_address")
+    def vrf_required_if_ipv4_address_set(cls, v, values, **kwargs):
+        if v:
+            validate_ipv4_if(v)
+            if "vrf" not in values or not values["vrf"]:
+                raise ValueError("VRF is required when specifying ipv4_gw")
+        return v
 
     @validator("tagged_vlan_list", each_item=True)
     def check_valid_vlan_ids(cls, v):

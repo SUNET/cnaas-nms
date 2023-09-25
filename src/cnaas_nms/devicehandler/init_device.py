@@ -1,6 +1,6 @@
 import datetime
 import os
-from ipaddress import IPv4Address, IPv4Interface
+from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import List, Optional, Union
 
 import yaml
@@ -27,6 +27,7 @@ from cnaas_nms.db.settings import SettingsSyntaxError, VlanConflictError, rebuil
 from cnaas_nms.devicehandler.cert import arista_copy_cert
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.devicehandler.sync_devices import confcheck_devices, populate_device_vars
+from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
 from cnaas_nms.devicehandler.update import set_facts, update_interfacedb_worker, update_linknets
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.scheduler.scheduler import Scheduler
@@ -496,25 +497,50 @@ def init_access_device_step1(
         # Select a new management IP for the device
         ReservedIP.clean_reservations(session, device=dev)
         session.commit()
-        mgmt_ip = mgmtdomain.find_free_mgmt_ip(session)
+        mgmt_ip = mgmtdomain.find_free_primary_mgmt_ip(session)
         if not mgmt_ip:
             raise Exception(
-                "Could not find free management IP for management domain {}/{}".format(
+                "Could not find free primary management IP for management domain {}/{}".format(
                     mgmtdomain.id, mgmtdomain.description
                 )
             )
         reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
         session.add(reserved_ip)
+
+        secondary_mgmt_ip = None
+        if mgmtdomain.is_dual_stack:
+            secondary_mgmt_ip = mgmtdomain.find_free_secondary_mgmt_ip()
+            if not secondary_mgmt_ip:
+                raise Exception(
+                    "Could not find free secondary management IP for management domain {}/{}".format(
+                        mgmtdomain.id, mgmtdomain.description
+                    )
+                )
+            reserved_ip = ReservedIP(device=dev, ip=secondary_mgmt_ip)
+            session.add(reserved_ip)
+
         session.commit()
         # Populate variables for template rendering
-        mgmt_gw_ipif = IPv4Interface(mgmtdomain.ipv4_gw)
+        mgmt_gw_ipif = ip_interface(mgmtdomain.primary_gw)
         mgmt_variables = {
-            "mgmt_ipif": str(IPv4Interface("{}/{}".format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
+            "mgmt_ipif": str(ip_interface("{}/{}".format(mgmt_ip, mgmt_gw_ipif.network.prefixlen))),
             "mgmt_ip": str(mgmt_ip),
             "mgmt_prefixlen": int(mgmt_gw_ipif.network.prefixlen),
             "mgmt_vlan_id": mgmtdomain.vlan,
             "mgmt_gw": mgmt_gw_ipif.ip,
         }
+        if secondary_mgmt_ip:
+            secondary_mgmt_gw_ipif = ip_interface(mgmtdomain.secondary_gw)
+            mgmt_variables.update(
+                {
+                    "secondary_mgmt_ipif": str(
+                        ip_interface("{}/{}".format(secondary_mgmt_ip, secondary_mgmt_gw_ipif.network.prefixlen))
+                    ),
+                    "secondary_mgmt_ip": secondary_mgmt_ip,
+                    "secondary_mgmt_prefixlen": int(secondary_mgmt_gw_ipif.network.prefixlen),
+                    "secondary_mgmt_gw": secondary_mgmt_gw_ipif.ip,
+                }
+            )
         device_variables = populate_device_vars(session, dev, new_hostname, DeviceType.ACCESS)
         device_variables = {**device_variables, **mgmt_variables}
         # Update device state
@@ -522,6 +548,7 @@ def init_access_device_step1(
         dev.hostname = new_hostname
         session.commit()
         hostname = dev.hostname
+        remove_sync_events(old_hostname)
 
     # Rebuild settings caches to make sure group memberships are updated after
     # setting new hostname
@@ -555,17 +582,19 @@ def init_access_device_step1(
             linknets = dev.get_linknets(session)
             for linknet in linknets:
                 session.delete(linknet)
-            reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
-            if reserved_ip:
+            reserved_ips = session.query(ReservedIP).filter(ReservedIP.device == dev).all()
+            for reserved_ip in reserved_ips:
                 session.delete(reserved_ip)
             return NornirJobResult(nrresult=nrresult)
 
         dev.management_ip = device_variables["mgmt_ip"]
+        if secondary_mgmt_ip:
+            dev.secondary_management_ip = secondary_mgmt_ip
         dev.state = DeviceState.INIT
         dev.device_type = DeviceType.ACCESS
         # Remove the reserved IP since it's now saved in the device database instead
-        reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
-        if reserved_ip:
+        reserved_ips = session.query(ReservedIP).filter(ReservedIP.device == dev).all()
+        for reserved_ip in reserved_ips:
             session.delete(reserved_ip)
 
     # Plugin hook, allocated IP
@@ -630,7 +659,7 @@ def check_neighbor_sync(session, hostnames: List[str]):
             raise DeviceStateError("Neighbor device {} not in state MANAGED".format(hostname))
         if not dev.synchronized:
             raise DeviceSyncError("Neighbor device {} not synchronized".format(hostname))
-    confcheck_devices(hostnames)
+    confcheck_devices(session, hostnames)
 
 
 @job_wrapper
@@ -828,6 +857,7 @@ def init_device_step2(
         dev: Device = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
         dev.synchronized = False
+        add_sync_event(hostname, "device_init", scheduled_by, job_id)
         set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None

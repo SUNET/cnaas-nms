@@ -6,7 +6,12 @@ if [ ! -z "$GITREPO_ETC" ]
 then
 	cd /opt/cnaas
 	rm -rf /opt/cnaas/etc
-	git clone $GITREPO_ETC etc
+        base_url=$(echo $GITREPO_ETC | cut -d\# -f1)
+        branch=$(echo $GITREPO_ETC | cut -d\# -s -f2)
+        if [ -n "$branch" ]; then
+           branch="-b $branch"
+        fi
+	git clone $branch $base_url etc
 	if [ -f "/opt/cnaas/etc/dhcpd/dhcpd.conf" ]
 	then
 		cp /opt/cnaas/etc/dhcpd/dhcpd.conf /opt/cnaas/dhcpd.conf

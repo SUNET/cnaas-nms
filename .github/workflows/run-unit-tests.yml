@@ -32,7 +32,7 @@ jobs:
 #      - name: Create code coverage dir
 #        run: mkdir -p docker/coverage/
 #
-      - uses: satackey/action-docker-layer-caching@v0.0.11
+      - uses: jpribyl/action-docker-layer-caching@v0.1.1
         # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
 
@@ -44,7 +44,7 @@ jobs:
       - name: Get branch name (pull request)
         if: github.event_name == 'pull_request'
         shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_HEAD_REF} | tr / -)" >> $GITHUB_ENV
+        run: echo "BRANCH_NAME=pr/$(echo ${GITHUB_REF#refs/pull/} | cut -d '/' -f1)" >> $GITHUB_ENV
 
       - name: Get repo URL
         shell: bash

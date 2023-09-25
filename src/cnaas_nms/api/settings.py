@@ -1,8 +1,12 @@
+import json
+
 from flask import make_response, request
 from flask_restx import Namespace, Resource
 
 from cnaas_nms.api.generic import empty_result
+from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.helper import json_dumper
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import SettingsSyntaxError, check_settings_syntax, get_settings, get_settings_root
 from cnaas_nms.tools.mergedict import merge_dict_origin
@@ -68,5 +72,15 @@ class SettingsModelApi(Resource):
             return empty_result(status="success", data=ret)
 
 
+class SettingsServerApI(Resource):
+    @jwt_required
+    def get(self):
+        ret_dict = {"api": api_settings.dict()}
+        response = make_response(json.dumps(ret_dict, default=json_dumper))
+        response.headers["Content-Type"] = "application/json"
+        return response
+
+
 api.add_resource(SettingsApi, "")
 api.add_resource(SettingsModelApi, "/model")
+api.add_resource(SettingsServerApI, "/server")

@@ -31,6 +31,7 @@ ipv4_if_schema = Field(None, regex=f"^{IPV4_IF_REGEX}$", description="IPv4 addre
 ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$", description="IPv6 address")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
 ipv6_if_schema = Field(None, regex=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)")
+ipv4_or_ipv6_if_schema = Field(None, regex=f"({IPV4_IF_REGEX}|{IPV6_IF_REGEX})", description="IPv4 or IPv6 prefix")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
@@ -57,6 +58,10 @@ ifdescr_schema = Field(None, max_length=64, description="Interface description, 
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
 ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
 maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer")
+accept_or_reject_schema = Field(..., regex=r"^(accept|reject)$", description="Value has to be 'accept' or 'reject'")
+prefix_size_or_range_schema = Field(
+    None, regex=r"^[0-9]{1,3}([-][0-9]{1,3})?$", description="Prefix size or range 0-128"
+)
 
 GROUP_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
 group_name = Field(..., regex=GROUP_NAME, max_length=253)
@@ -133,7 +138,24 @@ class f_interface(BaseModel):
     untagged_vlan: Optional[int] = vlan_id_schema_optional
     tagged_vlan_list: Optional[List[int]] = None
     aggregate_id: Optional[int] = None
+    tags: Optional[List[str]] = None
+    vrf: Optional[str] = vlan_name_schema
+    ipv4_address: Optional[str] = None
+    ipv6_address: Optional[str] = ipv6_if_schema
+    mtu: Optional[int] = mtu_schema
+    acl_ipv4_in: Optional[str] = None
+    acl_ipv4_out: Optional[str] = None
+    acl_ipv6_in: Optional[str] = None
+    acl_ipv6_out: Optional[str] = None
     cli_append_str: str = ""
+
+    @validator("ipv4_address")
+    def vrf_required_if_ipv4_address_set(cls, v, values, **kwargs):
+        if v:
+            validate_ipv4_if(v)
+            if "vrf" not in values or not values["vrf"]:
+                raise ValueError("VRF is required when specifying ipv4_gw")
+        return v
 
     @validator("tagged_vlan_list", each_item=True)
     def check_valid_vlan_ids(cls, v):
@@ -296,6 +318,43 @@ class f_underlay(BaseModel):
     bgp_asn: Optional[as_num_type] = as_num_schema
 
 
+class f_user(BaseModel):
+    username: str
+    ssh_key: Optional[str] = None
+    uid: Optional[int] = None
+    password_hash_arista: Optional[str] = None
+    password_hash_cisco: Optional[str] = None
+    password_hash_juniper: Optional[str] = None
+    permission_arista: Optional[str] = None
+    permission_cisco: Optional[str] = None
+    permission_juniper: Optional[str] = None
+    groups: List[str] = []
+
+
+class f_prefixset_item(BaseModel):
+    prefix: str = ipv4_or_ipv6_if_schema
+    masklength_range: Optional[str] = prefix_size_or_range_schema
+
+
+class f_prefixset(BaseModel):
+    mode: str = "ipv4"
+    prefixes: List[f_prefixset_item]
+
+
+class f_rpolicy_condition(BaseModel):
+    match_type: str
+    match_target: str
+
+
+class f_rpolicy_statement(BaseModel):
+    action: str = accept_or_reject_schema
+    conditions: List[f_rpolicy_condition]
+
+
+class f_routingpolicy(BaseModel):
+    statements: List[f_rpolicy_statement]
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -318,6 +377,11 @@ class f_root(BaseModel):
     cli_append_str: str = ""
     organization_name: str = ""
     domain_name: Optional[str] = domain_name_schema
+    users: List[f_user] = []
+    dot1x_multi_host: bool = False
+    poe_reboot_maintain: bool = False
+    prefix_sets: Dict[str, f_prefixset] = {}
+    routing_policies: Dict[str, f_routingpolicy] = {}
 
 
 class f_group_item(BaseModel):

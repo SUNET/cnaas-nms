@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseSettings, PostgresDsn
+from pydantic import BaseSettings, PostgresDsn, validator
 
 
 class AppSettings(BaseSettings):
@@ -49,6 +49,18 @@ class ApiSettings(BaseSettings):
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
     MGMTDOMAIN_RESERVED_COUNT: int = 5
+    MGMTDOMAIN_PRIMARY_IP_VERSION: int = 4
+    COMMIT_CONFIRMED_MODE: int = 1
+    COMMIT_CONFIRMED_TIMEOUT: int = 300
+    COMMIT_CONFIRMED_WAIT: int = 1
+    SETTINGS_OVERRIDE: Optional[dict] = None
+
+    @validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
+    @classmethod
+    def primary_ip_version_is_valid(cls, version: int) -> int:
+        if version not in (4, 6):
+            raise ValueError("must be either 4 or 6")
+        return version
 
 
 def construct_api_settings() -> ApiSettings:
@@ -76,6 +88,11 @@ def construct_api_settings() -> ApiSettings:
             GLOBAL_UNIQUE_VLANS=config.get("global_unique_vlans", True),
             INIT_MGMT_TIMEOUT=config.get("init_mgmt_timeout", 30),
             MGMTDOMAIN_RESERVED_COUNT=config.get("mgmtdomain_reserved_count", 5),
+            MGMTDOMAIN_PRIMARY_IP_VERSION=config.get("mgmtdomain_primary_ip_version", 4),
+            COMMIT_CONFIRMED_MODE=config.get("commit_confirmed_mode", 1),
+            COMMIT_CONFIRMED_TIMEOUT=config.get("commit_confirmed_timeout", 300),
+            COMMIT_CONFIRMED_WAIT=config.get("commit_confirmed_wait", 1),
+            SETTINGS_OVERRIDE=config.get("settings_override", None),
         )
     else:
         return ApiSettings()

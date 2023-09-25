@@ -93,7 +93,7 @@ def loglevel_to_rooms(levelname: str) -> List[str]:
 
 def parse_redis_event(event):
     try:
-        # [stream, [(messageid, {datadict})]
+        # [stream, [(messageid, {datadict})]]
         if event[0] == "events":
             return event[1][0][1]
     except Exception:  # noqa: S110
@@ -106,6 +106,8 @@ def emit_redis_event(event):
             socketio_emit(event["message"], loglevel_to_rooms(event["level"]))
         elif event["type"] == "update":
             socketio_emit(json.loads(event["json"]), ["update_{}".format(event["update_type"])])
+        elif event["type"] == "sync":
+            socketio_emit(json.loads(event["json"]), ["sync"])
     except Exception:  # noqa: S110
         pass
 
@@ -113,13 +115,19 @@ def emit_redis_event(event):
 def thread_websocket_events():
     redis: StrictRedis
     with redis_session() as redis:
+        last_event = b"$"
         while True:
-            result = redis.xread({"events": b"$"}, count=10, block=200)
+            result = redis.xread({"events": last_event}, count=10, block=200)
             for item in result:
                 event = parse_redis_event(item)
                 if not event:
                     continue
                 emit_redis_event(event)
+                try:
+                    # [stream, [(messageid, {datadict})]]
+                    last_event = item[1][0][0]
+                except Exception:  # noqa: S110
+                    last_event = b"$"
             if stop_websocket_threads:
                 break
 

@@ -8,3 +8,4 @@ Tutorials to help you get started with using and understanding CNaaS
 
    CNaaS Intro <intro/index>
    Change workflow <change-workflow/index>
+   Synchronization status <sync-status/index>

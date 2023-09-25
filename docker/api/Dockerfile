@@ -29,6 +29,7 @@ RUN apt-get update \
       psmisc \
       supervisor \
       uwsgi-plugin-python3 \
+      ssh-client \
     && pip3 install --no-cache-dir uwsgi
 
 # Prepare for supervisord, ngninx

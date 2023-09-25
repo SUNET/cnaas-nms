@@ -1,10 +1,12 @@
 import os
 import socket
+import subprocess
 import time
 from contextlib import closing
 
 import pytest
 
+from cnaas_nms.scheduler.scheduler import Scheduler
 from git import Repo
 
 
@@ -71,7 +73,14 @@ def postgresql(request):
     # A more complete solution would check that we can actually establish a PostgreSQL client
     # connection.
     time.sleep(5)
+    request.getfixturevalue("alembic_upgrade")
     yield True
+
+
+@pytest.fixture(scope="session")
+def alembic_upgrade(pytestconfig):
+    """Ensures the sql database schema is up-to-date at the start of a test run"""
+    subprocess.check_call(["alembic", "upgrade", "head"], cwd=pytestconfig.rootpath)
 
 
 def wait_for_port(host: str, port: int, tries=10) -> bool:
@@ -85,3 +94,13 @@ def wait_for_port(host: str, port: int, tries=10) -> bool:
         time.sleep(0.5)
     print(f"NO RESPONSE from {host}:{port}")
     return False
+
+
+@pytest.fixture(scope="session")
+def scheduler():
+    scheduler = Scheduler()
+    scheduler.start()
+    yield scheduler
+    time.sleep(3)
+    scheduler.get_scheduler().print_jobs()
+    scheduler.shutdown()

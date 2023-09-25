@@ -2,6 +2,8 @@ import hashlib
 import re
 from typing import Dict, List, Optional
 
+from netutils.config import compliance
+from netutils.lib_mapper import NAPALM_LIB_MAPPER
 from nornir.core.filter import F
 from nornir.core.task import AggregatedResult
 from nornir_napalm.plugins.tasks import napalm_get
@@ -11,6 +13,7 @@ import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.tools.log import get_logger
 
 
@@ -19,14 +22,35 @@ def get_inventory():
     return nr.dict()["inventory"]
 
 
-def get_running_config(hostname):
+def get_running_config(hostname: str) -> Optional[str]:
     nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
-    if hostname:
-        nr_filtered = nr.filter(name=hostname).filter(managed=True)
-    else:
-        nr_filtered = nr.filter(managed=True)
+    nr_filtered = nr.filter(name=hostname).filter(managed=True)
     nr_result = nr_filtered.run(task=napalm_get, getters=["config"])
-    return nr_result[hostname].result
+    if nr_result[hostname].failed:
+        raise nr_result[hostname][0].exception
+    else:
+        return nr_result[hostname].result["config"]["running"]
+
+
+def get_running_config_interface(session: sqla_session, hostname: str, interface: str) -> str:
+    running_config = get_running_config(hostname)
+    dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+    os_parser = compliance.parser_map[NAPALM_LIB_MAPPER.get(dev.platform)]
+    config_parsed = os_parser(running_config)
+    ret = []
+    leading_whitespace: Optional[int] = None
+    for line in config_parsed.config_lines:
+        find_pattern = f"interface {interface}"
+        if dev.platform == "junos":
+            find_pattern = f"    {interface} {{"
+        if find_pattern in line.parents:
+            try:
+                if not leading_whitespace:
+                    leading_whitespace = len(line.config_line) - len(line.config_line.lstrip(" "))
+                ret.append(line.config_line[leading_whitespace:])
+            except Exception:
+                ret.append(line.config_line.strip())
+    return "\n".join(ret)
 
 
 def calc_config_hash(hostname, config):

@@ -16,6 +16,7 @@ import cnaas_nms.db.linknet
 import cnaas_nms.db.site
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
 from cnaas_nms.tools.event import add_event
 
 
@@ -77,6 +78,7 @@ class Device(cnaas_nms.db.base.Base):
     site = relationship("Site")
     description = Column(Unicode(255))
     management_ip = Column(IPAddressType)
+    secondary_management_ip = Column(IPAddressType)
     dhcp_ip = Column(IPAddressType)
     infra_ip = Column(IPAddressType)
     oob_ip = Column(IPAddressType)
@@ -105,7 +107,7 @@ class Device(cnaas_nms.db.base.Base):
                 value = value.name
             elif issubclass(value.__class__, cnaas_nms.db.base.Base):
                 continue
-            elif issubclass(value.__class__, ipaddress.IPv4Address):
+            elif issubclass(value.__class__, ipaddress._BaseAddress):
                 value = str(value)
             elif issubclass(value.__class__, datetime.datetime):
                 value = str(value)
@@ -308,7 +310,15 @@ class Device(cnaas_nms.db.base.Base):
         return all(hostname_part_re.match(x) for x in hostname.split("."))
 
     @classmethod
-    def set_devtype_syncstatus(cls, session, devtype: DeviceType, platform: Optional[str] = None, syncstatus=False):
+    def set_devtype_syncstatus(
+        cls,
+        session,
+        devtype: DeviceType,
+        by: str,
+        repo_type: str,
+        platform: Optional[str] = None,
+        job_id: Optional[int] = None,
+    ):
         """Update sync status of devices of type devtype"""
         dev: Device
         if platform:
@@ -318,7 +328,8 @@ class Device(cnaas_nms.db.base.Base):
         else:
             dev_query = session.query(Device).filter(Device.device_type == devtype).all()
         for dev in dev_query:
-            dev.synchronized = syncstatus
+            dev.synchronized = False
+            add_sync_event(dev.hostname, f"refresh_{repo_type}", by, job_id)
 
     @classmethod
     def device_create(cls, **kwargs) -> Device:
@@ -336,6 +347,9 @@ class Device(cnaas_nms.db.base.Base):
         if error != []:
             return error
         for field in data:
+            if field == "state" and data[field] == DeviceState.UNMANAGED:
+                remove_sync_events(self.hostname)
+                self.synchronized = False
             setattr(self, field, data[field])
 
     @classmethod
@@ -376,38 +390,17 @@ class Device(cnaas_nms.db.base.Base):
         if "description" in kwargs:
             data["description"] = kwargs["description"]
 
-        if "management_ip" in kwargs:
-            if kwargs["management_ip"]:
-                try:
-                    addr = ipaddress.IPv4Address(kwargs["management_ip"])
-                except Exception:
-                    errors.append("Invalid management_ip received. Must be correct IPv4 address.")
+        for ip_field in ("management_ip", "secondary_management_ip", "infra_ip", "dhcp_ip"):
+            if ip_field in kwargs:
+                if kwargs[ip_field]:
+                    try:
+                        addr = ipaddress.ip_address(kwargs[ip_field])
+                    except Exception:
+                        errors.append("Invalid {} received. Must be a valid IP address.".format(ip_field))
+                    else:
+                        data[ip_field] = addr
                 else:
-                    data["management_ip"] = addr
-            else:
-                data["management_ip"] = None
-
-        if "infra_ip" in kwargs:
-            if kwargs["infra_ip"]:
-                try:
-                    addr = ipaddress.IPv4Address(kwargs["infra_ip"])
-                except Exception:
-                    errors.append("Invalid infra_ip received. Must be correct IPv4 address.")
-                else:
-                    data["infra_ip"] = addr
-            else:
-                data["infra_ip"] = None
-
-        if "dhcp_ip" in kwargs:
-            if kwargs["dhcp_ip"]:
-                try:
-                    addr = ipaddress.IPv4Address(kwargs["dhcp_ip"])
-                except Exception:
-                    errors.append("Invalid dhcp_ip received. Must be correct IPv4 address.")
-                else:
-                    data["dhcp_ip"] = addr
-            else:
-                data["dhcp_ip"] = None
+                    data[ip_field] = None
 
         if "serial" in kwargs:
             try:
@@ -495,5 +488,19 @@ class Device(cnaas_nms.db.base.Base):
 @event.listens_for(Device, "after_update")
 def after_update_device(mapper, connection, target: Device):
     update_data = {"action": "UPDATED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
+    json_data = json.dumps(update_data)
+    add_event(json_data=json_data, event_type="update", update_type="device")
+
+
+@event.listens_for(Device, "before_delete")
+def before_delete_device(mapper, connection, target: Device):
+    update_data = {"action": "DELETED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
+    json_data = json.dumps(update_data)
+    add_event(json_data=json_data, event_type="update", update_type="device")
+
+
+@event.listens_for(Device, "after_insert")
+def after_insert_device(mapper, connection, target: Device):
+    update_data = {"action": "CREATED", "device_id": target.id, "hostname": target.hostname, "object": target.as_dict()}
     json_data = json.dumps(update_data)
     add_event(json_data=json_data, event_type="update", update_type="device")

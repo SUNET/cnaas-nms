@@ -10,8 +10,9 @@ from cnaas_nms.api.generic import empty_result, parse_pydantic_error, update_sql
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.underlay import find_free_infra_linknet
-from cnaas_nms.tools.security import jwt_required
+from cnaas_nms.tools.security import get_jwt_identity, jwt_required
 from cnaas_nms.version import __api_version__
 
 linknets_api = Namespace("linknets", description="API for handling linknets", prefix="/api/{}".format(__api_version__))
@@ -198,7 +199,9 @@ class LinknetsApi(Resource):
             if not cur_linknet:
                 return empty_result(status="error", data="No such linknet found in database"), 404
             cur_linknet.device_a.synchronized = False
+            add_sync_event(cur_linknet.device_a.hostname, "linknet_deleted", get_jwt_identity())
             cur_linknet.device_b.synchronized = False
+            add_sync_event(cur_linknet.device_b.hostname, "linknet_deleted", get_jwt_identity())
             session.delete(cur_linknet)
             session.commit()
             return empty_result(status="success", data={"deleted_linknet": cur_linknet.as_dict()}), 200
@@ -225,7 +228,9 @@ class LinknetByIdApi(Resource):
             instance: Linknet = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
+                add_sync_event(instance.device_a.hostname, "linknet_deleted", get_jwt_identity())
                 instance.device_b.synchronized = False
+                add_sync_event(instance.device_b.hostname, "linknet_deleted", get_jwt_identity())
                 session.delete(instance)
                 session.commit()
                 return empty_result(status="success", data={"deleted_linknet": instance.as_dict()}), 200
@@ -262,7 +267,9 @@ class LinknetByIdApi(Resource):
                 changed: bool = update_sqla_object(instance, json_data)
                 if changed:
                     instance.device_a.synchronized = False
+                    add_sync_event(instance.device_a.hostname, "linknet_updated", get_jwt_identity())
                     instance.device_b.synchronized = False
+                    add_sync_event(instance.device_b.hostname, "linknet_updated", get_jwt_identity())
                     return empty_result(status="success", data={"updated_linknet": instance.as_dict()}), 200
                 else:
                     return empty_result(status="success", data={"unchanged_linknet": instance.as_dict()}), 200

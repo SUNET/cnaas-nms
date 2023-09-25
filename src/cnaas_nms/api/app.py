@@ -3,6 +3,7 @@ import re
 import sys
 from typing import Optional
 
+from engineio.payload import Payload
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, decode_token
@@ -17,6 +18,7 @@ from cnaas_nms.api.device import (
     device_discover_api,
     device_init_api,
     device_initcheck_api,
+    device_synchistory_api,
     device_syncto_api,
     device_update_facts_api,
     device_update_interfaces_api,
@@ -83,6 +85,7 @@ cors = CORS(
     resources={r"/api/*": {"origins": "*"}},
     expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link"],
 )
+Payload.max_decode_packets = 500
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 if api_settings.JWT_ENABLED:
@@ -101,7 +104,9 @@ if api_settings.JWT_ENABLED:
 
     jwt = JWTManager(app)
 
-api = CnaasApi(app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey")
+api = CnaasApi(
+    app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey", doc="/api/doc/"
+)
 
 api.add_namespace(device_api)
 api.add_namespace(devices_api)
@@ -112,6 +117,7 @@ api.add_namespace(device_discover_api)
 api.add_namespace(device_update_facts_api)
 api.add_namespace(device_update_interfaces_api)
 api.add_namespace(device_cert_api)
+api.add_namespace(device_synchistory_api)
 api.add_namespace(linknets_api)
 api.add_namespace(linknet_api)
 api.add_namespace(firmware_api)
@@ -148,6 +154,8 @@ def socketio_on_events(data):
         room = data["loglevel"]
     elif "update" in data and data["update"] in ["device", "job"]:
         room = "update_{}".format(data["update"])
+    elif "sync" in data and data["sync"] == "all":
+        room = "sync"
     else:
         return False  # TODO: how to send error message to client?
 

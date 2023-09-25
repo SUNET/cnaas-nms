@@ -30,7 +30,6 @@ Bug fixes:
 
  - Fix ZTP of access switch connected to another access switch with type downlink but empty data
 
-
 Version 1.4.1
 -------------
 

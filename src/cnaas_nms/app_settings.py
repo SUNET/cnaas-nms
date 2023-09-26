@@ -66,7 +66,7 @@ class AuthSettings(BaseSettings):
     OIDC_CONF_WELL_KNOWN_URL: str = "well-known-openid-configuration-endpoint"
     OIDC_CLIENT_SECRET: str = "xxx"
     OIDC_CLIENT_ID: str = "client-id"
-    FE_CALLBACK_URL: str = "http://localhost/callback"
+    FRONTEND_CALLBACK_URL: str = "http://localhost/callback"
 
 
 def construct_api_settings() -> ApiSettings:

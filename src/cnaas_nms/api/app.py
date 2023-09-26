@@ -10,7 +10,7 @@ from flask_jwt_extended import JWTManager, decode_token
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
-from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError
+from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError, ExpiredSignatureError
 from authlib.integrations.flask_client import OAuth
 
 from cnaas_nms.api.device import (
@@ -42,7 +42,7 @@ from cnaas_nms.app_settings import auth_settings
 from cnaas_nms.app_settings import api_settings
 
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.tools.security import get_oauth_identity, oauth_required
 from cnaas_nms.version import __api_version__
 
 
@@ -58,7 +58,7 @@ authorizations = {
     }
 }
 
-jwt_query_r = re.compile(r"jwt=[^ &]+")
+jwt_query_r = re.compile(r"code=[^ &]+")
 
 
 class CnaasApi(Api):
@@ -77,6 +77,8 @@ class CnaasApi(Api):
             data = {"status": "error", "data": "JWT token missing?"}
         elif isinstance(e, InvalidHeaderError):
             data = {"status": "error", "data": "Invalid header, JWT token missing? {}".format(e)}
+        elif isinstance(e, ExpiredSignatureError):
+            data = {"status": "error", "data": "The JWT token is expired"}
         else:
             return super(CnaasApi, self).handle_error(e)
         return jsonify(data), 401
@@ -96,6 +98,9 @@ client = oauth.register(
     response_mode="query",
 )
 
+if api_settings.JWT_ENABLED:
+    app.config["SECRET_KEY"] = os.urandom(128)
+
 app.config["RESTX_JSON"] = {"cls": CNaaSJSONEncoder}
 
 # TODO: make origins configurable
@@ -107,21 +112,7 @@ cors = CORS(
 Payload.max_decode_packets = 500
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-if api_settings.JWT_ENABLED:
-    try:
-        jwt_pubkey = open(api_settings.JWT_CERT).read()
-    except Exception as e:
-        print("Could not load public JWT cert from api.yml config: {}".format(e))
-        sys.exit(1)
 
-    app.config["SECRET_KEY"] = os.urandom(128)
-    app.config["JWT_PUBLIC_KEY"] = jwt_pubkey
-    app.config["JWT_IDENTITY_CLAIM"] = "sub"
-    app.config["JWT_ALGORITHM"] = "ES256"
-    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
-    app.config["JWT_TOKEN_LOCATION"] = ("headers", "query_string")
-
-    jwt = JWTManager(app)
 
 api = CnaasApi(
     app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey", doc="/api/doc/"
@@ -156,9 +147,10 @@ api.add_namespace(system_api)
 
 # SocketIO on connect
 @socketio.on("connect")
-@jwt_required
+@oauth_required
 def socketio_on_connect():
-    user = get_jwt_identity()
+    #TODO j
+    user = get_oauth_identity()
     if user:
         logger.info("User: {} connected via socketio".format(user))
         return True
@@ -186,17 +178,19 @@ def socketio_on_events(data):
 @app.after_request
 def log_request(response):
     try:
-        token = request.headers.get("Authorization").split(" ")[-1]
-        user = decode_token(token).get("sub")
-    except Exception:
-        user = "unknown"
-    try:
         url = re.sub(jwt_query_r, "", request.url)
-        logger.info(
-            "User: {}, Method: {}, Status: {}, URL: {}, JSON: {}".format(
-                user, request.method, response.status_code, url, request.json
+        if request.headers.get('content-type') == 'application/json':
+            logger.info(
+                "Method: {}, Status: {}, URL: {}, JSON: {}".format(
+                    request.method, response.status_code, url, request.json
+                )
             )
-        )
-    except Exception:
+        else:
+            logger.info(
+                "Method: {}, Status: {}, URL: {}".format(
+                    request.method, response.status_code, url
+                )
+            )
+    except Exception as e:
         pass
     return response

@@ -4,7 +4,7 @@ from typing import Optional
 
 import requests
 from flask import make_response, request
-from flask_jwt_extended import get_jwt_identity
+#from flask_jwt_extended import get_oauth_identity
 from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.api.generic import empty_result
@@ -15,7 +15,7 @@ from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.security import jwt_required
+from cnaas_nms.tools.security import oauth_required, get_oauth_identity
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()
@@ -93,7 +93,7 @@ def remove_file(**kwargs: dict) -> str:
 
 
 class FirmwareApi(Resource):
-    @jwt_required
+    @oauth_required()
     @api.expect(firmware_model)
     def post(self) -> tuple:
         """Download new firmware"""
@@ -116,14 +116,14 @@ class FirmwareApi(Resource):
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.api.firmware:get_firmware", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+            "cnaas_nms.api.firmware:get_firmware", when=1, scheduled_by=get_oauth_identity(), kwargs=kwargs
         )
         res = empty_result(data="Scheduled job to download firmware")
         res["job_id"] = job_id
 
         return res
 
-    @jwt_required
+    @oauth_required()
     def get(self) -> tuple:
         """Get firmwares"""
         try:
@@ -136,14 +136,14 @@ class FirmwareApi(Resource):
 
 
 class FirmwareImageApi(Resource):
-    @jwt_required
+    @oauth_required()
     def get(self, filename: str) -> dict:
         """Get information about a single firmware"""
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             "cnaas_nms.api.firmware:get_firmware_chksum",
             when=1,
-            scheduled_by=get_jwt_identity(),
+            scheduled_by=get_oauth_identity(),
             kwargs={"filename": filename},
         )
         res = empty_result(data="Scheduled job get firmware information")
@@ -151,12 +151,12 @@ class FirmwareImageApi(Resource):
 
         return res
 
-    @jwt_required
+    @oauth_required()
     def delete(self, filename: str) -> dict:
         """Remove firmware"""
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.api.firmware:remove_file", when=1, scheduled_by=get_jwt_identity(), kwargs={"filename": filename}
+            "cnaas_nms.api.firmware:remove_file", when=1, scheduled_by=get_oauth_identity(), kwargs={"filename": filename}
         )
         res = empty_result(data="Scheduled job to remove firmware")
         res["job_id"] = job_id
@@ -165,7 +165,7 @@ class FirmwareImageApi(Resource):
 
 
 class FirmwareUpgradeApi(Resource):
-    @jwt_required
+    @oauth_required()
     @api.expect(firmware_upgrade_model)
     def post(self):
         """Upgrade firmware on device"""
@@ -277,7 +277,7 @@ class FirmwareUpgradeApi(Resource):
         job_id = scheduler.add_onetime_job(
             "cnaas_nms.devicehandler.firmware:device_upgrade",
             when=seconds,
-            scheduled_by=get_jwt_identity(),
+            scheduled_by=get_oauth_identity(),
             kwargs=kwargs,
         )
         res = empty_result(data="Scheduled job to upgrade devices")

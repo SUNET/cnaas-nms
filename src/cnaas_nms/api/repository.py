@@ -5,7 +5,7 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.git import RepoType, get_repo_status, refresh_repo
 from cnaas_nms.db.joblock import JoblockError
 from cnaas_nms.db.settings import SettingsSyntaxError, VerifyPathException
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.tools.security import get_oauth_identity, oauth_required
 from cnaas_nms.version import __api_version__
 
 api = Namespace("repository", description="API for handling repositories", prefix="/api/{}".format(__api_version__))
@@ -19,7 +19,7 @@ repository_model = api.model(
 
 
 class RepositoryApi(Resource):
-    @jwt_required
+    @oauth_required
     def get(self, repo):
         """Get repository information"""
         try:
@@ -28,7 +28,7 @@ class RepositoryApi(Resource):
             return empty_result("error", "Invalid repository type"), 400
         return empty_result("success", get_repo_status(repo_type))
 
-    @jwt_required
+    @oauth_required
     @api.expect(repository_model)
     def put(self, repo):
         """Modify repository"""
@@ -42,7 +42,7 @@ class RepositoryApi(Resource):
             if str(json_data["action"]).upper() == "REFRESH":
                 # TODO: consider doing as scheduled job?
                 try:
-                    res = refresh_repo(repo_type, get_jwt_identity())
+                    res = refresh_repo(repo_type, get_oauth_identity())
                     return empty_result("success", res)
                 except VerifyPathException as e:
                     return (

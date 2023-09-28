@@ -368,7 +368,7 @@ def populate_device_vars(
 
 def get_confirm_mode(confirm_mode_override: Optional[int] = None) -> int:
     valid_modes = [0, 1, 2]
-    if confirm_mode_override and confirm_mode_override in valid_modes:
+    if confirm_mode_override is not None and confirm_mode_override in valid_modes:
         return confirm_mode_override
     elif api_settings.COMMIT_CONFIRMED_MODE and api_settings.COMMIT_CONFIRMED_MODE in valid_modes:
         return api_settings.COMMIT_CONFIRMED_MODE
@@ -557,9 +557,33 @@ def push_sync_device(
             task_args["job_id"] = job_id
             task_args["confirm_mode_override"] = confirm_mode
         logger.debug("Commit confirm mode for host {}: {} (dry_run: {})".format(task.host.name, confirm_mode, dry_run))
-        task.run(**task_args)
-        if confirm_mode != 2:
-            task.host.close_connection("napalm")
+        try:
+            task.run(**task_args)
+        except Exception as e:
+            logger.exception("Exception while running task napalm_configure for device {}".format(task.host.name))
+            raise e
+        finally:
+            if confirm_mode != 2:
+                task.host.close_connection("napalm")
+        if confirm_mode == 2 and not dry_run:
+            time.sleep(api_settings.COMMIT_CONFIRMED_WAIT)
+            try:
+                task.run(task=napalm_get, getters=["facts"], name="Verify reachability")
+            except Exception as e:
+                add_sync_event(task.host.name, "commit_confirm_failed", scheduled_by, job_id)
+                logger.error(
+                    "Could not reach device {} after commit, rollback in: {}s".format(
+                        task.host.name, api_settings.COMMIT_CONFIRMED_TIMEOUT
+                    )
+                )
+                raise e
+            else:
+                short_facts = {"fqdn": "unknown"}
+                try:
+                    short_facts["fqdn"] = task.results[2].result["facts"]["fqdn"]
+                    task.results[2].result["facts"] = short_facts
+                except Exception:
+                    pass
 
         if task.results[1].diff:
             config = task.results[1].host["config"]
@@ -855,6 +879,7 @@ def sync_devices(
             task=push_sync_device,
             dry_run=dry_run,
             job_id=job_id,
+            scheduled_by=scheduled_by,
             confirm_mode=get_confirm_mode(confirm_mode_override),
         )
     except Exception as e:
@@ -881,7 +906,7 @@ def sync_devices(
     unchanged_hosts = []
     # calculate change impact score
     for host, results in nrresult.items():
-        if host in failed_hosts or len(results) != 3:
+        if host in failed_hosts or len(results) < 3:
             logger.debug("Unable to calculate change score for failed device {}".format(host))
         elif results[2].diff:
             changed_hosts.append(host)
@@ -923,6 +948,12 @@ def sync_devices(
             remove_sync_events(hostname)
             dev.last_seen = datetime.datetime.utcnow()
         if not dry_run and get_confirm_mode(confirm_mode_override) != 2:
+            if failed_hosts:
+                logger.error(
+                    "One or more devices failed to commit configuration, they will roll back configuration"
+                    " in {}s: {}".format(api_settings.COMMIT_CONFIRMED_TIMEOUT, ", ".join(failed_hosts))
+                )
+                time.sleep(api_settings.COMMIT_CONFIRMED_TIMEOUT)
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)
 
@@ -958,16 +989,16 @@ def sync_devices(
                 f"{total_change_score} is higher than auto-push limit {AUTOPUSH_MAX_SCORE}"
             )
     elif get_confirm_mode(confirm_mode_override) == 2 and not dry_run:
-        if not changed_hosts:
-            logger.info("None of the selected host has any changes (diff), skipping commit-confirm")
-            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
-            Joblock.release_lock(session, job_id=job_id)
-        elif len(failed_hosts) > 0:
+        if failed_hosts:
             logger.error(
                 "No confirm job scheduled since one or more devices failed in commitmode 2"
                 ", all devices will rollback in {}s".format(api_settings.COMMIT_CONFIRMED_TIMEOUT)
             )
             time.sleep(api_settings.COMMIT_CONFIRMED_TIMEOUT)
+            logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+            Joblock.release_lock(session, job_id=job_id)
+        elif not changed_hosts:
+            logger.info("None of the selected host has any changes (diff), skipping commit-confirm")
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)
         else:

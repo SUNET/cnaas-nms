@@ -45,6 +45,8 @@ Defines parameters for the API:
   (see :ref:`commit_confirm_modes`). Defaults to 1.
 - commit_confirmed_timeout: Time to wait before rolling back an unconfirmed commit,
   specified in seconds. Defaults to 300.
+- commit_confirmed_wait: Time to wait between comitting configuration and checking
+  that the device is still reachable, specified in seconds. Defaults to 1.
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

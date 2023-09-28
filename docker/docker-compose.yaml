@@ -9,7 +9,7 @@ services:
     build:
       context: ./api/
       args:
-        - BUILDBRANCH=develop
+        - BUILDBRANCH=master
         - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
     ports:
       - 443:1443

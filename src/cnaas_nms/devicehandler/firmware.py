@@ -194,7 +194,7 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) 
 
         res = task.run(netmiko_send_command, command_string="conf t", expect_string=".*config.*#")
 
-        res = task.run(netmiko_send_command, command_string=boot_file_cmd, read_timeout=60)
+        res = task.run(netmiko_send_command, command_string=boot_file_cmd, read_timeout=120)
 
         res = task.run(netmiko_send_command, command_string="end", expect_string=".*#")
 

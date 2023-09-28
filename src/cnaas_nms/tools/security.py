@@ -1,4 +1,7 @@
+from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
+from flask_jwt_extended import jwt_required as jwt_orig
 
+from cnaas_nms.app_settings import api_settings
 from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
 from authlib.oauth2.rfc6750 import errors, BearerTokenValidator
 from jose import jwt
@@ -10,9 +13,31 @@ from typing import Mapping, Any
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.app_settings import auth_settings, api_settings
 
+from time import sleep
+
+
+
+
+def jwt_required(fn):
+    """
+    This function enables development without Oauth.
+
+    """
+    if api_settings.JWT_ENABLED:
+        return jwt_orig()(fn)
+    else:
+        return fn
+
+def get_jwt_identity():
+    """
+    This function overides the identity when needed.
+    """
+    return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
 
 logger = get_logger()
 oauth_required = ResourceProtector()
+
+
 
 
 class MyBearerTokenValidator(BearerTokenValidator):
@@ -53,6 +78,17 @@ class MyBearerTokenValidator(BearerTokenValidator):
             decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)
+        except exceptions.JWTClaimsError as e:
+            try:
+                # with this exception, the call was too fast or the computer too slow
+                logger.info('Checked token too fast (or computer is too slow), retry')
+                sleep(1)
+                decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
+            except exceptions.ExpiredSignatureError as e:
+                raise ExpiredSignatureError(e)
+            except exceptions.JWKError as e:
+                logger.error("Invalid Key")
+                raise InvalidKeyError(e)
         except exceptions.JWKError:
             try:
                 # with this exception, we first try to reload the keys
@@ -66,7 +102,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
             except exceptions.JWKError as e:
                 logger.error("Invalid Key")
                 raise InvalidKeyError(e)
-        
+        # make an token object to make it easier to validate 
         token = {
             "access_token": token_string,
             "decoded_token": decoded_token,
@@ -102,8 +138,7 @@ def get_oauth_identity():
     # if jwt disabled, return admin
     if not api_settings.JWT_ENABLED:
         return "admin"
-
-    # apicall to get userinfo
+    # request the userinfo
     url = auth_settings.OIDC_CONF_WELL_KNOWN_URL.split('.well-known')[0] + 'oidc/userinfo'
     data = {'token_type_hint': 'access_token'}
     headers = {"Authorization": "Bearer " + current_token["access_token"]}

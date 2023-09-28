@@ -147,9 +147,8 @@ api.add_namespace(system_api)
 
 # SocketIO on connect
 @socketio.on("connect")
-@oauth_required
+@oauth_required()
 def socketio_on_connect():
-    #TODO j
     user = get_oauth_identity()
     if user:
         logger.info("User: {} connected via socketio".format(user))

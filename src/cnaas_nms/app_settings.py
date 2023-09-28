@@ -51,6 +51,7 @@ class ApiSettings(BaseSettings):
     MGMTDOMAIN_PRIMARY_IP_VERSION: int = 4
     COMMIT_CONFIRMED_MODE: int = 1
     COMMIT_CONFIRMED_TIMEOUT: int = 300
+    COMMIT_CONFIRMED_WAIT: int = 1
     SETTINGS_OVERRIDE: Optional[dict] = None
 
     @validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
@@ -97,6 +98,7 @@ def construct_api_settings() -> ApiSettings:
             MGMTDOMAIN_PRIMARY_IP_VERSION=config.get("mgmtdomain_primary_ip_version", 4),
             COMMIT_CONFIRMED_MODE=config.get("commit_confirmed_mode", 1),
             COMMIT_CONFIRMED_TIMEOUT=config.get("commit_confirmed_timeout", 300),
+            COMMIT_CONFIRMED_WAIT=config.get("commit_confirmed_wait", 1),
             SETTINGS_OVERRIDE=config.get("settings_override", None),
         )
     else:

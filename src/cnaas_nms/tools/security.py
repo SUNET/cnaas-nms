@@ -78,22 +78,13 @@ class MyBearerTokenValidator(BearerTokenValidator):
             decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)
-        except exceptions.JWTClaimsError as e:
-            try:
-                # with this exception, the call was too fast or the computer too slow
-                logger.info('Checked token too fast (or computer is too slow), retry')
-                sleep(1)
-                decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
-            except exceptions.ExpiredSignatureError as e:
-                raise ExpiredSignatureError(e)
-            except exceptions.JWKError as e:
-                logger.error("Invalid Key")
-                raise InvalidKeyError(e)
         except exceptions.JWKError:
             try:
                 # with this exception, we first try to reload the keys
                 logger.info('JWT.decode didnt work. Get the keys and retry.')
-                response = requests.get(url=auth_settings.OIDC_CONF_WELL_KNOWN_URL.split('.well-known')[0] + 'oidc/certs')
+                metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+                keys_endpoint = metadata.json()["jwks_uri"]
+                response = requests.get(url=keys_endpoint)
                 self.keys = response.json()["keys"]
                 # decode the token again
                 decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
@@ -139,11 +130,12 @@ def get_oauth_identity():
     if not api_settings.JWT_ENABLED:
         return "admin"
     # request the userinfo
-    url = auth_settings.OIDC_CONF_WELL_KNOWN_URL.split('.well-known')[0] + 'oidc/userinfo'
+    metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+    user_info_endpoint = metadata.json()["userinfo_endpoint"]
     data = {'token_type_hint': 'access_token'}
     headers = {"Authorization": "Bearer " + current_token["access_token"]}
     try:
-        resp = requests.post(url, data=data, headers=headers)
+        resp = requests.post(user_info_endpoint, data=data, headers=headers)
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         raise errors.InvalidTokenError(e)

@@ -75,6 +75,7 @@ class AuthApi(Resource):
         return redirect(req.url, code=302)
 
 
+# TODO is this the most logical naming for checking the login? 
 class TestApi(Resource):
     @oauth_required()
     def get(self):

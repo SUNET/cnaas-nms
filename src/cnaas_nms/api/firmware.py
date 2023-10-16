@@ -4,7 +4,6 @@ from typing import Optional
 
 import requests
 from flask import make_response, request
-#from flask_jwt_extended import get_oauth_identity
 from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.api.generic import empty_result

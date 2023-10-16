@@ -1,7 +1,6 @@
 from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
 
-from cnaas_nms.app_settings import api_settings
 from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
 from authlib.oauth2.rfc6750 import errors, BearerTokenValidator
 from jose import jwt
@@ -12,10 +11,6 @@ from typing import Mapping, Any
 
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.app_settings import auth_settings, api_settings
-
-from time import sleep
-
-
 
 
 def jwt_required(fn):
@@ -28,16 +23,16 @@ def jwt_required(fn):
     else:
         return fn
 
+
 def get_jwt_identity():
     """
     This function overides the identity when needed.
     """
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
 
+
 logger = get_logger()
 oauth_required = ResourceProtector()
-
-
 
 
 class MyBearerTokenValidator(BearerTokenValidator):
@@ -109,8 +104,9 @@ class MyBearerTokenValidator(BearerTokenValidator):
 
     def validate_token(self, token, scopes, request):
         """Check if token matches the requested scopes."""
-        # if self.scope_insufficient(token.get('scope'), scopes):
-        #     raise errors.InsufficientScopeError()
+        # For now we don't have a scope yet
+        # When needed, look at implementation example here:
+        # https://github.com/lepture/authlib/blob/master/authlib/oauth2/rfc6750/validator.py
         return token
 
 
@@ -131,7 +127,7 @@ def get_oauth_identity():
     """
     # if jwt disabled, return admin
     if not api_settings.JWT_ENABLED:
-        return "admin"
+        return "Admin"
     # request the userinfo
     metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
     user_info_endpoint = metadata.json()["userinfo_endpoint"]
@@ -142,5 +138,4 @@ def get_oauth_identity():
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         raise errors.InvalidTokenError(e)
-    # TODO check what we want to return, name or email?
-    return resp.json()["email"]
+    return resp.json()

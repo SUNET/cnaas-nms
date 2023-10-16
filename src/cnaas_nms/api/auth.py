@@ -13,10 +13,7 @@ from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.security import oauth_required, get_oauth_identity
 
 
-
 logger = get_logger()
-
-
 api = Namespace("auth", description="API for handling auth", prefix="/api/{}".format(__api_version__))
 
 
@@ -44,7 +41,6 @@ class LoginApi(Resource):
         redirect_uri = url_for('auth_auth_api', _external=True)
 
         return oauth_client.connext.authorize_redirect(redirect_uri)
-
 
 
 class AuthApi(Resource):
@@ -75,14 +71,14 @@ class AuthApi(Resource):
         return redirect(req.url, code=302)
 
 
-# TODO is this the most logical naming for checking the login? 
-class TestApi(Resource):
+class IdentityApi(Resource):
     @oauth_required()
     def get(self):
-        identity = get_oauth_identity()
+        # TODO check what we want to return, name or email?
+        identity = get_oauth_identity()["email"]
         return identity
 
 
 api.add_resource(LoginApi, "/login")
 api.add_resource(AuthApi, "/auth")
-api.add_resource(TestApi, "/test")
+api.add_resource(IdentityApi, "/identity")

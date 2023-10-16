@@ -190,6 +190,6 @@ def log_request(response):
                     request.method, response.status_code, url
                 )
             )
-    except Exception as e:
+    except Exception:
         pass
     return response

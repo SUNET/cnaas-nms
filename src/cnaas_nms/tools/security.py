@@ -43,6 +43,12 @@ oauth_required = ResourceProtector()
 class MyBearerTokenValidator(BearerTokenValidator):
     keys: Mapping[str, Any] = {}
 
+    def get_keys(self):
+        metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+        keys_endpoint = metadata.json()["jwks_uri"]
+        response = requests.get(url=keys_endpoint)
+        self.keys = response.json()["keys"]
+
     def authenticate_token(self, token_string: str):
         """Check if token is active.
 
@@ -81,11 +87,9 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWKError:
             try:
                 # with this exception, we first try to reload the keys
-                logger.info('JWT.decode didnt work. Get the keys and retry.')
-                metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
-                keys_endpoint = metadata.json()["jwks_uri"]
-                response = requests.get(url=keys_endpoint)
-                self.keys = response.json()["keys"]
+                # there is a new key every 24 hours
+                logger.debug('JWT.decode didnt work. Get the keys and retry.')
+                self.get_keys()
                 # decode the token again
                 decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
             except exceptions.ExpiredSignatureError as e:
@@ -93,14 +97,13 @@ class MyBearerTokenValidator(BearerTokenValidator):
             except exceptions.JWKError as e:
                 logger.error("Invalid Key")
                 raise InvalidKeyError(e)
-        # make an token object to make it easier to validate 
+        # make an token object to make it easier to validate
         token = {
             "access_token": token_string,
             "decoded_token": decoded_token,
             "token_type": algorithm,
             "audience": auth_settings.OIDC_CLIENT_ID,
             "expires_at": decoded_token["exp"]
-
         }
         return token
 

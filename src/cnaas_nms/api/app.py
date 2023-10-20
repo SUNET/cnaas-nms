@@ -6,7 +6,7 @@ from typing import Optional
 from engineio.payload import Payload
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager, decode_token
+from flask_jwt_extended import JWTManager
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
@@ -42,7 +42,7 @@ from cnaas_nms.app_settings import auth_settings
 from cnaas_nms.app_settings import api_settings
 
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.security import get_oauth_identity, oauth_required
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 
@@ -70,7 +70,7 @@ class CnaasApi(Api):
         elif isinstance(e, InvalidSignatureError):
             data = {"status": "error", "data": "Invalid token signature"}
         elif isinstance(e, IndexError):
-            # We might catch IndexErrors which are not cuased by JWT,
+            # We might catch IndexErrors which are not caused by JWT,
             # but this is better than nothing.
             data = {"status": "error", "data": "JWT token missing?"}
         elif isinstance(e, NoAuthorizationError):
@@ -113,6 +113,22 @@ Payload.max_decode_packets = 500
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 
+if api_settings.JWT_ENABLED or auth_settings.OIDC_ENABLED:
+    app.config["SECRET_KEY"] = os.urandom(128)
+if api_settings.JWT_ENABLED:
+    try:
+        jwt_pubkey = open(api_settings.JWT_CERT).read()
+    except Exception as e:
+        print("Could not load public JWT cert from api.yml config: {}".format(e))
+        sys.exit(1)
+
+    app.config["JWT_PUBLIC_KEY"] = jwt_pubkey
+    app.config["JWT_IDENTITY_CLAIM"] = "sub"
+    app.config["JWT_ALGORITHM"] = "ES256"
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = False
+    app.config["JWT_TOKEN_LOCATION"] = ("headers", "query_string")
+
+    jwt = JWTManager(app)
 
 api = CnaasApi(
     app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey", doc="/api/doc/"
@@ -147,9 +163,9 @@ api.add_namespace(system_api)
 
 # SocketIO on connect
 @socketio.on("connect")
-@oauth_required()
+@login_required
 def socketio_on_connect():
-    user = get_oauth_identity()
+    user = get_identity()
     if user:
         logger.info("User: {} connected via socketio".format(user))
         return True

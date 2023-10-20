@@ -6,7 +6,7 @@ import cnaas_nms.version
 from cnaas_nms.api import app
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.scheduler.scheduler import Scheduler
-from cnaas_nms.tools.security import oauth_required
+from cnaas_nms.tools.security import login_required
 from cnaas_nms.version import __api_version__
 from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 
@@ -16,7 +16,7 @@ api = Namespace(
 
 
 class ShutdownApi(Resource):
-    @oauth_required()
+    @login_required
     def post(self):
         print("System shutdown API called, exiting...")
         scheduler = Scheduler()

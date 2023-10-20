@@ -12,7 +12,7 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.underlay import find_free_infra_linknet
-from cnaas_nms.tools.security import get_oauth_identity, oauth_required
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 linknets_api = Namespace("linknets", description="API for handling linknets", prefix="/api/{}".format(__api_version__))
@@ -100,7 +100,7 @@ class LinknetsApi(Resource):
             # Allow pre-provisioning of linknet to device that is not yet
             # managed or not assigned device_type, so no further checks here
 
-    @oauth_required()
+    @login_required
     def get(self):
         """Get all linksnets"""
         result = {"linknets": []}
@@ -110,7 +110,7 @@ class LinknetsApi(Resource):
                 result["linknets"].append(instance.as_dict())
         return empty_result(status="success", data=result)
 
-    @oauth_required()
+    @login_required
     @linknets_api.expect(linknets_model)
     def post(self):
         """Add a new linknet"""
@@ -182,7 +182,7 @@ class LinknetsApi(Resource):
 
         return empty_result(status="success", data=data), 201
 
-    @oauth_required()
+    @login_required
     def delete(self):
         """Remove linknet"""
         json_data = request.get_json()
@@ -199,16 +199,16 @@ class LinknetsApi(Resource):
             if not cur_linknet:
                 return empty_result(status="error", data="No such linknet found in database"), 404
             cur_linknet.device_a.synchronized = False
-            add_sync_event(cur_linknet.device_a.hostname, "linknet_deleted", get_oauth_identity())
+            add_sync_event(cur_linknet.device_a.hostname, "linknet_deleted", get_identity())
             cur_linknet.device_b.synchronized = False
-            add_sync_event(cur_linknet.device_b.hostname, "linknet_deleted", get_oauth_identity())
+            add_sync_event(cur_linknet.device_b.hostname, "linknet_deleted", get_identity())
             session.delete(cur_linknet)
             session.commit()
             return empty_result(status="success", data={"deleted_linknet": cur_linknet.as_dict()}), 200
 
 
 class LinknetByIdApi(Resource):
-    @oauth_required()
+    @login_required
     def get(self, linknet_id):
         """Get a single specified linknet"""
         result = empty_result()
@@ -221,23 +221,23 @@ class LinknetByIdApi(Resource):
                 return empty_result("error", "Linknet not found"), 404
         return result
 
-    @oauth_required()
+    @login_required
     def delete(self, linknet_id):
         """Remove a linknet"""
         with sqla_session() as session:
             instance: Linknet = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
-                add_sync_event(instance.device_a.hostname, "linknet_deleted", get_oauth_identity())
+                add_sync_event(instance.device_a.hostname, "linknet_deleted", get_identity())
                 instance.device_b.synchronized = False
-                add_sync_event(instance.device_b.hostname, "linknet_deleted", get_oauth_identity())
+                add_sync_event(instance.device_b.hostname, "linknet_deleted", get_identity())
                 session.delete(instance)
                 session.commit()
                 return empty_result(status="success", data={"deleted_linknet": instance.as_dict()}), 200
             else:
                 return empty_result("error", "No such linknet found in database"), 404
 
-    @oauth_required()
+    @login_required
     @linknets_api.expect(linknet_model)
     def put(self, linknet_id):
         """Update data on existing linknet"""
@@ -267,9 +267,9 @@ class LinknetByIdApi(Resource):
                 changed: bool = update_sqla_object(instance, json_data)
                 if changed:
                     instance.device_a.synchronized = False
-                    add_sync_event(instance.device_a.hostname, "linknet_updated", get_oauth_identity())
+                    add_sync_event(instance.device_a.hostname, "linknet_updated", get_identity())
                     instance.device_b.synchronized = False
-                    add_sync_event(instance.device_b.hostname, "linknet_updated", get_oauth_identity())
+                    add_sync_event(instance.device_b.hostname, "linknet_updated", get_identity())
                     return empty_result(status="success", data={"updated_linknet": instance.as_dict()}), 200
                 else:
                     return empty_result(status="success", data={"unchanged_linknet": instance.as_dict()}), 200

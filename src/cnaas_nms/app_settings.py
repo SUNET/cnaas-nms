@@ -53,6 +53,9 @@ class ApiSettings(BaseSettings):
     COMMIT_CONFIRMED_TIMEOUT: int = 300
     COMMIT_CONFIRMED_WAIT: int = 1
     SETTINGS_OVERRIDE: Optional[dict] = None
+    CERTPATH: Path = "/tmp/devicecerts/"
+    CAFILE: Optional[Path] = "/opt/cnaas/cacert/rootCA.crt"
+    CAKEYFILE: Path = "/opt/cnaas/cacert/rootCA.key"
 
     @validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
     @classmethod
@@ -64,10 +67,11 @@ class ApiSettings(BaseSettings):
 
 class AuthSettings(BaseSettings):
     # Authorization settings
+    FRONTEND_CALLBACK_URL: str = "http://localhost/callback"
     OIDC_CONF_WELL_KNOWN_URL: str = "well-known-openid-configuration-endpoint"
     OIDC_CLIENT_SECRET: str = "xxx"
     OIDC_CLIENT_ID: str = "client-id"
-    FRONTEND_CALLBACK_URL: str = "http://localhost/callback"
+    OIDC_ENABLED: bool = False
 
 
 def construct_api_settings() -> ApiSettings:

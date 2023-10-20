@@ -10,7 +10,7 @@ from cnaas_nms.db.helper import json_dumper
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import SettingsSyntaxError, check_settings_syntax, get_settings, get_settings_root
 from cnaas_nms.tools.mergedict import merge_dict_origin
-from cnaas_nms.tools.security import oauth_required
+from cnaas_nms.tools.security import login_required
 from cnaas_nms.version import __api_version__
 
 settings_root_model = get_settings_root()
@@ -20,7 +20,7 @@ api = Namespace("settings", description="Settings", prefix="/api/{}".format(__ap
 
 
 class SettingsApi(Resource):
-    @oauth_required()
+    @login_required
     @api.param("hostname")
     @api.param("device_type")
     def get(self):
@@ -73,7 +73,7 @@ class SettingsModelApi(Resource):
 
 
 class SettingsServerApI(Resource):
-    @oauth_required()
+    @login_required
     def get(self):
         ret_dict = {"api": api_settings.dict()}
         response = make_response(json.dumps(ret_dict, default=json_dumper))

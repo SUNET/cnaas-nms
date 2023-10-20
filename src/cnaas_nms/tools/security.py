@@ -1,29 +1,29 @@
 from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
-
 from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
 from authlib.oauth2.rfc6750 import errors, BearerTokenValidator
 from jose import jwt
 from jose import exceptions
 from jwt.exceptions import InvalidTokenError, InvalidKeyError, ExpiredSignatureError
+from flask_jwt_extended.exceptions import NoAuthorizationError
+from authlib.oauth2.rfc6749 import MissingAuthorizationError
 import requests
 from typing import Mapping, Any
 
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.app_settings import auth_settings, api_settings
 
+logger = get_logger()
 
 def jwt_required(fn):
     """
     This function enables development without Oauth.
-
     """
     if api_settings.JWT_ENABLED:
         return jwt_orig()(fn)
     else:
         return fn
-
-
+    
 def get_jwt_identity():
     """
     This function overides the identity when needed.
@@ -31,13 +31,15 @@ def get_jwt_identity():
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
 
 
-logger = get_logger()
-oauth_required = ResourceProtector()
+class MyResourceProtector(ResourceProtector):
+    def raise_error_response(self, error):
+        if isinstance(error, MissingAuthorizationError):
+            raise NoAuthorizationError(error) 
+        raise error
 
 
 class MyBearerTokenValidator(BearerTokenValidator):
     keys: Mapping[str, Any] = {}
-
     def get_keys(self):
         metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
         keys_endpoint = metadata.json()["jwks_uri"]
@@ -62,8 +64,8 @@ class MyBearerTokenValidator(BearerTokenValidator):
             token(dict): Dictionary with access_token, decoded_token, token_type, audience, expires_at
 
         """
-        # If JWT is disabled, no token is needed
-        if not api_settings.JWT_ENABLED:
+        # If OIDC is disabled, no token is needed (for future use)
+        if not auth_settings.OIDC_ENABLED:
             return "no-token-needed"
         # First decode the header
         try:
@@ -85,6 +87,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
                 # there is a new key every 24 hours
                 logger.debug('JWT.decode didnt work. Get the keys and retry.')
                 self.get_keys()
+
                 # decode the token again
                 decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
             except exceptions.ExpiredSignatureError as e:
@@ -92,6 +95,13 @@ class MyBearerTokenValidator(BearerTokenValidator):
             except exceptions.JWKError as e:
                 logger.error("Invalid Key")
                 raise InvalidKeyError(e)
+            except exceptions.JWTError as e:
+                logger.error("Invalid Token")
+                raise InvalidTokenError(e)
+        except exceptions.JWTError as e:
+            logger.error("Invalid Token")
+            raise InvalidTokenError(e)
+        
         # make an token object to make it easier to validate
         token = {
             "access_token": token_string,
@@ -110,9 +120,6 @@ class MyBearerTokenValidator(BearerTokenValidator):
         return token
 
 
-oauth_required.register_token_validator(MyBearerTokenValidator())
-
-
 def get_oauth_identity():
     """Give back the email address of the OAUTH account
 
@@ -125,10 +132,10 @@ def get_oauth_identity():
             email(str): Email of the logged in user
 
     """
-    # if jwt disabled, return admin
-    if not api_settings.JWT_ENABLED:
+    # For now unnecersary, useful when we nly use one log in method
+    if not auth_settings.OIDC_ENABLED:
         return "Admin"
-    # request the userinfo
+    # Request the userinfo
     metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
     user_info_endpoint = metadata.json()["userinfo_endpoint"]
     data = {'token_type_hint': 'access_token'}
@@ -138,4 +145,16 @@ def get_oauth_identity():
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         raise errors.InvalidTokenError(e)
-    return resp.json()
+    # TODO check what we want to return, name or email?
+    return resp.json()["email"]
+
+
+# check which method we use to log in and load vars needed for that
+if auth_settings.OIDC_ENABLED is True:
+    oauth_required = MyResourceProtector()
+    oauth_required.register_token_validator(MyBearerTokenValidator())
+    login_required = oauth_required(optional=not auth_settings.OIDC_ENABLED)
+    get_identity = get_oauth_identity
+else:
+    login_required = jwt_required
+    get_identity = get_jwt_identity

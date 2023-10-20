@@ -1,4 +1,3 @@
-
 from flask import url_for, redirect, current_app
 from flask_restx import Namespace, Resource
 
@@ -9,8 +8,8 @@ from requests.models import PreparedRequest
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.version import __api_version__
-from cnaas_nms.app_settings import api_settings, auth_settings
-from cnaas_nms.tools.security import oauth_required, get_oauth_identity
+from cnaas_nms.app_settings import auth_settings
+from cnaas_nms.tools.security import login_required, get_identity
 
 
 logger = get_logger()
@@ -35,8 +34,8 @@ class LoginApi(Resource):
             We give the auth call as a parameter to redirect after login is successfull.
 
         """
-        if not api_settings.JWT_ENABLED:
-            return empty_result(status="error", data="Can't login when JWT disabled"), 500
+        if not auth_settings.OIDC_ENABLED:
+            return empty_result(status="error", data="Can't login when OIDC disabled"), 500
         oauth_client = current_app.extensions["authlib.integrations.flask_client"]
         redirect_uri = url_for('auth_auth_api', _external=True)
 
@@ -72,10 +71,9 @@ class AuthApi(Resource):
 
 
 class IdentityApi(Resource):
-    @oauth_required()
+    @login_required
     def get(self):
-        # TODO check what we want to return, name or email?
-        identity = get_oauth_identity()["email"]
+        identity = get_identity()
         return identity
 
 

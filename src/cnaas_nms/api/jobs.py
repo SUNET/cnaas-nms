@@ -11,7 +11,7 @@ from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.security import get_oauth_identity, oauth_required
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 job_api = Namespace("job", description="API for handling jobs", prefix="/api/{}".format(__api_version__))
@@ -58,7 +58,7 @@ def filter_job_dict(job_dict: dict, args: dict) -> dict:
 
 
 class JobsApi(Resource):
-    @oauth_required()
+    @login_required
     def get(self):
         """Get one or more jobs"""
         data = {"jobs": []}
@@ -83,7 +83,7 @@ class JobsApi(Resource):
 
 
 class JobByIdApi(Resource):
-    @oauth_required()
+    @login_required
     def get(self, job_id):
         """Get job information by ID"""
         args = request.args
@@ -96,7 +96,7 @@ class JobByIdApi(Resource):
             else:
                 return empty_result(status="error", data="No job with id {} found".format(job_id)), 400
 
-    @oauth_required()
+    @login_required
     def put(self, job_id):
         json_data = request.get_json()
         if "action" not in json_data:
@@ -125,7 +125,7 @@ class JobByIdApi(Resource):
             if "abort_reason" in json_data and isinstance(json_data["abort_reason"], str):
                 abort_reason = json_data["abort_reason"][:255]
 
-            abort_reason += " (aborted by {})".format(get_oauth_identity())
+            abort_reason += " (aborted by {})".format(get_identity())
 
             if job_status == JobStatus.SCHEDULED:
                 scheduler = Scheduler()
@@ -144,7 +144,7 @@ class JobByIdApi(Resource):
 
 
 class JobLockApi(Resource):
-    @oauth_required()
+    @login_required
     def get(self):
         """Get job locks"""
         locks = []
@@ -153,7 +153,7 @@ class JobLockApi(Resource):
                 locks.append(lock.as_dict())
         return empty_result("success", data={"locks": locks})
 
-    @oauth_required()
+    @login_required
     @job_api.expect(job_model)
     def delete(self):
         """Remove job locks"""

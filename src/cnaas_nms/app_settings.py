@@ -37,14 +37,14 @@ class ApiSettings(BaseSettings):
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
     VERIFY_TLS: bool = False
     VERIFY_TLS_DEVICE: bool = False
-    JWT_CERT: Path = "/opt/cnaas/jwtcert/public.pem"
-    CAFILE: Optional[Path] = "/opt/cnaas/cacert/rootCA.crt"
-    CAKEYFILE: Path = "/opt/cnaas/cacert/rootCA.key"
-    CERTPATH: Path = "/tmp/devicecerts/"
+    JWT_CERT: Path = Path("/opt/cnaas/jwtcert/public.pem")
+    CAFILE: Optional[Path] = Path("/opt/cnaas/cacert/rootCA.crt")
+    CAKEYFILE: Path = Path("/opt/cnaas/cacert/rootCA.key")
+    CERTPATH: Path = Path("/tmp/devicecerts/")
     ALLOW_APPLY_CONFIG_LIVERUN: bool = False
     FIRMWARE_URL: str = HTTPD_URL
     JWT_ENABLED: bool = True
-    PLUGIN_FILE: Path = "/etc/cnaas-nms/plugins.yml"
+    PLUGIN_FILE: Path = Path("/etc/cnaas-nms/plugins.yml")
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
     MGMTDOMAIN_RESERVED_COUNT: int = 5
@@ -53,9 +53,6 @@ class ApiSettings(BaseSettings):
     COMMIT_CONFIRMED_TIMEOUT: int = 300
     COMMIT_CONFIRMED_WAIT: int = 1
     SETTINGS_OVERRIDE: Optional[dict] = None
-    CERTPATH: Path = "/tmp/devicecerts/"
-    CAFILE: Optional[Path] = "/opt/cnaas/cacert/rootCA.crt"
-    CAKEYFILE: Path = "/opt/cnaas/cacert/rootCA.key"
 
     @validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
     @classmethod

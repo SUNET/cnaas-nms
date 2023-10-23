@@ -33,6 +33,7 @@ def get_jwt_identity():
 
 class MyResourceProtector(ResourceProtector):
     def raise_error_response(self, error):
+        """ Raises no authorization error when missing authorization"""
         if isinstance(error, MissingAuthorizationError):
             raise NoAuthorizationError(error) 
         raise error
@@ -41,6 +42,7 @@ class MyResourceProtector(ResourceProtector):
 class MyBearerTokenValidator(BearerTokenValidator):
     keys: Mapping[str, Any] = {}
     def get_keys(self):
+        """Get the keys for the OIDC decoding"""
         metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
         keys_endpoint = metadata.json()["jwks_uri"]
         response = requests.get(url=keys_endpoint)
@@ -145,7 +147,6 @@ def get_oauth_identity():
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         raise errors.InvalidTokenError(e)
-    # TODO check what we want to return, name or email?
     return resp.json()["email"]
 
 

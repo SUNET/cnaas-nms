@@ -6,7 +6,7 @@ Flask-JWT-Extended==4.4.4
 flask-restx==1.0.5
 flask==2.2.5
 Flask-SocketIO==5.3.1
-gevent==22.10.2
+gevent==23.9.0
 GitPython==3.1.37
 mypy==0.971
 mypy-extensions==0.4.3

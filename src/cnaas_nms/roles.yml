@@ -1,0 +1,9 @@
+
+-
+  role: read
+  allowed_api_methods: ["GET"]
+  allowed_api_calls: ["/devices", "/jobs"]
+-
+  role: write
+  allowed_api_methods: ["GET", "PUT"]
+  allowed_api_calls: []

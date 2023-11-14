@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Version 1.5.1
+-------------
+
+Bug fixes:
+
+  - Fix commit confirm mode 0 for EOS
+  - Update documentation for redundant_link
+
 Version 1.5.0
 -------------
 

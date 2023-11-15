@@ -546,7 +546,6 @@ def push_sync_device(
             "replace": True,
             "configuration": task.host["config"],
             "dry_run": dry_run,
-            "commit_message": "Job id {}".format(job_id),
         }
         if dry_run:
             task_args["task"] = napalm_configure
@@ -948,7 +947,7 @@ def sync_devices(
             remove_sync_events(hostname)
             dev.last_seen = datetime.datetime.utcnow()
         if not dry_run and get_confirm_mode(confirm_mode_override) != 2:
-            if failed_hosts:
+            if failed_hosts and get_confirm_mode(confirm_mode_override) == 1:
                 logger.error(
                     "One or more devices failed to commit configuration, they will roll back configuration"
                     " in {}s: {}".format(api_settings.COMMIT_CONFIRMED_TIMEOUT, ", ".join(failed_hosts))

@@ -258,7 +258,6 @@ def device_upgrade_task(
     post_waittime: Optional[int] = 0,
     activate: Optional[bool] = False,
 ) -> NornirJobResult:
-
     # If pre-flight is selected, execute the pre-flight task which
     # will verify the amount of disk space and so on.
     set_thread_data(job_id)
@@ -357,7 +356,6 @@ def device_upgrade(
     reboot: Optional[bool] = False,
     scheduled_by: Optional[str] = None,
 ) -> NornirJobResult:
-
     logger = get_logger()
     nr = cnaas_init()
     if hostname:

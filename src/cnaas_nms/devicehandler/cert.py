@@ -114,7 +114,6 @@ def renew_cert(
     job_id: Optional[str] = None,
     scheduled_by: Optional[str] = None,
 ) -> NornirJobResult:
-
     logger = get_logger()
     nr = cnaas_init()
     if hostname:

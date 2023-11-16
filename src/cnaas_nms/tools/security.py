@@ -1,19 +1,20 @@
+from typing import Any, Mapping
+
+import requests
+from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
+from authlib.oauth2.rfc6749 import MissingAuthorizationError
+from authlib.oauth2.rfc6750 import BearerTokenValidator, errors
 from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
-from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
-from authlib.oauth2.rfc6750 import errors, BearerTokenValidator
-from jose import jwt
-from jose import exceptions
-from jwt.exceptions import InvalidTokenError, InvalidKeyError, ExpiredSignatureError
 from flask_jwt_extended.exceptions import NoAuthorizationError
-from authlib.oauth2.rfc6749 import MissingAuthorizationError
-import requests
-from typing import Mapping, Any
+from jose import exceptions, jwt
+from jwt.exceptions import ExpiredSignatureError, InvalidKeyError, InvalidTokenError
 
+from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.app_settings import auth_settings, api_settings
 
 logger = get_logger()
+
 
 def jwt_required(fn):
     """
@@ -23,7 +24,8 @@ def jwt_required(fn):
         return jwt_orig()(fn)
     else:
         return fn
-    
+
+
 def get_jwt_identity():
     """
     This function overides the identity when needed.
@@ -33,14 +35,15 @@ def get_jwt_identity():
 
 class MyResourceProtector(ResourceProtector):
     def raise_error_response(self, error):
-        """ Raises no authorization error when missing authorization"""
+        """Raises no authorization error when missing authorization"""
         if isinstance(error, MissingAuthorizationError):
-            raise NoAuthorizationError(error) 
+            raise NoAuthorizationError(error)
         raise error
 
 
 class MyBearerTokenValidator(BearerTokenValidator):
     keys: Mapping[str, Any] = {}
+
     def get_keys(self):
         """Get the keys for the OIDC decoding"""
         metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
@@ -78,20 +81,24 @@ class MyBearerTokenValidator(BearerTokenValidator):
             raise InvalidTokenError(e)
 
         # decode the token
-        algorithm = unverified_header.get('alg')
+        algorithm = unverified_header.get("alg")
         try:
-            decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
+            decoded_token = jwt.decode(
+                token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID
+            )
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)
         except exceptions.JWKError:
             try:
                 # with this exception, we first try to reload the keys
                 # there is a new key every 24 hours
-                logger.debug('JWT.decode didnt work. Get the keys and retry.')
+                logger.debug("JWT.decode didnt work. Get the keys and retry.")
                 self.get_keys()
 
                 # decode the token again
-                decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
+                decoded_token = jwt.decode(
+                    token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID
+                )
             except exceptions.ExpiredSignatureError as e:
                 raise ExpiredSignatureError(e)
             except exceptions.JWKError as e:
@@ -103,14 +110,14 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWTError as e:
             logger.error("Invalid Token")
             raise InvalidTokenError(e)
-        
+
         # make an token object to make it easier to validate
         token = {
             "access_token": token_string,
             "decoded_token": decoded_token,
             "token_type": algorithm,
             "audience": auth_settings.OIDC_CLIENT_ID,
-            "expires_at": decoded_token["exp"]
+            "expires_at": decoded_token["exp"],
         }
         return token
 
@@ -125,13 +132,13 @@ class MyBearerTokenValidator(BearerTokenValidator):
 def get_oauth_identity():
     """Give back the email address of the OAUTH account
 
-        If JWT is disabled, we return "admin".
+    If JWT is disabled, we return "admin".
 
-        We do an api call to request userinfo. This gives back all the userinfo.
-        We get the right info from there and return this to the user.
+    We do an api call to request userinfo. This gives back all the userinfo.
+    We get the right info from there and return this to the user.
 
-        Returns:
-            email(str): Email of the logged in user
+    Returns:
+        email(str): Email of the logged in user
 
     """
     # For now unnecersary, useful when we nly use one log in method
@@ -140,7 +147,7 @@ def get_oauth_identity():
     # Request the userinfo
     metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
     user_info_endpoint = metadata.json()["userinfo_endpoint"]
-    data = {'token_type_hint': 'access_token'}
+    data = {"token_type_hint": "access_token"}
     headers = {"Authorization": "Bearer " + current_token["access_token"]}
     try:
         resp = requests.post(user_info_endpoint, data=data, headers=headers)

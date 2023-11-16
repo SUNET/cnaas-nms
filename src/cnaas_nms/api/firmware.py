@@ -14,7 +14,7 @@ from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.security import login_required, get_identity
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()

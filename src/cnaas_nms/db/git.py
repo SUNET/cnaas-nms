@@ -355,11 +355,14 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
                 groupname = filename.split(os.path.sep)[1]
                 if groupname not in get_groups():
                     logger.warning("Group {} not found in database, syncstatus not updated".format(groupname))
-                else:
-                    primary_group_mapping: Dict[str, str] = get_device_primary_groups()
-                    for map_hostname, map_groupname in primary_group_mapping.items():
-                        if groupname == map_groupname:
-                            unsynced_hostnames.add(map_hostname)
+                    continue
+                primary_group_mapping: Dict[str, str] = get_device_primary_groups()
+                # Find all hostnames that are mapped to this primary group
+                # and add them to the list of unsynced hostnames
+                for map_hostname, map_groupname in primary_group_mapping.items():
+                    if groupname == map_groupname:
+                        unsynced_hostnames.add(map_hostname)
+
             except Exception as e:
                 logger.exception("Error in settings groups directory {}: {}".format(filename, str(e)))
         else:

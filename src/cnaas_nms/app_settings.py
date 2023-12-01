@@ -69,10 +69,12 @@ class AuthSettings(BaseSettings):
     OIDC_CLIENT_SECRET: str = "xxx"
     OIDC_CLIENT_ID: str = "client-id"
     OIDC_ENABLED: bool = False
+    PERMISSIONS: dict = {}
+    PERMISSIONS_DISABLED: bool = False
 
 
 def construct_api_settings() -> ApiSettings:
-    api_config = Path("/etc/cnaas-nms/api.yml")
+    api_config = Path("etc/cnaas-nms/api.yml")
 
     if api_config.is_file():
         with open(api_config, "r") as api_file:
@@ -109,7 +111,6 @@ def construct_api_settings() -> ApiSettings:
 def construct_app_settings() -> AppSettings:
     db_config = Path("/etc/cnaas-nms/db_config.yml")
     repo_config = Path("/etc/cnaas-nms/repository.yml")
-
     app_settings = AppSettings()
 
     def _create_db_config(settings: AppSettings, config: dict) -> None:
@@ -142,6 +143,22 @@ def construct_app_settings() -> AppSettings:
 
 def construct_auth_settings() -> AuthSettings:
     auth_settings = AuthSettings()
+    permission_config = Path("etc/cnaas-nms/permissions.yml")
+    
+
+    def _create_permissions_config(settings: AuthSettings, permissions_rules: dict) -> None:
+        if 'config' not in permissions_rules or 'roles' not in permissions_rules:
+            raise Exception("Permission file is wrong. It's missing neccersary elements") 
+        settings.PERMISSIONS = permissions_rules
+
+    if auth_settings.PERMISSIONS_DISABLED:
+        auth_settings.PERMISSIONS = {'config': {'default_permissions': 'default'}, 'roles': {'default': {'allowed_api_methods': ['*'], 'allowed_api_calls': ['*']}}}
+     
+    elif permission_config.is_file():
+        '''Load the file with role permission'''
+        with open(permission_config, "r") as permission_file:
+            permissions_rules = yaml.safe_load(permission_file)
+        _create_permissions_config(auth_settings, permissions_rules)
     return auth_settings
 
 

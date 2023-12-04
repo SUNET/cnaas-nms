@@ -149,7 +149,8 @@ Data can contain any of these optional keys:
 - aggregate_id: Identifier for configuring LACP etc. Integer value.
   Special value -1 means configure MLAG and use ID based on indexnum.
 - bpdu_filter: bool defining STP BPDU feature enabled/disabled
-- redundant_link: bool allows specifying if this link allows non-redundant downlinks
+- redundant_link: bool specifying if access switch connections to this interface requires
+  redundant connections, which is the default. Set to false to allow non-redundant downlink.
 - tags: List of strings, user-defined custom tags to use in templates
 - cli_append_str: String of custom config that is appended to generated CLI config
 - neighbor: Populated at init, contains hostname of peer. Should normally never

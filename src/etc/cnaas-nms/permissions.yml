@@ -1,0 +1,20 @@
+config:
+  role_in_jwt_element: "edumember_is_member_of"
+  roles_separated_by: ":" 
+  default_permissions: "default"
+roles:
+  read:
+    # can use wildcard (*) or "GET", "POST", "DELETE" etc
+    allowed_api_methods: ["GET"]
+    # can use wildcards (*), full uri of the api call or regex. Preferably in that order. 
+    allowed_api_calls: ["/devices", "/jobs", "*"]
+  write:
+    allowed_api_methods: ["GET", "PUT"]
+    allowed_api_calls: ["*"] 
+  surfwired-admin:
+    allowed_api_methods: ["GET", "PUT"]
+    allowed_api_calls: ["/devices", "/jobs", "/repository/.*", "/auth/.*"]
+  default:
+    allowed_api_methods: ["GET"]
+    allowed_api_calls: ["/devices"]
+

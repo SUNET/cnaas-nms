@@ -2,6 +2,7 @@ from flask import url_for, redirect, current_app
 from flask_restx import Namespace, Resource
 
 from authlib.integrations.base_client.errors import MismatchingStateError
+from authlib.integrations.flask_oauth2 import current_token
 
 from requests.models import PreparedRequest
 
@@ -9,8 +10,8 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.version import __api_version__
 from cnaas_nms.app_settings import auth_settings
-from cnaas_nms.tools.security import login_required, get_identity
-
+from cnaas_nms.tools.security import login_required, get_identity, get_oauth_userinfo, login_required_all_permitted
+from cnaas_nms.tools.rbac.rbac import get_permissions_user
 
 logger = get_logger()
 api = Namespace("auth", description="API for handling auth", prefix="/api/{}".format(__api_version__))
@@ -77,6 +78,19 @@ class IdentityApi(Resource):
         return identity
 
 
+class PermissionsAPI(Resource):
+    @login_required_all_permitted
+    def get(self):
+        permissions_rules = auth_settings.PERMISSIONS
+        if len(permissions_rules) == 0:
+            logger.debug('No permissions defined, so nobody is permitted to do any api calls.')
+            return {}
+        user_info = get_oauth_userinfo(current_token["access_token"])
+        permissions_of_user = get_permissions_user(permissions_rules, user_info)
+        return permissions_of_user
+
+
 api.add_resource(LoginApi, "/login")
 api.add_resource(AuthApi, "/auth")
 api.add_resource(IdentityApi, "/identity")
+api.add_resource(PermissionsAPI, "/permissions")

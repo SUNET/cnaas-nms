@@ -4,7 +4,6 @@ from authlib.oauth2.rfc6749.wrappers import HttpRequest
 
 from cnaas_nms.version import __api_version__
 
-#TODO rename?
 def get_permissions_user(permissions_rules, user_info):
     '''Get the API permissions of the user'''
     permissions_of_user = {}
@@ -54,6 +53,7 @@ def check_if_api_call_is_permitted(request: HttpRequest, permissions_of_user):
         # check if you're permitted to make api call based on uri
         prefix = "/api/{}".format(__api_version__)
         short_uri = request.uri[:-1].strip().removeprefix(prefix)
+        short_uri = short_uri.split('?', 1)[0]
         if "*" not in allowed_api_calls and short_uri not in allowed_api_calls:
             # added the regex so it's easier to add a bunch of api calls (like all /device api calls)
             combined = "(" + ")|(".join(allowed_api_calls) + ")"

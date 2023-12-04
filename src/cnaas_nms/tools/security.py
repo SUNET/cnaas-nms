@@ -15,10 +15,10 @@ from cnaas_nms.tools.rbac.rbac import get_permissions_user, check_if_api_call_is
 from cnaas_nms.tools.rbac.token import Token
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.app_settings import auth_settings, api_settings
-from cnaas_nms.version import __api_version__
 
 
 logger = get_logger()
+
 
 def jwt_required(fn):
     """
@@ -28,12 +28,14 @@ def jwt_required(fn):
         return jwt_orig()(fn)
     else:
         return fn
-    
+
+
 def get_jwt_identity() -> str:
     """
     This function overides the identity when needed.
     """
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
+
 
 def get_oauth_userinfo(token: Token) -> Any:
     """Give back the user info of the OAUTH account
@@ -60,16 +62,18 @@ def get_oauth_userinfo(token: Token) -> Any:
         raise errors.InvalidTokenError(e)
     return resp.json()
 
+
 class MyResourceProtector(ResourceProtector):
     def raise_error_response(self, error):
         """ Raises no authorization error when missing authorization"""
         if isinstance(error, MissingAuthorizationError):
-            raise NoAuthorizationError(error) 
+            raise NoAuthorizationError(error)
         raise error
 
 
 class MyBearerTokenValidator(BearerTokenValidator):
     keys: Mapping[str, Any] = {}
+
     def get_keys(self) -> Mapping[str, Any]:
         """Get the keys for the OIDC decoding"""
         metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
@@ -132,7 +136,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWTError as e:
             logger.error("Invalid Token")
             raise InvalidTokenError(e)
-        
+
         # make an token object to make it easier to validate
         token = {
             "access_token": token_string,
@@ -149,23 +153,20 @@ class MyBearerTokenValidator(BearerTokenValidator):
             logger.debug("Permissions are disabled. Everyone can do every api call")
             return token
         #  For api call that everyone is always allowed to do
-        if "always_permitted" in scopes:
+        if scopes is not None and "always_permitted" in scopes:
             return token
         permissions_rules = auth_settings.PERMISSIONS
         if permissions_rules is None or len(permissions_rules) == 0:
-            logger.debug('No Roles file. Nobody gets any permissions. ')
+            logger.debug('No permissions defined, so nobody is permitted to do any api calls.')
             raise InvalidAudienceError()
         user_info = get_oauth_userinfo(token['access_token'])
         permissions = get_permissions_user(permissions_rules, user_info)
-        if(len(permissions) == 0):
+        if len(permissions) == 0:
             raise InvalidAudienceError()
-        if(check_if_api_call_is_permitted(request, permissions)):
+        if check_if_api_call_is_permitted(request, permissions):
             return token
         else:
             raise InvalidAudienceError()
-      
-        
-
 
 
 def get_oauth_identity() -> str:
@@ -192,7 +193,7 @@ if auth_settings.OIDC_ENABLED is True:
     oauth_required = MyResourceProtector()
     oauth_required.register_token_validator(MyBearerTokenValidator())
     login_required = oauth_required(optional=not auth_settings.OIDC_ENABLED)
-    login_required_all_permitted = oauth_required(scopes = ["always_permitted"])
+    login_required_all_permitted = oauth_required(scopes=["always_permitted"])
     get_identity = get_oauth_identity
 else:
     login_required = jwt_required

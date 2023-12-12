@@ -85,7 +85,7 @@ class PermissionsAPI(Resource):
         if len(permissions_rules) == 0:
             logger.debug('No permissions defined, so nobody is permitted to do any api calls.')
             return {}
-        user_info = get_oauth_userinfo(current_token["access_token"])
+        user_info = get_oauth_userinfo(current_token)
         permissions_of_user = get_permissions_user(permissions_rules, user_info)
         return permissions_of_user
 

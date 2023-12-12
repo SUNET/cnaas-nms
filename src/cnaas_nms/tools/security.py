@@ -54,7 +54,7 @@ def get_oauth_userinfo(token: Token) -> Any:
     metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
     user_info_endpoint = metadata.json()["userinfo_endpoint"]
     data = {'token_type_hint': 'access_token'}
-    headers = {"Authorization": "Bearer " + token}
+    headers = {"Authorization": "Bearer " + token.token_string}
     try:
         resp = requests.post(user_info_endpoint, data=data, headers=headers)
         resp.raise_for_status()
@@ -102,18 +102,8 @@ class MyBearerTokenValidator(BearerTokenValidator):
         # If OIDC is disabled, no token is needed (for future use)
         if not auth_settings.OIDC_ENABLED:
             return "no-token-needed"
-        # First decode the header
         try:
-            unverified_header = jwt.get_unverified_header(token_string)
-        except exceptions.JWSError as e:
-            raise InvalidTokenError(e)
-        except exceptions.JWTError as e:
-            raise InvalidTokenError(e)
-
-        # decode the token
-        algorithm = unverified_header.get('alg')
-        try:
-            decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
+            decoded_token = jwt.decode(token_string, self.keys, audience=auth_settings.OIDC_CLIENT_ID) 
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)
         except exceptions.JWKError:
@@ -124,7 +114,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
                 self.get_keys()
 
                 # decode the token again
-                decoded_token = jwt.decode(token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID)
+                decoded_token = jwt.decode(token_string, self.keys,  audience=auth_settings.OIDC_CLIENT_ID)
             except exceptions.ExpiredSignatureError as e:
                 raise ExpiredSignatureError(e)
             except exceptions.JWKError as e:
@@ -137,14 +127,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
             logger.error("Invalid Token")
             raise InvalidTokenError(e)
 
-        # make an token object to make it easier to validate
-        token = {
-            "access_token": token_string,
-            "decoded_token": decoded_token,
-            "token_type": algorithm,
-            "audience": auth_settings.OIDC_CLIENT_ID,
-            "expires_at": decoded_token["exp"]
-        }
+        token = Token(token_string, decoded_token)
         return token
 
     def validate_token(self, token, scopes, request: HttpRequest):
@@ -159,7 +142,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         if permissions_rules is None or len(permissions_rules) == 0:
             logger.debug('No permissions defined, so nobody is permitted to do any api calls.')
             raise InvalidAudienceError()
-        user_info = get_oauth_userinfo(token['access_token'])
+        user_info = get_oauth_userinfo(token)
         permissions = get_permissions_user(permissions_rules, user_info)
         if len(permissions) == 0:
             raise InvalidAudienceError()
@@ -197,4 +180,5 @@ if auth_settings.OIDC_ENABLED is True:
     get_identity = get_oauth_identity
 else:
     login_required = jwt_required
+    login_required_all_permitted = jwt_required
     get_identity = get_jwt_identity

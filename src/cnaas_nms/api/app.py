@@ -3,6 +3,7 @@ import re
 import sys
 from typing import Optional
 
+from authlib.integrations.flask_client import OAuth
 from engineio.payload import Payload
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -10,9 +11,15 @@ from flask_jwt_extended import JWTManager
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
-from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError, ExpiredSignatureError
-from authlib.integrations.flask_client import OAuth
+from jwt.exceptions import (
+    DecodeError,
+    ExpiredSignatureError,
+    InvalidAudienceError,
+    InvalidSignatureError,
+    InvalidTokenError,
+)
 
+from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.device import (
     device_api,
     device_cert_api,
@@ -25,7 +32,6 @@ from cnaas_nms.api.device import (
     device_update_interfaces_api,
     devices_api,
 )
-from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.firmware import api as firmware_api
 from cnaas_nms.api.groups import api as groups_api
 from cnaas_nms.api.interface import api as interfaces_api
@@ -37,14 +43,10 @@ from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.system import api as system_api
-
-from cnaas_nms.app_settings import auth_settings
-from cnaas_nms.app_settings import api_settings
-
+from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
-
 
 logger = get_logger()
 
@@ -65,6 +67,8 @@ class CnaasApi(Api):
     def handle_error(self, e):
         if isinstance(e, DecodeError):
             data = {"status": "error", "data": "Could not decode JWT token"}
+        elif isinstance(e, InvalidAudienceError):
+            data = {"status": "error", "data": "You don't seem to have the rights to execute this call"}
         elif isinstance(e, InvalidTokenError):
             data = {"status": "error", "data": "Invalid authentication header: {}".format(e)}
         elif isinstance(e, InvalidSignatureError):
@@ -79,6 +83,7 @@ class CnaasApi(Api):
             data = {"status": "error", "data": "Invalid header, JWT token missing? {}".format(e)}
         elif isinstance(e, ExpiredSignatureError):
             data = {"status": "error", "data": "The JWT token is expired"}
+
         else:
             return super(CnaasApi, self).handle_error(e)
         return jsonify(data), 401
@@ -194,18 +199,14 @@ def socketio_on_events(data):
 def log_request(response):
     try:
         url = re.sub(jwt_query_r, "", request.url)
-        if request.headers.get('content-type') == 'application/json':
+        if request.headers.get("content-type") == "application/json":
             logger.info(
                 "Method: {}, Status: {}, URL: {}, JSON: {}".format(
                     request.method, response.status_code, url, request.json
                 )
             )
         else:
-            logger.info(
-                "Method: {}, Status: {}, URL: {}".format(
-                    request.method, response.status_code, url
-                )
-            )
+            logger.info("Method: {}, Status: {}, URL: {}".format(request.method, response.status_code, url))
     except Exception:
         pass
     return response

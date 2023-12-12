@@ -143,11 +143,9 @@ def construct_app_settings() -> AppSettings:
 
 def construct_auth_settings() -> AuthSettings:
     auth_settings = AuthSettings()
-    permission_config = Path("etc/cnaas-nms/permissions.yml")
+    permission_config = Path("/etc/cnaas-nms/permissions.yml")
 
     def _create_permissions_config(settings: AuthSettings, permissions_rules: dict) -> None:
-        if 'config' not in permissions_rules or 'roles' not in permissions_rules:
-            raise Exception("Permission file is wrong. It's missing neccersary elements") 
         settings.PERMISSIONS = permissions_rules
 
     if auth_settings.PERMISSIONS_DISABLED:

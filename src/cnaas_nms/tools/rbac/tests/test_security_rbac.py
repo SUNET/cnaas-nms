@@ -12,55 +12,55 @@ class CheckRoleRBACTests(unittest.TestCase):
         request = HttpRequest("GET", self.prefix + "/devices")
         permissions_of_user = [{'methods': ['GET' ,'POST'], 'endpoints': ['/auth/*', '/devices']}]
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, True)
+        self.assertTrue(is_allowed)
     
     def test_user_is_allowed_api_call_with_star(self):
         request = HttpRequest("GET", self.prefix  + "/uri")
         permissions_of_user = [{"methods": ["*"], "endpoints" : ["*"]}]
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, True)
+        self.assertTrue(is_allowed)
     
     def test_user_is_allowed_api_call_with_glob(self):
         request = HttpRequest("GET", self.prefix + "/uri/test")
         permissions_of_user = [{"methods": ["GET"], "endpoints" : ["/uri/*"]}]
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, True)
+        self.assertTrue(is_allowed)
     
     def test_user_is_allowed_api_call_with_glob_double_star(self):
         request = HttpRequest("GET", self.prefix + "/uri/test/test")
         permissions_of_user = [{"methods": ["GET"], "endpoints" : ["/uri/**"]}]
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, True)
+        self.assertTrue(is_allowed)
 
     def test_user_is_allowed_api_call_multiple_permissions(self):
         request = HttpRequest("GET", self.prefix + "/uri")
         permissions_of_user = [{"methods": ["GET"], "endpoints" : ["no"]}, {"methods": ["GET"], "endpoints" : ["*"]}]
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, True)
+        self.assertTrue(is_allowed)
     
     def test_user_is_not_allowed_api_call_method(self):
         request = HttpRequest("POST", self.prefix + "/uri")
         permissions_of_user = [{"methods": ["GET"], "endpoints" : ["*"]}]
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, False)
+        self.assertFalse(is_allowed)
 
     def test_user_is_not_allowed_api_call_with_glob(self):
         request = HttpRequest("GET", self.prefix  + "/different/test")
         permissions_of_user =[{"methods": ["GET"], "endpoints" : ["/uri/**"]}]
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, False)
+        self.assertFalse(is_allowed)
 
     def test_user_is_not_allowed_api_call_empty(self):
         request = HttpRequest("GET", self.prefix + "/different/test")
         permissions_of_user = []
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, False)
+        self.assertFalse(is_allowed)
     
     def test_user_is_not_allowed_api_call_in_2_roles(self):
         request = HttpRequest("POST", self.prefix + "/different/test/test")
         permissions_of_user = [{"methods": ["*"], "endpoints" : ["/uri/*"]}, {"methods": ["GET"], "endpoints" : ["*"]}]
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
-        self.assertEqual(is_allowed, False)
+        self.assertFalse(is_allowed)
 
 class GetPremissionsRoleYamlTests(unittest.TestCase):
 

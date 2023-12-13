@@ -102,8 +102,18 @@ class MyBearerTokenValidator(BearerTokenValidator):
         # If OIDC is disabled, no token is needed (for future use)
         if not auth_settings.OIDC_ENABLED:
             return "no-token-needed"
+        # First decode the header to get tge algorithm
         try:
-            decoded_token = jwt.decode(token_string, self.keys, audience=auth_settings.OIDC_CLIENT_ID) 
+            unverified_header = jwt.get_unverified_header(token_string)
+        except exceptions.JWSError as e:
+            raise InvalidTokenError(e)
+        except exceptions.JWTError as e:
+            raise InvalidTokenError(e)
+        algorithm = unverified_header.get('alg')
+
+        # decode the token
+        try:
+            decoded_token = jwt.decode(token_string, self.keys, audience=auth_settings.OIDC_CLIENT_ID, algorithms=algorithm) 
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)
         except exceptions.JWKError:
@@ -127,6 +137,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
             logger.error("Invalid Token")
             raise InvalidTokenError(e)
 
+        # return into token format
         token = Token(token_string, decoded_token)
         return token
 

@@ -66,27 +66,35 @@ jwt_query_r = re.compile(r"code=[^ &]+")
 class CnaasApi(Api):
     def handle_error(self, e):
         if isinstance(e, DecodeError):
-            data = {"status": "error", "data": "Could not decode JWT token"}
+            data = {"status": "error", "message": "Could not decode JWT token"}
+            return jsonify(data), 401
         elif isinstance(e, InvalidAudienceError):
-            data = {"status": "error", "data": "You don't seem to have the rights to execute this call"}
+            data = {"status": "error", "message": "You don't seem to have the rights to execute this call"}
+            return jsonify(data), 403
+        elif isinstance(e, ExpiredSignatureError):
+            data = {"status": "error", "message": "The JWT token is expired", "errorCode": "auth_expired"}
+            return jsonify(data), 401
         elif isinstance(e, InvalidTokenError):
-            data = {"status": "error", "data": "Invalid authentication header: {}".format(e)}
+            data = {"status": "error", "message": "Invalid authentication header: {}".format(e)}
+            return jsonify(data), 401
         elif isinstance(e, InvalidSignatureError):
-            data = {"status": "error", "data": "Invalid token signature"}
+            data = {"status": "error", "message": "Invalid token signature"}
+            return jsonify(data), 401
         elif isinstance(e, IndexError):
             # We might catch IndexErrors which are not caused by JWT,
             # but this is better than nothing.
-            data = {"status": "error", "data": "JWT token missing?"}
+            data = {"status": "error", "message": "JWT token missing?"}
+            return jsonify(data), 401
         elif isinstance(e, NoAuthorizationError):
-            data = {"status": "error", "data": "JWT token missing?"}
+            data = {"status": "error", "message": "JWT token missing?"}
+            return jsonify(data), 401
         elif isinstance(e, InvalidHeaderError):
-            data = {"status": "error", "data": "Invalid header, JWT token missing? {}".format(e)}
-        elif isinstance(e, ExpiredSignatureError):
-            data = {"status": "error", "data": "The JWT token is expired"}
-
+            data = {"status": "error", "message": "Invalid header, JWT token missing? {}".format(e)}
+            return jsonify(data), 401
         else:
             return super(CnaasApi, self).handle_error(e)
-        return jsonify(data), 401
+        
+       
 
 
 app = Flask(__name__)

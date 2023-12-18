@@ -51,6 +51,17 @@ class MyBearerTokenValidator(BearerTokenValidator):
         response = requests.get(url=keys_endpoint)
         self.keys = response.json()["keys"]
 
+    def get_key(self, kid):
+        key = [k for k in self.keys if k['kid'] == kid]
+        if len(key) == 0:
+            logger.debug("Key not found. Get the keys.")
+            self.get_keys()
+            key = [k for k in self.keys if k['kid'] == kid]
+            if len(key) == 0:
+                logger.error("Key not in keys")
+                raise InvalidKeyError()
+        return key
+
     def authenticate_token(self, token_string: str):
         """Check if token is active.
 
@@ -72,6 +83,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         # If OIDC is disabled, no token is needed (for future use)
         if not auth_settings.OIDC_ENABLED:
             return "no-token-needed"
+
         # First decode the header
         try:
             unverified_header = jwt.get_unverified_header(token_string)
@@ -80,33 +92,20 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWTError as e:
             raise InvalidTokenError(e)
 
+        # get the key
+        key = self.get_key(unverified_header.get("kid"))
+
         # decode the token
         algorithm = unverified_header.get("alg")
         try:
             decoded_token = jwt.decode(
-                token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID
+                token_string, key, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID
             )
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)
         except exceptions.JWKError:
-            try:
-                # with this exception, we first try to reload the keys
-                # there is a new key every 24 hours
-                logger.debug("JWT.decode didnt work. Get the keys and retry.")
-                self.get_keys()
-
-                # decode the token again
-                decoded_token = jwt.decode(
-                    token_string, self.keys, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID
-                )
-            except exceptions.ExpiredSignatureError as e:
-                raise ExpiredSignatureError(e)
-            except exceptions.JWKError as e:
-                logger.error("Invalid Key")
-                raise InvalidKeyError(e)
-            except exceptions.JWTError as e:
-                logger.error("Invalid Token")
-                raise InvalidTokenError(e)
+            logger.error("Invalid Key")
+            raise InvalidKeyError(e)
         except exceptions.JWTError as e:
             logger.error("Invalid Token")
             raise InvalidTokenError(e)

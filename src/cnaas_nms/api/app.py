@@ -10,7 +10,7 @@ from flask_jwt_extended import JWTManager
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
-from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError, ExpiredSignatureError
+from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError, ExpiredSignatureError, InvalidKeyError
 from authlib.integrations.flask_client import OAuth
 
 from cnaas_nms.api.device import (
@@ -65,6 +65,8 @@ class CnaasApi(Api):
     def handle_error(self, e):
         if isinstance(e, DecodeError):
             data = {"status": "error", "data": "Could not decode JWT token"}
+        elif isinstance(e, InvalidKeyError):
+            data = {"status": "error", "data": "Invalid keys {}".format(e)}
         elif isinstance(e, InvalidTokenError):
             data = {"status": "error", "data": "Invalid authentication header: {}".format(e)}
         elif isinstance(e, InvalidSignatureError):

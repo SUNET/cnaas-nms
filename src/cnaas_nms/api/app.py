@@ -17,6 +17,7 @@ from jwt.exceptions import (
     InvalidAudienceError,
     InvalidSignatureError,
     InvalidTokenError,
+    InvalidKeyError
 )
 
 from cnaas_nms.api.auth import api as auth_api
@@ -73,6 +74,9 @@ class CnaasApi(Api):
             return jsonify(data), 403
         elif isinstance(e, ExpiredSignatureError):
             data = {"status": "error", "message": "The JWT token is expired", "errorCode": "auth_expired"}
+            return jsonify(data), 401
+        elif isinstance(e, InvalidKeyError):
+            data = {"status": "error", "data": "Invalid keys {}".format(e)}
             return jsonify(data), 401
         elif isinstance(e, InvalidTokenError):
             data = {"status": "error", "message": "Invalid authentication header: {}".format(e)}

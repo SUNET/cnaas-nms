@@ -1,3 +1,9 @@
+from typing import Any, Mapping
+
+import requests
+from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
+from authlib.oauth2.rfc6749 import MissingAuthorizationError
+from authlib.oauth2.rfc6750 import BearerTokenValidator, errors
 from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
 from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
@@ -7,14 +13,13 @@ from jose import jwt
 from jose import exceptions
 from jwt.exceptions import InvalidTokenError, InvalidKeyError, ExpiredSignatureError, InvalidAudienceError
 from flask_jwt_extended.exceptions import NoAuthorizationError
-from authlib.oauth2.rfc6749 import MissingAuthorizationError
-import requests
-from typing import Mapping, Any
+from jose import exceptions, jwt
+from jwt.exceptions import ExpiredSignatureError, InvalidKeyError, InvalidTokenError
 
 from cnaas_nms.tools.rbac.rbac import get_permissions_user, check_if_api_call_is_permitted
 from cnaas_nms.tools.rbac.token import Token
+from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.app_settings import auth_settings, api_settings
 
 
 logger = get_logger()
@@ -65,7 +70,7 @@ def get_oauth_userinfo(token: Token) -> Any:
 
 class MyResourceProtector(ResourceProtector):
     def raise_error_response(self, error):
-        """ Raises no authorization error when missing authorization"""
+        """Raises no authorization error when missing authorization"""
         if isinstance(error, MissingAuthorizationError):
             raise NoAuthorizationError(error)
         raise error
@@ -80,6 +85,18 @@ class MyBearerTokenValidator(BearerTokenValidator):
         keys_endpoint = metadata.json()["jwks_uri"]
         response = requests.get(url=keys_endpoint)
         self.keys = response.json()["keys"]
+
+    
+    def get_key(self, kid):
+        key = [k for k in self.keys if k['kid'] == kid]
+        if len(key) == 0:
+            logger.debug("Key not found. Get the keys.")
+            self.get_keys()
+            key = [k for k in self.keys if k['kid'] == kid]
+            if len(key) == 0:
+                logger.error("Key not in keys")
+                raise InvalidKeyError()
+        return key
 
     def authenticate_token(self, token_string: str) -> Token:
         """Check if token is active.
@@ -111,28 +128,20 @@ class MyBearerTokenValidator(BearerTokenValidator):
             raise InvalidTokenError(e)
         algorithm = unverified_header.get('alg')
 
+        # get the key
+        key = self.get_key(unverified_header.get("kid"))
+
         # decode the token
+        algorithm = unverified_header.get("alg")
         try:
-            decoded_token = jwt.decode(token_string, self.keys, audience=auth_settings.OIDC_CLIENT_ID, algorithms=algorithm) 
+            decoded_token = jwt.decode(
+                token_string, key, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID
+            )
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)
         except exceptions.JWKError:
-            try:
-                # with this exception, we first try to reload the keys
-                # there is a new key every 24 hours
-                logger.debug('JWT.decode didnt work. Get the keys and retry.')
-                self.get_keys()
-
-                # decode the token again
-                decoded_token = jwt.decode(token_string, self.keys,  audience=auth_settings.OIDC_CLIENT_ID)
-            except exceptions.ExpiredSignatureError as e:
-                raise ExpiredSignatureError(e)
-            except exceptions.JWKError as e:
-                logger.error("Invalid Key")
-                raise InvalidKeyError(e)
-            except exceptions.JWTError as e:
-                logger.error("Invalid Token")
-                raise InvalidTokenError(e)
+            logger.error("Invalid Key")
+            raise InvalidKeyError(e)
         except exceptions.JWTError as e:
             logger.error("Invalid Token")
             raise InvalidTokenError(e)
@@ -166,13 +175,13 @@ class MyBearerTokenValidator(BearerTokenValidator):
 def get_oauth_identity() -> str:
     """Give back the email address of the OAUTH account
 
-        If JWT is disabled, we return "admin".
+    If JWT is disabled, we return "admin".
 
-        We do an api call to request userinfo. This gives back all the userinfo.
-        We get the right info from there and return this to the user.
+    We do an api call to request userinfo. This gives back all the userinfo.
+    We get the right info from there and return this to the user.
 
-        Returns:
-            email(str): Email of the logged in user
+    Returns:
+        email(str): Email of the logged in user
 
     """
     # For now unnecersary, useful when we only use one log in method

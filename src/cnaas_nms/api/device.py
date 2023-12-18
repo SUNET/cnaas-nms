@@ -42,7 +42,6 @@ from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
-
 logger = get_logger()
 
 
@@ -384,7 +383,6 @@ class DeviceApi(Resource):
             update_device_primary_groups()
             dev_dict = device_data_postprocess([new_device])[0]
             return empty_result(status="success", data={"added_device": dev_dict}), 200
-
 
 
 class DevicesApi(Resource):
@@ -859,7 +857,6 @@ class DeviceUpdateInterfacesApi(Resource):
 class DeviceGenerateConfigApi(Resource):
     @login_required
     @device_api.doc(model=device_generate_config_model)
-
     def get(self, hostname: str):
         """Get device configuration"""
         result = empty_result()

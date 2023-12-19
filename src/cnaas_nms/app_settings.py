@@ -149,8 +149,7 @@ def construct_auth_settings() -> AuthSettings:
         settings.PERMISSIONS = permissions_rules
 
     if auth_settings.PERMISSIONS_DISABLED:
-        auth_settings.PERMISSIONS = {'config': {'default_permissions': 'default'}, 'roles': {'default': {'allowed_api_methods': ['*'], 'allowed_api_calls': ['*']}}}
-     
+        auth_settings.PERMISSIONS = {'config': {'default_permissions': 'default'}, 'roles': {'default': {'permissions':[{'methods': ['*'], 'endpoints': ['*'], 'pages': ['*'], 'rights': ['*']}]}}}
     elif permission_config.is_file():
         '''Load the file with role permission'''
         with open(permission_config, "r") as permission_file:

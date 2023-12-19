@@ -52,6 +52,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         self.keys = response.json()["keys"]
 
     def get_key(self, kid):
+        """Get the key based on the kid"""
         key = [k for k in self.keys if k['kid'] == kid]
         if len(key) == 0:
             logger.debug("Key not found. Get the keys.")

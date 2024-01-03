@@ -32,6 +32,32 @@ def get_jwt_identity():
     """
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
 
+def get_oauth_userinfo(token_string):
+    """Give back the user info of the OAUTH account
+
+    If JWT is disabled, we return "admin".
+
+    We do an api call to request userinfo. This gives back all the userinfo.
+    We get the right info from there and return this to the user.
+
+    Returns:
+        resp.json(): Object of the user info 
+
+    """
+    # For now unnecersary, useful when we nly use one log in method
+    if not auth_settings.OIDC_ENABLED:
+        return "Admin"
+    # Request the userinfo
+    metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+    user_info_endpoint = metadata.json()["userinfo_endpoint"]
+    data = {"token_type_hint": "access_token"}
+    headers = {"Authorization": "Bearer " + token_string}
+    try:
+        resp = requests.post(user_info_endpoint, data=data, headers=headers)
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        raise InvalidTokenError(e)
+    return resp.json()
 
 class MyResourceProtector(ResourceProtector):
     def raise_error_response(self, error):
@@ -91,7 +117,12 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWSError as e:
             raise InvalidTokenError(e)
         except exceptions.JWTError as e:
-            raise InvalidTokenError(e)
+            # check if we can still get the user info
+            get_oauth_userinfo(token_string)
+            token = {
+                "access_token": token_string
+            }
+            return token
 
         # get the key
         key = self.get_key(unverified_header.get("kid"))
@@ -145,16 +176,8 @@ def get_oauth_identity():
     if not auth_settings.OIDC_ENABLED:
         return "Admin"
     # Request the userinfo
-    metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
-    user_info_endpoint = metadata.json()["userinfo_endpoint"]
-    data = {"token_type_hint": "access_token"}
-    headers = {"Authorization": "Bearer " + current_token["access_token"]}
-    try:
-        resp = requests.post(user_info_endpoint, data=data, headers=headers)
-        resp.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        raise errors.InvalidTokenError(e)
-    return resp.json()["email"]
+    userinfo = get_oauth_userinfo(current_token["access_token"])
+    return userinfo["email"]
 
 
 # check which method we use to log in and load vars needed for that

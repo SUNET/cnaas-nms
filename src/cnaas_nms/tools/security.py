@@ -175,7 +175,7 @@ def get_oauth_identity():
 
 # check which method we use to log in and load vars needed for that
 if auth_settings.OIDC_ENABLED is True:
-    oauth_required = MyResourceProtector()
+    oauth_required = ResourceProtector()
     oauth_required.register_token_validator(MyBearerTokenValidator())
     login_required = oauth_required(optional=not auth_settings.OIDC_ENABLED)
     get_identity = get_oauth_identity

@@ -59,13 +59,6 @@ def get_oauth_userinfo(token_string):
         raise InvalidTokenError(e)
     return resp.json()
 
-class MyResourceProtector(ResourceProtector):
-    def raise_error_response(self, error):
-        """Raises no authorization error when missing authorization"""
-        if isinstance(error, MissingAuthorizationError):
-            raise NoAuthorizationError(error)
-        raise error
-
 
 class MyBearerTokenValidator(BearerTokenValidator):
     keys: Mapping[str, Any] = {}
@@ -76,7 +69,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         keys_endpoint = metadata.json()["jwks_uri"]
         response = requests.get(url=keys_endpoint)
         self.keys = response.json()["keys"]
-
+    
     def get_key(self, kid):
         """Get the key based on the kid"""
         key = [k for k in self.keys if k['kid'] == kid]

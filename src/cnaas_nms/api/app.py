@@ -12,6 +12,7 @@ from flask_restx import Api
 from flask_socketio import SocketIO, join_room
 from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError, ExpiredSignatureError, InvalidKeyError
 from authlib.integrations.flask_client import OAuth
+from authlib.oauth2.rfc6749 import MissingAuthorizationError
 
 from cnaas_nms.api.device import (
     device_api,
@@ -81,6 +82,8 @@ class CnaasApi(Api):
             data = {"status": "error", "data": "Invalid header, JWT token missing? {}".format(e)}
         elif isinstance(e, ExpiredSignatureError):
             data = {"status": "error", "data": "The JWT token is expired"}
+        elif isinstance(e, MissingAuthorizationError):
+            data = {"status": "error", "data": "JWT token missing?"}
         else:
             return super(CnaasApi, self).handle_error(e)
         return jsonify(data), 401

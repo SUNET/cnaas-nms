@@ -141,8 +141,19 @@ def construct_app_settings() -> AppSettings:
 
 
 def construct_auth_settings() -> AuthSettings:
-    auth_settings = AuthSettings()
-    return auth_settings
+    auth_config = Path("/etc/cnaas-nms/auth_config.yml")
+    if auth_config.is_file():
+        with open(auth_config, "r") as auth_file:
+            config = yaml.safe_load(auth_file)
+        return AuthSettings(
+            OIDC_ENABLED=config.get("oidc_enabled", ApiSettings().JWT_CERT),
+            FRONTEND_CALLBACK_URL=config.get("frontend_callback_url", ApiSettings().JWT_CERT),
+            OIDC_CONF_WELL_KNOWN_URL=config.get("oidc_conf_well_known_url", ApiSettings().JWT_CERT),
+            OIDC_CLIENT_SECRET=config.get("oidc_client_secret", ApiSettings().JWT_CERT),
+            OIDC_CLIENT_ID=config.get("oidc_client_id", ApiSettings().JWT_CERT),
+        )
+    else:
+        return AuthSettings()
 
 
 app_settings = construct_app_settings()

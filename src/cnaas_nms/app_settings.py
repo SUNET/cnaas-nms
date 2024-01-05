@@ -146,11 +146,11 @@ def construct_auth_settings() -> AuthSettings:
         with open(auth_config, "r") as auth_file:
             config = yaml.safe_load(auth_file)
         return AuthSettings(
-            OIDC_ENABLED=config.get("oidc_enabled", ApiSettings().JWT_CERT),
-            FRONTEND_CALLBACK_URL=config.get("frontend_callback_url", ApiSettings().JWT_CERT),
-            OIDC_CONF_WELL_KNOWN_URL=config.get("oidc_conf_well_known_url", ApiSettings().JWT_CERT),
-            OIDC_CLIENT_SECRET=config.get("oidc_client_secret", ApiSettings().JWT_CERT),
-            OIDC_CLIENT_ID=config.get("oidc_client_id", ApiSettings().JWT_CERT),
+            OIDC_ENABLED=config.get("oidc_enabled", AuthSettings().OIDC_ENABLED),
+            FRONTEND_CALLBACK_URL=config.get("frontend_callback_url", ApiSettings().FRONTEND_CALLBACK_URL),
+            OIDC_CONF_WELL_KNOWN_URL=config.get("oidc_conf_well_known_url", ApiSettings().OIDC_CONF_WELL_KNOWN_URL),
+            OIDC_CLIENT_SECRET=config.get("oidc_client_secret", ApiSettings().OIDC_CLIENT_SECRET),
+            OIDC_CLIENT_ID=config.get("oidc_client_id", ApiSettings().OIDC_CLIENT_ID),
         )
     else:
         return AuthSettings()

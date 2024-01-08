@@ -183,6 +183,9 @@ def get_oauth_identity():
         return "Admin"
     # Request the userinfo
     userinfo = get_oauth_userinfo(current_token["access_token"])
+    if "email" not in userinfo:
+        logger.error("Email is a required claim for oauth")
+        raise KeyError("Email is a required claim for oauth")
     return userinfo["email"]
 
 

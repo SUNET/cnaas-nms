@@ -71,9 +71,9 @@ class MyBearerTokenValidator(BearerTokenValidator):
             response = requests.get(url=keys_endpoint)
             self.keys = response.json()["keys"]
         except KeyError as e: 
-            raise InvalidKeyError()
+            raise InvalidKeyError(e)
         except requests.exceptions.HTTPError as e:
-            raise InvalidKeyError()
+            raise InvalidKeyError(e)
 
     
     def get_key(self, kid):
@@ -89,7 +89,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
                 key = [k for k in self.keys if k['kid'] == kid]
             except KeyError as e: 
                 logger.error("Keys in different format?")
-                raise InvalidKeyError()
+                raise InvalidKeyError(e)
             if len(key) == 0:
                 logger.error("Key not in keys")
                 raise InvalidKeyError()

@@ -19,6 +19,8 @@ from jwt.exceptions import (
     InvalidTokenError,
     InvalidKeyError
 )
+from authlib.integrations.flask_client import OAuth
+from authlib.oauth2.rfc6749 import MissingAuthorizationError
 
 from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.device import (
@@ -95,6 +97,10 @@ class CnaasApi(Api):
         elif isinstance(e, InvalidHeaderError):
             data = {"status": "error", "message": "Invalid header, JWT token missing? {}".format(e)}
             return jsonify(data), 401
+        elif isinstance(e, ExpiredSignatureError):
+            data = {"status": "error", "data": "The JWT token is expired"}
+        elif isinstance(e, MissingAuthorizationError):
+            data = {"status": "error", "data": "JWT token missing?"}
         else:
             return super(CnaasApi, self).handle_error(e)
         

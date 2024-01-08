@@ -2,12 +2,10 @@ from typing import Any, Mapping
 
 import requests
 from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
-from authlib.oauth2.rfc6749 import MissingAuthorizationError
 from authlib.oauth2.rfc6750 import BearerTokenValidator, errors
 from authlib.oauth2.rfc6749.wrappers import HttpRequest
 from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
-from flask_jwt_extended.exceptions import NoAuthorizationError
 from jose import exceptions, jwt
 from jwt.exceptions import InvalidTokenError, InvalidKeyError, ExpiredSignatureError, InvalidAudienceError
 
@@ -38,6 +36,7 @@ def get_jwt_identity():
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
 
 
+
 def get_oauth_userinfo(token: Token) -> Any:
     """Give back the user info of the OAUTH account
 
@@ -46,7 +45,7 @@ def get_oauth_userinfo(token: Token) -> Any:
         We do an api call to request userinfo. This gives back all the userinfo.
 
         Returns:
-            email(str): Email of the logged in user
+            resp.json(): Object of the user info 
 
     """
     if not auth_settings.OIDC_ENABLED:
@@ -63,31 +62,36 @@ def get_oauth_userinfo(token: Token) -> Any:
         raise errors.InvalidTokenError(e)
     return resp.json()
 
-class MyResourceProtector(ResourceProtector):
-    def raise_error_response(self, error):
-        """Raises no authorization error when missing authorization"""
-        if isinstance(error, MissingAuthorizationError):
-            raise NoAuthorizationError(error)
-        raise error
-
-
 class MyBearerTokenValidator(BearerTokenValidator):
     keys: Mapping[str, Any] = {}
 
     def get_keys(self):
         """Get the keys for the OIDC decoding"""
-        metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
-        keys_endpoint = metadata.json()["jwks_uri"]
-        response = requests.get(url=keys_endpoint)
-        self.keys = response.json()["keys"]
+        try:
+            metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+            keys_endpoint = metadata.json()["jwks_uri"]
+            response = requests.get(url=keys_endpoint)
+            self.keys = response.json()["keys"]
+        except KeyError as e: 
+            raise InvalidKeyError(e)
+        except requests.exceptions.HTTPError as e:
+            raise InvalidKeyError(e)
 
+    
     def get_key(self, kid):
         """Get the key based on the kid"""
         key = [k for k in self.keys if k['kid'] == kid]
         if len(key) == 0:
             logger.debug("Key not found. Get the keys.")
             self.get_keys()
-            key = [k for k in self.keys if k['kid'] == kid]
+            if len(self.keys) == 0:
+                logger.error("Keys not downloaded")
+                raise InvalidKeyError()
+            try:
+                key = [k for k in self.keys if k['kid'] == kid]
+            except KeyError as e: 
+                logger.error("Keys in different format?")
+                raise InvalidKeyError(e)
             if len(key) == 0:
                 logger.error("Key not in keys")
                 raise InvalidKeyError()
@@ -121,7 +125,12 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWSError as e:
             raise InvalidTokenError(e)
         except exceptions.JWTError as e:
-            raise InvalidTokenError(e)
+            # check if we can still get the user info
+            get_oauth_userinfo(token_string)
+            token = {
+                "access_token": token_string
+            }
+            return token
 
         # get the key
         key = self.get_key(unverified_header.get("kid"))
@@ -189,7 +198,7 @@ def get_oauth_identity() -> str:
 
 # check which method we use to log in and load vars needed for that
 if auth_settings.OIDC_ENABLED is True:
-    oauth_required = MyResourceProtector()
+    oauth_required = ResourceProtector()
     oauth_required.register_token_validator(MyBearerTokenValidator())
     login_required = oauth_required(optional=not auth_settings.OIDC_ENABLED)
     get_identity = get_oauth_identity

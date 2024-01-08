@@ -1,4 +1,4 @@
-from authlib.integrations.base_client.errors import MismatchingStateError
+from authlib.integrations.base_client.errors import MismatchingStateError, OAuthError
 from authlib.integrations.flask_oauth2 import current_token
 
 from flask import current_app, redirect, url_for
@@ -66,6 +66,15 @@ class AuthApi(Resource):
                     data="Exception during authorization of the access token. Please try to login again.",
                 ),
                 502,
+            )
+        except OAuthError as e:
+            logger.error("Missing information needed for authorization: {}".format(str(e)))
+            return (
+                empty_result(
+                    status="error",
+                    data="The server is missing some information that is needed for authorization.",
+                ),
+                500,
             )
 
         url = auth_settings.FRONTEND_CALLBACK_URL

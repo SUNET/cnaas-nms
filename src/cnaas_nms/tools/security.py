@@ -65,10 +65,16 @@ class MyBearerTokenValidator(BearerTokenValidator):
 
     def get_keys(self):
         """Get the keys for the OIDC decoding"""
-        metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
-        keys_endpoint = metadata.json()["jwks_uri"]
-        response = requests.get(url=keys_endpoint)
-        self.keys = response.json()["keys"]
+        try:
+            metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+            keys_endpoint = metadata.json()["jwks_uri"]
+            response = requests.get(url=keys_endpoint)
+            self.keys = response.json()["keys"]
+        except KeyError as e: 
+            raise InvalidKeyError()
+        except requests.exceptions.HTTPError as e:
+            raise InvalidKeyError()
+
     
     def get_key(self, kid):
         """Get the key based on the kid"""
@@ -76,6 +82,9 @@ class MyBearerTokenValidator(BearerTokenValidator):
         if len(key) == 0:
             logger.debug("Key not found. Get the keys.")
             self.get_keys()
+            if len(self.keys) == 0:
+                logger.error("Keys not downloaded")
+                raise InvalidKeyError()
             key = [k for k in self.keys if k['kid'] == kid]
             if len(key) == 0:
                 logger.error("Key not in keys")

@@ -85,7 +85,11 @@ class MyBearerTokenValidator(BearerTokenValidator):
             if len(self.keys) == 0:
                 logger.error("Keys not downloaded")
                 raise InvalidKeyError()
-            key = [k for k in self.keys if k['kid'] == kid]
+            try:
+                key = [k for k in self.keys if k['kid'] == kid]
+            except KeyError as e: 
+                logger.error("Keys in different format?")
+                raise InvalidKeyError()
             if len(key) == 0:
                 logger.error("Key not in keys")
                 raise InvalidKeyError()

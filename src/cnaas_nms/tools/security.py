@@ -2,13 +2,14 @@ from typing import Any, Mapping
 
 import requests
 from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
-from authlib.oauth2.rfc6749 import MissingAuthorizationError
-from authlib.oauth2.rfc6750 import BearerTokenValidator, errors
+from authlib.oauth2.rfc6749 import MissingAuthorizationError, UnsupportedTokenTypeError
+from authlib.oauth2.rfc6750 import BearerTokenValidator
 from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
 from flask_jwt_extended.exceptions import NoAuthorizationError
 from jose import exceptions, jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidKeyError, InvalidTokenError
+from urllib.parse import urlparse, parse_qs
 
 from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
@@ -59,6 +60,67 @@ def get_oauth_userinfo(token_string):
         raise InvalidTokenError(e)
     return resp.json()
 
+class MyResourceProtector(ResourceProtector):
+    def parse_request_authorization_header(self, request):
+        """Parse the token and token validator from request in the header.
+        
+        This method will parse this header, if it can find the validator for
+        ``Bearer``, it will return the validator and ``a-token-string``.
+
+        :return: validator, token_string
+        :raise: NoAuthorizationError
+        :raise: UnsupportedTokenTypeError
+        """
+        auth = request.headers.get('Authorization')
+        if not auth:
+            raise NoAuthorizationError(self._default_auth_type, self._default_realm)
+        token_parts = auth.split(None, 1)
+        if len(token_parts) != 2:
+            raise UnsupportedTokenTypeError(self._default_auth_type, self._default_realm)
+        token_type, token_string = token_parts
+        validator = self.get_token_validator(token_type)
+        return validator, token_string
+        
+    def parse_request_authorization_query_string(self, request):
+        """Parse the token and token validator from request in the query string.
+        
+        :return: validator, token_string
+        :raise: NoAuthorizationError
+        """
+        parsed_url = urlparse(request.uri)
+        if 'jwt' not in parse_qs(parsed_url.query):
+            raise NoAuthorizationError(self._default_auth_type, self._default_realm)
+        token_string = parse_qs(parsed_url.query)['jwt'][0]
+        validator = self.get_token_validator(self._default_auth_type)
+        return validator, token_string
+    
+    def parse_request_authorization(self, request):
+        """Parse the token and token validator from request.
+
+        There are two locations possible for the token:
+
+            Authorization: Bearer a-token-string
+            Query_string['jwt']: token
+
+        :return: validator, token_string
+        :raise: NoAuthorizationError
+        """
+        # execute functions until we have a sucess 
+        functions = [self.parse_request_authorization_header, self.parse_request_authorization_query_string]
+        errors = []
+        token_string = None
+        for get_encoded_token_function in functions:
+            try:
+                validator, token_string = get_encoded_token_function(request)
+                break
+            except NoAuthorizationError as e:
+                errors.append(str(e))
+
+        # check if no token_string, if true give error
+        if not token_string:
+            raise NoAuthorizationError()
+        
+        return validator, token_string
 
 class MyBearerTokenValidator(BearerTokenValidator):
     keys: Mapping[str, Any] = {}
@@ -191,7 +253,7 @@ def get_oauth_identity():
 
 # check which method we use to log in and load vars needed for that
 if auth_settings.OIDC_ENABLED is True:
-    oauth_required = ResourceProtector()
+    oauth_required = MyResourceProtector()
     oauth_required.register_token_validator(MyBearerTokenValidator())
     login_required = oauth_required(optional=not auth_settings.OIDC_ENABLED)
     get_identity = get_oauth_identity

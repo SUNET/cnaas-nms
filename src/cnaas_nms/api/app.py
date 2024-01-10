@@ -1,8 +1,8 @@
 import os
 import re
 import sys
-from typing import Optional
 
+from typing import Optional
 from engineio.payload import Payload
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -10,9 +10,11 @@ from flask_jwt_extended import JWTManager
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
+from jwt import decode
 from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError, ExpiredSignatureError, InvalidKeyError
 from authlib.integrations.flask_client import OAuth
 from authlib.oauth2.rfc6749 import MissingAuthorizationError
+
 
 from cnaas_nms.api.device import (
     device_api,
@@ -43,7 +45,7 @@ from cnaas_nms.app_settings import auth_settings
 from cnaas_nms.app_settings import api_settings
 
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.security import get_identity, login_required
+from cnaas_nms.tools.security import get_oauth_userinfo
 from cnaas_nms.version import __api_version__
 
 
@@ -102,9 +104,6 @@ client = oauth.register(
     response_type="code",
     response_mode="query",
 )
-
-if api_settings.JWT_ENABLED:
-    app.config["SECRET_KEY"] = os.urandom(128)
 
 app.config["RESTX_JSON"] = {"cls": CNaaSJSONEncoder}
 
@@ -165,12 +164,26 @@ api.add_namespace(settings_api)
 api.add_namespace(plugins_api)
 api.add_namespace(system_api)
 
-
 # SocketIO on connect
 @socketio.on("connect")
-@login_required
 def socketio_on_connect():
-    user = get_identity()
+    token_string = request.args.get('jwt')
+    if auth_settings.OIDC_ENABLED:
+        try:
+            user = get_oauth_userinfo(token_string)['email']
+        except InvalidTokenError as e:
+            logger.debug('InvalidTokenError: ' + format(e))
+            return False
+        except NoAuthorizationError as e:
+            logger.debug('NoAuthorizationError: ' + format(e))
+            return False
+    else:
+        try:
+            user = decode(token_string, jwt_pubkey, options={"verify_signature": False})['sub']
+        except DecodeError as e:
+            logger.debug('DecodeError: ' + format(e))
+            return False
+
     if user:
         logger.info("User: {} connected via socketio".format(user))
         return True

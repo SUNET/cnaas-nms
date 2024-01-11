@@ -167,19 +167,21 @@ api.add_namespace(system_api)
 # SocketIO on connect
 @socketio.on("connect")
 def socketio_on_connect():
+    # get te token string
     token_string = request.args.get('jwt')
+    if not token_string:
+        return False
+    #if oidc, get userinfo
     if auth_settings.OIDC_ENABLED:
         try:
             user = get_oauth_userinfo(token_string)['email']
         except InvalidTokenError as e:
             logger.debug('InvalidTokenError: ' + format(e))
             return False
-        except NoAuthorizationError as e:
-            logger.debug('NoAuthorizationError: ' + format(e))
-            return False
+    # else decode the token and get the sub there
     else:
         try:
-            user = decode(token_string, jwt_pubkey, options={"verify_signature": False})['sub']
+            user = decode(token_string, app.config["JWT_PUBLIC_KEY"], algorithms=[app.config["JWT_ALGORITHM"]])['sub']
         except DecodeError as e:
             logger.debug('DecodeError: ' + format(e))
             return False

@@ -100,7 +100,7 @@ client = oauth.register(
     server_metadata_url=auth_settings.OIDC_CONF_WELL_KNOWN_URL,
     client_id=auth_settings.OIDC_CLIENT_ID,
     client_secret=auth_settings.OIDC_CLIENT_SECRET,
-    client_kwargs={"scope": "openid"},
+    client_kwargs={"scope": auth_settings.OIDC_CLIENT_SCOPE},
     response_type="code",
     response_mode="query",
 )

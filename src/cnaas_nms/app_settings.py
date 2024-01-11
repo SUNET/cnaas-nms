@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseSettings, PostgresDsn, validator
+from pydantic import PostgresDsn, validator
+from pydantic_settings import BaseSettings
 
 
 class AppSettings(BaseSettings):
@@ -15,7 +16,7 @@ class AppSettings(BaseSettings):
     CNAAS_DB_PORT: int = 5432
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
-    POSTGRES_DSN: PostgresDsn = (
+    POSTGRES_DSN: str = (
         f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
     )
     USERNAME_INIT: str = "admin"

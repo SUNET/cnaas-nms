@@ -22,22 +22,22 @@ FQDN_REGEX = r"([a-zA-Z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+"
 HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
 DOMAIN_NAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-z0-9-]{1,63})+$"
-host_schema = Field(..., regex=HOST_REGEX, max_length=253, description="Hostname, FQDN or IP address")
-hostname_schema = Field(..., regex=HOSTNAME_REGEX, max_length=253, description="Hostname or FQDN")
-domain_name_schema = Field(None, regex=DOMAIN_NAME_REGEX, max_length=251, description="DNS domain name")
-ipv4_schema = Field(..., regex=f"^{IPV4_REGEX}$", description="IPv4 address")
+host_schema = Field(..., pattern=HOST_REGEX, max_length=253, description="Hostname, FQDN or IP address")
+hostname_schema = Field(..., pattern=HOSTNAME_REGEX, max_length=253, description="Hostname or FQDN")
+domain_name_schema = Field(None, pattern=DOMAIN_NAME_REGEX, max_length=251, description="DNS domain name")
+ipv4_schema = Field(..., pattern=f"^{IPV4_REGEX}$", description="IPv4 address")
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
-ipv4_if_schema = Field(None, regex=f"^{IPV4_IF_REGEX}$", description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)")
-ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$", description="IPv6 address")
+ipv4_if_schema = Field(None, pattern=f"^{IPV4_IF_REGEX}$", description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)")
+ipv6_schema = Field(..., pattern=f"^{IPV6_REGEX}$", description="IPv6 address")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
-ipv6_if_schema = Field(None, regex=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)")
-ipv4_or_ipv6_if_schema = Field(None, regex=f"({IPV4_IF_REGEX}|{IPV6_IF_REGEX})", description="IPv4 or IPv6 prefix")
+ipv6_if_schema = Field(None, pattern=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)")
+ipv4_or_ipv6_if_schema = Field(None, pattern=f"({IPV4_IF_REGEX}|{IPV6_IF_REGEX})", description="IPv4 or IPv6 prefix")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
 VLAN_NAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9-_]{0,31}$"
 vlan_name_schema = Field(
-    None, regex=VLAN_NAME_REGEX, description="Max 32 alphanumeric chars, " + "beginning with a non-numeric character"
+    None, pattern=VLAN_NAME_REGEX, description="Max 32 alphanumeric chars, " + "beginning with a non-numeric character"
 )
 vlan_id_schema = Field(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
 vlan_id_schema_optional = Field(None, gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
@@ -47,24 +47,24 @@ mtu_schema = Field(None, ge=68, le=9214, description="MTU (Maximum transmission 
 as_num_schema = Field(None, description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)")
 as_num_type = conint(strict=True, gt=0, lt=4294967296)
 IFNAME_REGEX = r"([a-zA-Z0-9\/\.:-])+"
-ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$", description="Interface name")
+ifname_schema = Field(None, pattern=f"^{IFNAME_REGEX}$", description="Interface name")
 IFNAME_RANGE_REGEX = r"([a-zA-Z0-9\/\.:\-\[\]])+"
 ifname_range_schema = Field(
-    None, regex=f"^{IFNAME_RANGE_REGEX}$", description="Interface range pattern or interface name"
+    None, pattern=f"^{IFNAME_RANGE_REGEX}$", description="Interface range pattern or interface name"
 )
 IFCLASS_REGEX = r"(custom|downlink|fabric|port_template_[a-zA-Z0-9_]+)"
-ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$", description="Interface class: custom, downlink or uplink")
+ifclass_schema = Field(None, pattern=f"^{IFCLASS_REGEX}$", description="Interface class: custom, downlink or uplink")
 ifdescr_schema = Field(None, max_length=64, description="Interface description, 0-64 characters")
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
 ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
 maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer")
-accept_or_reject_schema = Field(..., regex=r"^(accept|reject)$", description="Value has to be 'accept' or 'reject'")
+accept_or_reject_schema = Field(..., pattern=r"^(accept|reject)$", description="Value has to be 'accept' or 'reject'")
 prefix_size_or_range_schema = Field(
-    None, regex=r"^[0-9]{1,3}([-][0-9]{1,3})?$", description="Prefix size or range 0-128"
+    None, pattern=r"^[0-9]{1,3}([-][0-9]{1,3})?$", description="Prefix size or range 0-128"
 )
 
 GROUP_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
-group_name = Field(..., regex=GROUP_NAME, max_length=253)
+group_name = Field(..., pattern=GROUP_NAME, max_length=253)
 group_priority_schema = Field(
     0, ge=0, le=100, description="Group priority 0-100, default 0, higher value means higher priority"
 )

@@ -37,7 +37,7 @@ class ApiSettings(BaseSettings):
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
     VERIFY_TLS: bool = False
     VERIFY_TLS_DEVICE: bool = False
-    JWT_CERT: Path = Path("/opt/cnaas/jwtcert/public.pem")
+    JWT_CERT: Path = Path("./opt/cnaas/jwtcert/public.pem")
     CAFILE: Optional[Path] = Path("/opt/cnaas/cacert/rootCA.crt")
     CAKEYFILE: Path = Path("/opt/cnaas/cacert/rootCA.key")
     CERTPATH: Path = Path("/tmp/devicecerts/")
@@ -71,6 +71,7 @@ class AuthSettings(BaseSettings):
     OIDC_ENABLED: bool = False
     PERMISSIONS: dict = {}
     PERMISSIONS_DISABLED: bool = False
+    OIDC_CLIENT_SCOPE: str = "openid"
 
 
 def construct_api_settings() -> ApiSettings:
@@ -154,19 +155,18 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.OIDC_CONF_WELL_KNOWN_URL=config.get("oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL)
         auth_settings.OIDC_CLIENT_SECRET=config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET)
         auth_settings.OIDC_CLIENT_ID=config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
+        auth_settings.OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE),
 
-    def _create_permissions_config(settings: AuthSettings, permissions_rules: dict) -> None:
-        settings.PERMISSIONS = permissions_rules
     if auth_settings.PERMISSIONS_DISABLED:
         auth_settings.PERMISSIONS = {'config': {'default_permissions': 'default'}, 'roles': {'default': {'permissions':[{'methods': ['*'], 'endpoints': ['*'], 'pages': ['*'], 'rights': ['*']}]}}}
     elif permission_config.is_file():
         '''Load the file with role permission'''
         with open(permission_config, "r") as permission_file:
             permissions_rules = yaml.safe_load(permission_file)
-        _create_permissions_config(auth_settings, permissions_rules)
-
+        auth_settings.PERMISSIONS = permissions_rules
 
     return auth_settings
+
 
 app_settings = construct_app_settings()
 api_settings = construct_api_settings()

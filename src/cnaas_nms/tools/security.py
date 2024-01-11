@@ -8,9 +8,6 @@ from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
 from jose import exceptions, jwt
 from jwt.exceptions import InvalidTokenError, InvalidKeyError, ExpiredSignatureError, InvalidAudienceError
-
-
-
 from cnaas_nms.tools.rbac.rbac import get_permissions_user, check_if_api_call_is_permitted
 from cnaas_nms.tools.rbac.token import Token
 from cnaas_nms.app_settings import api_settings, auth_settings
@@ -192,6 +189,9 @@ def get_oauth_identity() -> str:
     if not auth_settings.OIDC_ENABLED:
         return "Admin"
     userinfo = get_oauth_userinfo(current_token["access_token"])
+    if "email" not in userinfo:
+        logger.error("Email is a required claim for oauth")
+        raise KeyError("Email is a required claim for oauth")
     return userinfo["email"]
 
 
@@ -207,3 +207,4 @@ else:
     login_required = jwt_required
     get_identity = get_jwt_identity
     login_required_all_permitted = jwt_required
+    

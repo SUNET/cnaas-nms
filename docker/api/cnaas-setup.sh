@@ -7,7 +7,7 @@ export DEBIAN_FRONTEND noninteractive
 
 
 # Start venv
-python3 -m venv /opt/cnaas/venv
+python3.11 -m venv /opt/cnaas/venv
 cd /opt/cnaas/venv/
 source bin/activate
 
@@ -20,5 +20,7 @@ cd cnaas-nms/
 git config --add remote.origin.fetch "+refs/pull/*/head:refs/remotes/origin/pr/*"
 git fetch --all
 git checkout $2
+python --version
 # install dependencies
+python3 -m pip install --no-cache-dir uwsgi
 python3 -m pip install --no-cache-dir -r requirements.txt

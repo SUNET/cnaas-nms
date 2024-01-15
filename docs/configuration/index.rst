@@ -48,6 +48,17 @@ Defines parameters for the API:
 - commit_confirmed_wait: Time to wait between comitting configuration and checking
   that the device is still reachable, specified in seconds. Defaults to 1.
 
+/etc/cnaas-nms/auth_config.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Define parameters for the authentication:
+
+- oidc_conf_well_known_url: set the url for the oidc  
+- oidc_client_secret: set the secret of the oidc
+- oidc_client_id: set the client_id of the oidc
+- frontend_callback_url: set the frontend url the oidc client should link to after the login process
+- oidc_enabled: set True to enabled the oidc login. Default: False
+
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

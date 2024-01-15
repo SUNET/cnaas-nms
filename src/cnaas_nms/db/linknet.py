@@ -1,6 +1,7 @@
 import datetime
 import enum
 import ipaddress
+import itertools
 from typing import List, Optional
 
 from sqlalchemy import Column, ForeignKey, Integer, Unicode, UniqueConstraint
@@ -22,17 +23,20 @@ class Linknet(cnaas_nms.db.base.Base):
     )
     id = Column(Integer, autoincrement=True, primary_key=True)
     ipv4_network = Column(Unicode(18))
+    ipv6_network = Column(Unicode(43))
     device_a_id = Column(Integer, ForeignKey("device.id"))
     device_a = relationship(
         "Device", foreign_keys=[device_a_id], backref=backref("linknets_a", cascade="all, delete-orphan")
     )
     device_a_ip = Column(IPAddressType)
+    device_a_ipv6 = Column(IPAddressType)
     device_a_port = Column(Unicode(64))
     device_b_id = Column(Integer, ForeignKey("device.id"))
     device_b = relationship(
         "Device", foreign_keys=[device_b_id], backref=backref("linknets_b", cascade="all, delete-orphan")
     )
     device_b_ip = Column(IPAddressType)
+    device_b_ipv6 = Column(IPAddressType)
     device_b_port = Column(Unicode(64))
     site_id = Column(Integer, ForeignKey("site.id"))
     site = relationship("Site")
@@ -68,11 +72,29 @@ class Linknet(cnaas_nms.db.base.Base):
             return self.device_b_ip
         raise ValueError(f"The device_id {device_id} is not part of this linknet")
 
-    def get_ipif(self, device_id):
+    def get_ipv6(self, device_id):
         if device_id == self.device_a_id:
-            return f"{self.device_a_ip}/{ipaddress.IPv4Network(self.ipv4_network).prefixlen}"
+            return self.device_a_ipv6
         if device_id == self.device_b_id:
-            return f"{self.device_b_ip}/{ipaddress.IPv4Network(self.ipv4_network).prefixlen}"
+            return self.device_b_ipv6
+        raise ValueError(f"The device_id {device_id} is not part of this linknet")
+
+    def get_ipif(self, device_id):
+        prefixlen = ipaddress.IPv4Network(self.ipv4_network).prefixlen
+        if device_id == self.device_a_id:
+            return f"{self.device_a_ip}/{prefixlen}"
+        if device_id == self.device_b_id:
+            return f"{self.device_b_ip}/{prefixlen}"
+        raise ValueError(f"The device_id {device_id} is not part of this linknet")
+
+    def get_ipifv6(self, device_id):
+        if not self.ipv6_network:
+            return  # we treat ipv6 as optional (for now)
+        prefixlen = ipaddress.IPv6Network(self.ipv6_network).prefixlen
+        if device_id == self.device_a_id:
+            return f"{self.device_a_ip}/{prefixlen}"
+        if device_id == self.device_b_id:
+            return f"{self.device_b_ip}/{prefixlen}"
         raise ValueError(f"The device_id {device_id} is not part of this linknet")
 
     @staticmethod
@@ -115,9 +137,10 @@ class Linknet(cnaas_nms.db.base.Base):
         hostname_b: str,
         interface_b: str,
         ipv4_network: Optional[ipaddress.IPv4Network] = None,
+        ipv6_network: Optional[ipaddress.IPv6Network] = None,
         strict_check: bool = True,
     ):
-        """Add a linknet between two devices. If ipv4_network is specified both
+        """Add a linknet between two devices. If ipv4_network/ipv6_network is specified both
         devices must be of type CORE or DIST."""
         dev_a: cnaas_nms.db.device.Device = (
             session.query(cnaas_nms.db.device.Device)
@@ -128,7 +151,7 @@ class Linknet(cnaas_nms.db.base.Base):
             raise ValueError(f"Hostname {hostname_a} not found in database")
         if (
             strict_check
-            and ipv4_network
+            and (ipv4_network or ipv6_network)
             and dev_a.device_type not in [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]
         ):
             raise ValueError(
@@ -144,7 +167,7 @@ class Linknet(cnaas_nms.db.base.Base):
             raise ValueError(f"Hostname {hostname_b} not found in database")
         if (
             strict_check
-            and ipv4_network
+            and (ipv4_network or ipv6_network)
             and dev_b.device_type not in [cnaas_nms.db.device.DeviceType.DIST, cnaas_nms.db.device.DeviceType.CORE]
         ):
             raise ValueError(
@@ -164,6 +187,13 @@ class Linknet(cnaas_nms.db.base.Base):
             new_linknet.device_a_ip = ip_a
             new_linknet.device_b_ip = ip_b
             new_linknet.ipv4_network = str(ipv4_network)
+        if ipv6_network:
+            if not isinstance(ipv6_network, ipaddress.IPv6Network):
+                raise ValueError("IPv6 Linknet must be an IPv6Network")
+            ip_a, ip_b = itertools.islice(ipv6_network.hosts(), 2)
+            new_linknet.device_a_ipv6 = str(ip_a)
+            new_linknet.device_b_ipv6 = str(ip_b)
+            new_linknet.ipv6_network = str(ipv6_network)
         if strict_check:
             dev_a.synchronized = False
             add_sync_event(dev_a.hostname, "linknet_created")

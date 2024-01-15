@@ -47,8 +47,10 @@ from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.system import api as system_api
 from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.rbac.token import Token
 from cnaas_nms.tools.security import get_oauth_userinfo
 from cnaas_nms.version import __api_version__
+
 
 logger = get_logger()
 
@@ -91,7 +93,7 @@ class CnaasApi(Api):
             data = {"status": "error", "message": "JWT token missing?"}
             return jsonify(data), 401
         elif isinstance(e, NoAuthorizationError):
-            data = {"status": "error", "message": "JWT token missing?"}
+            data = {"status": "error", "message": "JWT token missing"}
             return jsonify(data), 401
         elif isinstance(e, InvalidHeaderError):
             data = {"status": "error", "message": "Invalid header, JWT token missing? {}".format(e)}
@@ -191,7 +193,8 @@ def socketio_on_connect():
     #if oidc, get userinfo
     if auth_settings.OIDC_ENABLED:
         try:
-            user = get_oauth_userinfo(token_string)['email']
+            token = Token(token_string, None)
+            user = get_oauth_userinfo(token)['email']
         except InvalidTokenError as e:
             logger.debug('InvalidTokenError: ' + format(e))
             return False

@@ -58,6 +58,7 @@ Define parameters for the authentication:
 - oidc_client_id: set the client_id of the oidc
 - frontend_callback_url: set the frontend url the oidc client should link to after the login process
 - oidc_enabled: set True to enabled the oidc login. Default: False
+- permissions_disabled: set True to disable permissions. Default False
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -123,10 +123,9 @@ class MyBearerTokenValidator(BearerTokenValidator):
             raise InvalidTokenError(e)
         except exceptions.JWTError as e:
             # check if we can still get the user info
-            get_oauth_userinfo(token_string)
-            token = {
-                "access_token": token_string
-            }
+            token = Token(token_string, None)
+            get_oauth_userinfo(token)
+            
             return token
 
         # get the key

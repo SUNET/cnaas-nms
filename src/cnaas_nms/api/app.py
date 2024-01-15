@@ -67,25 +67,25 @@ jwt_query_r = re.compile(r"code=[^ &]+")
 class CnaasApi(Api):
     def handle_error(self, e):
         if isinstance(e, DecodeError):
-            data = {"status": "error", "data": "Could not decode JWT token"}
+            data = {"status": "error", "message": "Could not decode JWT token"}
         elif isinstance(e, InvalidKeyError):
-            data = {"status": "error", "data": "Invalid keys {}".format(e)}
+            data = {"status": "error", "message": "Invalid keys {}".format(e)}
         elif isinstance(e, InvalidTokenError):
-            data = {"status": "error", "data": "Invalid authentication header: {}".format(e)}
+            data = {"status": "error", "message": "Invalid authentication header: {}".format(e)}
         elif isinstance(e, InvalidSignatureError):
-            data = {"status": "error", "data": "Invalid token signature"}
+            data = {"status": "error", "message": "Invalid token signature"}
         elif isinstance(e, IndexError):
             # We might catch IndexErrors which are not caused by JWT,
             # but this is better than nothing.
-            data = {"status": "error", "data": "JWT token missing?"}
+            data = {"status": "error", "message": "JWT token missing?"}
         elif isinstance(e, NoAuthorizationError):
-            data = {"status": "error", "data": "JWT token missing?"}
+            data = {"status": "error", "message": "JWT token missing?"}
         elif isinstance(e, InvalidHeaderError):
-            data = {"status": "error", "data": "Invalid header, JWT token missing? {}".format(e)}
+            data = {"status": "error", "message": "Invalid header, JWT token missing? {}".format(e)}
         elif isinstance(e, ExpiredSignatureError):
-            data = {"status": "error", "data": "The JWT token is expired"}
+            data = {"status": "error", "message": "The JWT token is expired"}
         elif isinstance(e, MissingAuthorizationError):
-            data = {"status": "error", "data": "JWT token missing?"}
+            data = {"status": "error", "message": "JWT token missing?"}
         else:
             return super(CnaasApi, self).handle_error(e)
         return jsonify(data), 401

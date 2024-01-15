@@ -7,7 +7,7 @@ from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
 from jose import exceptions, jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidKeyError, InvalidTokenError
-
+import json
 from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
 
@@ -55,7 +55,9 @@ def get_oauth_userinfo(token_string):
         resp = requests.post(user_info_endpoint, data=data, headers=headers)
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        raise InvalidTokenError(e)
+        body = json.loads(e.response.content)
+        logger.debug("Request not successful: " + body['error_description'])
+        raise InvalidTokenError(body['error_description'])
     return resp.json()
 
 class MyBearerTokenValidator(BearerTokenValidator):

@@ -1,5 +1,6 @@
 from typing import Any, Mapping
 
+import json
 import requests
 from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
 from authlib.oauth2.rfc6750 import BearerTokenValidator, errors
@@ -45,10 +46,17 @@ def get_oauth_userinfo(token: Token) -> Any:
             resp.json(): Object of the user info 
 
     """
+    # For now unnecersary, useful when we only use one log in method
     if not auth_settings.OIDC_ENABLED:
         return None
     # Request the userinfo
-    metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+    try:
+        metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+        metadata.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        raise ConnectionError("Can't reach the OIDC URL")
+    except requests.exceptions.ConnectionError as e:
+        raise ConnectionError("OIDC metadata unavailable")
     user_info_endpoint = metadata.json()["userinfo_endpoint"]
     data = {'token_type_hint': 'access_token'}
     headers = {"Authorization": "Bearer " + token.token_string}
@@ -56,7 +64,9 @@ def get_oauth_userinfo(token: Token) -> Any:
         resp = requests.post(user_info_endpoint, data=data, headers=headers)
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        raise errors.InvalidTokenError(e)
+        body = json.loads(e.response.content)
+        logger.debug("Request not successful: " + body['error_description'])
+        raise InvalidTokenError(body['error_description'])
     return resp.json()
 
 class MyBearerTokenValidator(BearerTokenValidator):

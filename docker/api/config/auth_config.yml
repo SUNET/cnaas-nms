@@ -1,0 +1,5 @@
+oidc_conf_well_known_url: "well-known-openid-configuration-endpoint"
+oidc_client_secret: "xxx"
+oidc_client_id: "client-id"
+frontend_callback_url: "http://localhost/callback"
+oidc_enabled: False

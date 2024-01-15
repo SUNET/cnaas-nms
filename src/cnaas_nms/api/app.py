@@ -96,10 +96,12 @@ class CnaasApi(Api):
         elif isinstance(e, InvalidHeaderError):
             data = {"status": "error", "message": "Invalid header, JWT token missing? {}".format(e)}
             return jsonify(data), 401
-        elif isinstance(e, ExpiredSignatureError):
-            data = {"status": "error", "data": "The JWT token is expired"}
         elif isinstance(e, MissingAuthorizationError):
-            data = {"status": "error", "data": "JWT token missing?"}
+            data = {"status": "error", "message": "JWT token missing?"}
+            return jsonify(data), 401
+        elif isinstance(e, ConnectionError):
+            data = {"status": "error", "message": "ConnectionError: {}".format(e)}
+            return jsonify(data), 500
         else:
             return super(CnaasApi, self).handle_error(e)
         

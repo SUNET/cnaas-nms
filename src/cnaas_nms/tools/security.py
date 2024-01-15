@@ -43,12 +43,19 @@ def get_oauth_userinfo(token_string):
         resp.json(): Object of the user info 
 
     """
-    # For now unnecersary, useful when we nly use one log in method
+    # For now unnecersary, useful when we only use one log in method
     if not auth_settings.OIDC_ENABLED:
         return "Admin"
     # Request the userinfo
-    metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+    try:
+        metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+        metadata.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        raise ConnectionError("Can't reach the OIDC URL")
+    except requests.exceptions.ConnectionError as e:
+        raise ConnectionError("OIDC metadata unavailable")
     user_info_endpoint = metadata.json()["userinfo_endpoint"]
+
     data = {"token_type_hint": "access_token"}
     headers = {"Authorization": "Bearer " + token_string}
     try:

@@ -86,6 +86,9 @@ class CnaasApi(Api):
             data = {"status": "error", "message": "The JWT token is expired"}
         elif isinstance(e, MissingAuthorizationError):
             data = {"status": "error", "message": "JWT token missing?"}
+        elif isinstance(e, ConnectionError):
+            data = {"status": "error", "message": "ConnectionError: {}".format(e)}
+            return jsonify(data), 500
         else:
             return super(CnaasApi, self).handle_error(e)
         return jsonify(data), 401

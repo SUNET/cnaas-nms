@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:bookworm
 
 USER root
 
@@ -16,7 +16,7 @@ RUN apt-get update \
       libpq-dev \
       libssl-dev \
       net-tools \
-      netcat \
+      netcat-traditional \
       netcat-openbsd \
       nginx \
       procps \
@@ -26,11 +26,17 @@ RUN apt-get update \
       python3-venv \
       python3-wheel \
       python3-yaml \
+      python3-full \
       psmisc \
       supervisor \
       uwsgi-plugin-python3 \
       ssh-client \
-    && pip3 install --no-cache-dir uwsgi
+      python3-gevent\
+      
+    && pip3 install --no-cache-dir uwsgi --break-system-packages
+   # && apt-get install -y uwsgi
+
+ #RUN pip3 install uwsgi
 
 # Prepare for supervisord, ngninx
 COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
@@ -79,7 +85,6 @@ USER www-data
 
 # Prepare for uwsgi
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
-
 
 # Expose HTTPS
 EXPOSE 1443

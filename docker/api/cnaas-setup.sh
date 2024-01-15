@@ -23,4 +23,5 @@ git checkout $2
 python --version
 # install dependencies
 python3 -m pip install --no-cache-dir uwsgi
+python3 -m pip install --no-cache-dir uwsgi gevent
 python3 -m pip install --no-cache-dir -r requirements.txt

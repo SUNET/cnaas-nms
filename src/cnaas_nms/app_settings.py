@@ -37,7 +37,7 @@ class ApiSettings(BaseSettings):
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
     VERIFY_TLS: bool = False
     VERIFY_TLS_DEVICE: bool = False
-    JWT_CERT: Path = Path("./opt/cnaas/jwtcert/public.pem")
+    JWT_CERT: Path = Path("/opt/cnaas/jwtcert/public.pem")
     CAFILE: Optional[Path] = Path("/opt/cnaas/cacert/rootCA.crt")
     CAKEYFILE: Path = Path("/opt/cnaas/cacert/rootCA.key")
     CERTPATH: Path = Path("/tmp/devicecerts/")

@@ -7,7 +7,6 @@ from pydantic import BaseSettings, PostgresDsn, validator
 
 class AppSettings(BaseSettings):
     # Database settings
-
     CNAAS_DB_HOSTNAME: str = "127.0.0.1"
     CNAAS_DB_USERNAME: str = "cnaas"
     CNAAS_DB_PASSWORD: str = "cnaas"
@@ -38,14 +37,14 @@ class ApiSettings(BaseSettings):
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
     VERIFY_TLS: bool = False
     VERIFY_TLS_DEVICE: bool = False
-    JWT_CERT: Path = "/opt/cnaas/jwtcert/public.pem"
-    CAFILE: Optional[Path] = "/opt/cnaas/cacert/rootCA.crt"
-    CAKEYFILE: Path = "/opt/cnaas/cacert/rootCA.key"
-    CERTPATH: Path = "/tmp/devicecerts/"
+    JWT_CERT: Path = Path("/opt/cnaas/jwtcert/public.pem")
+    CAFILE: Optional[Path] = Path("/opt/cnaas/cacert/rootCA.crt")
+    CAKEYFILE: Path = Path("/opt/cnaas/cacert/rootCA.key")
+    CERTPATH: Path = Path("/tmp/devicecerts/")
     ALLOW_APPLY_CONFIG_LIVERUN: bool = False
     FIRMWARE_URL: str = HTTPD_URL
     JWT_ENABLED: bool = True
-    PLUGIN_FILE: Path = "/etc/cnaas-nms/plugins.yml"
+    PLUGIN_FILE: Path = Path("/etc/cnaas-nms/plugins.yml")
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
     MGMTDOMAIN_RESERVED_COUNT: int = 5
@@ -61,6 +60,16 @@ class ApiSettings(BaseSettings):
         if version not in (4, 6):
             raise ValueError("must be either 4 or 6")
         return version
+
+
+class AuthSettings(BaseSettings):
+    # Authorization settings
+    FRONTEND_CALLBACK_URL: str = "http://localhost/callback"
+    OIDC_CONF_WELL_KNOWN_URL: str = "well-known-openid-configuration-endpoint"
+    OIDC_CLIENT_SECRET: str = "xxx"
+    OIDC_CLIENT_ID: str = "client-id"
+    OIDC_ENABLED: bool = False
+    OIDC_CLIENT_SCOPE: str = "openid"
 
 
 def construct_api_settings() -> ApiSettings:
@@ -132,5 +141,23 @@ def construct_app_settings() -> AppSettings:
     return app_settings
 
 
+def construct_auth_settings() -> AuthSettings:
+    auth_config = Path("/etc/cnaas-nms/auth_config.yml")
+    if auth_config.is_file():
+        with open(auth_config, "r") as auth_file:
+            config = yaml.safe_load(auth_file)
+        return AuthSettings(
+            OIDC_ENABLED=config.get("oidc_enabled", AuthSettings().OIDC_ENABLED),
+            FRONTEND_CALLBACK_URL=config.get("frontend_callback_url", AuthSettings().FRONTEND_CALLBACK_URL),
+            OIDC_CONF_WELL_KNOWN_URL=config.get("oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL),
+            OIDC_CLIENT_SECRET=config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET),
+            OIDC_CLIENT_ID=config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID),
+            OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE),
+        )
+    else:
+        return AuthSettings()
+
+
 app_settings = construct_app_settings()
 api_settings = construct_api_settings()
+auth_settings = construct_auth_settings()

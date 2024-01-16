@@ -60,6 +60,22 @@ Define parameters for the authentication:
 - oidc_enabled: set True to enabled the oidc login. Default: False
 - permissions_disabled: set True to disable permissions. Default False
 
+/etc/cnaas-nms/roles.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The roles yaml can be defined to give permissions on the API and the Frontend. It will only be define in the API and the frontend will make an API call to request the permissions.
+
+
+- config:
+  * groups_claim_key: the element within the jwt token that give the roles
+  * default_permissions: the name of the role with permissions given to every user
+- roles:
+  * [name_of_the_role]: 
+    + permissions: Each user group can have different sets of permissions for flexibility. 
+      - methods: HTTP methods on the API, for example, "GET", "POST", "*"
+      - endpoints: Uri's of endpoints on the API with possibility to use Glob, for example "/devices", "job**", "/devices/**/interfaces", "*"  
+      - pages: Pages shown in the menu of the frontend, for example "Devices", "Groups", "*"
+      - rights: Actions you can take in the frontend, for example "read", "write", "*"
+
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

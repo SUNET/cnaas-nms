@@ -8,7 +8,7 @@ def get_permissions_user(permissions_rules, user_info):
     permissions_of_user = []
 
     # if no rules, return
-    if len(permissions_rules) == 0:
+    if not permissions_rules:
         return permissions_of_user
     
     # first give all the permissions of the fallback role

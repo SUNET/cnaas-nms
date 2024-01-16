@@ -96,7 +96,7 @@ class PermissionsAPI(Resource):
     @login_required_all_permitted
     def get(self):
         permissions_rules = auth_settings.PERMISSIONS
-        if len(permissions_rules) == 0:
+        if not permissions_rules:
             logger.debug('No permissions defined, so nobody is permitted to do any api calls.')
             return []
         user_info = get_oauth_userinfo(current_token)

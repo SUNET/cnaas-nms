@@ -169,7 +169,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         if scopes is not None and "always_permitted" in scopes:
             return token
         permissions_rules = auth_settings.PERMISSIONS
-        if permissions_rules is None or len(permissions_rules) == 0:
+        if not permissions_rules:
             logger.debug('No permissions defined, so nobody is permitted to do any api calls.')
             raise InvalidAudienceError()
         user_info = get_oauth_userinfo(token)

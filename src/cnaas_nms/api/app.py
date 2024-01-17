@@ -224,7 +224,7 @@ def log_request(response):
             else:
                 token = request.headers.get("Authorization").split(" ")[-1]
                 user = "User: {}, ".format(decode_token(token).get("sub"))
-        except Exception as e:
+        except Exception:
             user = "User: unknown, "
 
     try:

@@ -70,6 +70,7 @@ class AuthSettings(BaseSettings):
     OIDC_CLIENT_ID: str = "client-id"
     OIDC_ENABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
+    AUDIENCE: str = OIDC_CLIENT_ID
 
 
 def construct_api_settings() -> ApiSettings:
@@ -153,6 +154,7 @@ def construct_auth_settings() -> AuthSettings:
             OIDC_CLIENT_SECRET=config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET),
             OIDC_CLIENT_ID=config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID),
             OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE),
+            AUDIENCE=config.get("audience", AuthSettings().AUDIENCE),
         )
     else:
         return AuthSettings()

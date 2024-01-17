@@ -20,7 +20,7 @@ depends_on = None
 def upgrade():
     conn = op.get_bind()
     # migrations_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)))
-    with open(os.path.join("/mnt/c/Github/cnaas-nms/docker/postgres/nms.sql")) as f:
+    with open(os.path.join("/opt/cnaas/venv/cnaas-nms/docker/postgres/nms.sql")) as f:
             data = f.read()
             conn.execute(sa.text(data))
 

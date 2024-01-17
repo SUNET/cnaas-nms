@@ -33,6 +33,13 @@ def get_permissions_user(permissions_rules, user_info):
     return permissions_of_user
 
 
+def remove_prefix(text, prefix):
+    ''' Remove prefix of string, after Python upgrade can be replaced by (str).removeprefix(prefix)'''
+    if text.startswith(prefix):
+        return text[len(prefix):]
+    return text
+
+
 def check_if_api_call_is_permitted(request: HttpRequest, permissions_of_user):
     '''Checks if the user has permission to execute the API call'''
     for permission in permissions_of_user:
@@ -45,7 +52,7 @@ def check_if_api_call_is_permitted(request: HttpRequest, permissions_of_user):
 
         # prepare the uri
         prefix = "/api/{}".format(__api_version__)
-        short_uri = request.uri.strip().removeprefix(prefix).split('?', 1)[0]
+        short_uri = remove_prefix(request.uri.strip(), prefix).split('?', 1)[0]
 
         # check if you're permitted to make api call based on uri
         if "*" in allowed_endpoints or short_uri in allowed_endpoints:

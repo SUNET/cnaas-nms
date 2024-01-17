@@ -6,7 +6,7 @@ from typing import Optional
 from engineio.payload import Payload
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, decode_token
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
@@ -215,18 +215,30 @@ def socketio_on_events(data):
 # Log all requests, include username etc
 @app.after_request
 def log_request(response):
+    user = ""
+    if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
+        try:
+            if auth_settings.OIDC_ENABLED:
+                token_string = request.headers.get("Authorization").split(" ")[-1]
+                user = "User: {}, ".format(get_oauth_userinfo(token_string)['email'])
+            else:
+                token = request.headers.get("Authorization").split(" ")[-1]
+                user = "User: {}, ".format(decode_token(token).get("sub"))
+        except Exception:
+            user = "User: unknown, "
+
     try:
         url = re.sub(jwt_query_r, "", request.url)
         if request.headers.get('content-type') == 'application/json':
             logger.info(
-                "Method: {}, Status: {}, URL: {}, JSON: {}".format(
-                    request.method, response.status_code, url, request.json
+                "{}Method: {}, Status: {}, URL: {}, JSON: {}".format(
+                    user, request.method, response.status_code, url, request.json
                 )
             )
         else:
             logger.info(
-                "Method: {}, Status: {}, URL: {}".format(
-                    request.method, response.status_code, url
+                "{}Method: {}, Status: {}, URL: {}".format(
+                    user, request.method, response.status_code, url
                 )
             )
     except Exception:

@@ -75,7 +75,7 @@ class AuthSettings(BaseSettings):
 
 
 def construct_api_settings() -> ApiSettings:
-    api_config = Path("etc/cnaas-nms/api.yml")
+    api_config = Path("/etc/cnaas-nms/api.yml")
 
     if api_config.is_file():
         with open(api_config, "r") as api_file:

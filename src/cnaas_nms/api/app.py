@@ -92,13 +92,10 @@ class CnaasApi(Api):
             # but this is better than nothing.
             data = {"status": "error", "message": "JWT token missing?"}
             return jsonify(data), 401
-        elif isinstance(e, NoAuthorizationError):
-            data = {"status": "error", "message": "JWT token missing"}
-            return jsonify(data), 401
         elif isinstance(e, InvalidHeaderError):
             data = {"status": "error", "message": "Invalid header, JWT token missing? {}".format(e)}
             return jsonify(data), 401
-        elif isinstance(e, MissingAuthorizationError):
+        elif isinstance(e, MissingAuthorizationError) or isinstance(e, NoAuthorizationError):
             data = {"status": "error", "message": "JWT token missing?"}
             return jsonify(data), 401
         elif isinstance(e, ConnectionError):

@@ -197,7 +197,7 @@ def get_oauth_identity() -> str:
     # For now unnecersary, useful when we only use one log in method
     if not auth_settings.OIDC_ENABLED:
         return "Admin"
-    userinfo = get_oauth_userinfo(current_token["access_token"])
+    userinfo = get_oauth_userinfo(current_token)
     if "email" not in userinfo:
         logger.error("Email is a required claim for oauth")
         raise KeyError("Email is a required claim for oauth")

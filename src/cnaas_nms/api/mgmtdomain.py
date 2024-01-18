@@ -13,7 +13,7 @@ from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings_fields import vlan_id_schema_optional
 from cnaas_nms.devicehandler.sync_history import add_sync_event
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 mgmtdomains_api = Namespace(
@@ -79,7 +79,7 @@ class f_mgmtdomain(BaseModel):
 
 
 class MgmtdomainByIdApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, mgmtdomain_id):
         """Get management domain by ID"""
         result = empty_result()
@@ -92,23 +92,23 @@ class MgmtdomainByIdApi(Resource):
                 return empty_result("error", "Management domain not found"), 404
         return result
 
-    @jwt_required
+    @login_required
     def delete(self, mgmtdomain_id):
         """Remove management domain"""
         with sqla_session() as session:
             instance: Mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
-                add_sync_event(instance.device_a.hostname, "mgmtdomain_deleted", get_jwt_identity())
+                add_sync_event(instance.device_a.hostname, "mgmtdomain_deleted", get_identity())
                 instance.device_b.synchronized = False
-                add_sync_event(instance.device_b.hostname, "mgmtdomain_deleted", get_jwt_identity())
+                add_sync_event(instance.device_b.hostname, "mgmtdomain_deleted", get_identity())
                 session.delete(instance)
                 session.commit()
                 return empty_result(status="success", data={"deleted_mgmtdomain": instance.as_dict()}), 200
             else:
                 return empty_result("error", "Management domain not found"), 404
 
-    @jwt_required
+    @login_required
     @mgmtdomain_api.expect(mgmtdomain_model)
     def put(self, mgmtdomain_id):
         """Modify management domain"""
@@ -128,9 +128,9 @@ class MgmtdomainByIdApi(Resource):
                 changed: bool = update_sqla_object(instance, json_data)
                 if changed:
                     instance.device_a.synchronized = False
-                    add_sync_event(instance.device_a.hostname, "mgmtdomain_updated", get_jwt_identity())
+                    add_sync_event(instance.device_a.hostname, "mgmtdomain_updated", get_identity())
                     instance.device_b.synchronized = False
-                    add_sync_event(instance.device_b.hostname, "mgmtdomain_updated", get_jwt_identity())
+                    add_sync_event(instance.device_b.hostname, "mgmtdomain_updated", get_identity())
                     return empty_result(status="success", data={"updated_mgmtdomain": instance.as_dict()}), 200
                 else:
                     return empty_result(status="success", data={"unchanged_mgmtdomain": instance.as_dict()}), 200
@@ -139,7 +139,7 @@ class MgmtdomainByIdApi(Resource):
 
 
 class MgmtdomainsApi(Resource):
-    @jwt_required
+    @login_required
     def get(self):
         """Get all management domains"""
         result = empty_result()
@@ -154,7 +154,7 @@ class MgmtdomainsApi(Resource):
                 result["data"]["mgmtdomains"].append(instance.as_dict())
         return result
 
-    @jwt_required
+    @login_required
     @mgmtdomain_api.expect(mgmtdomain_model)
     def post(self):
         """Add management domain"""
@@ -214,9 +214,9 @@ class MgmtdomainsApi(Resource):
                         return empty_result("error", "Integrity error: {}".format(e)), 400
 
                 device_a.synchronized = False
-                add_sync_event(device_a.hostname, "mgmtdomain_created", get_jwt_identity())
+                add_sync_event(device_a.hostname, "mgmtdomain_created", get_identity())
                 device_b.synchronized = False
-                add_sync_event(device_b.hostname, "mgmtdomain_created", get_jwt_identity())
+                add_sync_event(device_b.hostname, "mgmtdomain_created", get_identity())
                 return empty_result(status="success", data={"added_mgmtdomain": new_mgmtd.as_dict()}), 200
             else:
                 errors.append(

@@ -11,14 +11,14 @@ from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.interface_state import bounce_interfaces, get_interface_states
 from cnaas_nms.devicehandler.sync_devices import resolve_vlanid, resolve_vlanid_list
 from cnaas_nms.devicehandler.sync_history import add_sync_event
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 api = Namespace("device", description="API for handling interfaces", prefix="/api/{}".format(__api_version__))
 
 
 class InterfaceApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, hostname):
         """List all interfaces"""
         result = empty_result()
@@ -38,7 +38,7 @@ class InterfaceApi(Resource):
             result["data"]["interfaces"] = sorted(interfaces, key=lambda i: i["indexnum"])
         return result
 
-    @jwt_required
+    @login_required
     def put(self, hostname):
         """Take a map of interfaces and associated values to update.
         Example:
@@ -237,7 +237,7 @@ class InterfaceApi(Resource):
 
             if updated:
                 dev.synchronized = False
-                add_sync_event(hostname, "interface_updated", get_jwt_identity())
+                add_sync_event(hostname, "interface_updated", get_identity())
 
         if errors:
             if data:
@@ -250,7 +250,7 @@ class InterfaceApi(Resource):
 
 
 class InterfaceStatusApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, hostname):
         """List all interfaces status"""
         result = empty_result()
@@ -262,7 +262,7 @@ class InterfaceStatusApi(Resource):
             return empty_result("error", "Could not get interface states, unknon exception: {}".format(e)), 400
         return result
 
-    @jwt_required
+    @login_required
     def put(self, hostname):
         """Bounce selected interfaces by appling bounce-down/bounce-up template"""
         json_data = request.get_json()

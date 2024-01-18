@@ -72,7 +72,7 @@ class AuthSettings(BaseSettings):
     PERMISSIONS: dict = {}
     PERMISSIONS_DISABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
-    AUDIENCE: str = OIDC_CLIENT_ID
+    AUDIENCE: str = None # = OIDC_CLIENT_ID if not defined 
 
 
 def construct_api_settings() -> ApiSettings:
@@ -165,8 +165,12 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.OIDC_CONF_WELL_KNOWN_URL=config.get("oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL)
         auth_settings.OIDC_CLIENT_SECRET=config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET)
         auth_settings.OIDC_CLIENT_ID=config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
-        auth_settings.OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE),
-        auth_settings.PERMISSIONS_DISABLED=config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED),
+        auth_settings.OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE)
+        auth_settings.PERMISSIONS_DISABLED=config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED)
+        auth_settings.AUDIENCE=config.get("audience", AuthSettings().AUDIENCE)
+    
+    if auth_settings.AUDIENCE is None:
+        auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID
 
     return auth_settings
 

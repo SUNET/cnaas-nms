@@ -72,6 +72,7 @@ class AuthSettings(BaseSettings):
     PERMISSIONS: dict = {}
     PERMISSIONS_DISABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
+    AUDIENCE: str = OIDC_CLIENT_ID
 
 
 def construct_api_settings() -> ApiSettings:
@@ -147,6 +148,15 @@ def construct_auth_settings() -> AuthSettings:
     permission_config = Path("/etc/cnaas-nms/permissions.yml")
 
     auth_config = Path("/etc/cnaas-nms/auth_config.yml")
+
+    if auth_settings.PERMISSIONS_DISABLED:
+        auth_settings.PERMISSIONS = {'config': {'default_permissions': 'default'}, 'roles': {'default': {'permissions':[{'methods': ['*'], 'endpoints': ['*'], 'pages': ['*'], 'rights': ['*']}]}}}
+    elif permission_config.is_file():
+        '''Load the file with role permission'''
+        with open(permission_config, "r") as permission_file:
+            permissions_rules = yaml.safe_load(permission_file)
+        auth_settings.PERMISSIONS = permissions_rules
+        
     if auth_config.is_file():
         with open(auth_config, "r") as auth_file:
             config = yaml.safe_load(auth_file)
@@ -157,14 +167,6 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.OIDC_CLIENT_ID=config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
         auth_settings.OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE),
         auth_settings.PERMISSIONS_DISABLED=config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED),
-
-    if auth_settings.PERMISSIONS_DISABLED:
-        auth_settings.PERMISSIONS = {'config': {'default_permissions': 'default'}, 'roles': {'default': {'permissions':[{'methods': ['*'], 'endpoints': ['*'], 'pages': ['*'], 'rights': ['*']}]}}}
-    elif permission_config.is_file():
-        '''Load the file with role permission'''
-        with open(permission_config, "r") as permission_file:
-            permissions_rules = yaml.safe_load(permission_file)
-        auth_settings.PERMISSIONS = permissions_rules
 
     return auth_settings
 

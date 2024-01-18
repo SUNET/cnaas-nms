@@ -145,7 +145,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         algorithm = unverified_header.get("alg")
         try:
             decoded_token = jwt.decode(
-                token_string, key, algorithms=algorithm, audience=auth_settings.OIDC_CLIENT_ID
+                token_string, key, algorithms=algorithm, audience=auth_settings.AUDIENCE
             )
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)

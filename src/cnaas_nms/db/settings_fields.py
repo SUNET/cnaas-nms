@@ -1,5 +1,5 @@
 from ipaddress import AddressValueError, IPv4Interface
-from typing import Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 
 from pydantic import BaseModel, Field, conint, validator
 
@@ -27,7 +27,9 @@ hostname_schema = Field(..., pattern=HOSTNAME_REGEX, max_length=253, description
 domain_name_schema = Field(None, pattern=DOMAIN_NAME_REGEX, max_length=251, description="DNS domain name")
 ipv4_schema = Field(..., pattern=f"^{IPV4_REGEX}$", description="IPv4 address")
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
-ipv4_if_schema = Field(None, pattern=f"^{IPV4_IF_REGEX}$", description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)")
+ipv4_if_schema = Field(
+    None, pattern=f"^{IPV4_IF_REGEX}$", description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)"
+)
 ipv6_schema = Field(..., pattern=f"^{IPV6_REGEX}$", description="IPv6 address")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
 ipv6_if_schema = Field(None, pattern=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)")
@@ -270,15 +272,15 @@ class f_internal_vlans(BaseModel):
 
 
 class f_vxlan(BaseModel):
-    description: str = None
+    description: Optional[str] = None
     vni: int = vxlan_vni_schema
     vrf: Optional[str] = vlan_name_schema
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
     ipv4_gw: Optional[str] = None
-    ipv4_secondaries: Optional[List[str]]
+    ipv4_secondaries: Optional[List[str]] = None
     ipv6_gw: Optional[str] = ipv6_if_schema
-    dhcp_relays: Optional[List[f_dhcp_relay]]
+    dhcp_relays: Optional[List[f_dhcp_relay]] = None
     mtu: Optional[int] = mtu_schema
     vxlan_host_route: bool = True
     acl_ipv4_in: Optional[str] = None
@@ -333,7 +335,7 @@ class f_user(BaseModel):
 
 class f_prefixset_item(BaseModel):
     prefix: str = ipv4_or_ipv6_if_schema
-    masklength_range: Optional[str] = prefix_size_or_range_schema
+    masklength_range: Optional[Annotated[int, Field(ge=0, le=128)] | Annotated[str, prefix_size_or_range_schema]] = None
 
 
 class f_prefixset(BaseModel):
@@ -362,16 +364,16 @@ class f_root(BaseModel):
     snmp_servers: List[f_snmp_server] = []
     dns_servers: List[f_dns_server] = []
     flow_collectors: List[f_flow_collector] = []
-    dhcp_relays: Optional[List[f_dhcp_relay]]
+    dhcp_relays: Optional[List[f_dhcp_relay]] = None
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
     vxlans: Dict[str, f_vxlan] = {}
     underlay: f_underlay = None
     evpn_peers: List[f_evpn_peer] = []
-    extroute_static: Optional[f_extroute_static]
-    extroute_ospfv3: Optional[f_extroute_ospfv3]
-    extroute_bgp: Optional[f_extroute_bgp]
-    internal_vlans: Optional[f_internal_vlans]
+    extroute_static: Optional[f_extroute_static] = None
+    extroute_ospfv3: Optional[f_extroute_ospfv3] = None
+    extroute_bgp: Optional[f_extroute_bgp] = None
+    internal_vlans: Optional[f_internal_vlans] = None
     dot1x_fail_vlan: Optional[int] = vlan_id_schema_optional
     cli_prepend_str: str = ""
     cli_append_str: str = ""
@@ -397,8 +399,8 @@ class f_group_item(BaseModel):
 
 
 class f_group(BaseModel):
-    group: Optional[f_group_item]
+    group: Optional[f_group_item] = None
 
 
 class f_groups(BaseModel):
-    groups: Optional[List[f_group]]
+    groups: Optional[List[f_group]] = None

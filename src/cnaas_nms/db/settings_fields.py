@@ -138,7 +138,7 @@ class f_interface(BaseModel):
     description: Optional[str] = ifdescr_schema
     enabled: Optional[bool] = None
     untagged_vlan: Optional[int] = vlan_id_schema_optional
-    tagged_vlan_list: Optional[List[int]] = None
+    tagged_vlan_list: Optional[List[Annotated[int, Field(ge=1, le=4094)]]] = None
     aggregate_id: Optional[int] = None
     tags: Optional[List[str]] = None
     vrf: Optional[str] = vlan_name_schema
@@ -157,11 +157,6 @@ class f_interface(BaseModel):
             validate_ipv4_if(v)
             if "vrf" not in values or not values["vrf"]:
                 raise ValueError("VRF is required when specifying ipv4_gw")
-        return v
-
-    @validator("tagged_vlan_list", each_item=True)
-    def check_valid_vlan_ids(cls, v):
-        assert 0 < v < 4096
         return v
 
 

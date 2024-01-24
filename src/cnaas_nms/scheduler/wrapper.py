@@ -49,7 +49,7 @@ def job_wrapper(func):
     """Decorator to save job status in job tracker database."""
 
     def wrapper(job_id: int, scheduled_by: str, kwargs={}):
-        if not job_id or not type(job_id) is int:
+        if not job_id or type(job_id) is not int:
             errmsg = "Missing job_id when starting job for {}".format(func.__name__)
             logger.error(errmsg)
             raise ValueError(errmsg)

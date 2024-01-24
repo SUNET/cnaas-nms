@@ -1,7 +1,8 @@
 from ipaddress import AddressValueError, IPv4Interface
 from typing import Annotated, Dict, List, Optional
 
-from pydantic import BaseModel, Field, conint, validator
+from pydantic import BaseModel, Field, FieldValidationInfo, conint, field_validator
+from pydantic.functional_validators import AfterValidator
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
 IPV4_REGEX = r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}" r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
@@ -85,6 +86,7 @@ def validate_ipv4_if(ipv4if: str):
         raise ValueError("Invalid IPv4 interface: {}".format(e))
     except AssertionError as e:
         raise ValueError("Invalid IPv4 interface: {}".format(e))
+    return ipv4if
 
 
 # Note: If specifying a list of a BaseModel derived class anywhere else except
@@ -151,11 +153,12 @@ class f_interface(BaseModel):
     acl_ipv6_out: Optional[str] = None
     cli_append_str: str = ""
 
-    @validator("ipv4_address")
-    def vrf_required_if_ipv4_address_set(cls, v, values, **kwargs):
+    @field_validator("ipv4_address")
+    @classmethod
+    def vrf_required_if_ipv4_address_set(cls, v: str, info: FieldValidationInfo):
         if v:
             validate_ipv4_if(v)
-            if "vrf" not in values or not values["vrf"]:
+            if "vrf" not in info.data or not info.data["vrf"]:
                 raise ValueError("VRF is required when specifying ipv4_gw")
         return v
 
@@ -258,10 +261,11 @@ class f_internal_vlans(BaseModel):
     vlan_id_high: int = vlan_id_schema
     allocation_order: str = "ascending"
 
-    @validator("vlan_id_high")
-    def vlan_id_high_greater_than_low(cls, v, values, **kwargs):
+    @field_validator("vlan_id_high")
+    @classmethod
+    def vlan_id_high_greater_than_low(cls, v: int, info: FieldValidationInfo):
         if v:
-            if values["vlan_id_low"] >= v:
+            if info.data["vlan_id_low"] >= v:
                 raise ValueError("vlan_id_high must be greater than vlan_id_low")
         return v
 
@@ -273,7 +277,7 @@ class f_vxlan(BaseModel):
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
     ipv4_gw: Optional[str] = None
-    ipv4_secondaries: Optional[List[str]] = None
+    ipv4_secondaries: Optional[List[Annotated[str, AfterValidator(validate_ipv4_if)]]] = None
     ipv6_gw: Optional[str] = ipv6_if_schema
     dhcp_relays: Optional[List[f_dhcp_relay]] = None
     mtu: Optional[int] = mtu_schema
@@ -287,23 +291,20 @@ class f_vxlan(BaseModel):
     devices: List[str] = []
     tags: List[str] = []
 
-    @validator("ipv4_secondaries", each_item=True)
-    def ipv4_secondaries_regex(cls, v):
-        validate_ipv4_if(v)
-        return v
-
-    @validator("ipv4_gw")
-    def vrf_required_if_ipv4_gw_set(cls, v, values, **kwargs):
+    @field_validator("ipv4_gw")
+    @classmethod
+    def vrf_required_if_ipv4_gw_set(cls, v: str, info: FieldValidationInfo):
         if v:
             validate_ipv4_if(v)
-            if "vrf" not in values or not values["vrf"]:
+            if "vrf" not in info.data or not info.data["vrf"]:
                 raise ValueError("VRF is required when specifying ipv4_gw")
         return v
 
-    @validator("ipv6_gw")
-    def vrf_required_if_ipv6_gw_set(cls, v, values, **kwargs):
+    @field_validator("ipv6_gw")
+    @classmethod
+    def vrf_required_if_ipv6_gw_set(cls, v: str, info: FieldValidationInfo):
         if v:
-            if "vrf" not in values or not values["vrf"]:
+            if "vrf" not in info.data or not info.data["vrf"]:
                 raise ValueError("VRF is required when specifying ipv6_gw")
         return v
 
@@ -386,9 +387,10 @@ class f_group_item(BaseModel):
     regex: str = ""
     group_priority: int = group_priority_schema
 
-    @validator("group_priority")
-    def reserved_priority(cls, v, values, **kwargs):
-        if v and v == 1 and values["name"] != "DEFAULT":
+    @field_validator("group_priority")
+    @classmethod
+    def reserved_priority(cls, v: int, info: FieldValidationInfo):
+        if v and v == 1 and info.data["name"] != "DEFAULT":
             raise ValueError("group_priority 1 is reserved for built-in group DEFAULT")
         return v
 

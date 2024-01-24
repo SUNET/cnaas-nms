@@ -207,7 +207,7 @@ def get_pydantic_field_descr(schema: dict, loc: tuple):
             ref_to = next_schema["$ref"].split("/")[2]
             next_schema = schema["definitions"][ref_to]["properties"][loc_part]
         elif next_schema:
-            if type(loc_part) == int:
+            if type(loc_part) is int:
                 next_schema = next_schema["items"]
             else:
                 next_schema = schema["definitions"][next_schema]["properties"][loc_part]
@@ -298,8 +298,8 @@ def get_internal_vlan_range(settings) -> range:
     if (
         "vlan_id_low" in settings["internal_vlans"]
         and "vlan_id_high" in settings["internal_vlans"]
-        and type(settings["internal_vlans"]["vlan_id_low"]) == int
-        and type(settings["internal_vlans"]["vlan_id_high"]) == int
+        and type(settings["internal_vlans"]["vlan_id_low"]) is int
+        and type(settings["internal_vlans"]["vlan_id_high"]) is int
     ):
         return range(settings["internal_vlans"]["vlan_id_low"], settings["internal_vlans"]["vlan_id_high"] + 1)
     else:

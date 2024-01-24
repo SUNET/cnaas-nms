@@ -139,7 +139,7 @@ def get_uplinks(
             local_ifs = dev.get_neighbor_ifnames(session, neighbor_d, linknets)
 
             dl_intf_names = []
-            intf: Interface
+            dl_intf: Interface
             for dl_intf in dl_intfs:
                 dl_intf_names.append(dl_intf.name)
 

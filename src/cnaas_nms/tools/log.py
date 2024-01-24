@@ -16,7 +16,7 @@ class WebsocketHandler(logging.StreamHandler):
 
 
 def get_logger():
-    if hasattr(thread_data, "job_id") and type(thread_data.job_id) == int:
+    if hasattr(thread_data, "job_id") and type(thread_data.job_id) is int:
         logger = logging.getLogger("cnaas-nms-{}".format(thread_data.job_id))
         if not logger.handlers:
             formatter = logging.Formatter(

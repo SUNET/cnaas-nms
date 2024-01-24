@@ -53,11 +53,13 @@ Defines parameters for the API:
 
 Define parameters for the authentication:
 
-- oidc_conf_well_known_url: set the url for the oidc  
-- oidc_client_secret: set the secret of the oidc
-- oidc_client_id: set the client_id of the oidc
-- frontend_callback_url: set the frontend url the oidc client should link to after the login process
-- oidc_enabled: set True to enabled the oidc login. Default: False
+- oidc_conf_well_known_url: OIDC well-known URL for metadata
+- oidc_client_secret: The client secret for OIDC
+- oidc_client_id: The client_id for OIDC
+- frontend_callback_url: The frontend URL that the OIDC client should redirect to after the login process
+- oidc_enabled: Set True to enabled OIDC login. Defaults to False
+- audience: The string to verify the aud attribute in the access token with
+- verify_audience: Set to False to disable aud check. Defaults to True
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

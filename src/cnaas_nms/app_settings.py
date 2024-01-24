@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import PostgresDsn, validator
+from pydantic import validator
 from pydantic_settings import BaseSettings
 
 
@@ -72,6 +72,7 @@ class AuthSettings(BaseSettings):
     OIDC_ENABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
     AUDIENCE: str = OIDC_CLIENT_ID
+    VERIFY_AUDIENCE: bool = True
 
 
 def construct_api_settings() -> ApiSettings:
@@ -156,6 +157,7 @@ def construct_auth_settings() -> AuthSettings:
             OIDC_CLIENT_ID=config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID),
             OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE),
             AUDIENCE=config.get("audience", AuthSettings().AUDIENCE),
+            VERIFY_AUDIENCE=config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE),
         )
     else:
         return AuthSettings()

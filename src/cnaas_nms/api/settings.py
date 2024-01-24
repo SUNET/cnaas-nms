@@ -57,7 +57,7 @@ class SettingsApi(Resource):
 
 class SettingsModelApi(Resource):
     def get(self):
-        response = make_response(settings_root_model.schema_json())
+        response = make_response(settings_root_model.model_json_schema())
         response.headers["Content-Type"] = "application/json"
         return response
 

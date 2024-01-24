@@ -32,7 +32,7 @@ RUN apt-get update \
       uwsgi-plugin-python3 \
       ssh-client \
       python3-gevent\
-      
+
     && pip3 install --no-cache-dir uwsgi --break-system-packages
    # && apt-get install -y uwsgi
 

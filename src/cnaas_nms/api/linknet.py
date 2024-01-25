@@ -3,8 +3,7 @@ from typing import Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from pydantic import BaseModel, validator
-from pydantic.error_wrappers import ValidationError
+from pydantic import BaseModel, ValidationError, validator
 
 from cnaas_nms.api.generic import empty_result, parse_pydantic_error, update_sqla_object
 from cnaas_nms.db.device import Device, DeviceType

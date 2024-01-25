@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 import pkg_resources
 import yaml
-from pydantic.error_wrappers import ValidationError
+from pydantic import ValidationError
 from redis import StrictRedis
 from redis_lru import RedisLRU
 

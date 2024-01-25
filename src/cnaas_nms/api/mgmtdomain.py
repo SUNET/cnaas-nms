@@ -3,8 +3,7 @@ from typing import Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from pydantic import BaseModel, validator
-from pydantic.error_wrappers import ValidationError
+from pydantic import BaseModel, ValidationError, validator
 from sqlalchemy.exc import IntegrityError
 
 from cnaas_nms.api.generic import build_filter, empty_result, limit_results, parse_pydantic_error, update_sqla_object

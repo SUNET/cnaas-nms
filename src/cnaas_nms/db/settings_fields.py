@@ -191,8 +191,8 @@ class f_ipv6_static_route(BaseModel):
 
 class f_extroute_static_vrf(BaseModel):
     name: str
-    ipv4: Optional[List[f_ipv4_static_route]]
-    ipv6: Optional[List[f_ipv6_static_route]]
+    ipv4: Optional[List[f_ipv4_static_route]] = None
+    ipv6: Optional[List[f_ipv6_static_route]] = None
 
 
 class f_extroute_static(BaseModel):

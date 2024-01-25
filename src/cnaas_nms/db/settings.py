@@ -227,7 +227,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
     """
     logger = get_logger()
     try:
-        ret_dict = f_root(**settings_dict).dict()
+        ret_dict = f_root(**settings_dict).model_dump()
     except ValidationError as validation_error:
         msg = ""
         for num, error in enumerate(validation_error.errors()):
@@ -247,7 +247,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
                 "->".join(str(x) for x in loc), get_pydantic_error_value(settings_dict, loc), origin
             )
             try:
-                pydantic_descr = get_pydantic_field_descr(f_root.schema(), loc)
+                pydantic_descr = get_pydantic_field_descr(f_root.model_json_schema(), loc)
                 if pydantic_descr:
                     pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
                 else:
@@ -702,7 +702,7 @@ def get_group_settings():
     )
     settings["groups"] += default_settings["groups"]
     check_settings_syntax(settings, settings_origin)
-    return f_groups(**settings).dict(), settings_origin
+    return f_groups(**settings).model_dump(), settings_origin
 
 
 @redis_lru_cache

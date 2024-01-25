@@ -3,7 +3,7 @@ from typing import Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy.exc import IntegrityError
 
 from cnaas_nms.api.generic import build_filter, empty_result, limit_results, parse_pydantic_error, update_sqla_object
@@ -41,8 +41,9 @@ class f_mgmtdomain(BaseModel):
     ipv6_gw: Optional[str] = None
     description: Optional[str] = None
 
-    @validator("ipv4_gw")
-    def ipv4_gw_valid_address(cls, v, values, **kwargs):
+    @field_validator("ipv4_gw")
+    @classmethod
+    def ipv4_gw_valid_address(cls, v):
         try:
             addr = IPv4Interface(v)
             prefix_len = int(addr.network.prefixlen)
@@ -58,9 +59,9 @@ class f_mgmtdomain(BaseModel):
 
         return v
 
-    @validator("ipv6_gw")
+    @field_validator("ipv6_gw")
     @classmethod
-    def ipv6_gw_valid_address(cls, v, values, **kwargs):
+    def ipv6_gw_valid_address(cls, v):
         try:
             addr = IPv6Interface(v)
             prefix_len = int(addr.network.prefixlen)
@@ -114,7 +115,7 @@ class MgmtdomainByIdApi(Resource):
         json_data = request.get_json()
         errors = []
         try:
-            f_mgmtdomain(**json_data).dict()
+            f_mgmtdomain(**json_data).model_dump()
         except ValidationError as e:
             errors += parse_pydantic_error(e, f_mgmtdomain, json_data)
 
@@ -183,7 +184,7 @@ class MgmtdomainsApi(Resource):
                         data["device_b"] = device_b
 
             try:
-                data = {**data, **f_mgmtdomain(**json_data).dict()}
+                data = {**data, **f_mgmtdomain(**json_data).model_dump()}
             except ValidationError as e:
                 errors += parse_pydantic_error(e, f_mgmtdomain, json_data)
 

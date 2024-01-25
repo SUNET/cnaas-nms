@@ -3,7 +3,7 @@ from typing import Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, FieldValidationInfo, ValidationError, field_validator
 
 from cnaas_nms.api.generic import empty_result, parse_pydantic_error, update_sqla_object
 from cnaas_nms.db.device import Device, DeviceType
@@ -50,29 +50,31 @@ class f_linknet(BaseModel):
     device_a_ip: Optional[str] = None
     device_b_ip: Optional[str] = None
 
-    @validator("device_a_ip", "device_b_ip")
-    def device_ip_validator(cls, v, values, **kwargs):
+    @field_validator("device_a_ip", "device_b_ip")
+    @classmethod
+    def device_ip_validator(cls, v, info: FieldValidationInfo):
         if not v:
             return v
-        if not values["ipv4_network"]:
+        if not info.data["ipv4_network"]:
             raise ValueError("ipv4_network must be set")
         try:
             addr = IPv4Address(v)
-            net = IPv4Network(values["ipv4_network"])
+            net = IPv4Network(info.data["ipv4_network"])
         except Exception:  # noqa: S110
             raise ValueError("Invalid device IP or ipv4_network")
         else:
             if addr not in net.hosts():
                 raise ValueError("device IP must be part of ipv4_network")
-            if "device_a_ip" in values and v == values["device_a_ip"]:
+            if "device_a_ip" in info.data and v == info.data["device_a_ip"]:
                 raise ValueError("device_a_ip and device_b_ip can not be the same")
-            if "device_b_ip" in values and v == values["device_b_ip"]:
+            if "device_b_ip" in info.data and v == info.data["device_b_ip"]:
                 raise ValueError("device_a_ip and device_b_ip can not be the same")
 
         return v
 
-    @validator("ipv4_network")
-    def ipv4_network_validator(cls, v, values, **kwargs):
+    @field_validator("ipv4_network")
+    @classmethod
+    def ipv4_network_validator(cls, v):
         if not v:
             return v
         try:
@@ -257,7 +259,7 @@ class LinknetByIdApi(Resource):
             if instance:
                 try:
                     validate_data = {**instance.as_dict(), **json_data}
-                    f_linknet(**validate_data).dict()
+                    f_linknet(**validate_data).model_dump()
                 except ValidationError as e:
                     errors += parse_pydantic_error(e, f_linknet, validate_data)
                 if errors:

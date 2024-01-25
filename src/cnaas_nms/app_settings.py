@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -55,7 +55,7 @@ class ApiSettings(BaseSettings):
     COMMIT_CONFIRMED_WAIT: int = 1
     SETTINGS_OVERRIDE: Optional[dict] = None
 
-    @validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
+    @field_validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
     @classmethod
     def primary_ip_version_is_valid(cls, version: int) -> int:
         if version not in (4, 6):

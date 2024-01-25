@@ -1,7 +1,7 @@
 """create initial database
 
 Revision ID: d3aa4454ba7b
-Revises: adcce7d9baaa
+Revises: a3f3bc390462
 Create Date: 2024-01-22 13:00:27.673060
 
 """

@@ -33,7 +33,7 @@ RUN apt-get update \
       ssh-client \
       python3-gevent\
 
-    && pip3 install --no-cache-dir uwsgi --break-system-packages
+    && pip3 install --no-cache-dir uwsgi --break-system-packages \
     && pip install "cython<3.0.0" && pip install --no-build-isolation pyyaml==6.0
     # ^ https://github.com/yaml/pyyaml/issues/724#issuecomment-1638636728
    # && apt-get install -y uwsgi

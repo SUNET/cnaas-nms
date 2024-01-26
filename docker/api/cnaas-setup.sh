@@ -23,4 +23,6 @@ git checkout $2
 # install dependencies
 python3 -m pip install --no-cache-dir uwsgi
 python3 -m pip install --no-cache-dir uwsgi gevent
+# https://github.com/yaml/pyyaml/issues/724#issuecomment-1638636728
+python3 -m pip install "cython<3.0.0" && python3 -m pip install --no-build-isolation pyyaml==6.0
 python3 -m pip install --no-cache-dir -r requirements.txt

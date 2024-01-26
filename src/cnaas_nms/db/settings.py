@@ -681,7 +681,7 @@ def get_settings(
 
 
 @redis_lru_cache
-def get_group_settings():
+def get_group_settings() -> Tuple[dict, dict]:
     logger = get_logger()
     settings: dict = {}
     settings_origin: dict = {}

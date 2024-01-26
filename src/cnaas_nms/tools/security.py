@@ -63,9 +63,13 @@ def get_oauth_userinfo(token_string):
         resp = requests.post(user_info_endpoint, data=data, headers=headers)
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
-        body = json.loads(e.response.content)
-        logger.debug("Request not successful: " + body["error_description"])
-        raise InvalidTokenError(body["error_description"])
+        try:
+            body = json.loads(e.response.content)
+            logger.debug("OIDC userinfo endpoint request not successful: " + body["error_description"])
+            raise InvalidTokenError(body["error_description"])
+        except (json.decoder.JSONDecodeError, KeyError):
+            logger.debug("OIDC userinfo endpoint request not successful: {}".format(str(e.response.content)))
+            raise InvalidTokenError(e.response.content)
     return resp.json()
 
 

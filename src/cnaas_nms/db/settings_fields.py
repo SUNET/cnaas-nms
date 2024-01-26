@@ -1,7 +1,8 @@
 from ipaddress import AddressValueError, IPv4Interface
-from typing import Dict, List, Optional
+from typing import Annotated, Dict, List, Optional
 
-from pydantic import BaseModel, Field, conint, validator
+from pydantic import BaseModel, Field, FieldValidationInfo, conint, field_validator
+from pydantic.functional_validators import AfterValidator
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
 IPV4_REGEX = r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}" r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
@@ -22,22 +23,24 @@ FQDN_REGEX = r"([a-zA-Z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+"
 HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{FQDN_REGEX})$"
 HOSTNAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
 DOMAIN_NAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-z0-9-]{1,63})+$"
-host_schema = Field(..., regex=HOST_REGEX, max_length=253, description="Hostname, FQDN or IP address")
-hostname_schema = Field(..., regex=HOSTNAME_REGEX, max_length=253, description="Hostname or FQDN")
-domain_name_schema = Field(None, regex=DOMAIN_NAME_REGEX, max_length=251, description="DNS domain name")
-ipv4_schema = Field(..., regex=f"^{IPV4_REGEX}$", description="IPv4 address")
+host_schema = Field(..., pattern=HOST_REGEX, max_length=253, description="Hostname, FQDN or IP address")
+hostname_schema = Field(..., pattern=HOSTNAME_REGEX, max_length=253, description="Hostname or FQDN")
+domain_name_schema = Field(None, pattern=DOMAIN_NAME_REGEX, max_length=251, description="DNS domain name")
+ipv4_schema = Field(..., pattern=f"^{IPV4_REGEX}$", description="IPv4 address")
 IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
-ipv4_if_schema = Field(None, regex=f"^{IPV4_IF_REGEX}$", description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)")
-ipv6_schema = Field(..., regex=f"^{IPV6_REGEX}$", description="IPv6 address")
+ipv4_if_schema = Field(
+    None, pattern=f"^{IPV4_IF_REGEX}$", description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)"
+)
+ipv6_schema = Field(..., pattern=f"^{IPV6_REGEX}$", description="IPv6 address")
 IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
-ipv6_if_schema = Field(None, regex=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)")
-ipv4_or_ipv6_if_schema = Field(None, regex=f"({IPV4_IF_REGEX}|{IPV6_IF_REGEX})", description="IPv4 or IPv6 prefix")
+ipv6_if_schema = Field(None, pattern=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)")
+ipv4_or_ipv6_if_schema = Field(None, pattern=f"({IPV4_IF_REGEX}|{IPV6_IF_REGEX})", description="IPv4 or IPv6 prefix")
 
 # VLAN name is alphanumeric max 32 chars on Cisco
 # should not start with number according to some Juniper doc
 VLAN_NAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9-_]{0,31}$"
 vlan_name_schema = Field(
-    None, regex=VLAN_NAME_REGEX, description="Max 32 alphanumeric chars, " + "beginning with a non-numeric character"
+    None, pattern=VLAN_NAME_REGEX, description="Max 32 alphanumeric chars, " + "beginning with a non-numeric character"
 )
 vlan_id_schema = Field(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
 vlan_id_schema_optional = Field(None, gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
@@ -47,24 +50,24 @@ mtu_schema = Field(None, ge=68, le=9214, description="MTU (Maximum transmission 
 as_num_schema = Field(None, description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)")
 as_num_type = conint(strict=True, gt=0, lt=4294967296)
 IFNAME_REGEX = r"([a-zA-Z0-9\/\.:-])+"
-ifname_schema = Field(None, regex=f"^{IFNAME_REGEX}$", description="Interface name")
+ifname_schema = Field(None, pattern=f"^{IFNAME_REGEX}$", description="Interface name")
 IFNAME_RANGE_REGEX = r"([a-zA-Z0-9\/\.:\-\[\]])+"
 ifname_range_schema = Field(
-    None, regex=f"^{IFNAME_RANGE_REGEX}$", description="Interface range pattern or interface name"
+    None, pattern=f"^{IFNAME_RANGE_REGEX}$", description="Interface range pattern or interface name"
 )
 IFCLASS_REGEX = r"(custom|downlink|fabric|port_template_[a-zA-Z0-9_]+)"
-ifclass_schema = Field(None, regex=f"^{IFCLASS_REGEX}$", description="Interface class: custom, downlink or uplink")
+ifclass_schema = Field(None, pattern=f"^{IFCLASS_REGEX}$", description="Interface class: custom, downlink or uplink")
 ifdescr_schema = Field(None, max_length=64, description="Interface description, 0-64 characters")
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
 ebgp_multihop_schema = Field(None, ge=1, le=255, description="Numeric IP TTL, 1-255")
 maximum_routes_schema = Field(None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer")
-accept_or_reject_schema = Field(..., regex=r"^(accept|reject)$", description="Value has to be 'accept' or 'reject'")
+accept_or_reject_schema = Field(..., pattern=r"^(accept|reject)$", description="Value has to be 'accept' or 'reject'")
 prefix_size_or_range_schema = Field(
-    None, regex=r"^[0-9]{1,3}([-][0-9]{1,3})?$", description="Prefix size or range 0-128"
+    None, pattern=r"^[0-9]{1,3}([-][0-9]{1,3})?$", description="Prefix size or range 0-128"
 )
 
 GROUP_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
-group_name = Field(..., regex=GROUP_NAME, max_length=253)
+group_name = Field(..., pattern=GROUP_NAME, max_length=253)
 group_priority_schema = Field(
     0, ge=0, le=100, description="Group priority 0-100, default 0, higher value means higher priority"
 )
@@ -83,6 +86,7 @@ def validate_ipv4_if(ipv4if: str):
         raise ValueError("Invalid IPv4 interface: {}".format(e))
     except AssertionError as e:
         raise ValueError("Invalid IPv4 interface: {}".format(e))
+    return ipv4if
 
 
 # Note: If specifying a list of a BaseModel derived class anywhere else except
@@ -136,7 +140,7 @@ class f_interface(BaseModel):
     description: Optional[str] = ifdescr_schema
     enabled: Optional[bool] = None
     untagged_vlan: Optional[int] = vlan_id_schema_optional
-    tagged_vlan_list: Optional[List[int]] = None
+    tagged_vlan_list: Optional[List[Annotated[int, Field(ge=1, le=4094)]]] = None
     aggregate_id: Optional[int] = None
     tags: Optional[List[str]] = None
     vrf: Optional[str] = vlan_name_schema
@@ -149,17 +153,13 @@ class f_interface(BaseModel):
     acl_ipv6_out: Optional[str] = None
     cli_append_str: str = ""
 
-    @validator("ipv4_address")
-    def vrf_required_if_ipv4_address_set(cls, v, values, **kwargs):
+    @field_validator("ipv4_address")
+    @classmethod
+    def vrf_required_if_ipv4_address_set(cls, v: str, info: FieldValidationInfo):
         if v:
             validate_ipv4_if(v)
-            if "vrf" not in values or not values["vrf"]:
+            if "vrf" not in info.data or not info.data["vrf"]:
                 raise ValueError("VRF is required when specifying ipv4_gw")
-        return v
-
-    @validator("tagged_vlan_list", each_item=True)
-    def check_valid_vlan_ids(cls, v):
-        assert 0 < v < 4096
         return v
 
 
@@ -191,8 +191,8 @@ class f_ipv6_static_route(BaseModel):
 
 class f_extroute_static_vrf(BaseModel):
     name: str
-    ipv4: Optional[List[f_ipv4_static_route]]
-    ipv6: Optional[List[f_ipv6_static_route]]
+    ipv4: Optional[List[f_ipv4_static_route]] = None
+    ipv6: Optional[List[f_ipv6_static_route]] = None
 
 
 class f_extroute_static(BaseModel):
@@ -261,24 +261,25 @@ class f_internal_vlans(BaseModel):
     vlan_id_high: int = vlan_id_schema
     allocation_order: str = "ascending"
 
-    @validator("vlan_id_high")
-    def vlan_id_high_greater_than_low(cls, v, values, **kwargs):
+    @field_validator("vlan_id_high")
+    @classmethod
+    def vlan_id_high_greater_than_low(cls, v: int, info: FieldValidationInfo):
         if v:
-            if values["vlan_id_low"] >= v:
+            if info.data["vlan_id_low"] >= v:
                 raise ValueError("vlan_id_high must be greater than vlan_id_low")
         return v
 
 
 class f_vxlan(BaseModel):
-    description: str = None
+    description: Optional[str] = None
     vni: int = vxlan_vni_schema
     vrf: Optional[str] = vlan_name_schema
     vlan_id: int = vlan_id_schema
     vlan_name: str = vlan_name_schema
     ipv4_gw: Optional[str] = None
-    ipv4_secondaries: Optional[List[str]]
+    ipv4_secondaries: Optional[List[Annotated[str, AfterValidator(validate_ipv4_if)]]] = None
     ipv6_gw: Optional[str] = ipv6_if_schema
-    dhcp_relays: Optional[List[f_dhcp_relay]]
+    dhcp_relays: Optional[List[f_dhcp_relay]] = None
     mtu: Optional[int] = mtu_schema
     vxlan_host_route: bool = True
     acl_ipv4_in: Optional[str] = None
@@ -290,23 +291,20 @@ class f_vxlan(BaseModel):
     devices: List[str] = []
     tags: List[str] = []
 
-    @validator("ipv4_secondaries", each_item=True)
-    def ipv4_secondaries_regex(cls, v):
-        validate_ipv4_if(v)
-        return v
-
-    @validator("ipv4_gw")
-    def vrf_required_if_ipv4_gw_set(cls, v, values, **kwargs):
+    @field_validator("ipv4_gw")
+    @classmethod
+    def vrf_required_if_ipv4_gw_set(cls, v: str, info: FieldValidationInfo):
         if v:
             validate_ipv4_if(v)
-            if "vrf" not in values or not values["vrf"]:
+            if "vrf" not in info.data or not info.data["vrf"]:
                 raise ValueError("VRF is required when specifying ipv4_gw")
         return v
 
-    @validator("ipv6_gw")
-    def vrf_required_if_ipv6_gw_set(cls, v, values, **kwargs):
+    @field_validator("ipv6_gw")
+    @classmethod
+    def vrf_required_if_ipv6_gw_set(cls, v: str, info: FieldValidationInfo):
         if v:
-            if "vrf" not in values or not values["vrf"]:
+            if "vrf" not in info.data or not info.data["vrf"]:
                 raise ValueError("VRF is required when specifying ipv6_gw")
         return v
 
@@ -333,7 +331,7 @@ class f_user(BaseModel):
 
 class f_prefixset_item(BaseModel):
     prefix: str = ipv4_or_ipv6_if_schema
-    masklength_range: Optional[str] = prefix_size_or_range_schema
+    masklength_range: Optional[Annotated[int, Field(ge=0, le=128)] | Annotated[str, prefix_size_or_range_schema]] = None
 
 
 class f_prefixset(BaseModel):
@@ -362,16 +360,16 @@ class f_root(BaseModel):
     snmp_servers: List[f_snmp_server] = []
     dns_servers: List[f_dns_server] = []
     flow_collectors: List[f_flow_collector] = []
-    dhcp_relays: Optional[List[f_dhcp_relay]]
+    dhcp_relays: Optional[List[f_dhcp_relay]] = None
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
     vxlans: Dict[str, f_vxlan] = {}
     underlay: f_underlay = None
     evpn_peers: List[f_evpn_peer] = []
-    extroute_static: Optional[f_extroute_static]
-    extroute_ospfv3: Optional[f_extroute_ospfv3]
-    extroute_bgp: Optional[f_extroute_bgp]
-    internal_vlans: Optional[f_internal_vlans]
+    extroute_static: Optional[f_extroute_static] = None
+    extroute_ospfv3: Optional[f_extroute_ospfv3] = None
+    extroute_bgp: Optional[f_extroute_bgp] = None
+    internal_vlans: Optional[f_internal_vlans] = None
     dot1x_fail_vlan: Optional[int] = vlan_id_schema_optional
     cli_prepend_str: str = ""
     cli_append_str: str = ""
@@ -389,16 +387,17 @@ class f_group_item(BaseModel):
     regex: str = ""
     group_priority: int = group_priority_schema
 
-    @validator("group_priority")
-    def reserved_priority(cls, v, values, **kwargs):
-        if v and v == 1 and values["name"] != "DEFAULT":
+    @field_validator("group_priority")
+    @classmethod
+    def reserved_priority(cls, v: int, info: FieldValidationInfo):
+        if v and v == 1 and info.data["name"] != "DEFAULT":
             raise ValueError("group_priority 1 is reserved for built-in group DEFAULT")
         return v
 
 
 class f_group(BaseModel):
-    group: Optional[f_group_item]
+    group: Optional[f_group_item] = None
 
 
 class f_groups(BaseModel):
-    groups: Optional[List[f_group]]
+    groups: Optional[List[f_group]] = None

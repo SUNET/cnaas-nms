@@ -66,7 +66,7 @@ def get_evpn_peers(session, settings: dict):
 
 def resolve_vlanid(vlan_name: str, vxlans: dict) -> Optional[int]:
     logger = get_logger()
-    if type(vlan_name) == int:
+    if type(vlan_name) is int:
         return int(vlan_name)
     if not isinstance(vlan_name, str):
         return None

@@ -57,7 +57,7 @@ class SettingsApi(Resource):
 
 class SettingsModelApi(Resource):
     def get(self):
-        response = make_response(settings_root_model.schema_json())
+        response = make_response(settings_root_model.model_json_schema())
         response.headers["Content-Type"] = "application/json"
         return response
 
@@ -75,7 +75,7 @@ class SettingsModelApi(Resource):
 class SettingsServerApI(Resource):
     @login_required
     def get(self):
-        ret_dict = {"api": api_settings.dict()}
+        ret_dict = {"api": api_settings.model_dump()}
         response = make_response(json.dumps(ret_dict, default=json_dumper))
         response.headers["Content-Type"] = "application/json"
         return response

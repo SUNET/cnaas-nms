@@ -180,7 +180,7 @@ def parse_pydantic_error(e: Exception, schema, data: dict) -> List[str]:
             )
         )
         try:
-            pydantic_descr = get_pydantic_field_descr(schema.schema(), loc)
+            pydantic_descr = get_pydantic_field_descr(schema.model_json_schema(), loc)
             if pydantic_descr:
                 pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
             else:

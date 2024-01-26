@@ -11,7 +11,7 @@ GitPython==3.1.41
 mypy==0.971
 mypy-extensions==0.4.3
 markupsafe==2.1.1
-nornir==3.3.0
+nornir==3.4.1
 nornir-jinja2==0.2.0
 nornir-napalm==0.4.0
 nornir-netmiko==1.0.1

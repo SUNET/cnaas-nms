@@ -1,7 +1,8 @@
 import datetime
 import enum
 import json
-from typing import Dict, Optional
+import time
+from typing import Dict, List, Optional
 
 from nornir.core.task import AggregatedResult
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, SmallInteger, Unicode
@@ -267,3 +268,23 @@ class Job(cnaas_nms.db.base.Base):
         if job.status != JobStatus.RUNNING:
             return True
         return False
+
+    @classmethod
+    def wait_for_job_completion(
+        cls,
+        session,
+        job_id: int,
+        timeout: int = 300,
+        exit_status: Optional[List[JobStatus]] = None,
+    ) -> None:
+        """Wait for job to complete"""
+        start_time = time.time()
+        if not exit_status:
+            exit_status = [JobStatus.FINISHED, JobStatus.EXCEPTION, JobStatus.ABORTED]
+        while True:
+            job: Job = session.query(Job).filter(Job.id == job_id).one()
+            if job.status in exit_status:
+                return
+            if time.time() - start_time > timeout:
+                raise TimeoutError(f"Job {job_id} did not finish within {timeout} seconds")
+            time.sleep(1)

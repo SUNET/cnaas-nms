@@ -24,6 +24,5 @@ def upgrade():
 
 def downgrade():
     # removing extra types in an enum can make fields in the database invalid
-    # so we choose not to do it and add an error catch for when we ant to rerun that specific upgrade
     pass
 

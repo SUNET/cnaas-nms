@@ -28,4 +28,3 @@ def downgrade():
     op.drop_index(op.f("ix_job_status"), table_name="job")
     op.drop_index(op.f("ix_job_finish_time"), table_name="job")
     # removing extra types in an enum can make fields in the database invalid
-    # so we choose not to do it and add an error catch for when we ant to rerun that specific upgrade

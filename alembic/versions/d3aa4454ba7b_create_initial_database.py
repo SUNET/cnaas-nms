@@ -28,7 +28,7 @@ def upgrade():
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False, primary_key=True),
         sa.Column("hostname", sa.String(length=64), nullable=False),
         sa.Column("site_id", sa.Integer()),
-        sa.Column("description", sa.String(length=255), nullable=False),
+        sa.Column("description", sa.String(length=255)),
         sa.Column("management_ip", sa.String(length=50)),
         sa.Column("dhcp_ip", sa.String(length=50)),
         sa.Column("serial", sa.String(length=64)),

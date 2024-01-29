@@ -48,7 +48,7 @@ def upgrade():
             sa.Enum("UNKNOWN", "ACCESS", "DIST", "CORE", name="devicetype"),
             nullable=False,
         ),
-        sa.Column("last_seen", sa.TIMESTAMP(),nullable=False),
+        sa.Column("last_seen", sa.TIMESTAMP()),
         sa.UniqueConstraint("hostname"),
         sa.ForeignKeyConstraint(["site_id"], ["site.id"])
     )      

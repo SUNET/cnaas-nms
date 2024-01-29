@@ -288,3 +288,4 @@ class Job(cnaas_nms.db.base.Base):
             if time.time() - start_time > timeout:
                 raise TimeoutError(f"Job {job_id} did not finish within {timeout} seconds")
             time.sleep(1)
+            session.refresh(job)

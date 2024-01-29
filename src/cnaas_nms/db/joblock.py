@@ -88,6 +88,5 @@ class Joblock(cnaas_nms.db.base.Base):
 
     @classmethod
     def clear_locks(cls, session: sqla_session):
-        session.query(Joblock).
         """Clear/release all locks in the database."""
         return session.query(Joblock).delete()

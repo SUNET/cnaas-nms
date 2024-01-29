@@ -3,3 +3,5 @@ oidc_client_secret: "xxx"
 oidc_client_id: "client-id"
 frontend_callback_url: "http://localhost/callback"
 oidc_enabled: False
+audience: "client-id"
+verify_audience: True

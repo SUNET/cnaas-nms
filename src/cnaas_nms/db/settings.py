@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 import pkg_resources
 import yaml
-from pydantic.error_wrappers import ValidationError
+from pydantic import ValidationError
 from redis import StrictRedis
 from redis_lru import RedisLRU
 
@@ -207,7 +207,7 @@ def get_pydantic_field_descr(schema: dict, loc: tuple):
             ref_to = next_schema["$ref"].split("/")[2]
             next_schema = schema["definitions"][ref_to]["properties"][loc_part]
         elif next_schema:
-            if type(loc_part) == int:
+            if type(loc_part) is int:
                 next_schema = next_schema["items"]
             else:
                 next_schema = schema["definitions"][next_schema]["properties"][loc_part]
@@ -227,7 +227,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
     """
     logger = get_logger()
     try:
-        ret_dict = f_root(**settings_dict).dict()
+        ret_dict = f_root(**settings_dict).model_dump()
     except ValidationError as validation_error:
         msg = ""
         for num, error in enumerate(validation_error.errors()):
@@ -247,7 +247,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
                 "->".join(str(x) for x in loc), get_pydantic_error_value(settings_dict, loc), origin
             )
             try:
-                pydantic_descr = get_pydantic_field_descr(f_root.schema(), loc)
+                pydantic_descr = get_pydantic_field_descr(f_root.model_json_schema(), loc)
                 if pydantic_descr:
                     pydantic_descr_msg = ", field should be: {}".format(pydantic_descr)
                 else:
@@ -298,8 +298,8 @@ def get_internal_vlan_range(settings) -> range:
     if (
         "vlan_id_low" in settings["internal_vlans"]
         and "vlan_id_high" in settings["internal_vlans"]
-        and type(settings["internal_vlans"]["vlan_id_low"]) == int
-        and type(settings["internal_vlans"]["vlan_id_high"]) == int
+        and type(settings["internal_vlans"]["vlan_id_low"]) is int
+        and type(settings["internal_vlans"]["vlan_id_high"]) is int
     ):
         return range(settings["internal_vlans"]["vlan_id_low"], settings["internal_vlans"]["vlan_id_high"] + 1)
     else:
@@ -681,7 +681,7 @@ def get_settings(
 
 
 @redis_lru_cache
-def get_group_settings():
+def get_group_settings() -> Tuple[dict, dict]:
     logger = get_logger()
     settings: dict = {}
     settings_origin: dict = {}
@@ -702,7 +702,7 @@ def get_group_settings():
     )
     settings["groups"] += default_settings["groups"]
     check_settings_syntax(settings, settings_origin)
-    return f_groups(**settings).dict(), settings_origin
+    return f_groups(**settings).model_dump(), settings_origin
 
 
 @redis_lru_cache

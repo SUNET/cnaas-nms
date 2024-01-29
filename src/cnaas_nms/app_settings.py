@@ -2,7 +2,8 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseSettings, PostgresDsn, validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 
 class AppSettings(BaseSettings):
@@ -14,7 +15,7 @@ class AppSettings(BaseSettings):
     CNAAS_DB_PORT: int = 5432
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
-    POSTGRES_DSN: PostgresDsn = (
+    POSTGRES_DSN: str = (
         f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
     )
     USERNAME_INIT: str = "admin"
@@ -54,7 +55,7 @@ class ApiSettings(BaseSettings):
     COMMIT_CONFIRMED_WAIT: int = 1
     SETTINGS_OVERRIDE: Optional[dict] = None
 
-    @validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
+    @field_validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
     @classmethod
     def primary_ip_version_is_valid(cls, version: int) -> int:
         if version not in (4, 6):
@@ -73,6 +74,7 @@ class AuthSettings(BaseSettings):
     PERMISSIONS_DISABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
     AUDIENCE: str = None # = OIDC_CLIENT_ID if not defined 
+    VERIFY_AUDIENCE: bool = True
 
 
 def construct_api_settings() -> ApiSettings:
@@ -168,6 +170,7 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE)
         auth_settings.PERMISSIONS_DISABLED=config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED)
         auth_settings.AUDIENCE=config.get("audience", AuthSettings().AUDIENCE)
+        auth_settings.VERIFY_AUDIENCE=config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE),
     
     if auth_settings.AUDIENCE is None:
         auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID

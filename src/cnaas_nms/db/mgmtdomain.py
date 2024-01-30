@@ -123,10 +123,10 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
     def _get_taken_ips(session) -> Set[IPAddress]:
         """Returns the full set of taken (used + reserved) IP addresses"""
         device_query = (
-            session.query(Device).filter(Device.management_ip is not None).options(load_only("management_ip"))
+            session.query(Device).filter(Device.management_ip is not None).options(load_only(Device.management_ip))
         )
         used_ips = set(device.management_ip for device in device_query)
-        reserved_ip_query = session.query(ReservedIP).options(load_only("ip"))
+        reserved_ip_query = session.query(ReservedIP).options(load_only(ReservedIP.ip))
         reserved_ips = set(reserved_ip.ip for reserved_ip in reserved_ip_query)
 
         return used_ips | reserved_ips

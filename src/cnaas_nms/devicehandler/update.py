@@ -354,9 +354,6 @@ def update_linknets(
         if not dry_run:
             session.add(new_link)
             session.commit()
-        else:
-            # Make sure linknet object is not added to session because of foreign key load
-            session.expunge(new_link)
         # Make return data pretty
         ret_dict = {
             **new_link.as_dict(),

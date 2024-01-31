@@ -81,6 +81,7 @@ class Device(cnaas_nms.db.base.Base):
     secondary_management_ip = Column(IPAddressType)
     dhcp_ip = Column(IPAddressType)
     infra_ip = Column(IPAddressType)
+    infra_ipv6 = Column(IPAddressType)
     oob_ip = Column(IPAddressType)
     serial = Column(String(64))
     ztp_mac = Column(String(12))
@@ -401,6 +402,18 @@ class Device(cnaas_nms.db.base.Base):
                         data[ip_field] = addr
                 else:
                     data[ip_field] = None
+
+        for ipv6_field in ("infra_ipv6",):
+            if ipv6_field in kwargs:
+                if kwargs[ipv6_field]:
+                    try:
+                        addr = ipaddress.IPv6Address(kwargs[ipv6_field])
+                    except Exception:
+                        errors.append("Invalid {} received. Must be a valid IPv6 address.".format(ipv6_field))
+                    else:
+                        data[ipv6_field] = addr
+                else:
+                    data[ipv6_field] = None
 
         if "serial" in kwargs:
             try:

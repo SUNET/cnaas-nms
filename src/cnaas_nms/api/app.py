@@ -1,12 +1,11 @@
 import os
 import re
 import sys
-
-from authlib.integrations.flask_client import OAuth
-from authlib.oauth2.rfc6749 import MissingAuthorizationError
 from typing import Optional
 
 import werkzeug.exceptions
+from authlib.integrations.flask_client import OAuth
+from authlib.oauth2.rfc6749 import MissingAuthorizationError
 from engineio.payload import Payload
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -19,9 +18,9 @@ from jwt.exceptions import (
     DecodeError,
     ExpiredSignatureError,
     InvalidAudienceError,
+    InvalidKeyError,
     InvalidSignatureError,
     InvalidTokenError,
-    InvalidKeyError
 )
 
 from cnaas_nms.api.auth import api as auth_api
@@ -39,7 +38,6 @@ from cnaas_nms.api.device import (
 )
 from cnaas_nms.api.firmware import api as firmware_api
 from cnaas_nms.api.groups import api as groups_api
-from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.interface import api as interfaces_api
 from cnaas_nms.api.jobs import job_api, joblock_api, jobs_api
 from cnaas_nms.api.json import CNaaSJSONEncoder
@@ -108,8 +106,6 @@ class CnaasApi(Api):
             data = {"status": "error", "message": "{}".format(e.name)}
         else:
             return super(CnaasApi, self).handle_error(e)
-        
-       
 
 
 app = Flask(__name__)
@@ -198,7 +194,7 @@ def socketio_on_connect():
     if auth_settings.OIDC_ENABLED:
         try:
             token = Token(token_string, None)
-            user = get_oauth_userinfo(token)['email']
+            user = get_oauth_userinfo(token)["email"]
         except InvalidTokenError as e:
             logger.debug("InvalidTokenError: " + format(e))
             return False

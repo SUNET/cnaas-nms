@@ -1,20 +1,19 @@
 import json
 from typing import Any, Mapping
 
-import json
 import requests
 from authlib.integrations.flask_oauth2 import ResourceProtector, current_token
-from authlib.oauth2.rfc6750 import BearerTokenValidator, errors
-from authlib.oauth2.rfc6749.wrappers import HttpRequest
+from authlib.oauth2.rfc6749.requests import OAuth2Request
+from authlib.oauth2.rfc6750 import BearerTokenValidator
 from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
 from jose import exceptions, jwt
-from jwt.exceptions import InvalidTokenError, InvalidKeyError, ExpiredSignatureError, InvalidAudienceError
-from cnaas_nms.tools.rbac.rbac import get_permissions_user, check_if_api_call_is_permitted
-from cnaas_nms.tools.rbac.token import Token
+from jwt.exceptions import ExpiredSignatureError, InvalidAudienceError, InvalidKeyError, InvalidTokenError
 
 from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.rbac.rbac import check_if_api_call_is_permitted, get_permissions_user
+from cnaas_nms.tools.rbac.token import Token
 
 logger = get_logger()
 
@@ -36,16 +35,15 @@ def get_jwt_identity():
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
 
 
-
 def get_oauth_userinfo(token: Token) -> Any:
     """Give back the user info of the OAUTH account
 
-        If OIDC is disabled, we return None.
+    If OIDC is disabled, we return None.
 
-        We do an api call to request userinfo. This gives back all the userinfo.
+    We do an api call to request userinfo. This gives back all the userinfo.
 
-        Returns:
-            resp.json(): Object of the user info 
+    Returns:
+        resp.json(): Object of the user info
 
     """
     # For now unnecersary, useful when we only use one log in method
@@ -60,7 +58,7 @@ def get_oauth_userinfo(token: Token) -> Any:
     except requests.exceptions.ConnectionError:
         raise ConnectionError("OIDC metadata unavailable")
     user_info_endpoint = metadata.json()["userinfo_endpoint"]
-    data = {'token_type_hint': 'access_token'}
+    data = {"token_type_hint": "access_token"}
     headers = {"Authorization": "Bearer " + token.token_string}
     try:
         resp = requests.post(user_info_endpoint, data=data, headers=headers)
@@ -141,7 +139,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
             # check if we can still get the user info
             token = Token(token_string, None)
             get_oauth_userinfo(token)
-            
+
             return token
 
         # get the key
@@ -170,7 +168,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         token = Token(token_string, decoded_token)
         return token
 
-    def validate_token(self, token, scopes, request: HttpRequest):
+    def validate_token(self, token, scopes, request: OAuth2Request):
         """Check if token matches the requested scopes and user has permission to execute the API call."""
         if auth_settings.PERMISSIONS_DISABLED:
             logger.debug("Permissions are disabled. Everyone can do every api call")
@@ -180,7 +178,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
             return token
         permissions_rules = auth_settings.PERMISSIONS
         if not permissions_rules:
-            logger.debug('No permissions defined, so nobody is permitted to do any api calls.')
+            logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
             raise InvalidAudienceError()
         user_info = get_oauth_userinfo(token)
         permissions = get_permissions_user(permissions_rules, user_info)
@@ -195,13 +193,13 @@ class MyBearerTokenValidator(BearerTokenValidator):
 def get_oauth_identity() -> str:
     """Give back the email address of the OAUTH account
 
-        If JWT is disabled, we return "admin".
+    If JWT is disabled, we return "admin".
 
-        We do an api call to request userinfo. This gives back all the userinfo.
-        We get the right info from there and return this to the user.
+    We do an api call to request userinfo. This gives back all the userinfo.
+    We get the right info from there and return this to the user.
 
-        Returns:
-            email(str): Email of the logged in user
+    Returns:
+        email(str): Email of the logged in user
 
     """
     # For now unnecersary, useful when we only use one log in method
@@ -212,7 +210,6 @@ def get_oauth_identity() -> str:
         logger.error("Email is a required claim for oauth")
         raise KeyError("Email is a required claim for oauth")
     return userinfo["email"]
-
 
 
 # check which method we use to log in and load vars needed for that
@@ -226,4 +223,3 @@ else:
     login_required = jwt_required
     get_identity = get_jwt_identity
     login_required_all_permitted = jwt_required
-    

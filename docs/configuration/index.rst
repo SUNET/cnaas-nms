@@ -71,10 +71,10 @@ The roles yaml can be defined to give permissions on the API and the Frontend. I
   * groups_claim_key: the element within the jwt token that give the roles
   * default_permissions: the name of the role with permissions given to every user
 - roles:
-  * [name_of_the_role]: 
-    + permissions: Each user group can have different sets of permissions for flexibility. 
+  * [name_of_the_role]:
+    + permissions: Each user group can have different sets of permissions for flexibility.
       - methods: HTTP methods on the API, for example, "GET", "POST", "*"
-      - endpoints: Uri's of endpoints on the API with possibility to use Glob, for example "/devices", "job**", "/devices/**/interfaces", "*"  
+      - endpoints: Uri's of endpoints on the API with possibility to use Glob, for example "/devices", "job**", "/devices/**/interfaces", "*"
       - pages: Pages shown in the menu of the frontend, for example "Devices", "Groups", "*"
       - rights: Actions you can take in the frontend, for example "read", "write", "*"
 

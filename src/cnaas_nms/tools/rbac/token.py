@@ -1,5 +1,4 @@
-
-class Token():
+class Token:
     token_string: str = ""
     decoded_token = {}
     expires_at = ""

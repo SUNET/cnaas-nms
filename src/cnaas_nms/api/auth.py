@@ -1,15 +1,14 @@
 from authlib.integrations.base_client.errors import MismatchingStateError, OAuthError
 from authlib.integrations.flask_oauth2 import current_token
-
 from flask import current_app, redirect, url_for
 from flask_restx import Namespace, Resource
 from requests.models import PreparedRequest
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.app_settings import auth_settings
-from cnaas_nms.tools.security import login_required, get_identity, login_required_all_permitted, get_oauth_userinfo
-from cnaas_nms.tools.rbac.rbac import get_permissions_user
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.rbac.rbac import get_permissions_user
+from cnaas_nms.tools.security import get_identity, get_oauth_userinfo, login_required, login_required_all_permitted
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()
@@ -97,7 +96,7 @@ class PermissionsAPI(Resource):
     def get(self):
         permissions_rules = auth_settings.PERMISSIONS
         if not permissions_rules:
-            logger.debug('No permissions defined, so nobody is permitted to do any api calls.')
+            logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
             return []
         user_info = get_oauth_userinfo(current_token)
         permissions_of_user = get_permissions_user(permissions_rules, user_info)

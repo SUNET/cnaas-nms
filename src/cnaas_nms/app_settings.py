@@ -5,6 +5,7 @@ import yaml
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
+from cnaas_nms.models.permissions import PermissionsModel
 
 class AppSettings(BaseSettings):
     # Database settings
@@ -162,7 +163,7 @@ def construct_auth_settings() -> AuthSettings:
         """Load the file with role permission"""
         with open(permission_config, "r") as permission_file:
             permissions_rules = yaml.safe_load(permission_file)
-        # TODO: pydantic parse of permissions_rules
+        PermissionsModel(**permissions_rules)
         auth_settings.PERMISSIONS = permissions_rules
 
     if auth_config.is_file():

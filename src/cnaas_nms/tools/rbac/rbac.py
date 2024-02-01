@@ -1,11 +1,13 @@
 import fnmatch
+from typing import List
 
-from authlib.oauth2.rfc6749.requests import OAuth2Request
+from authlib.integrations.flask_oauth2.requests import FlaskJsonRequest
 
+from cnaas_nms.models.permissions import PermissionModel, PermissionsModel
 from cnaas_nms.version import __api_version__
 
 
-def get_permissions_user(permissions_rules, user_info):
+def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
     """Get the API permissions of the user"""
     permissions_of_user = []
 
@@ -14,47 +16,39 @@ def get_permissions_user(permissions_rules, user_info):
         return permissions_of_user
 
     # first give all the permissions of the fallback role
-    if (
-        "default_permissions" in permissions_rules["config"]
-        and permissions_rules["config"]["default_permissions"] in permissions_rules["roles"]
-    ):
-        permissions_of_user.extend(
-            permissions_rules["roles"][permissions_rules["config"]["default_permissions"]]["permissions"]
-        )
+    permissions_of_user.extend(permissions_rules.roles.get(permissions_rules.config.default_permissions).permissions)
 
-    # if the element is not defined or the user doesn't have the element, return
-    if (
-        "group_claim_key" not in permissions_rules["config"]
-        or permissions_rules["config"]["group_claim_key"] not in user_info
-    ):
-        return permissions_of_user
-
-    # make the roles of userinfo into the right format, a list of roles
-    if isinstance(user_info[permissions_rules["config"]["group_claim_key"]], list):
-        user_roles = user_info[permissions_rules["config"]["group_claim_key"]]
-    else:
-        user_roles = [user_info[permissions_rules["config"]["group_claim_key"]]]
+    user_roles: List[str] = []
+    # read the group mappings and add the relevant roles
+    if permissions_rules.group_mappings:
+        map_type: str
+        mappings: dict[str, list[str]]
+        for map_type, mappings in permissions_rules.group_mappings.items():
+            # in case map type is email, add roles based on email from user info
+            if map_type == "email" and "email" in user_info:
+                for email, groups in mappings.items():
+                    if email in user_info["email"]:
+                        user_roles.extend(groups)
+            # in case map_type is a custom group attribute, add roles based on the attribute value
+            elif map_type in user_info and user_info[map_type] in mappings:
+                if isinstance(user_info[map_type], list):
+                    user_roles.extend(mappings[user_info[map_type]])
+                else:
+                    user_roles.append(mappings[user_info[map_type]])
 
     # find the relevant roles and add permissions
-    relevant_roles = list(set(permissions_rules["roles"]) & set(user_roles))
+    relevant_roles = list(set(permissions_rules.roles) & set(user_roles))
     for relevant_role in relevant_roles:
-        permissions_of_user.extend(permissions_rules["roles"][relevant_role]["permissions"])
+        permissions_of_user.extend(permissions_rules.roles[relevant_role].permissions)
 
     return permissions_of_user
 
 
-def remove_prefix(text, prefix):
-    """Remove prefix of string, after Python upgrade can be replaced by (str).removeprefix(prefix)"""
-    if text.startswith(prefix):
-        return text[len(prefix) :]
-    return text
-
-
-def check_if_api_call_is_permitted(request: OAuth2Request, permissions_of_user):
+def check_if_api_call_is_permitted(request: FlaskJsonRequest, permissions_of_user: list[PermissionModel]):
     """Checks if the user has permission to execute the API call"""
     for permission in permissions_of_user:
-        allowed_methods = permission["methods"]
-        allowed_endpoints = permission["endpoints"]
+        allowed_methods = permission.methods
+        allowed_endpoints = permission.endpoints
 
         # check if allowed based on the method
         if "*" not in allowed_methods and request.method not in allowed_methods:
@@ -62,7 +56,7 @@ def check_if_api_call_is_permitted(request: OAuth2Request, permissions_of_user):
 
         # prepare the uri
         prefix = "/api/{}".format(__api_version__)
-        short_uri = remove_prefix(request.uri.strip(), prefix).split("?", 1)[0]
+        short_uri = request.uri.split(prefix, 1)[1].split("?", 1)[0]
 
         # check if you're permitted to make api call based on uri
         if "*" in allowed_endpoints or short_uri in allowed_endpoints:

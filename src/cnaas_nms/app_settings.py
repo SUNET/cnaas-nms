@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings
 
 from cnaas_nms.models.permissions import PermissionsModel
 
+
 class AppSettings(BaseSettings):
     # Database settings
     CNAAS_DB_HOSTNAME: str = "127.0.0.1"
@@ -71,7 +72,7 @@ class AuthSettings(BaseSettings):
     OIDC_CLIENT_SECRET: str = "xxx"
     OIDC_CLIENT_ID: str = "client-id"
     OIDC_ENABLED: bool = False
-    PERMISSIONS: dict = {}
+    PERMISSIONS: Optional[PermissionsModel] = None
     PERMISSIONS_DISABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
     AUDIENCE: Optional[str] = None  # = OIDC_CLIENT_ID if not defined
@@ -153,18 +154,20 @@ def construct_auth_settings() -> AuthSettings:
     auth_config = Path("/etc/cnaas-nms/auth_config.yml")
 
     if auth_settings.PERMISSIONS_DISABLED:
-        auth_settings.PERMISSIONS = {
+        permissions_rules = {
             "config": {"default_permissions": "default"},
             "roles": {
                 "default": {"permissions": [{"methods": ["*"], "endpoints": ["*"], "pages": ["*"], "rights": ["*"]}]}
             },
         }
+        auth_settings.PERMISSIONS = PermissionsModel(**permissions_rules)
     elif permission_config.is_file():
         """Load the file with role permission"""
         with open(permission_config, "r") as permission_file:
             permissions_rules = yaml.safe_load(permission_file)
-        PermissionsModel(**permissions_rules)
-        auth_settings.PERMISSIONS = permissions_rules
+        auth_settings.PERMISSIONS = PermissionsModel(**permissions_rules)
+    else:
+        raise FileNotFoundError(f"{permission_config} not found")
 
     if auth_config.is_file():
         with open(auth_config, "r") as auth_file:

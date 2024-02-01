@@ -60,9 +60,7 @@ RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv \
 COPY --chown=root:www-data cnaas-setup.sh createca.sh exec-pre-app.sh pytest.sh coverage.sh /opt/cnaas/
 
 # Copy cnaas configuration files
-COPY --chown=www-data:www-data config/api.yml config/auth_config.yml config/db_config.yml config/plugins.yml config/repository.yml /etc/cnaas-nms/
-# Copy permissions is exist
-COPY --chown=www-data:www-data config/permissions.* /etc/cnaas-nms/
+COPY --chown=www-data:www-data config/api.yml config/auth_config.yml config/db_config.yml config/plugins.yml config/repository.yml config/permissions.* /etc/cnaas-nms/
 
 USER www-data
 

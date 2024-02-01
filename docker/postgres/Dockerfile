@@ -1,6 +1,6 @@
 FROM postgres:11
 
-ARG SQLFILE=nms.sql
+ARG SQLFILE=no-file.*
 
 COPY --chown=postgres:postgres ${SQLFILE} /docker-entrypoint-initdb.d/
 

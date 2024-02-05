@@ -19,7 +19,7 @@ class RoleModel(BaseModel):
 
 
 class PermissionsModel(BaseModel):
-    config: PemissionConfig
+    config: Optional[PemissionConfig] = None
     group_mappings: Optional[Dict[str, Dict[str, list[str]]]] = {}
     roles: Dict[str, RoleModel]
 
@@ -32,9 +32,9 @@ class PermissionsModel(BaseModel):
 
     @model_validator(mode="after")
     def check_if_roles_in_mappings_exist(self) -> "PermissionsModel":
-        for group_mapping in self.group_mappings:
-            for group in self.group_mappings[group_mapping]:
-                for role_name in self.group_mappings[group_mapping][group]:
+        for map_type in self.group_mappings:
+            for group in self.group_mappings[map_type]:
+                for role_name in self.group_mappings[map_type][group]:
                     if role_name not in self.roles:
                         raise ValueError(
                             "Role permission:"
@@ -42,6 +42,14 @@ class PermissionsModel(BaseModel):
                             + " is not defined, but is request for "
                             + group
                             + " in "
-                            + group_mapping
+                            + map_type
                         )
         return self
+
+    # @model_validator(mode="after")
+    # def check_default_or_mapping_defined(self) -> "PermissionsModel":
+    #     if not self.group_mappings and (not self.config or not self.config.default_permissions):
+    #         raise ValueError("Default permission and mappings are not defined. ")
+    #     return self
+
+  

@@ -16,7 +16,8 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
         return permissions_of_user
 
     # first give all the permissions of the fallback role
-    permissions_of_user.extend(permissions_rules.roles.get(permissions_rules.config.default_permissions).permissions)
+    if permissions_rules.config and permissions_rules.config.default_permissions:
+        permissions_of_user.extend(permissions_rules.roles.get(permissions_rules.config.default_permissions).permissions)
 
     user_roles: List[str] = []
     # read the group mappings and add the relevant roles
@@ -24,17 +25,9 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
         map_type: str
         mappings: dict[str, list[str]]
         for map_type, mappings in permissions_rules.group_mappings.items():
-            # in case map type is email, add roles based on email from user info
-            if map_type == "email" and "email" in user_info:
-                for email, groups in mappings.items():
-                    if email in user_info["email"]:
-                        user_roles.extend(groups)
-            # in case map_type is a custom group attribute, add roles based on the attribute value
-            elif map_type in user_info and user_info[map_type] in mappings:
-                if isinstance(user_info[map_type], list):
-                    user_roles.extend(mappings[user_info[map_type]])
-                else:
-                    user_roles.append(mappings[user_info[map_type]])
+            for value, groups in mappings.items():
+                if value in user_info[map_type]:
+                    user_roles.extend(groups)
 
     # find the relevant roles and add permissions
     relevant_roles = list(set(permissions_rules.roles) & set(user_roles))

@@ -88,15 +88,14 @@ class CnaasApi(Api):
         elif isinstance(e, InvalidSignatureError):
             data = {"status": "error", "message": "Invalid token signature"}
             return jsonify(data), 401
-        elif isinstance(e, IndexError):
-            # We might catch IndexErrors which are not caused by JWT,
-            # but this is better than nothing.
-            data = {"status": "error", "message": "JWT token missing?"}
-            return jsonify(data), 401
         elif isinstance(e, InvalidHeaderError):
             data = {"status": "error", "message": "Invalid header, JWT token missing? {}".format(e)}
             return jsonify(data), 401
-        elif isinstance(e, MissingAuthorizationError) or isinstance(e, NoAuthorizationError):
+        elif (
+            isinstance(e, MissingAuthorizationError) or isinstance(e, NoAuthorizationError) or isinstance(e, IndexError)
+        ):
+            # We might catch IndexErrors which are not caused by JWT,
+            # but this is better than nothing.
             data = {"status": "error", "message": "JWT token missing?"}
             return jsonify(data), 401
         elif isinstance(e, ConnectionError):

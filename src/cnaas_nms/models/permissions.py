@@ -45,9 +45,3 @@ class PermissionsModel(BaseModel):
                             + map_type
                         )
         return self
-
-    # @model_validator(mode="after")
-    # def check_default_or_mapping_defined(self) -> "PermissionsModel":
-    #     if not self.group_mappings and (not self.config or not self.config.default_permissions):
-    #         raise ValueError("Default permission and mappings are not defined. ")
-    #     return self

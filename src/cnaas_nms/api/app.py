@@ -104,6 +104,7 @@ class CnaasApi(Api):
             return jsonify(data), 500
         elif isinstance(e, werkzeug.exceptions.HTTPException):
             data = {"status": "error", "message": "{}".format(e.name)}
+            return jsonify(data), 401
         else:
             return super(CnaasApi, self).handle_error(e)
 

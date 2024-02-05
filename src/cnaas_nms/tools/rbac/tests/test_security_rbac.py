@@ -120,7 +120,7 @@ class GetPremissionsRoleYamlTests(unittest.TestCase):
 
     def test_role_permissions(self):
         user_info = {
-            "edumember_is_member_of": "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin"
+            "edumember_is_member_of": ["urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin"]
         }
         permissions_of_user = get_permissions_user(self.permissions_rules_without_default, user_info)
         expected_result = [
@@ -130,30 +130,16 @@ class GetPremissionsRoleYamlTests(unittest.TestCase):
         self.assertEqual(permissions_of_user, expected_result)
 
     def test_role_permissions_only_default(self):
-        user_info = {"edumember_is_member_of": "notarealrole"}
+        user_info = {
+            "edumember_is_member_of": "not-a-real-role-urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin-test"
+        }
         permissions_of_user = get_permissions_user(self.permissions_rules_with_default, user_info)
         expected_result = [PermissionModel(methods=["GET"], endpoints=["/devices**"])]
         self.assertEqual(permissions_of_user, expected_result)
 
     def test_role_permissions_zero(self):
-        permissions_rules = PermissionsModel(
-            group_mappings={
-                "edumember_is_member_of": {
-                    "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin": ["admin"]
-                }
-            },
-            roles={
-                "admin": RoleModel(
-                    permissions=[
-                        PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
-                        PermissionModel(methods=["POST"], endpoints=["/auth/*", "/devices"]),
-                    ]
-                ),
-                "default": RoleModel(permissions=[PermissionModel(methods=["GET"], endpoints=["/devices**"])]),
-            },
-        )
-        user_info = {"edumember_is_member_of": "notarealrole"}
-        permissions_of_user = get_permissions_user(permissions_rules, user_info)
+        user_info = {"edumember_is_member_of": ["admin"]}
+        permissions_of_user = get_permissions_user(self.permissions_rules_without_default, user_info)
         expected_result = []
         self.assertEqual(permissions_of_user, expected_result)
 

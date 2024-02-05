@@ -28,8 +28,13 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
         mappings: dict[str, list[str]]
         for map_type, mappings in permissions_rules.group_mappings.items():
             for value, groups in mappings.items():
-                if map_type in user_info and value in user_info[map_type]:
-                    user_roles.extend(groups)
+                if map_type in user_info:
+                    # if the type is a list in userinfo, we check if the value is in the list
+                    # if not a list, we assume it's a string and compare it directly
+                    if (isinstance(user_info[map_type], list) and value in user_info[map_type]) or value == user_info[
+                        map_type
+                    ]:
+                        user_roles.extend(groups)
 
     # find the relevant roles and add permissions
     relevant_roles = list(set(permissions_rules.roles) & set(user_roles))

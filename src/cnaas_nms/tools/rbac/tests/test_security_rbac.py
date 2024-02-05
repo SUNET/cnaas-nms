@@ -72,28 +72,45 @@ class CheckRoleRBACTests(unittest.TestCase):
 
 
 class GetPremissionsRoleYamlTests(unittest.TestCase):
+    permissions_rules_with_default = PermissionsModel(
+        config=PemissionConfig(default_permissions="default"),
+        group_mappings={
+            "edumember_is_member_of": {
+                "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin": ["admin"]
+            }
+        },
+        roles={
+            "admin": RoleModel(
+                permissions=[
+                    PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
+                    PermissionModel(methods=["POST"], endpoints=["/auth/*", "/devices"]),
+                ]
+            ),
+            "default": RoleModel(permissions=[PermissionModel(methods=["GET"], endpoints=["/devices**"])]),
+        },
+    )
+
+    permissions_rules_without_default = PermissionsModel(
+        group_mappings={
+            "edumember_is_member_of": {
+                "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin": ["admin"]
+            }
+        },
+        roles={
+            "admin": RoleModel(
+                permissions=[
+                    PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
+                    PermissionModel(methods=["POST"], endpoints=["/auth/*", "/devices"]),
+                ]
+            )
+        },
+    )
+
     def test_role_permissions_with_default(self):
-        permissions_rules = PermissionsModel(
-            config=PemissionConfig(default_permissions="default"),
-            group_mappings={
-                "edumember_is_member_of": {
-                    "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin": ["admin"]
-                }
-            },
-            roles={
-                "admin": RoleModel(
-                    permissions=[
-                        PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
-                        PermissionModel(methods=["POST"], endpoints=["/auth/*", "/devices"]),
-                    ]
-                ),
-                "default": RoleModel(permissions=[PermissionModel(methods=["GET"], endpoints=["/devices**"])]),
-            },
-        )
         user_info = {
             "edumember_is_member_of": "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin"
         }
-        permissions_of_user = get_permissions_user(permissions_rules, user_info)
+        permissions_of_user = get_permissions_user(self.permissions_rules_with_default, user_info)
         expected_result = [
             PermissionModel(methods=["GET"], endpoints=["/devices**"]),
             PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
@@ -102,26 +119,10 @@ class GetPremissionsRoleYamlTests(unittest.TestCase):
         self.assertEqual(permissions_of_user, expected_result)
 
     def test_role_permissions(self):
-        permissions_rules = PermissionsModel(
-            group_mappings={
-                "edumember_is_member_of": {
-                    "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin": ["admin"]
-                }
-            },
-            roles={
-                "admin": RoleModel(
-                    permissions=[
-                        PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
-                        PermissionModel(methods=["POST"], endpoints=["/auth/*", "/devices"]),
-                    ]
-                )
-            },
-        )
-
         user_info = {
             "edumember_is_member_of": "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin"
         }
-        permissions_of_user = get_permissions_user(permissions_rules, user_info)
+        permissions_of_user = get_permissions_user(self.permissions_rules_without_default, user_info)
         expected_result = [
             PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
             PermissionModel(methods=["POST"], endpoints=["/auth/*", "/devices"]),
@@ -129,25 +130,8 @@ class GetPremissionsRoleYamlTests(unittest.TestCase):
         self.assertEqual(permissions_of_user, expected_result)
 
     def test_role_permissions_only_default(self):
-        permissions_rules = PermissionsModel(
-            config=PemissionConfig(default_permissions="default"),
-            group_mappings={
-                "edumember_is_member_of": {
-                    "urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin": ["admin"]
-                }
-            },
-            roles={
-                "admin": RoleModel(
-                    permissions=[
-                        PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
-                        PermissionModel(methods=["POST"], endpoints=["/auth/*", "/devices"]),
-                    ]
-                ),
-                "default": RoleModel(permissions=[PermissionModel(methods=["GET"], endpoints=["/devices**"])]),
-            },
-        )
         user_info = {"edumember_is_member_of": "notarealrole"}
-        permissions_of_user = get_permissions_user(permissions_rules, user_info)
+        permissions_of_user = get_permissions_user(self.permissions_rules_with_default, user_info)
         expected_result = [PermissionModel(methods=["GET"], endpoints=["/devices**"])]
         self.assertEqual(permissions_of_user, expected_result)
 
@@ -174,26 +158,14 @@ class GetPremissionsRoleYamlTests(unittest.TestCase):
         self.assertEqual(permissions_of_user, expected_result)
 
     def test_user_no_element_zero(self):
-        permissions_rules = PermissionsModel(
-            roles={
-                "admin": RoleModel(
-                    permissions=[
-                        PermissionModel(methods=["GET", "PUT"], endpoints=["/devices/**/interfaces", "/repository"]),
-                        PermissionModel(methods=["POST"], endpoints=["/auth/*", "/devices"]),
-                    ]
-                ),
-                "default": RoleModel(permissions=[PermissionModel(methods=["GET"], endpoints=["/devices**"])]),
-            }
-        )
         user_info = {}
-        permissions_of_user = get_permissions_user(permissions_rules, user_info)
+        permissions_of_user = get_permissions_user(self.permissions_rules_without_default, user_info)
         expected_result = []
         self.assertEqual(permissions_of_user, expected_result)
 
     def test_rules_empty(self):
-        permissions_rules = {}
         user_info = {"edumember_is_member_of": "test"}
-        permissions_of_user = get_permissions_user(permissions_rules, user_info)
+        permissions_of_user = get_permissions_user({}, user_info)
         expected_result = []
         self.assertEqual(permissions_of_user, expected_result)
 

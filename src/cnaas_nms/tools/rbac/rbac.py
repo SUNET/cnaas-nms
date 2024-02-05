@@ -28,7 +28,7 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
         mappings: dict[str, list[str]]
         for map_type, mappings in permissions_rules.group_mappings.items():
             for value, groups in mappings.items():
-                if value in user_info[map_type]:
+                if map_type in user_info and value in user_info[map_type]:
                     user_roles.extend(groups)
 
     # find the relevant roles and add permissions

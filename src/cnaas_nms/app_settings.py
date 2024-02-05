@@ -153,6 +153,24 @@ def construct_auth_settings() -> AuthSettings:
 
     auth_config = Path("/etc/cnaas-nms/auth_config.yml")
 
+    if auth_config.is_file():
+        with open(auth_config, "r") as auth_file:
+            config = yaml.safe_load(auth_file)
+        auth_settings.OIDC_ENABLED = config.get("oidc_enabled", AuthSettings().OIDC_ENABLED)
+        auth_settings.FRONTEND_CALLBACK_URL = config.get("frontend_callback_url", AuthSettings().FRONTEND_CALLBACK_URL)
+        auth_settings.OIDC_CONF_WELL_KNOWN_URL = config.get(
+            "oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL
+        )
+        auth_settings.OIDC_CLIENT_SECRET = config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET)
+        auth_settings.OIDC_CLIENT_ID = config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
+        auth_settings.OIDC_CLIENT_SCOPE = config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE)
+        auth_settings.PERMISSIONS_DISABLED = config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED)
+        auth_settings.AUDIENCE = config.get("audience", AuthSettings().AUDIENCE)
+        auth_settings.VERIFY_AUDIENCE = config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE)
+
+    if auth_settings.AUDIENCE is None:
+        auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID
+
     if auth_settings.PERMISSIONS_DISABLED:
         permissions_rules = {
             "config": {"default_permissions": "default"},
@@ -168,24 +186,6 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.PERMISSIONS = PermissionsModel(**permissions_rules)
     else:
         raise FileNotFoundError(f"{permission_config} not found")
-
-    if auth_config.is_file():
-        with open(auth_config, "r") as auth_file:
-            config = yaml.safe_load(auth_file)
-        auth_settings.OIDC_ENABLED = config.get("oidc_enabled", AuthSettings().OIDC_ENABLED)
-        auth_settings.FRONTEND_CALLBACK_URL = config.get("frontend_callback_url", AuthSettings().FRONTEND_CALLBACK_URL)
-        auth_settings.OIDC_CONF_WELL_KNOWN_URL = config.get(
-            "oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL
-        )
-        auth_settings.OIDC_CLIENT_SECRET = config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET)
-        auth_settings.OIDC_CLIENT_ID = config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
-        auth_settings.OIDC_CLIENT_SCOPE = config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE)
-        auth_settings.PERMISSIONS_DISABLED = config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED)
-        auth_settings.AUDIENCE = config.get("audience", AuthSettings().AUDIENCE)
-        auth_settings.VERIFY_AUDIENCE = (config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE),)
-
-    if auth_settings.AUDIENCE is None:
-        auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID
 
     return auth_settings
 

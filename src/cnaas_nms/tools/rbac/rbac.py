@@ -17,7 +17,9 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
 
     # first give all the permissions of the fallback role
     if permissions_rules.config and permissions_rules.config.default_permissions:
-        permissions_of_user.extend(permissions_rules.roles.get(permissions_rules.config.default_permissions).permissions)
+        permissions_of_user.extend(
+            permissions_rules.roles.get(permissions_rules.config.default_permissions).permissions
+        )
 
     user_roles: List[str] = []
     # read the group mappings and add the relevant roles

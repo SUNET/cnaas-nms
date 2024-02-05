@@ -1,6 +1,6 @@
 config:
   default_permissions: "default"
-  
+
 group_mappings:
   email:
     example@email.com: ["admin"]

@@ -51,5 +51,3 @@ class PermissionsModel(BaseModel):
     #     if not self.group_mappings and (not self.config or not self.config.default_permissions):
     #         raise ValueError("Default permission and mappings are not defined. ")
     #     return self
-
-  

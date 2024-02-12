@@ -1,8 +1,11 @@
 import os
 import re
 import sys
-
 from typing import Optional
+
+import werkzeug.exceptions
+from authlib.integrations.flask_client import OAuth
+from authlib.oauth2.rfc6749 import MissingAuthorizationError
 from engineio.payload import Payload
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -11,11 +14,9 @@ from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationErr
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
 from jwt import decode
-from jwt.exceptions import DecodeError, InvalidSignatureError, InvalidTokenError, ExpiredSignatureError, InvalidKeyError
-from authlib.integrations.flask_client import OAuth
-from authlib.oauth2.rfc6749 import MissingAuthorizationError
+from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidKeyError, InvalidSignatureError, InvalidTokenError
 
-
+from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.device import (
     device_api,
     device_cert_api,
@@ -28,7 +29,6 @@ from cnaas_nms.api.device import (
     device_update_interfaces_api,
     devices_api,
 )
-from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.firmware import api as firmware_api
 from cnaas_nms.api.groups import api as groups_api
 from cnaas_nms.api.interface import api as interfaces_api
@@ -40,14 +40,10 @@ from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.system import api as system_api
-
-from cnaas_nms.app_settings import auth_settings
-from cnaas_nms.app_settings import api_settings
-
+from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.security import get_oauth_userinfo
 from cnaas_nms.version import __api_version__
-
 
 logger = get_logger()
 
@@ -74,10 +70,6 @@ class CnaasApi(Api):
             data = {"status": "error", "message": "Invalid authentication header: {}".format(e)}
         elif isinstance(e, InvalidSignatureError):
             data = {"status": "error", "message": "Invalid token signature"}
-        elif isinstance(e, IndexError):
-            # We might catch IndexErrors which are not caused by JWT,
-            # but this is better than nothing.
-            data = {"status": "error", "message": "JWT token missing?"}
         elif isinstance(e, NoAuthorizationError):
             data = {"status": "error", "message": "JWT token missing?"}
         elif isinstance(e, InvalidHeaderError):
@@ -89,6 +81,8 @@ class CnaasApi(Api):
         elif isinstance(e, ConnectionError):
             data = {"status": "error", "message": "ConnectionError: {}".format(e)}
             return jsonify(data), 500
+        elif isinstance(e, werkzeug.exceptions.HTTPException):
+            data = {"status": "error", "message": "{}".format(e.name)}
         else:
             return super(CnaasApi, self).handle_error(e)
         return jsonify(data), 401
@@ -104,6 +98,7 @@ client = oauth.register(
     client_id=auth_settings.OIDC_CLIENT_ID,
     client_secret=auth_settings.OIDC_CLIENT_SECRET,
     client_kwargs={"scope": auth_settings.OIDC_CLIENT_SCOPE},
+    authorize_params={"audience": auth_settings.AUDIENCE},
     response_type="code",
     response_mode="query",
 )
@@ -167,26 +162,27 @@ api.add_namespace(settings_api)
 api.add_namespace(plugins_api)
 api.add_namespace(system_api)
 
+
 # SocketIO on connect
 @socketio.on("connect")
 def socketio_on_connect():
     # get te token string
-    token_string = request.args.get('jwt')
+    token_string = request.args.get("jwt")
     if not token_string:
         return False
-    #if oidc, get userinfo
+    # if oidc, get userinfo
     if auth_settings.OIDC_ENABLED:
         try:
-            user = get_oauth_userinfo(token_string)['email']
+            user = get_oauth_userinfo(token_string)["email"]
         except InvalidTokenError as e:
-            logger.debug('InvalidTokenError: ' + format(e))
+            logger.debug("InvalidTokenError: " + format(e))
             return False
     # else decode the token and get the sub there
     else:
         try:
-            user = decode(token_string, app.config["JWT_PUBLIC_KEY"], algorithms=[app.config["JWT_ALGORITHM"]])['sub']
+            user = decode(token_string, app.config["JWT_PUBLIC_KEY"], algorithms=[app.config["JWT_ALGORITHM"]])["sub"]
         except DecodeError as e:
-            logger.debug('DecodeError: ' + format(e))
+            logger.debug("DecodeError: " + format(e))
             return False
 
     if user:
@@ -220,7 +216,7 @@ def log_request(response):
         try:
             if auth_settings.OIDC_ENABLED:
                 token_string = request.headers.get("Authorization").split(" ")[-1]
-                user = "User: {}, ".format(get_oauth_userinfo(token_string)['email'])
+                user = "User: {}, ".format(get_oauth_userinfo(token_string)["email"])
             else:
                 token = request.headers.get("Authorization").split(" ")[-1]
                 user = "User: {}, ".format(decode_token(token).get("sub"))
@@ -229,18 +225,14 @@ def log_request(response):
 
     try:
         url = re.sub(jwt_query_r, "", request.url)
-        if request.headers.get('content-type') == 'application/json':
+        if request.headers.get("content-type") == "application/json":
             logger.info(
                 "{}Method: {}, Status: {}, URL: {}, JSON: {}".format(
                     user, request.method, response.status_code, url, request.json
                 )
             )
         else:
-            logger.info(
-                "{}Method: {}, Status: {}, URL: {}".format(
-                    user, request.method, response.status_code, url
-                )
-            )
+            logger.info("{}Method: {}, Status: {}, URL: {}".format(user, request.method, response.status_code, url))
     except Exception:
         pass
     return response

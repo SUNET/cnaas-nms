@@ -20,6 +20,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.interface import Interface
+from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings
@@ -66,7 +67,7 @@ def get_evpn_peers(session, settings: dict):
 
 def resolve_vlanid(vlan_name: str, vxlans: dict) -> Optional[int]:
     logger = get_logger()
-    if type(vlan_name) == int:
+    if type(vlan_name) is int:
         return int(vlan_name)
     if not isinstance(vlan_name, str):
         return None
@@ -1009,6 +1010,10 @@ def sync_devices(
                 kwargs={"prev_job_id": job_id, "hostnames": changed_hosts},
             )
             logger.info(f"Commit-confirm for job id {job_id} scheduled as job id {next_job_id}")
+            # keep this thread running until next_job has finished so the device session is not closed,
+            # causing cancellation of pending commits
+            with sqla_session() as session:
+                Job.wait_for_job_completion(session, next_job_id)
 
     return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id, change_score=total_change_score)
 

@@ -176,14 +176,14 @@ class InterfaceApi(Resource):
                                     )
                                 )
                         if "enabled" in if_dict["data"]:
-                            if type(if_dict["data"]["enabled"]) == bool:
+                            if type(if_dict["data"]["enabled"]) is bool:
                                 intfdata["enabled"] = if_dict["data"]["enabled"]
                             else:
                                 errors.append(
                                     "Enabled must be a bool, true or false, got: {}".format(if_dict["data"]["enabled"])
                                 )
                         if "aggregate_id" in if_dict["data"]:
-                            if type(if_dict["data"]["aggregate_id"]) == int:
+                            if type(if_dict["data"]["aggregate_id"]) is int:
                                 intfdata["aggregate_id"] = if_dict["data"]["aggregate_id"]
                             elif if_dict["data"]["aggregate_id"] is None:
                                 if "aggregate_id" in intfdata:
@@ -193,7 +193,7 @@ class InterfaceApi(Resource):
                                     "Aggregate ID must be an integer: {}".format(if_dict["data"]["aggregate_id"])
                                 )
                         if "bpdu_filter" in if_dict["data"]:
-                            if type(if_dict["data"]["bpdu_filter"]) == bool:
+                            if type(if_dict["data"]["bpdu_filter"]) is bool:
                                 intfdata["bpdu_filter"] = if_dict["data"]["bpdu_filter"]
                             else:
                                 errors.append(
@@ -202,7 +202,7 @@ class InterfaceApi(Resource):
                                     )
                                 )
                         if "redundant_link" in if_dict["data"]:
-                            if type(if_dict["data"]["redundant_link"]) == bool:
+                            if type(if_dict["data"]["redundant_link"]) is bool:
                                 intfdata["redundant_link"] = if_dict["data"]["redundant_link"]
                             else:
                                 errors.append(

@@ -39,7 +39,7 @@ def test_settings_model(testclient: FlaskClient):
     result = testclient.get("/api/v1.0/settings/model")
     assert result.status_code == 200
     assert result.content_type == "application/json"
-    assert "definitions" in result.json
+    assert "$defs" in result.json
 
 
 def test_settings_server(testclient: FlaskClient):

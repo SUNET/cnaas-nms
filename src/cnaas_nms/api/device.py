@@ -1132,7 +1132,7 @@ class DeviceStackmembersApi(Resource):
     @device_api.expect(stackmembers_model)
     def put(self, hostname):
         try:
-            validated_json_data = StackmembersModel(**request.get_json()).dict()
+            validated_json_data = StackmembersModel(**request.get_json()).model_dump()
             data = validated_json_data["stackmembers"]
         except ValidationError as e:
             errors = DeviceStackmembersApi.format_errors(e.errors())
@@ -1189,7 +1189,7 @@ class DeviceSyncHistoryApi(Resource):
     @device_synchistory_api.expect(device_synchistory_api)
     def post(self):
         try:
-            validated_json_data = NewSyncEventModel(**request.get_json()).dict()
+            validated_json_data = NewSyncEventModel(**request.get_json()).model_dump()
         except ValidationError as e:
             return empty_result("error", parse_pydantic_error(e, NewSyncEventModel, request.get_json())), 400
         with sqla_session() as session:

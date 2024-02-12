@@ -1,7 +1,8 @@
 import datetime
 import enum
 import json
-from typing import Dict, Optional
+import time
+from typing import Dict, List, Optional
 
 from nornir.core.task import AggregatedResult
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, SmallInteger, Unicode
@@ -76,7 +77,7 @@ class Job(cnaas_nms.db.base.Base):
                 continue
             elif issubclass(value.__class__, datetime.datetime):
                 value = json_dumper(value)
-            elif type(col.type) == JSONB and value and type(value) == str:
+            elif type(col.type) is JSONB and value and type(value) is str:
                 value = json.loads(value)
             d[col.name] = value
         return d
@@ -106,7 +107,7 @@ class Job(cnaas_nms.db.base.Base):
         try:
             if isinstance(res, NornirJobResult) and isinstance(res.nrresult, AggregatedResult):
                 self.result = {"devices": nr_result_serialize(res.nrresult)}
-                if res.change_score and type(res.change_score) == int:
+                if res.change_score and type(res.change_score) is int:
                     self.change_score = res.change_score
             elif isinstance(res, (StrJobResult, DictJobResult)):
                 self.result = res.result
@@ -231,11 +232,11 @@ class Job(cnaas_nms.db.base.Base):
             .filter(Job.result["devices"].has_key(hostname))
         )
 
-        if job_id and type(job_id) == int:
+        if job_id and type(job_id) is int:
             query_part = query_part.filter(Job.id == job_id)
-        elif previous and type(previous) == int:
+        elif previous and type(previous) is int:
             query_part = query_part.order_by(Job.id.desc()).offset(previous)
-        elif before and type(before) == datetime.datetime:
+        elif before and type(before) is datetime.datetime:
             query_part = query_part.filter(Job.finish_time < before).order_by(Job.id.desc())
         else:
             query_part = query_part.order_by(Job.id.desc())
@@ -267,3 +268,24 @@ class Job(cnaas_nms.db.base.Base):
         if job.status != JobStatus.RUNNING:
             return True
         return False
+
+    @classmethod
+    def wait_for_job_completion(
+        cls,
+        session,
+        job_id: int,
+        timeout: int = 300,
+        exit_status: Optional[List[JobStatus]] = None,
+    ) -> None:
+        """Wait for job to complete"""
+        start_time = time.time()
+        if not exit_status:
+            exit_status = [JobStatus.FINISHED, JobStatus.EXCEPTION, JobStatus.ABORTED]
+        while True:
+            job: Job = session.query(Job).filter(Job.id == job_id).one()
+            if job.status in exit_status:
+                return
+            if time.time() - start_time > timeout:
+                raise TimeoutError(f"Job {job_id} did not finish within {timeout} seconds")
+            time.sleep(1)
+            session.refresh(job)

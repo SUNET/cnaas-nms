@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:bookworm
 
 USER root
 
@@ -16,7 +16,7 @@ RUN apt-get update \
       libpq-dev \
       libssl-dev \
       net-tools \
-      netcat \
+      netcat-traditional \
       netcat-openbsd \
       nginx \
       procps \
@@ -26,11 +26,14 @@ RUN apt-get update \
       python3-venv \
       python3-wheel \
       python3-yaml \
+      python3-full \
       psmisc \
       supervisor \
       uwsgi-plugin-python3 \
       ssh-client \
-    && pip3 install --no-cache-dir uwsgi
+      python3-gevent\
+
+    && pip3 install --no-cache-dir uwsgi --break-system-packages
 
 # Prepare for supervisord, ngninx
 COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
@@ -66,7 +69,7 @@ USER www-data
 RUN mkdir /tmp/devicecerts \
     && chmod -R u=rwX,g=,o= /tmp/devicecerts
 
-ARG BUILDBRANCH=master
+ARG BUILDBRANCH=develop
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 # Branch specific, don't cache
 ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
@@ -79,7 +82,6 @@ USER www-data
 
 # Prepare for uwsgi
 COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
-
 
 # Expose HTTPS
 EXPOSE 1443

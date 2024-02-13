@@ -51,7 +51,8 @@ def get_oauth_userinfo(token: Token) -> Any:
         return None
     # Request the userinfo
     try:
-        metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+        s = requests.Session()
+        metadata = s.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
         metadata.raise_for_status()
     except requests.exceptions.HTTPError:
         raise ConnectionError("Can't reach the OIDC URL")
@@ -61,7 +62,7 @@ def get_oauth_userinfo(token: Token) -> Any:
     data = {"token_type_hint": "access_token"}
     headers = {"Authorization": "Bearer " + token.token_string}
     try:
-        resp = requests.post(user_info_endpoint, data=data, headers=headers)
+        resp = s.post(user_info_endpoint, data=data, headers=headers)
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         try:
@@ -80,9 +81,10 @@ class MyBearerTokenValidator(BearerTokenValidator):
     def get_keys(self):
         """Get the keys for the OIDC decoding"""
         try:
-            metadata = requests.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+            s = requests.Session()
+            metadata = s.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
             keys_endpoint = metadata.json()["jwks_uri"]
-            response = requests.get(url=keys_endpoint)
+            response = s.get(url=keys_endpoint)
             self.keys = response.json()["keys"]
         except KeyError as e:
             raise InvalidKeyError(e)

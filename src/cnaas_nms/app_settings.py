@@ -88,8 +88,9 @@ def construct_api_settings() -> ApiSettings:
         else:
             firmware_url = config["httpd_url"]
 
+        jwt_enabled = ApiSettings().JWT_ENABLED
         jwt_secret_key = config.get("jwt_secret_key", ApiSettings().JWT_SECRET_KEY)
-        if jwt_secret_key is None:
+        if jwt_enabled and jwt_secret_key is None:
             raise ValueError("JWT_SECRET_KEY must be defined in environment or api.yml")
 
         return ApiSettings(
@@ -97,6 +98,7 @@ def construct_api_settings() -> ApiSettings:
             HTTPD_URL=config["httpd_url"],
             VERIFY_TLS=config["verify_tls"],
             VERIFY_TLS_DEVICE=config["verify_tls_device"],
+            JWT_ENABLED=jwt_enabled,
             JWT_CERT=config.get("jwtcert", ApiSettings().JWT_CERT),
             JWT_SECRET_KEY=jwt_secret_key,
             CAFILE=config.get("cafile", ApiSettings().CAFILE),

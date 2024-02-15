@@ -265,6 +265,7 @@ if auth_settings.OIDC_ENABLED is True:
     get_identity = get_oauth_identity
     login_required_all_permitted = oauth_required(scopes=["always_permitted"])
 else:
+    oauth_required = None
     login_required = jwt_required
     get_identity = get_jwt_identity
     login_required_all_permitted = jwt_required

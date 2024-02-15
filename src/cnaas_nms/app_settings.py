@@ -85,13 +85,13 @@ def construct_api_settings() -> ApiSettings:
 
         if config.get("firmware_url", False):
             firmware_url = config["firmware_url"]
+        else:
+            firmware_url = config["httpd_url"]
 
         jwt_secret_key = config.get("jwt_secret_key", ApiSettings().JWT_SECRET_KEY)
         if jwt_secret_key is None:
             raise ValueError("JWT_SECRET_KEY must be defined in environment or api.yml")
 
-        else:
-            firmware_url = config["httpd_url"]
         return ApiSettings(
             HOST=config["host"],
             HTTPD_URL=config["httpd_url"],

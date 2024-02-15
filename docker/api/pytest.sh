@@ -14,6 +14,7 @@ cd /opt/cnaas/venv/cnaas-nms/src/
 
 source ../../bin/activate
 
+export JWT_SECRET_KEY="kMbSp+O4ZuF/AYOJtmGiMPOOWqvez5mVpml9A8f9Oso="
 echo "starting unittests: pytest ${PYTESTARGS[@]}"
 pytest "${PYTESTARGS[@]}"
 EXITSTATUS="$?"

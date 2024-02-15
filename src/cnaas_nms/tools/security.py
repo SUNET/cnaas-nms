@@ -74,6 +74,8 @@ def get_oauth_userinfo(token: Token) -> Any:
                 return json.loads(cached_userinfo)
     except RedisError as e:
         logger.debug("Redis cache error: {}".format(str(e)))
+    except KeyError as e:
+        logger.debug("KeyError: {}".format(str(e)))
 
     # Request the userinfo
     try:
@@ -111,6 +113,8 @@ def get_oauth_userinfo(token: Token) -> Any:
         raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))
     except RedisError as e:
         logger.debug("Redis cache error: {}".format(str(e)))
+    except KeyError as e:
+        logger.debug("KeyError: {}".format(str(e)))
     return resp.json()
 
 
@@ -224,11 +228,11 @@ class MyBearerTokenValidator(BearerTokenValidator):
         user_info = get_oauth_userinfo(token)
         permissions = get_permissions_user(permissions_rules, user_info)
         if len(permissions) == 0:
-            raise InvalidAudienceError()
+            raise InvalidAudienceError()  # TODO: fix error type?
         if check_if_api_call_is_permitted(request, permissions):
             return token
         else:
-            raise InvalidAudienceError()
+            raise InvalidAudienceError()  # TODO: fix error type?
 
 
 def get_oauth_identity() -> str:

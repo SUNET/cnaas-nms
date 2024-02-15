@@ -50,7 +50,7 @@ from cnaas_nms.api.system import api as system_api
 from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.rbac.token import Token
-from cnaas_nms.tools.security import get_oauth_userinfo
+from cnaas_nms.tools.security import get_oauth_userinfo, oauth_required
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()
@@ -233,14 +233,15 @@ def socketio_on_events(data):
 @app.after_request
 def log_request(response):
     user = ""
-    if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
+    if request.method in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
         try:
             if auth_settings.OIDC_ENABLED:
                 token_string = request.headers.get("Authorization").split(" ")[-1]
-                user = "User: {}, ".format(get_oauth_userinfo(token_string)["email"])
+                token = oauth_required.get_token_validator("bearer").authenticate_token(token_string)
+                user = "User: {}, ".format(get_oauth_userinfo(token)["email"])
             else:
-                token = request.headers.get("Authorization").split(" ")[-1]
-                user = "User: {}, ".format(decode_token(token).get("sub"))
+                token_string = request.headers.get("Authorization").split(" ")[-1]
+                user = "User: {}, ".format(decode_token(token_string).get("sub"))
         except Exception:
             user = "User: unknown, "
 

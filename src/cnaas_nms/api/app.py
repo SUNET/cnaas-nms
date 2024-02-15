@@ -1,4 +1,3 @@
-import os
 import re
 import sys
 from typing import Optional
@@ -116,7 +115,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 if api_settings.JWT_ENABLED or auth_settings.OIDC_ENABLED:
-    app.config["SECRET_KEY"] = os.urandom(128)
+    app.config["SECRET_KEY"] = api_settings.JWT_SECRET_KEY
 if api_settings.JWT_ENABLED:
     try:
         jwt_pubkey = open(api_settings.JWT_CERT).read()

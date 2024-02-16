@@ -49,7 +49,6 @@ from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.system import api as system_api
 from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.rbac.token import Token
 from cnaas_nms.tools.security import get_oauth_userinfo, oauth_required
 from cnaas_nms.version import __api_version__
 
@@ -193,7 +192,7 @@ def socketio_on_connect():
     # if oidc, get userinfo
     if auth_settings.OIDC_ENABLED:
         try:
-            token = Token(token_string, None)
+            token = oauth_required.get_token_validator("bearer").authenticate_token(token_string)
             user = get_oauth_userinfo(token)["email"]
         except InvalidTokenError as e:
             logger.debug("InvalidTokenError: " + format(e))

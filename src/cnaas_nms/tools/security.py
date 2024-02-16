@@ -74,8 +74,8 @@ def get_oauth_userinfo(token: Token) -> Any:
                 return json.loads(cached_userinfo)
     except RedisError as e:
         logger.debug("Redis cache error: {}".format(str(e)))
-    except KeyError as e:
-        logger.debug("KeyError: {}".format(str(e)))
+    except (TypeError, KeyError) as e:
+        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
 
     # Request the userinfo
     try:
@@ -113,8 +113,8 @@ def get_oauth_userinfo(token: Token) -> Any:
         raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))
     except RedisError as e:
         logger.debug("Redis cache error: {}".format(str(e)))
-    except KeyError as e:
-        logger.debug("KeyError: {}".format(str(e)))
+    except (TypeError, KeyError) as e:
+        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
     return resp.json()
 
 

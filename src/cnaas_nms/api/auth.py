@@ -1,6 +1,10 @@
+import json
+
+import requests
 from authlib.integrations.base_client.errors import MismatchingStateError, OAuthError
+from authlib.integrations.flask_client.apps import FlaskOAuth2App
 from authlib.integrations.flask_oauth2 import current_token
-from flask import current_app, redirect, url_for
+from flask import current_app, make_response, redirect, request, url_for
 from flask_restx import Namespace, Resource
 from requests.models import PreparedRequest
 
@@ -79,9 +83,62 @@ class AuthApi(Resource):
         url = auth_settings.FRONTEND_CALLBACK_URL
         parameters = {"token": token["access_token"]}
 
+        if "userinfo" in token and "email" in token["userinfo"]:
+            parameters["email"] = token["userinfo"]["email"]
+
         req = PreparedRequest()
         req.prepare_url(url, parameters)
-        return redirect(req.url, code=302)
+        resp = redirect(req.url, code=302)
+        if "refresh_token" in token:
+            # TODO: set secure true when in production
+            resp.set_cookie(
+                "REFRESH_TOKEN",
+                token["refresh_token"],
+                httponly=True,
+                secure=True,
+                samesite="None",
+                path="/api/v1.0/auth/refresh",
+                max_age=60 * 60 * 24 * 14,
+            )
+        return resp
+
+
+class RefreshApi(Resource):
+    def post(self):
+        oauth_client = current_app.extensions["authlib.integrations.flask_client"]
+        oauth_client_connext: FlaskOAuth2App = oauth_client.connext
+        token_string = request.headers.get("Authorization").split(" ")[-1]
+        oauth_client_connext.token = token_string
+        oauth_client_connext.load_server_metadata()
+        url = oauth_client_connext.server_metadata["token_endpoint"]
+
+        ret = requests.post(
+            url,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": request.cookies.get("REFRESH_TOKEN"),
+                "client_id": oauth_client_connext.client_id,
+                "client_secret": oauth_client_connext.client_secret,
+            },
+        )
+        refresh_data: dict = ret.json()
+
+        new_refresh_token = refresh_data.pop("refresh_token", None)
+
+        resp = make_response(json.dumps(empty_result(status="success", data=refresh_data)), 200)
+        resp.headers["Content-Type"] = "application/json"
+
+        if new_refresh_token:
+            resp.set_cookie(
+                "REFRESH_TOKEN",
+                new_refresh_token,
+                httponly=True,
+                secure=True,
+                samesite="None",
+                path="/api/v1.0/auth/refresh",
+                max_age=60 * 60 * 24 * 14,
+            )
+        return resp
 
 
 class IdentityApi(Resource):
@@ -107,3 +164,4 @@ api.add_resource(LoginApi, "/login")
 api.add_resource(AuthApi, "/auth")
 api.add_resource(IdentityApi, "/identity")
 api.add_resource(PermissionsAPI, "/permissions")
+api.add_resource(RefreshApi, "/refresh")

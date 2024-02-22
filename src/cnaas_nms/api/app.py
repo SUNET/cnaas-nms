@@ -1,5 +1,4 @@
 import os
-import re
 import sys
 from typing import Optional
 
@@ -64,8 +63,6 @@ authorizations = {
     }
 }
 
-jwt_query_r = re.compile(r"code=[^ &]+")
-
 
 class CnaasApi(Api):
     def handle_error(self, e):
@@ -128,7 +125,8 @@ app.config["RESTX_JSON"] = {"cls": CNaaSJSONEncoder}
 cors = CORS(
     app,
     resources={r"/api/*": {"origins": "*"}},
-    expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link"],
+    expose_headers=["Content-Type", "Authorization", "X-Total-Count", "Link", "Set-Cookie", "Cookie"],
+    supports_credentials=True,
 )
 Payload.max_decode_packets = 500
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -232,7 +230,11 @@ def socketio_on_events(data):
 @app.after_request
 def log_request(response):
     user = ""
-    if request.method in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
+    url = request.url
+    if "/auth/" in request.url:
+        user = "User: unauthenticated, "
+        url = request.url.split("?", 1)[0]  # don't log query params like code etc for auth requests
+    elif request.method in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
         try:
             if auth_settings.OIDC_ENABLED:
                 token_string = request.headers.get("Authorization").split(" ")[-1]
@@ -245,7 +247,6 @@ def log_request(response):
             user = "User: unknown, "
 
     try:
-        url = re.sub(jwt_query_r, "", request.url)
         if request.headers.get("content-type") == "application/json":
             logger.info(
                 "{}Method: {}, Status: {}, URL: {}, JSON: {}".format(

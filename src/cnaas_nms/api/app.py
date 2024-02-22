@@ -48,7 +48,7 @@ from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.system import api as system_api
 from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.security import get_oauth_userinfo, oauth_required
+from cnaas_nms.tools.security import get_oauth_token_info, oauth_required
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()
@@ -191,7 +191,7 @@ def socketio_on_connect():
     if auth_settings.OIDC_ENABLED:
         try:
             token = oauth_required.get_token_validator("bearer").authenticate_token(token_string)
-            user = get_oauth_userinfo(token)["email"]
+            user = get_oauth_token_info(token)["email"]
         except InvalidTokenError as e:
             logger.debug("InvalidTokenError: " + format(e))
             return False
@@ -239,7 +239,14 @@ def log_request(response):
             if auth_settings.OIDC_ENABLED:
                 token_string = request.headers.get("Authorization").split(" ")[-1]
                 token = oauth_required.get_token_validator("bearer").authenticate_token(token_string)
-                user = "User: {}, ".format(get_oauth_userinfo(token)["email"])
+                token_info = get_oauth_token_info(token)
+                if "email" in token_info:
+                    user = "User: {} (email), ".format(get_oauth_token_info(token)["email"])
+                elif "client_id" in token_info:
+                    user = "User: {} (client_id), ".format(get_oauth_token_info(token)["client_id"])
+                else:
+                    logger.warning("Could not get user info from token")
+                    raise ValueError
             else:
                 token_string = request.headers.get("Authorization").split(" ")[-1]
                 user = "User: {}, ".format(decode_token(token_string).get("sub"))

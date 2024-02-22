@@ -12,7 +12,7 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.app_settings import auth_settings
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.rbac.rbac import get_permissions_user
-from cnaas_nms.tools.security import get_identity, get_oauth_userinfo, login_required, login_required_all_permitted
+from cnaas_nms.tools.security import get_identity, get_oauth_token_info, login_required, login_required_all_permitted
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()
@@ -155,7 +155,7 @@ class PermissionsAPI(Resource):
         if not permissions_rules:
             logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
             return []
-        user_info = get_oauth_userinfo(current_token)
+        user_info = get_oauth_token_info(current_token)
         permissions_of_user = get_permissions_user(permissions_rules, user_info)
         return permissions_of_user
 

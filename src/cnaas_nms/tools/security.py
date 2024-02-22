@@ -11,6 +11,7 @@ from flask_jwt_extended import jwt_required as jwt_orig
 from jose import exceptions, jwt
 from jwt.exceptions import ExpiredSignatureError, InvalidAudienceError, InvalidKeyError, InvalidTokenError
 from redis.exceptions import RedisError
+from requests.auth import HTTPBasicAuth
 
 from cnaas_nms.app_settings import api_settings, auth_settings
 from cnaas_nms.db.session import redis_session
@@ -52,15 +53,16 @@ def get_jwt_identity():
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
 
 
-def get_oauth_userinfo(token: Token) -> Any:
-    """Give back the user info of the OAUTH account
+def get_oauth_token_info(token: Token) -> Any:
+    """Give back the details about the token from userinfo or introspection
 
     If OIDC is disabled, we return None.
 
-    We do an api call to request userinfo. This gives back all the userinfo.
+    For authorization code access_tokens we can use userinfo endpoint,
+    for client_credentials we can use introspection endpoint.
 
     Returns:
-        resp.json(): Object of the user info
+        resp.json(): Object of the user info or introspection
 
     """
     # For now unnecessary, useful when we only use one log in method
@@ -87,15 +89,31 @@ def get_oauth_userinfo(token: Token) -> Any:
     except requests.exceptions.ConnectionError:
         raise ConnectionError("OIDC metadata unavailable")
     user_info_endpoint = metadata.json()["userinfo_endpoint"]
-    data = {"token_type_hint": "access_token"}
-    headers = {"Authorization": "Bearer " + token.token_string}
+    introspection_endpoint = metadata.json()["introspection_endpoint"]
+    userinfo_data = {"token_type_hint": "access_token"}
+    userinfo_headers = {"Authorization": "Bearer " + token.token_string}
+    introspect_data = {"token": token.token_string}
+    introspect_auth = HTTPBasicAuth(auth_settings.OIDC_CLIENT_ID, auth_settings.OIDC_CLIENT_SECRET)
+    token_info: str = ""
+
     try:
-        resp = s.post(user_info_endpoint, data=data, headers=headers)
-        resp.raise_for_status()
-        resp.json()
+        userinfo_resp = s.post(user_info_endpoint, data=userinfo_data, headers=userinfo_headers)
+        if userinfo_resp.status_code in [401, 403, 404]:
+            introspect_resp = s.post(introspection_endpoint, data=introspect_data, auth=introspect_auth)
+            introspect_resp.raise_for_status()
+            introspect_json = introspect_resp.json()
+            if "active" in introspect_json and introspect_json["active"]:
+                token_info = introspect_resp.text
+            else:
+                raise InvalidTokenError("Token is no longer active")
+        else:
+            userinfo_resp.raise_for_status()
+            userinfo_resp.json()
+            token_info = userinfo_resp.text
+
         with redis_session() as redis:
             if "exp" in token.decoded_token:
-                redis.hsetnx(REDIS_OAUTH_USERINFO_KEY, token.decoded_token["sub"], resp.text)
+                redis.hsetnx(REDIS_OAUTH_USERINFO_KEY, token.decoded_token["sub"], token_info)
                 # expire hash at access_token expiry time or 1 hour from now
                 # (whichever is sooner)
                 # Entire hash is expired, since redis does not support expiry on individual keys
@@ -107,15 +125,15 @@ def get_oauth_userinfo(token: Token) -> Any:
             logger.debug("OIDC userinfo endpoint request not successful: " + body["error_description"])
             raise InvalidTokenError(body["error_description"])
         except (json.decoder.JSONDecodeError, KeyError):
-            logger.debug("OIDC userinfo endpoint request not successful: {}".format(str(e.response.content)))
-            raise InvalidTokenError(e.response.content)
+            logger.debug("OIDC userinfo endpoint request not successful: {}".format(str(e)))
+            raise InvalidTokenError(str(e))
     except requests.exceptions.JSONDecodeError as e:
-        raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))
+        raise InvalidTokenError("Invalid JSON in userinfo/introspection response: {}".format(str(e)))
     except RedisError as e:
         logger.debug("Redis cache error: {}".format(str(e)))
     except (TypeError, KeyError) as e:
         logger.debug("Error while getting userinfo cache: {}".format(str(e)))
-    return resp.json()
+    return json.loads(token_info)
 
 
 class MyBearerTokenValidator(BearerTokenValidator):
@@ -183,7 +201,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWTError:
             # check if we can still get the user info
             token = Token(token_string, None)
-            get_oauth_userinfo(token)
+            get_oauth_token_info(token)
 
             return token
 
@@ -225,7 +243,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         if not permissions_rules:
             logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
             raise InvalidAudienceError()
-        user_info = get_oauth_userinfo(token)
+        user_info = get_oauth_token_info(token)
         permissions = get_permissions_user(permissions_rules, user_info)
         if len(permissions) == 0:
             raise InvalidAudienceError()  # TODO: fix error type?
@@ -250,11 +268,14 @@ def get_oauth_identity() -> str:
     # For now unnecersary, useful when we only use one log in method
     if not auth_settings.OIDC_ENABLED:
         return "Admin"
-    userinfo = get_oauth_userinfo(current_token)
-    if "email" not in userinfo:
-        logger.error("Email is a required claim for oauth")
-        raise KeyError("Email is a required claim for oauth")
-    return userinfo["email"]
+    token_info = get_oauth_token_info(current_token)
+    if "email" in token_info:
+        return token_info["email"]
+    elif "client_id" in token_info:
+        return token_info["client_id"]
+    else:
+        logger.error("Email or client_id is a required claim for oauth")
+        raise KeyError("Email or client_id is a required claim for oauth")
 
 
 # check which method we use to log in and load vars needed for that

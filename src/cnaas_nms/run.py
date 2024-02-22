@@ -144,7 +144,13 @@ if __name__ == "__main__":
     t_websocket_events = threading.Thread(target=thread_websocket_events)
     t_websocket_events.start()
 
-    app.socketio.run(get_app(), debug=True, host=api_settings.HOST)
+    app.socketio.run(
+        get_app(),
+        debug=True,
+        host=api_settings.HOST,
+        certfile="/home/johanmarcusson/python/cnaas-nms/ssl/cert.pem",
+        keyfile="/home/johanmarcusson/python/cnaas-nms/ssl/key.pem",
+    )
     stop_websocket_threads = True
     t_websocket_events.join()
 

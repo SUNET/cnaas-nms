@@ -371,7 +371,7 @@ def get_confirm_mode(confirm_mode_override: Optional[int] = None) -> int:
     valid_modes = [0, 1, 2]
     if confirm_mode_override is not None and confirm_mode_override in valid_modes:
         return confirm_mode_override
-    elif api_settings.COMMIT_CONFIRMED_MODE and api_settings.COMMIT_CONFIRMED_MODE in valid_modes:
+    elif api_settings.COMMIT_CONFIRMED_MODE is not None and api_settings.COMMIT_CONFIRMED_MODE in valid_modes:
         return api_settings.COMMIT_CONFIRMED_MODE
     else:
         return 1

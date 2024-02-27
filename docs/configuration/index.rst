@@ -56,6 +56,7 @@ Define parameters for the authentication:
 - oidc_conf_well_known_url: OIDC well-known URL for metadata
 - oidc_client_secret: The client secret for OIDC
 - oidc_client_id: The client_id for OIDC
+- oidc_username_attribute: What attribute in access token or userinfo endpoint to use for username, defaults to "email"
 - frontend_callback_url: The frontend URL that the OIDC client should redirect to after the login process
 - oidc_enabled: Set True to enabled OIDC login. Defaults to False
 - audience: The string to verify the aud attribute in the access token with

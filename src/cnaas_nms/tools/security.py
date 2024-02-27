@@ -254,7 +254,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
 
 
 def get_oauth_identity() -> str:
-    """Give back the email address of the OAUTH account
+    """Give back the username of the OAUTH account
 
     If JWT is disabled, we return "admin".
 
@@ -262,20 +262,21 @@ def get_oauth_identity() -> str:
     We get the right info from there and return this to the user.
 
     Returns:
-        email(str): Email of the logged in user
+        username(str): Username of the logged in user
 
     """
     # For now unnecersary, useful when we only use one log in method
     if not auth_settings.OIDC_ENABLED:
         return "Admin"
     token_info = get_oauth_token_info(current_token)
-    if "email" in token_info:
-        return token_info["email"]
+    if auth_settings.OIDC_USERNAME_ATTRIBUTE in token_info:
+        return token_info[auth_settings.OIDC_USERNAME_ATTRIBUTE]
     elif "client_id" in token_info:
         return token_info["client_id"]
     else:
-        logger.error("Email or client_id is a required claim for oauth")
-        raise KeyError("Email or client_id is a required claim for oauth")
+        error_message = "{} or client_id is a required claim for oauth".format(auth_settings.OIDC_USERNAME_ATTRIBUTE)
+        logger.error(error_message)
+        raise KeyError(error_message)
 
 
 # check which method we use to log in and load vars needed for that

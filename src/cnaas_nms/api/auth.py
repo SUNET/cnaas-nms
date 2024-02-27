@@ -83,14 +83,13 @@ class AuthApi(Resource):
         url = auth_settings.FRONTEND_CALLBACK_URL
         parameters = {"token": token["access_token"]}
 
-        if "userinfo" in token and "email" in token["userinfo"]:
-            parameters["email"] = token["userinfo"]["email"]
+        if "userinfo" in token and auth_settings.OIDC_USERNAME_ATTRIBUTE in token["userinfo"]:
+            parameters["username"] = token["userinfo"][auth_settings.OIDC_USERNAME_ATTRIBUTE]
 
         req = PreparedRequest()
         req.prepare_url(url, parameters)
         resp = redirect(req.url, code=302)
         if "refresh_token" in token:
-            # TODO: set secure true when in production
             resp.set_cookie(
                 "REFRESH_TOKEN",
                 token["refresh_token"],

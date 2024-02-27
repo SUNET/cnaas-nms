@@ -73,6 +73,7 @@ class AuthSettings(BaseSettings):
     OIDC_CLIENT_SECRET: str = "xxx"
     OIDC_CLIENT_ID: str = "client-id"
     OIDC_ENABLED: bool = False
+    OIDC_USERNAME_ATTRIBUTE: str = "email"
     PERMISSIONS: Optional[PermissionsModel] = None
     PERMISSIONS_DISABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
@@ -172,6 +173,9 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.OIDC_CLIENT_SECRET = config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET)
         auth_settings.OIDC_CLIENT_ID = config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
         auth_settings.OIDC_CLIENT_SCOPE = config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE)
+        auth_settings.OIDC_USERNAME_ATTRIBUTE = config.get(
+            "oidc_username_attribute", AuthSettings().OIDC_USERNAME_ATTRIBUTE
+        )
         auth_settings.PERMISSIONS_DISABLED = config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED)
         auth_settings.AUDIENCE = config.get("audience", AuthSettings().AUDIENCE)
         auth_settings.VERIFY_AUDIENCE = config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE)

@@ -190,7 +190,7 @@ def socketio_on_connect():
     if auth_settings.OIDC_ENABLED:
         try:
             token = oauth_required.get_token_validator("bearer").authenticate_token(token_string)
-            user = get_oauth_token_info(token)["email"]
+            user = get_oauth_token_info(token)[auth_settings.OIDC_USERNAME_ATTRIBUTE]
         except InvalidTokenError as e:
             logger.debug("InvalidTokenError: " + format(e))
             return False
@@ -239,8 +239,11 @@ def log_request(response):
                 token_string = request.headers.get("Authorization").split(" ")[-1]
                 token = oauth_required.get_token_validator("bearer").authenticate_token(token_string)
                 token_info = get_oauth_token_info(token)
-                if "email" in token_info:
-                    user = "User: {} (email), ".format(get_oauth_token_info(token)["email"])
+                if auth_settings.OIDC_USERNAME_ATTRIBUTE in token_info:
+                    user = "User: {} ({}), ".format(
+                        get_oauth_token_info(token)[auth_settings.OIDC_USERNAME_ATTRIBUTE],
+                        auth_settings.OIDC_USERNAME_ATTRIBUTE,
+                    )
                 elif "client_id" in token_info:
                     user = "User: {} (client_id), ".format(get_oauth_token_info(token)["client_id"])
                 else:

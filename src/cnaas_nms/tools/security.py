@@ -23,7 +23,7 @@ from cnaas_nms.tools.rbac.token import Token
 logger = get_logger()
 
 
-REDIS_OAUTH_USERINFO_KEY = "oauth_userinfo"
+REDIS_OAUTH_TOKEN_INFO_KEY = "oauth_userinfo"
 
 
 class JWKSStore(object, metaclass=SingletonType):
@@ -53,6 +53,108 @@ def get_jwt_identity():
     return get_jwt_identity_orig() if api_settings.JWT_ENABLED else "admin"
 
 
+def get_token_info_from_cache(token: Token) -> Any:
+    """
+    Check if the userinfo is in the cache to avoid multiple calls to the OIDC server
+    """
+    try:
+        with redis_session() as redis:
+            cached_userinfo = redis.hget(REDIS_OAUTH_TOKEN_INFO_KEY, token.decoded_token["sub"])
+            if cached_userinfo:
+                return json.loads(cached_userinfo)
+    except RedisError as e:
+        logger.debug("Redis cache error: {}".format(str(e)))
+    except (TypeError, KeyError) as e:
+        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
+
+
+def put_token_info_in_cache(token: Token, token_info) -> Any:
+    """
+    Put the userinfo in the cache to avoid multiple calls to the OIDC server
+    """
+    try:
+        with redis_session() as redis:
+            if "exp" in token.decoded_token:
+                redis.hsetnx(REDIS_OAUTH_TOKEN_INFO_KEY, token.decoded_token["sub"], token_info)
+                # expire hash at access_token expiry time or 1 hour from now (whichever is sooner)
+                # Entire hash is expired, since redis does not support expiry on individual keys
+                expire_at = min(int(token.decoded_token["exp"]), int(time.time()) + 3600)
+                redis.expireat(REDIS_OAUTH_TOKEN_INFO_KEY, when=expire_at, lt=True)
+    except RedisError as e:
+        logger.debug("Redis cache error: {}".format(str(e)))
+    except (TypeError, KeyError) as e:
+        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
+
+
+def get_openid_configuration(session: requests.Session) -> dict:
+    """
+    Get the openid configuration
+    """
+    try:
+        request_openid_configuration = session.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
+        request_openid_configuration.raise_for_status()
+        openid_configuration = request_openid_configuration.json()
+        return openid_configuration
+    except requests.exceptions.HTTPError:
+        raise ConnectionError("Can't reach the OIDC URL")
+    except requests.exceptions.ConnectionError:
+        raise ConnectionError("OIDC metadata unavailable")
+    except requests.exceptions.JSONDecodeError as e:
+        raise InvalidTokenError("Invalid JSON in openid Config response: {}".format(str(e)))
+
+
+def get_token_info_from_userinfo(session: requests.Session, token: Token, user_info_endpoint: str) -> Any:
+    """
+    get token info from userinfo
+    """
+    try:
+        userinfo_data = {"token_type_hint": "access_token"}
+        userinfo_headers = {"Authorization": "Bearer " + token.token_string}
+        userinfo_resp = session.post(user_info_endpoint, data=userinfo_data, headers=userinfo_headers)
+        userinfo_resp.raise_for_status()
+        userinfo_resp.json()
+        token_info = userinfo_resp.text
+        return token_info
+    except requests.exceptions.HTTPError as e:
+        try:
+            body = json.loads(e.response.content)
+            logger.debug("OIDC userinfo endpoint request not successful: " + body["error_description"])
+            raise InvalidTokenError(body["error_description"])
+        except (json.decoder.JSONDecodeError, KeyError):
+            logger.debug("OIDC userinfo endpoint request not successful: {}".format(str(e)))
+            raise InvalidTokenError(str(e))
+    except requests.exceptions.JSONDecodeError as e:
+        raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))
+
+
+def get_token_info_from_introspect(session: requests.Session, token: Token, introspection_endpoint: str) -> Any:
+    """
+    get token info from introspect
+    """
+    try:
+        introspect_data = {"token": token.token_string}
+        introspect_auth = HTTPBasicAuth(auth_settings.OIDC_CLIENT_ID, auth_settings.OIDC_CLIENT_SECRET)
+        introspect_resp = session.post(introspection_endpoint, data=introspect_data, auth=introspect_auth)
+        introspect_resp.raise_for_status()
+        introspect_json = introspect_resp.json()
+        if "active" in introspect_json and introspect_json["active"]:
+            token_info = introspect_resp.text
+            return token_info
+        else:
+            raise ExpiredSignatureError("Token is no longer active")
+
+    except requests.exceptions.HTTPError as e:
+        try:
+            body = json.loads(e.response.content)
+            logger.debug("OIDC introspection endpoint request not successful: " + body["error_description"])
+            raise InvalidTokenError(body["error_description"])
+        except (json.decoder.JSONDecodeError, KeyError):
+            logger.debug("OIDC introspection endpoint request not successful: {}".format(str(e)))
+            raise InvalidTokenError(str(e))
+    except requests.exceptions.JSONDecodeError as e:
+        raise InvalidTokenError("Invalid JSON in introspection response: {}".format(str(e)))
+
+
 def get_oauth_token_info(token: Token) -> Any:
     """Give back the details about the token from userinfo or introspection
 
@@ -68,101 +170,62 @@ def get_oauth_token_info(token: Token) -> Any:
     # For now unnecessary, useful when we only use one log in method
     if not auth_settings.OIDC_ENABLED:
         return None
-    # Check if the userinfo is in the cache to avoid multiple calls to the OIDC server
-    try:
-        with redis_session() as redis:
-            cached_userinfo = redis.hget(REDIS_OAUTH_USERINFO_KEY, token.decoded_token["sub"])
-            if cached_userinfo:
-                return json.loads(cached_userinfo)
-    except RedisError as e:
-        logger.debug("Redis cache error: {}".format(str(e)))
-    except (TypeError, KeyError) as e:
-        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
+
+    # Get the cached token info
+
+    cached_token_info = get_token_info_from_cache(token)
+    if cached_token_info:
+        return cached_token_info
+
+    # Get the openid-configuration
+    session = requests.Session()
+    openid_configuration = get_openid_configuration(session)
 
     # Request the userinfo
     try:
-        s = requests.Session()
-        metadata = s.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
-        metadata.raise_for_status()
+        token_info = get_token_info_from_userinfo(session, token, openid_configuration["userinfo_endpoint"])
     except requests.exceptions.HTTPError:
-        raise ConnectionError("Can't reach the OIDC URL")
-    except requests.exceptions.ConnectionError:
-        raise ConnectionError("OIDC metadata unavailable")
-    user_info_endpoint = metadata.json()["userinfo_endpoint"]
-    introspection_endpoint = metadata.json()["introspection_endpoint"]
-    userinfo_data = {"token_type_hint": "access_token"}
-    userinfo_headers = {"Authorization": "Bearer " + token.token_string}
-    introspect_data = {"token": token.token_string}
-    introspect_auth = HTTPBasicAuth(auth_settings.OIDC_CLIENT_ID, auth_settings.OIDC_CLIENT_SECRET)
-    token_info: str = ""
+        # if the userinfo doesn't work, try the introspectinfo
+        introspect_endpoint = openid_configuration.get(
+            "introspection_endpoint", openid_configuration["introspect_endpoint"]
+        )
+        get_token_info_from_introspect(session, token, introspect_endpoint)
 
-    try:
-        userinfo_resp = s.post(user_info_endpoint, data=userinfo_data, headers=userinfo_headers)
-        if userinfo_resp.status_code in [401, 403, 404]:
-            introspect_resp = s.post(introspection_endpoint, data=introspect_data, auth=introspect_auth)
-            introspect_resp.raise_for_status()
-            introspect_json = introspect_resp.json()
-            if "active" in introspect_json and introspect_json["active"]:
-                token_info = introspect_resp.text
-            else:
-                raise InvalidTokenError("Token is no longer active")
-        else:
-            userinfo_resp.raise_for_status()
-            userinfo_resp.json()
-            token_info = userinfo_resp.text
-
-        with redis_session() as redis:
-            if "exp" in token.decoded_token:
-                redis.hsetnx(REDIS_OAUTH_USERINFO_KEY, token.decoded_token["sub"], token_info)
-                # expire hash at access_token expiry time or 1 hour from now
-                # (whichever is sooner)
-                # Entire hash is expired, since redis does not support expiry on individual keys
-                expire_at = min(int(token.decoded_token["exp"]), int(time.time()) + 3600)
-                redis.expireat(REDIS_OAUTH_USERINFO_KEY, when=expire_at, lt=True)
-    except requests.exceptions.HTTPError as e:
-        try:
-            body = json.loads(e.response.content)
-            logger.debug("OIDC userinfo endpoint request not successful: " + body["error_description"])
-            raise InvalidTokenError(body["error_description"])
-        except (json.decoder.JSONDecodeError, KeyError):
-            logger.debug("OIDC userinfo endpoint request not successful: {}".format(str(e)))
-            raise InvalidTokenError(str(e))
     except requests.exceptions.JSONDecodeError as e:
-        raise InvalidTokenError("Invalid JSON in userinfo/introspection response: {}".format(str(e)))
-    except RedisError as e:
-        logger.debug("Redis cache error: {}".format(str(e)))
-    except (TypeError, KeyError) as e:
-        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
+        raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))
+
+    # put the token info in cache
+    put_token_info_in_cache(token, token_info)
     return json.loads(token_info)
 
 
 class MyBearerTokenValidator(BearerTokenValidator):
+    jwks_store = JWKSStore()
+
     def get_keys(self):
         """Get the keys for the OIDC decoding"""
         try:
-            s = requests.Session()
-            metadata = s.get(auth_settings.OIDC_CONF_WELL_KNOWN_URL)
-            keys_endpoint = metadata.json()["jwks_uri"]
-            response = s.get(url=keys_endpoint)
-            jwks_store = JWKSStore()
-            jwks_store.keys = response.json()["keys"]
+            session = requests.Session()
+            openid_configuration = get_openid_configuration(session)
+            keys_endpoint = openid_configuration["jwks_uri"]
+            response = session.get(url=keys_endpoint)
+            self.jwks_store.keys = response.json()["keys"]
         except KeyError as e:
             raise InvalidKeyError(e)
-        except requests.exceptions.HTTPError as e:
-            raise InvalidKeyError(e)
+        except requests.exceptions.HTTPError:
+            raise ConnectionError("Can't retrieve keys")
 
     def get_key(self, kid):
         """Get the key based on the kid"""
-        jwks_store = JWKSStore()
-        key = [k for k in jwks_store.keys if k["kid"] == kid]
+        key = [k for k in self.jwks_store.keys if k["kid"] == kid]
         if len(key) == 0:
             logger.debug("Key not found. Get the keys.")
             self.get_keys()
-            if len(jwks_store.keys) == 0:
+            if len(self.jwks_store.keys) == 0:
                 logger.error("Keys not downloaded")
-                raise InvalidKeyError()
+                raise ConnectionError("Can't retrieve keys")
             try:
-                key = [k for k in jwks_store.keys if k["kid"] == kid]
+                key = [k for k in self.jwks_store.keys if k["kid"] == kid]
             except KeyError as e:
                 logger.error("Keys in different format?")
                 raise InvalidKeyError(e)
@@ -176,7 +239,8 @@ class MyBearerTokenValidator(BearerTokenValidator):
 
         If JWT is disabled, we return because no token is needed.
 
-        We decode the header and check if it's good.
+        We decode the header and check if it's good. If not,
+        we check if we can validate the user using the userinfo endpoint.
 
         We decode the token using the keys.
         We first check if we can decode it, if not we request the keys.
@@ -199,10 +263,9 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWSError as e:
             raise InvalidTokenError(e)
         except exceptions.JWTError:
-            # check if we can still get the user info
+            # check if we can still authenticate the user with user info
             token = Token(token_string, None)
             get_oauth_token_info(token)
-
             return token
 
         # get the key
@@ -218,6 +281,9 @@ class MyBearerTokenValidator(BearerTokenValidator):
                 audience=auth_settings.AUDIENCE,
                 options={"verify_aud": auth_settings.VERIFY_AUDIENCE},
             )
+            # make an token object to make it easier to validate
+            token = Token(token_string, decoded_token)
+            return token
         except exceptions.ExpiredSignatureError as e:
             raise ExpiredSignatureError(e)
         except exceptions.JWKError as e:
@@ -226,10 +292,6 @@ class MyBearerTokenValidator(BearerTokenValidator):
         except exceptions.JWTError as e:
             logger.error("Invalid Token")
             raise InvalidTokenError(e)
-
-        # make an token object to make it easier to validate
-        token = Token(token_string, decoded_token)
-        return token
 
     def validate_token(self, token, scopes, request: OAuth2Request):
         """Check if token matches the requested scopes and user has permission to execute the API call."""

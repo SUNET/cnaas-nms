@@ -156,7 +156,13 @@ class PermissionsAPI(Resource):
             return []
         user_info = get_oauth_token_info(current_token)
         permissions_of_user = get_permissions_user(permissions_rules, user_info)
-        return permissions_of_user
+
+        # convert to dictionaries so it can be converted to json
+        permissions_as_dics = []
+        for permission in permissions_of_user:
+            permissions_as_dics.append(permission.__dict__)
+
+        return permissions_as_dics
 
 
 api.add_resource(LoginApi, "/login")

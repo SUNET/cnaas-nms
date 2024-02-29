@@ -12,14 +12,7 @@ from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationErr
 from flask_restx import Api
 from flask_socketio import SocketIO, join_room
 from jwt import decode
-from jwt.exceptions import (
-    DecodeError,
-    ExpiredSignatureError,
-    InvalidAudienceError,
-    InvalidKeyError,
-    InvalidSignatureError,
-    InvalidTokenError,
-)
+from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidKeyError, InvalidSignatureError, InvalidTokenError
 
 from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.device import (
@@ -68,7 +61,7 @@ class CnaasApi(Api):
         if isinstance(e, DecodeError):
             data = {"status": "error", "message": "Could not decode JWT token"}
             return jsonify(data), 401
-        elif isinstance(e, InvalidAudienceError):
+        elif isinstance(e, PermissionError):
             data = {"status": "error", "message": "You don't seem to have the rights to execute this call"}
             return jsonify(data), 403
         elif isinstance(e, ExpiredSignatureError):

@@ -9,7 +9,7 @@ from authlib.oauth2.rfc6750 import BearerTokenValidator
 from flask_jwt_extended import get_jwt_identity as get_jwt_identity_orig
 from flask_jwt_extended import jwt_required as jwt_orig
 from jose import exceptions, jwt
-from jwt.exceptions import ExpiredSignatureError, InvalidAudienceError, InvalidKeyError, InvalidTokenError
+from jwt.exceptions import ExpiredSignatureError, InvalidKeyError, InvalidTokenError
 from redis.exceptions import RedisError
 from requests.auth import HTTPBasicAuth
 
@@ -242,15 +242,15 @@ class MyBearerTokenValidator(BearerTokenValidator):
         permissions_rules = auth_settings.PERMISSIONS
         if not permissions_rules:
             logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
-            raise InvalidAudienceError()
+            raise PermissionError()
         user_info = get_oauth_token_info(token)
         permissions = get_permissions_user(permissions_rules, user_info)
         if len(permissions) == 0:
-            raise InvalidAudienceError()  # TODO: fix error type?
+            raise PermissionError()
         if check_if_api_call_is_permitted(request, permissions):
             return token
         else:
-            raise InvalidAudienceError()  # TODO: fix error type?
+            raise PermissionError()
 
 
 def get_oauth_identity() -> str:

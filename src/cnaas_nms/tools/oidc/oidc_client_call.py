@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Optional
 
 import requests
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
@@ -28,7 +28,7 @@ def get_openid_configuration(session: requests.Session) -> dict:
         raise InvalidTokenError("Invalid JSON in openid Config response: {}".format(str(e)))
 
 
-def get_token_info_from_userinfo(session: requests.Session, token: Token, user_info_endpoint: str) -> Any:
+def get_token_info_from_userinfo(session: requests.Session, token: Token, user_info_endpoint: str) -> str:
     """Get token info from userinfo"""
     try:
         userinfo_data = {"token_type_hint": "access_token"}
@@ -50,7 +50,7 @@ def get_token_info_from_userinfo(session: requests.Session, token: Token, user_i
         raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))
 
 
-def get_token_info_from_introspect(session: requests.Session, token: Token, introspection_endpoint: str) -> Any:
+def get_token_info_from_introspect(session: requests.Session, token: Token, introspection_endpoint: str) -> str:
     """Get token info from introspect"""
     try:
         introspect_data = {"token": token.token_string}
@@ -76,7 +76,7 @@ def get_token_info_from_introspect(session: requests.Session, token: Token, intr
         raise InvalidTokenError("Invalid JSON in introspection response: {}".format(str(e)))
 
 
-def get_oauth_token_info(token: Token) -> Any:
+def get_oauth_token_info(token: Token) -> Optional[dict]:
     """Give back the details about the token from userinfo or introspection
 
     If OIDC is disabled, we return None.
@@ -110,7 +110,7 @@ def get_oauth_token_info(token: Token) -> Any:
         introspect_endpoint = openid_configuration.get(
             "introspection_endpoint", openid_configuration["introspect_endpoint"]
         )
-        get_token_info_from_introspect(session, token, introspect_endpoint)
+        token_info = get_token_info_from_introspect(session, token, introspect_endpoint)
 
     except requests.exceptions.JSONDecodeError as e:
         raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))

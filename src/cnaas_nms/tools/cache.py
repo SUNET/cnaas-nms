@@ -1,6 +1,6 @@
 import json
 import time
-from typing import Any
+from typing import Optional
 
 from redis.exceptions import RedisError
 
@@ -14,7 +14,7 @@ logger = get_logger()
 REDIS_OAUTH_TOKEN_INFO_KEY = "oauth_userinfo"
 
 
-def get_token_info_from_cache(token: Token) -> Any:
+def get_token_info_from_cache(token: Token) -> Optional[dict]:
     """Check if the userinfo is in the cache to avoid multiple calls to the OIDC server"""
     try:
         with redis_session() as redis:
@@ -25,9 +25,10 @@ def get_token_info_from_cache(token: Token) -> Any:
         logger.debug("Redis cache error: {}".format(str(e)))
     except (TypeError, KeyError) as e:
         logger.debug("Error while getting userinfo cache: {}".format(str(e)))
+    return None
 
 
-def put_token_info_in_cache(token: Token, token_info) -> Any:
+def put_token_info_in_cache(token: Token, token_info) -> bool:
     """Put the userinfo in the cache to avoid multiple calls to the OIDC server"""
     try:
         with redis_session() as redis:
@@ -37,7 +38,9 @@ def put_token_info_in_cache(token: Token, token_info) -> Any:
                 # Entire hash is expired, since redis does not support expiry on individual keys
                 expire_at = min(int(token.decoded_token["exp"]), int(time.time()) + 3600)
                 redis.expireat(REDIS_OAUTH_TOKEN_INFO_KEY, when=expire_at, lt=True)
+                return True
     except RedisError as e:
         logger.debug("Redis cache error: {}".format(str(e)))
     except (TypeError, KeyError) as e:
         logger.debug("Error while getting userinfo cache: {}".format(str(e)))
+    return False

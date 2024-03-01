@@ -330,6 +330,7 @@ def populate_device_vars(
                     {
                         "id": mgmtdom.id,
                         "ipv4_gw": mgmtdom.ipv4_gw,
+                        "ipv6_gw": mgmtdom.ipv6_gw,
                         "vlan": mgmtdom.vlan,
                         "description": mgmtdom.description,
                         "esi_mac": mgmtdom.esi_mac,

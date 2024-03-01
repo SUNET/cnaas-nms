@@ -44,6 +44,8 @@ class f_mgmtdomain(BaseModel):
     @field_validator("ipv4_gw")
     @classmethod
     def ipv4_gw_valid_address(cls, v):
+        if not v:
+            return v
         try:
             addr = IPv4Interface(v)
             prefix_len = int(addr.network.prefixlen)
@@ -62,6 +64,8 @@ class f_mgmtdomain(BaseModel):
     @field_validator("ipv6_gw")
     @classmethod
     def ipv6_gw_valid_address(cls, v):
+        if not v:
+            return v
         try:
             addr = IPv6Interface(v)
             prefix_len = int(addr.network.prefixlen)

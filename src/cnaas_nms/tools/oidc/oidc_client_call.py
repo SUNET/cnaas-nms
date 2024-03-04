@@ -42,10 +42,10 @@ def get_token_info_from_userinfo(session: requests.Session, token: Token, user_i
         try:
             body = json.loads(e.response.content)
             logger.debug("OIDC userinfo endpoint request not successful: " + body["error_description"])
-            raise InvalidTokenError(body["error_description"])
+            raise e
         except (json.decoder.JSONDecodeError, KeyError):
             logger.debug("OIDC userinfo endpoint request not successful: {}".format(str(e)))
-            raise InvalidTokenError(str(e))
+            raise e
     except requests.exceptions.JSONDecodeError as e:
         raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))
 
@@ -105,12 +105,15 @@ def get_oauth_token_info(token: Token) -> Optional[dict]:
     # Request the userinfo
     try:
         token_info = get_token_info_from_userinfo(session, token, openid_configuration["userinfo_endpoint"])
-    except requests.exceptions.HTTPError:
+    except requests.exceptions.HTTPError as e:
         # if the userinfo doesn't work, try the introspectinfo
         introspect_endpoint = openid_configuration.get(
-            "introspection_endpoint", openid_configuration["introspect_endpoint"]
+            "introspection_endpoint", openid_configuration.get("introspect_endpoint", None)
         )
-        token_info = get_token_info_from_introspect(session, token, introspect_endpoint)
+        if introspect_endpoint:
+            token_info = get_token_info_from_introspect(session, token, introspect_endpoint)
+        else:
+            raise e
 
     except requests.exceptions.JSONDecodeError as e:
         raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))

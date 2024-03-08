@@ -504,7 +504,7 @@ def init_access_device_step1(
                     mgmtdomain.id, mgmtdomain.description
                 )
             )
-        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
+        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip, ip_version=mgmt_ip.version)
         session.add(reserved_ip)
 
         secondary_mgmt_ip = None
@@ -516,7 +516,7 @@ def init_access_device_step1(
                         mgmtdomain.id, mgmtdomain.description
                     )
                 )
-            reserved_ip = ReservedIP(device=dev, ip=secondary_mgmt_ip)
+            reserved_ip = ReservedIP(device=dev, ip=secondary_mgmt_ip, ip_version=secondary_mgmt_ip.version)
             session.add(reserved_ip)
 
         session.commit()
@@ -725,7 +725,7 @@ def init_fabric_device_step1(
         mgmt_ip = cnaas_nms.devicehandler.underlay.find_free_mgmt_lo_ip(session)
         infra_ip = cnaas_nms.devicehandler.underlay.find_free_infra_ip(session)
 
-        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip)
+        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip, ip_version=mgmt_ip.version)
         session.add(reserved_ip)
         dev.infra_ip = infra_ip
         session.commit()
@@ -769,8 +769,8 @@ def init_fabric_device_step1(
         dev.management_ip = mgmt_ip
         dev.state = DeviceState.INIT
         # Remove the reserved IP since it's now saved in the device database instead
-        reserved_ip = session.query(ReservedIP).filter(ReservedIP.device == dev).one_or_none()
-        if reserved_ip:
+        reserved_ips = session.query(ReservedIP).filter(ReservedIP.device == dev).all()
+        for reserved_ip in reserved_ips:
             session.delete(reserved_ip)
 
     # Plugin hook, allocated IP

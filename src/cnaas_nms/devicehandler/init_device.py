@@ -509,7 +509,7 @@ def init_access_device_step1(
 
         secondary_mgmt_ip = None
         if mgmtdomain.is_dual_stack:
-            secondary_mgmt_ip = mgmtdomain.find_free_secondary_mgmt_ip()
+            secondary_mgmt_ip = mgmtdomain.find_free_secondary_mgmt_ip(session)
             if not secondary_mgmt_ip:
                 raise Exception(
                     "Could not find free secondary management IP for management domain {}/{}".format(

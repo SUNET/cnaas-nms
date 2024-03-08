@@ -45,6 +45,7 @@ class ApiSettings(BaseSettings):
     ALLOW_APPLY_CONFIG_LIVERUN: bool = False
     FIRMWARE_URL: str = HTTPD_URL
     JWT_ENABLED: bool = True
+    JWT_SECRET_KEY: Optional[bytes] = None
     PLUGIN_FILE: Path = Path("/etc/cnaas-nms/plugins.yml")
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
@@ -84,15 +85,22 @@ def construct_api_settings() -> ApiSettings:
 
         if config.get("firmware_url", False):
             firmware_url = config["firmware_url"]
-
         else:
             firmware_url = config["httpd_url"]
+
+        jwt_enabled = ApiSettings().JWT_ENABLED
+        jwt_secret_key = config.get("jwt_secret_key", ApiSettings().JWT_SECRET_KEY)
+        if jwt_enabled and jwt_secret_key is None:
+            raise ValueError("JWT_SECRET_KEY must be defined in environment or api.yml")
+
         return ApiSettings(
             HOST=config["host"],
             HTTPD_URL=config["httpd_url"],
             VERIFY_TLS=config["verify_tls"],
             VERIFY_TLS_DEVICE=config["verify_tls_device"],
+            JWT_ENABLED=jwt_enabled,
             JWT_CERT=config.get("jwtcert", ApiSettings().JWT_CERT),
+            JWT_SECRET_KEY=jwt_secret_key,
             CAFILE=config.get("cafile", ApiSettings().CAFILE),
             CAKEYFILE=config.get("cakeyfile", ApiSettings().CAKEYFILE),
             CERTPATH=config.get("certpath", ApiSettings().CERTPATH),

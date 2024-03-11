@@ -198,7 +198,7 @@ class Job(cnaas_nms.db.base.Base):
         for job in scheduled_jobs:
             # Clear jobs that should have been run in the past, timing might need tuning if
             # APschedulers misfire_grace_time is modified
-            aps_misfire_grace_time = datetime.timedelta(seconds=1)
+            aps_misfire_grace_time = datetime.timedelta(seconds=5)
             if job.scheduled_time < (datetime.datetime.utcnow() - aps_misfire_grace_time):
                 logger.warning("Job found in past SCHEDULED state at startup moved to ABORTED, id: {}".format(job.id))
                 job.status = JobStatus.ABORTED

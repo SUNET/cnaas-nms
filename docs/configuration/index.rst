@@ -63,16 +63,29 @@ Define parameters for the authentication:
 - verify_audience: Set to False to disable aud check. Defaults to True
 - permissions_disabled: set True to disable permissions. Default False
 
-/etc/cnaas-nms/roles.yml
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-The roles yaml can be defined to give permissions on the API and the Frontend. It will only be define in the API and the frontend will make an API call to request the permissions.
+/etc/cnaas-nms/permissions.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Defines permissions levels for users/groups when accessing the API and the frontend. These permissions
+are only active when OAuth is enabled.
 
 
 - config:
-  * groups_claim_key: the element within the jwt token that give the roles
-  * default_permissions: the name of the role with permissions given to every user
+
+  * default_permissions: the name of the role with permissions given to every user by default
+
+- group_mappings:
+
+  * [name_of_token_attribute]: The name of the group or email attribute in the access token, eg "groups" or "email"
+
+    + [value_of_attribute]: Example "admin@example.com" or "admingroup"
+
+      - role: The name of the role to give the user
+
 - roles:
+
   * [name_of_the_role]:
+
     + permissions: Each user group can have different sets of permissions for flexibility.
       - methods: HTTP methods on the API, for example, "GET", "POST", "*"
       - endpoints: Uri's of endpoints on the API with possibility to use Glob, for example "/devices", "job**", "/devices/**/interfaces", "*"

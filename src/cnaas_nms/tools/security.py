@@ -92,14 +92,13 @@ class MyBearerTokenValidator(BearerTokenValidator):
     def validate_token(self, token, scopes, request: OAuth2Request) -> Token:
         """Check if token matches the requested scopes and user has permission to execute the API call."""
         if auth_settings.PERMISSIONS_DISABLED:
-            logger.debug("Permissions are disabled. Everyone can do every api call")
             return token
         #  For api call that everyone is always allowed to do
         if scopes is not None and "always_permitted" in scopes:
             return token
         permissions_rules = auth_settings.PERMISSIONS
         if not permissions_rules:
-            logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
+            logger.warning("No permissions defined, so nobody is permitted to do any api calls.")
             raise PermissionError()
         user_info = get_oauth_token_info(token)
         permissions = get_permissions_user(permissions_rules, user_info)

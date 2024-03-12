@@ -113,6 +113,7 @@ def main_loop():
                 id=data["id"],
                 run_date=data["run_date"],
                 name=data["func"],
+                misfire_grace_time=5,
             )
         elif action == "remove":
             scheduler.remove_local_job(data["id"])

@@ -5,6 +5,8 @@ import yaml
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
+from cnaas_nms.models.permissions import PermissionsModel
+
 
 class AppSettings(BaseSettings):
     # Database settings
@@ -71,8 +73,11 @@ class AuthSettings(BaseSettings):
     OIDC_CLIENT_SECRET: str = "xxx"
     OIDC_CLIENT_ID: str = "client-id"
     OIDC_ENABLED: bool = False
+    OIDC_USERNAME_ATTRIBUTE: str = "email"
+    PERMISSIONS: Optional[PermissionsModel] = None
+    PERMISSIONS_DISABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
-    AUDIENCE: str = OIDC_CLIENT_ID
+    AUDIENCE: Optional[str] = None  # = OIDC_CLIENT_ID if not defined
     VERIFY_AUDIENCE: bool = True
 
 
@@ -121,7 +126,6 @@ def construct_api_settings() -> ApiSettings:
 def construct_app_settings() -> AppSettings:
     db_config = Path("/etc/cnaas-nms/db_config.yml")
     repo_config = Path("/etc/cnaas-nms/repository.yml")
-
     app_settings = AppSettings()
 
     def _create_db_config(settings: AppSettings, config: dict) -> None:
@@ -153,22 +157,49 @@ def construct_app_settings() -> AppSettings:
 
 
 def construct_auth_settings() -> AuthSettings:
+    auth_settings = AuthSettings()
+    permission_config = Path("/etc/cnaas-nms/permissions.yml")
+
     auth_config = Path("/etc/cnaas-nms/auth_config.yml")
+
     if auth_config.is_file():
         with open(auth_config, "r") as auth_file:
             config = yaml.safe_load(auth_file)
-        return AuthSettings(
-            OIDC_ENABLED=config.get("oidc_enabled", AuthSettings().OIDC_ENABLED),
-            FRONTEND_CALLBACK_URL=config.get("frontend_callback_url", AuthSettings().FRONTEND_CALLBACK_URL),
-            OIDC_CONF_WELL_KNOWN_URL=config.get("oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL),
-            OIDC_CLIENT_SECRET=config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET),
-            OIDC_CLIENT_ID=config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID),
-            OIDC_CLIENT_SCOPE=config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE),
-            AUDIENCE=config.get("audience", AuthSettings().AUDIENCE),
-            VERIFY_AUDIENCE=config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE),
+        auth_settings.OIDC_ENABLED = config.get("oidc_enabled", AuthSettings().OIDC_ENABLED)
+        auth_settings.FRONTEND_CALLBACK_URL = config.get("frontend_callback_url", AuthSettings().FRONTEND_CALLBACK_URL)
+        auth_settings.OIDC_CONF_WELL_KNOWN_URL = config.get(
+            "oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL
         )
+        auth_settings.OIDC_CLIENT_SECRET = config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET)
+        auth_settings.OIDC_CLIENT_ID = config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
+        auth_settings.OIDC_CLIENT_SCOPE = config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE)
+        auth_settings.OIDC_USERNAME_ATTRIBUTE = config.get(
+            "oidc_username_attribute", AuthSettings().OIDC_USERNAME_ATTRIBUTE
+        )
+        auth_settings.PERMISSIONS_DISABLED = config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED)
+        auth_settings.AUDIENCE = config.get("audience", AuthSettings().AUDIENCE)
+        auth_settings.VERIFY_AUDIENCE = config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE)
+
+    if auth_settings.AUDIENCE is None:
+        auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID
+
+    if auth_settings.PERMISSIONS_DISABLED:
+        permissions_rules = {
+            "config": {"default_permissions": "default"},
+            "roles": {
+                "default": {"permissions": [{"methods": ["*"], "endpoints": ["*"], "pages": ["*"], "rights": ["*"]}]}
+            },
+        }
+        auth_settings.PERMISSIONS = PermissionsModel(**permissions_rules)
+    elif permission_config.is_file():
+        """Load the file with role permission"""
+        with open(permission_config, "r") as permission_file:
+            permissions_rules = yaml.safe_load(permission_file)
+        auth_settings.PERMISSIONS = PermissionsModel(**permissions_rules)
     else:
-        return AuthSettings()
+        raise FileNotFoundError(f"{permission_config} not found")
+
+    return auth_settings
 
 
 app_settings = construct_app_settings()

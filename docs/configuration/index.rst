@@ -56,10 +56,42 @@ Define parameters for the authentication:
 - oidc_conf_well_known_url: OIDC well-known URL for metadata
 - oidc_client_secret: The client secret for OIDC
 - oidc_client_id: The client_id for OIDC
+- oidc_username_attribute: What attribute in access token or userinfo endpoint to use for username, defaults to "email"
 - frontend_callback_url: The frontend URL that the OIDC client should redirect to after the login process
 - oidc_enabled: Set True to enabled OIDC login. Defaults to False
 - audience: The string to verify the aud attribute in the access token with
 - verify_audience: Set to False to disable aud check. Defaults to True
+- permissions_disabled: set True to disable permissions. Default False
+
+/etc/cnaas-nms/permissions.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Defines permissions levels for users/groups when accessing the API and the frontend. These permissions
+are only active when OAuth is enabled.
+
+
+- config:
+
+  * default_permissions: the name of the role with permissions given to every user by default
+
+- group_mappings:
+
+  * [name_of_token_attribute]: The name of the group or email attribute in the access token, eg "groups" or "email"
+
+    + [value_of_attribute]: Example "admin@example.com" or "admingroup"
+
+      - role: The name of the role to give the user
+
+- roles:
+
+  * [name_of_the_role]:
+
+    + permissions: Each user group can have different sets of permissions for flexibility.
+      - methods: HTTP methods on the API, for example, "GET", "POST", "*"
+      - endpoints: Uri's of endpoints on the API with possibility to use Glob, for example "/devices", "job**", "/devices/**/interfaces", "*"
+      - pages: Pages shown in the menu of the frontend, for example "Devices", "Groups", "*"
+      - rights: Actions you can take in the frontend, for example "read", "write", "*"
+
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

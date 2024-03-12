@@ -26,8 +26,23 @@ def get_apidata(configfile="/etc/cnaas-nms/apiclient.yml"):
 def get_jwt_token():
     try:
         token = os.environ["JWT_AUTH_TOKEN"]
-    except Exception:
-        raise ValueError("Could not find JWT token")
+    except KeyError:
+        try:
+            auth_data = {
+                "grant_type": "client_credentials",
+                "client_id": os.environ["OAUTH_CLIENT_ID"],
+                "client_secret": os.environ["OAUTH_CLIENT_SECRET"],
+            }
+            auth_response = requests.post(
+                os.environ["OAUTH_TOKEN_ENDPOINT"],
+                data=auth_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=5,
+            )
+            auth_response.raise_for_status()
+            token = auth_response.json()["access_token"]
+        except Exception as e:
+            raise ValueError("Could not find JWT token: {}".format(e))
     return token
 
 

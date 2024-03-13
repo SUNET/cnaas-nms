@@ -2,7 +2,7 @@ import datetime
 import enum
 import os
 import shutil
-from typing import Optional, Set, Tuple
+from typing import Dict, Optional, Set, Tuple
 from urllib.parse import urldefrag
 
 import yaml
@@ -13,7 +13,14 @@ from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import DIR_STRUCTURE, SettingsSyntaxError, VlanConflictError, rebuild_settings_cache
+from cnaas_nms.db.settings import (
+    DIR_STRUCTURE,
+    SettingsSyntaxError,
+    VlanConflictError,
+    get_device_primary_groups,
+    get_groups,
+    rebuild_settings_cache,
+)
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.tools.log import get_logger
 from git import InvalidGitRepositoryError, Repo
@@ -343,6 +350,21 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
                     unsynced_hostnames.add(hostname)
             except Exception as e:
                 logger.exception("Error in settings devices directory: {}".format(str(e)))
+        elif basedir.startswith("groups"):
+            try:
+                groupname = filename.split(os.path.sep)[1]
+                if groupname not in get_groups():
+                    logger.warning("Group {} not found in database, syncstatus not updated".format(groupname))
+                    continue
+                primary_group_mapping: Dict[str, str] = get_device_primary_groups()
+                # Find all hostnames that are mapped to this primary group
+                # and add them to the list of unsynced hostnames
+                for map_hostname, map_groupname in primary_group_mapping.items():
+                    if groupname == map_groupname:
+                        unsynced_hostnames.add(map_hostname)
+
+            except Exception as e:
+                logger.exception("Error in settings groups directory {}: {}".format(filename, str(e)))
         else:
             logger.warn("Unhandled settings file found {}, syncstatus not updated".format(filename))
     return (unsynced_devtypes, unsynced_hostnames)

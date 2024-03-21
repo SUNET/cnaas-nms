@@ -41,7 +41,7 @@ f_root = get_settings_root()
 redis_client = StrictRedis(
     host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, retry_on_timeout=True, socket_keepalive=True
 )
-redis_lru_cache = RedisLRU(redis_client)
+redis_lru_cache = RedisLRU(redis_client, default_ttl=24 * 3600)
 
 
 class VerifyPathException(Exception):

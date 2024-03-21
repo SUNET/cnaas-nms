@@ -1,4 +1,5 @@
 import importlib
+import json
 import os
 import re
 from typing import Dict, List, Optional, Set, Tuple, Union
@@ -262,6 +263,14 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
         return ret_dict
 
 
+def sizeof_fmt(num, suffix="B"):
+    for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
+        if abs(num) < 1024.0:
+            return f"{num:3.1f}{unit}{suffix}"
+        num /= 1024.0
+    return f"{num:.1f}Yi{suffix}"
+
+
 def check_settings_collisions(unique_vlans: bool = True):
     """Check settings for any duplicates/collisions.
     This will call get_settings on all devices so make sure to not call this
@@ -273,6 +282,7 @@ def check_settings_collisions(unique_vlans: bool = True):
     Returns:
 
     """
+    logger = get_logger()
     mgmt_vlans: Set[int] = set()
     devices_dict: dict[str, dict] = {}
     with sqla_session() as session:
@@ -288,6 +298,9 @@ def check_settings_collisions(unique_vlans: bool = True):
         for dev in managed_devices:
             dev_settings, _ = get_settings(dev.hostname, dev.device_type)
             devices_dict[dev.hostname] = dev_settings
+
+    logger.debug("Memory size of all device settings: {}".format(sizeof_fmt(json.dumps(devices_dict).__sizeof__())))
+
     check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
     check_group_priority_collisions()
 
@@ -538,6 +551,7 @@ def get_settings(
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
     logger = get_logger()
+    get_type = "global"
 
     local_repo_path = app_settings.SETTINGS_LOCAL
     try:
@@ -574,6 +588,7 @@ def get_settings(
         )
     # 4. Get settings repo device type settings
     if device_type:
+        get_type = "devicetype {}".format(device_type.name)
         if device_type == DeviceType.UNKNOWN:
             raise ValueError("It's not possible to get settings for devices with type UNKNOWN")
         settings, settings_origin = read_settings(
@@ -584,6 +599,7 @@ def get_settings(
             settings_origin,
         )
     if hostname:
+        get_type = "hostname {}".format(hostname)
         settings, settings_origin = read_settings(
             local_repo_path, ["global", "routing.yml"], "global->routing.yml", settings, settings_origin, groups
         )
@@ -676,7 +692,9 @@ def get_settings(
     set_model = set(verified_settings)
     diff_model = set_everything - set_model
     if diff_model:
-        logger.warn("Some configured settings are undefined in model: {}".format(set_everything - set_model))
+        logger.warn(
+            "Some configured settings for {} are undefined in model: {}".format(get_type, set_everything - set_model)
+        )
     return verified_settings, settings_origin
 
 
@@ -841,22 +859,45 @@ def rebuild_settings_cache() -> None:
     logger = get_logger()
     logger.debug("Clearing redis-lru cache for settings")
     with redis_session() as redis_db:
+        mem_stats_before = redis_db.memory_stats()
         cache = RedisLRU(redis_db)
         cache.clear_all_cache()
+        mem_stats_after = redis_db.memory_stats()
+        try:
+            logger.debug(
+                "Redis allocated before: {} ({} keys), after: {} ({} keys)".format(
+                    sizeof_fmt(mem_stats_before["total.allocated"]),
+                    mem_stats_before["keys.count"],
+                    sizeof_fmt(mem_stats_after["total.allocated"]),
+                    mem_stats_after["keys.count"],
+                )
+            )
+        except Exception:
+            pass
+    logger.debug("Rebuilding settings cache for global settings and primary groups")
     update_device_primary_groups()
     get_settings()
     test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
+    logger.debug("Rebuilding settings cache for devicetypes")
     for devtype in test_devtypes:
         get_settings(device_type=devtype)
-    for hostname in os.listdir(os.path.join(app_settings.SETTINGS_LOCAL, "devices")):
-        hostname_path = os.path.join(app_settings.SETTINGS_LOCAL, "devices", hostname)
-        if not os.path.isdir(hostname_path) or hostname.startswith("."):
-            continue
-        if not Device.valid_hostname(hostname):
-            continue
-        get_settings(hostname)
+    logger.debug("Rebuilding settings cache for device specific settings")
+    with sqla_session() as session:
+        for hostname in os.listdir(os.path.join(app_settings.SETTINGS_LOCAL, "devices")):
+            hostname_path = os.path.join(app_settings.SETTINGS_LOCAL, "devices", hostname)
+            if not os.path.isdir(hostname_path) or hostname.startswith("."):
+                continue
+            if not Device.valid_hostname(hostname):
+                continue
+            dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+            if dev is None:
+                logger.warning(f"Device {hostname} specified in settings/devices but it was not found in database")
+                continue
+            get_settings(hostname, dev.device_type)
+    logger.debug("Rebuilding settings cache for device models")
     for devtype_str, device_models in get_model_specific_configfiles(True).items():
         devtype = DeviceType[devtype_str]
         for device_model in device_models:
             get_settings("nonexisting", devtype, device_model)
+    logger.debug("Rechecking settings collisions")
     check_settings_collisions(api_settings.GLOBAL_UNIQUE_VLANS)

@@ -133,7 +133,7 @@ def repo_chekout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
 
 def repo_save_working_commit(repo_type: RepoType, hexsha: str):
     with redis_session() as redis:
-        logger.info("Saving known working comit for repo {} in cache: {}".format(repo_type.name, hexsha))
+        logger.info("Saving known working commit for repo {} in cache: {}".format(repo_type.name, hexsha))
         redis.set(repo_type.name + "_working_commit", hexsha)
 
 
@@ -194,6 +194,8 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
             shutil.rmtree(local_repo_path)
             raise NoSuchPathError
         prev_commit = local_repo.commit().hexsha
+        logger.debug("git pull from {}".format(remote_repo_path))
+
         diff = local_repo.remotes.origin.pull()
         for item in diff:
             if item.ref.remote_head != local_repo.head.ref.name:
@@ -236,14 +238,16 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
                 repo_save_working_commit(repo_type, local_repo.head.commit.hexsha)
             except Exception as e:  # noqa: F401
                 logger.error("Could not save last working commit: {}".format(e))
-        logger.debug("Files changed in settings repository: {}".format(changed_files))
+        logger.debug("Files changed in settings repository: {}".format(changed_files or "None"))
         updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)
         logger.debug(
             "Devicestypes to be marked unsynced after repo refresh: {}".format(
-                ", ".join([dt.name for dt in updated_devtypes])
+                (", ".join([dt.name for dt in updated_devtypes])) or "None"
             )
         )
-        logger.debug("Devices to be marked unsynced after repo refresh: {}".format(", ".join(updated_hostnames)))
+        logger.debug(
+            "Devices to be marked unsynced after repo refresh: {}".format((", ".join(updated_hostnames)) or "None")
+        )
         with sqla_session() as session:
             devtype: DeviceType
             for devtype in updated_devtypes:

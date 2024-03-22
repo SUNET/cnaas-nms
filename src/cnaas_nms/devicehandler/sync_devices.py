@@ -609,7 +609,7 @@ def generate_only(hostname: str) -> (str, dict):
     """
     logger = get_logger()
     nr = cnaas_init()
-    nr_filtered, _, _ = inventory_selector(nr, hostname=hostname)
+    nr_filtered = nr.filter(name=hostname)
     template_vars = {}
     if len(nr_filtered.inventory.hosts) != 1:
         raise ValueError("Invalid hostname: {}".format(hostname))

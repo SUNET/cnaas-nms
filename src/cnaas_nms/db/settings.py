@@ -594,13 +594,14 @@ def get_settings(
                 raise ValueError("It's not possible to get settings for devices with type UNKNOWN")
             else:
                 logger.warning("Device type is UNKNOWN, trying to get settings for hostname {}".format(hostname))
-        settings, settings_origin = read_settings(
-            local_repo_path,
-            [device_type.name.lower(), "base_system.yml"],
-            "devicetype->base_system.yml",
-            settings,
-            settings_origin,
-        )
+        else:
+            settings, settings_origin = read_settings(
+                local_repo_path,
+                [device_type.name.lower(), "base_system.yml"],
+                "devicetype->base_system.yml",
+                settings,
+                settings_origin,
+            )
     if hostname:
         get_type = "hostname {}".format(hostname)
         settings, settings_origin = read_settings(

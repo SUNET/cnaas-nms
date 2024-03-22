@@ -590,7 +590,10 @@ def get_settings(
     if device_type:
         get_type = "devicetype {}".format(device_type.name)
         if device_type == DeviceType.UNKNOWN:
-            raise ValueError("It's not possible to get settings for devices with type UNKNOWN")
+            if hostname is None:
+                raise ValueError("It's not possible to get settings for devices with type UNKNOWN")
+            else:
+                logger.warning("Device type is UNKNOWN, trying to get settings for hostname {}".format(hostname))
         settings, settings_origin = read_settings(
             local_repo_path,
             [device_type.name.lower(), "base_system.yml"],
@@ -889,8 +892,8 @@ def rebuild_settings_cache() -> None:
                 continue
             if not Device.valid_hostname(hostname):
                 continue
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-            if dev is None:
+            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if dev is None or dev.device_type == DeviceType.UNKNOWN:
                 logger.warning(f"Device {hostname} specified in settings/devices but it was not found in database")
                 continue
             get_settings(hostname, dev.device_type)

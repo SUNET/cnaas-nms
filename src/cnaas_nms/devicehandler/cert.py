@@ -53,6 +53,7 @@ def arista_copy_cert(task, job_id: Optional[str] = None) -> str:
         dest_file="cnaasnms.crt",
         file_system="/mnt/flash",
         overwrite_file=True,
+        socket_timeout=30,
     )
     if res_crt.failed:
         logger.exception(res_crt.exception)

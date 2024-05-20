@@ -31,8 +31,7 @@ RUN apt-get update \
       supervisor \
       uwsgi-plugin-python3 \
       ssh-client \
-      python3-gevent\
-
+      python3-gevent \
     && pip3 install --no-cache-dir uwsgi --break-system-packages
 
 # Prepare for supervisord, ngninx

@@ -126,7 +126,19 @@ device_syncto_model = device_syncto_api.model(
         "force": fields.Boolean(required=False),
         "auto_push": fields.Boolean(required=False),
         "resync": fields.Boolean(required=False),
-        "confirm_mode": fields.Integer(required=False),
+        "confirm_mode": fields.Integer(required=False, min=0, max=2),
+    },
+)
+
+
+device_syncto_hostname_model = device_syncto_api.model(
+    "device_hostname_sync",
+    {
+        "dry_run": fields.Boolean(required=False),
+        "force": fields.Boolean(required=False),
+        "auto_push": fields.Boolean(required=False),
+        "resync": fields.Boolean(required=False),
+        "confirm_mode": fields.Integer(required=False, min=0, max=2),
     },
 )
 
@@ -649,37 +661,36 @@ class DeviceDiscoverApi(Resource):
         return res
 
 
+def parse_syncto_args(json_data: dict):
+    
+    # default args
+    kwargs: dict = {"dry_run": True, "auto_push": False, "force": False, "resync": False}
+    
+    if "dry_run" in json_data and isinstance(json_data["dry_run"], bool) and not json_data["dry_run"]:
+        kwargs["dry_run"] = False
+    if "force" in json_data and isinstance(json_data["force"], bool):
+        kwargs["force"] = json_data["force"]
+    if "auto_push" in json_data and isinstance(json_data["auto_push"], bool):
+        kwargs["auto_push"] = json_data["auto_push"]
+    if "resync" in json_data and isinstance(json_data["resync"], bool):
+        kwargs["resync"] = json_data["resync"]
+    if "comment" in json_data and isinstance(json_data["comment"], str):
+        kwargs["job_comment"] = json_data["comment"]
+    if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
+        kwargs["job_ticket_ref"] = json_data["ticket_ref"]
+    if "confirm_mode" in json_data and isinstance(json_data["confirm_mode"], int):
+        kwargs["confirm_mode_override"] = json_data["confirm_mode"]
+
+    return kwargs
+
 class DeviceSyncApi(Resource):
     @login_required
     @device_syncto_api.expect(device_syncto_model)
     def post(self):
         """Start sync of device(s)"""
         json_data = request.get_json()
-        # default args
-        kwargs: dict = {"dry_run": True, "auto_push": False, "force": False, "resync": False}
-
-        if "dry_run" in json_data and isinstance(json_data["dry_run"], bool) and not json_data["dry_run"]:
-            kwargs["dry_run"] = False
-        if "force" in json_data and isinstance(json_data["force"], bool):
-            kwargs["force"] = json_data["force"]
-        if "auto_push" in json_data and isinstance(json_data["auto_push"], bool):
-            kwargs["auto_push"] = json_data["auto_push"]
-        if "resync" in json_data and isinstance(json_data["resync"], bool):
-            kwargs["resync"] = json_data["resync"]
-        if "comment" in json_data and isinstance(json_data["comment"], str):
-            kwargs["job_comment"] = json_data["comment"]
-        if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
-            kwargs["job_ticket_ref"] = json_data["ticket_ref"]
-        if "confirm_mode" in json_data and isinstance(json_data["confirm_mode"], int):
-            if 0 <= json_data["confirm_mode"] <= 2:
-                kwargs["confirm_mode_override"] = json_data["confirm_mode"]
-            else:
-                return (
-                    empty_result(
-                        status="error", data="If optional value confirm_mode is specified it must be an integer 0-2"
-                    ),
-                    400,
-                )
+        
+        kwargs = parse_syncto_args(json_data)
 
         total_count: Optional[int] = None
         nr = cnaas_init()
@@ -733,6 +744,51 @@ class DeviceSyncApi(Resource):
         resp.headers["Content-Type"] = "application/json"
         return resp
 
+
+class DeviceSyncHostnameApi(Resource):
+    @login_required
+    @device_syncto_api.expect(device_syncto_hostname_model)
+    def post(self, hostname: str):
+        """Start sync of device(s)"""
+        print("Payload")
+        print(device_syncto_api.payload)
+        print("Request")
+        print(request.get_json())
+        print("Hostname=", hostname)
+        
+        """Start sync of device(s)"""
+        json_data = request.get_json()
+        
+        kwargs = parse_syncto_args(json_data)
+
+        total_count: Optional[int] = None
+        nr = cnaas_init()
+        
+        # Hostname
+        if not Device.valid_hostname(hostname):
+            return empty_result(status="error", data=f"Hostname '{hostname}' is not a valid hostname"), 400
+        _, total_count, _ = inventory_selector(nr, hostname=hostname)
+        if total_count != 1:
+            return (
+                empty_result(status="error", data=f"Hostname '{hostname}' not found or is not a managed device"),
+                400,
+            )
+        kwargs["hostnames"] = [hostname]
+        what = hostname
+            
+        scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            "cnaas_nms.devicehandler.sync_devices:sync_devices", when=1, scheduled_by=get_identity(), kwargs=kwargs
+        )
+        res = empty_result(data=f"Scheduled job to synchronize {what}")
+        res["job_id"] = job_id
+
+        resp = make_response(json.dumps(res), 200)
+        if total_count:
+            resp.headers["X-Total-Count"] = total_count
+        resp.headers["Content-Type"] = "application/json"
+        return resp
+        
 
 class DeviceUpdateFactsApi(Resource):
     @login_required
@@ -1217,6 +1273,7 @@ devices_api.add_resource(DevicesApi, "")
 device_init_api.add_resource(DeviceInitApi, "/<int:device_id>")
 device_initcheck_api.add_resource(DeviceInitCheckApi, "/<int:device_id>")
 device_discover_api.add_resource(DeviceDiscoverApi, "")
+device_syncto_api.add_resource(DeviceSyncHostnameApi, "/hostname/<string:hostname>")
 device_syncto_api.add_resource(DeviceSyncApi, "")
 device_update_facts_api.add_resource(DeviceUpdateFactsApi, "")
 device_update_interfaces_api.add_resource(DeviceUpdateInterfacesApi, "")

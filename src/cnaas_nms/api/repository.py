@@ -13,7 +13,7 @@ api = Namespace("repository", description="API for handling repositories", prefi
 repository_model = api.model(
     "repository",
     {
-        "action": fields.String(required=True),
+        "action": fields.String(required=True, example="REFRESH"),
     },
 )
 

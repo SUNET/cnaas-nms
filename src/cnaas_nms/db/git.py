@@ -1,5 +1,6 @@
 import datetime
 import enum
+import json
 import os
 import shutil
 from typing import Dict, Optional, Set, Tuple
@@ -23,6 +24,7 @@ from cnaas_nms.db.settings import (
 )
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.scheduler.thread_data import set_thread_data
+from cnaas_nms.tools.event import add_event
 from cnaas_nms.tools.log import get_logger
 from git import InvalidGitRepositoryError, Repo
 from git.exc import GitCommandError, NoSuchPathError
@@ -75,8 +77,9 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
     # while another task is building configuration for devices using repo data
     with sqla_session() as session:
         job = Job()
-        job.start_job(function_name="refresh_repo", scheduled_by=scheduled_by)
         session.add(job)
+        session.flush()
+        job.start_job(function_name="refresh_repo", scheduled_by=scheduled_by)
         session.flush()
         job_id = job.id
         set_thread_data(job_id)
@@ -84,6 +87,13 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
 
         logger.info("Trying to acquire lock for devices to run refresh repo")
         if not Joblock.acquire_lock(session, name="devices", job_id=job_id):
+            job.status = JobStatus.ABORTED
+            try:
+                event_data = {"job_id": job.id, "status": job.status.name}
+                json_data = json.dumps(event_data)
+                add_event(json_data=json_data, event_type="update", update_type="job")
+            except Exception:  # noqa: S110
+                pass
             raise JoblockError("Unable to acquire lock for configuring devices")
         try:
             result = _refresh_repo_task(repo_type, job_id=job_id)
@@ -95,6 +105,12 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
                 Joblock.release_lock(session, job_id=job_id)
             except Exception:
                 logger.error("Unable to release devices lock after refresh repo job")
+            try:
+                event_data = {"job_id": job.id, "status": job.status.name}
+                json_data = json.dumps(event_data)
+                add_event(json_data=json_data, event_type="update", update_type="job")
+            except Exception:  # noqa: S110
+                pass
             return result
         except Exception as e:
             logger.exception("Exception while scheduling job for refresh repo")
@@ -106,6 +122,12 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
                 Joblock.release_lock(session, job_id=job_id)
             except Exception:
                 logger.error("Unable to release devices lock after refresh repo job")
+            try:
+                event_data = {"job_id": job.id, "status": job.status.name}
+                json_data = json.dumps(event_data)
+                add_event(json_data=json_data, event_type="update", update_type="job")
+            except Exception:  # noqa: S110
+                pass
             raise e
 
 

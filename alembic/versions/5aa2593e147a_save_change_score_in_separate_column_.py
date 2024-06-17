@@ -6,6 +6,7 @@ Create Date: 2019-12-05 13:10:39.311902
 
 """
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -17,6 +18,7 @@ depends_on = None
 
 def upgrade():
     op.add_column("job", sa.Column("change_score", sa.SmallInteger(), nullable=True))
+
 
 def downgrade():
     op.drop_column("job", "change_score")

@@ -85,7 +85,7 @@ services:
   #
 
   cnaas_postgres:
-    build: ./postgres/
+    image: postgres:11
     volumes:
       - cnaas-postgres-data:/var/lib/postgresql/data
     ports:

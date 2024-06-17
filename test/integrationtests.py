@@ -194,10 +194,11 @@ class GetTests(unittest.TestCase):
         self.assertIn("diff", job["result"])
 
     def test_06_syncto_dist(self):
+        hostname = "eosdist1"
         r = requests.post(
-            f"{URL}/api/v1.0/device_syncto",
+            f"{URL}/api/v1.0/device_syncto/hostname/{hostname}",
             headers=AUTH_HEADER,
-            json={"hostname": "eosdist1", "dry_run": True, "force": True},
+            json={"dry_run": True, "force": True},
             verify=TLS_VERIFY,
         )
         self.assertEqual(r.status_code, 200, "Failed to do sync_to dist")

@@ -351,9 +351,7 @@ def update_linknets(
             ipv4_network=ipv4_network,
             strict_check=not dry_run,  # Don't do strict check if this is a dry_run
         )
-        if not dry_run:
-            session.add(new_link)
-            session.commit()
+        session.add(new_link)
         # Make return data pretty
         ret_dict = {
             **new_link.as_dict(),
@@ -365,4 +363,8 @@ def update_linknets(
         }
         del ret_dict["id"]
         ret.append({k: ret_dict[k] for k in sorted(ret_dict)})
+    if dry_run:
+        session.rollback()
+    else:
+        session.commit()
     return ret

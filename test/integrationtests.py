@@ -26,7 +26,7 @@ class GetTests(unittest.TestCase):
     def setUpClass(cls):
         for i in range(100):
             try:
-                r = requests.get(f"{URL}/api/v1.0/devices", headers=AUTH_HEADER, verify=TLS_VERIFY)
+                r = requests.get(f"{URL}/api/v1.0/system/version", headers=AUTH_HEADER, verify=TLS_VERIFY)
             except Exception as e:
                 print("Exception {}, retrying in 1 second".format(str(e)))
                 time.sleep(1)

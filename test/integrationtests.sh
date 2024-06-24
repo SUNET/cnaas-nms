@@ -25,6 +25,7 @@ export JWT_AUTH_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2
 export JWT_SECRET_KEY="integrationtestkey"
 
 # select docker compose v 1 or 2
+set +e
 docker compose > /dev/null 2>&1
 if [ $? -eq 1 ]
 then

@@ -272,19 +272,22 @@ def populate_device_vars(
                     ifindexnum: int = 0
                 if "ifclass" not in intf:
                     continue
+                extra_keys = ["aggregate_id", "enabled", "cli_append_str"]
                 if intf["ifclass"] == "downlink":
                     data = {}
                     if intf["name"] in ifname_peer_map:
                         data["description"] = ifname_peer_map[intf["name"]]
-                    fabric_device_variables["interfaces"].append(
-                        {
-                            "name": intf["name"],
-                            "ifclass": intf["ifclass"],
-                            "redundant_link": intf["redundant_link"],
-                            "indexnum": ifindexnum,
-                            "data": data,
-                        }
-                    )
+                    if_dict = {
+                        "name": intf["name"],
+                        "ifclass": intf["ifclass"],
+                        "redundant_link": intf["redundant_link"],
+                        "indexnum": ifindexnum,
+                        "data": data,
+                    }
+                    for extra_key_name in extra_keys:
+                        if extra_key_name in intf:
+                            if_dict[extra_key_name] = intf[extra_key_name]
+                    fabric_device_variables["interfaces"].append(if_dict)
                 elif intf["ifclass"] == "custom":
                     fabric_device_variables["interfaces"].append(
                         {
@@ -315,8 +318,8 @@ def populate_device_vars(
                         )
                 else:
                     if_dict = {"indexnum": ifindexnum}
-                    for key, value in intf.items():
-                        if_dict[key] = value
+                    for extra_key_name, value in intf.items():
+                        if_dict[extra_key_name] = value
                     fabric_device_variables["interfaces"].append(if_dict)
 
         for local_if, data in fabric_interfaces.items():

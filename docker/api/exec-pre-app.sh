@@ -9,9 +9,10 @@ fi
 
 set -e
 
+cp /etc/cnaas-nms/repository.yml /tmp/repository.yml.original
 sed -e "s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|" \
     -e "s|^\(settings_remote: \).\+$|\1 $GITREPO_SETTINGS|" \
-  < /etc/cnaas-nms/repository.yml > /tmp/repository.yml.new \
+  < /tmp/repository.yml.original > /tmp/repository.yml.new \
   && cat /tmp/repository.yml.new > /etc/cnaas-nms/repository.yml
 
 #if [ -e "/opt/cnaas/settings" ]; then

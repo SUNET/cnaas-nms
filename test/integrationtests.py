@@ -100,7 +100,7 @@ class GetTests(unittest.TestCase):
         self.assertTrue(hostname, "No device in state discovered found for ZTP")
         data = {"hostname": "eosaccess", "device_type": "ACCESS"}
         initcheck_attempts = 3
-        for i in range(initcheck_attempts):
+        for _ in range(initcheck_attempts):
             time.sleep(5)
             r = requests.post(
                 f"{URL}/api/v1.0/device_initcheck/{device_id}", headers=AUTH_HEADER, json=data, verify=TLS_VERIFY

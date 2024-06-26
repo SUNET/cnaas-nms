@@ -339,7 +339,11 @@ def update_linknets(
             DeviceType.CORE,
             DeviceType.DIST,
         ]:
-            ipv4_network = find_free_infra_linknet(session, idx)
+            if dry_run:
+                # dry_run requires linknet offset since linknet IPs are not added to database
+                ipv4_network = find_free_infra_linknet(session, idx)
+            else:
+                ipv4_network = find_free_infra_linknet(session)
         else:
             ipv4_network = None
         new_link = Linknet.create_linknet(

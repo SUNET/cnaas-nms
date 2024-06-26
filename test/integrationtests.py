@@ -26,7 +26,7 @@ class GetTests(unittest.TestCase):
     def setUpClass(cls):
         for i in range(100):
             try:
-                r = requests.get(f"{URL}/api/v1.0/devices", headers=AUTH_HEADER, verify=TLS_VERIFY)
+                r = requests.get(f"{URL}/api/v1.0/system/version", headers=AUTH_HEADER, verify=TLS_VERIFY)
             except Exception as e:
                 print("Exception {}, retrying in 1 second".format(str(e)))
                 time.sleep(1)
@@ -99,9 +99,15 @@ class GetTests(unittest.TestCase):
         print("Discovered hostname, id: {}, {}".format(hostname, device_id))
         self.assertTrue(hostname, "No device in state discovered found for ZTP")
         data = {"hostname": "eosaccess", "device_type": "ACCESS"}
-        r = requests.post(
-            f"{URL}/api/v1.0/device_initcheck/{device_id}", headers=AUTH_HEADER, json=data, verify=TLS_VERIFY
-        )
+        initcheck_attempts = 3
+        for _ in range(initcheck_attempts):
+            time.sleep(5)
+            r = requests.post(
+                f"{URL}/api/v1.0/device_initcheck/{device_id}", headers=AUTH_HEADER, json=data, verify=TLS_VERIFY
+            )
+            if r.status_code == 200:
+                break
+
         self.assertEqual(r.status_code, 200, "Failed device_initcheck, http status")
         self.assertEqual(r.json()["status"], "success", "Failed device_initcheck, returned unsuccessful")
         #       this check fails when running integrationtests with one dist because of faked neighbor:

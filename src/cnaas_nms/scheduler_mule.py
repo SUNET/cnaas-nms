@@ -30,9 +30,13 @@ if is_coverage_enabled():
         cov.stop()
         cov.save()
 
+    def save_coverage_signal():
+        cov.stop()
+        cov.save()
+
     atexit.register(save_coverage)
-    signal.signal(signal.SIGTERM, save_coverage)
-    signal.signal(signal.SIGINT, save_coverage)
+    signal.signal(signal.SIGTERM, save_coverage_signal)
+    signal.signal(signal.SIGINT, save_coverage_signal)
 
 
 def pre_schedule_checks(scheduler, kwargs):

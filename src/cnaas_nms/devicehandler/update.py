@@ -251,7 +251,7 @@ def update_linknets(
         )
     )
 
-    for local_if, data in neighbors.items():
+    for idx, (local_if, data) in enumerate(neighbors.items()):
         logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
         remote_device_inst: Device = session.query(Device).filter(Device.hostname == data[0]["hostname"]).one_or_none()
         if not remote_device_inst:
@@ -339,7 +339,7 @@ def update_linknets(
             DeviceType.CORE,
             DeviceType.DIST,
         ]:
-            ipv4_network = find_free_infra_linknet(session)
+            ipv4_network = find_free_infra_linknet(session, idx)
         else:
             ipv4_network = None
         new_link = Linknet.create_linknet(

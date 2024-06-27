@@ -299,8 +299,12 @@ def populate_device_vars(
                     )
                 elif intf["ifclass"] == "fabric":
                     if intf["name"] in fabric_interfaces:
+                        if_dict = {}
+                        for extra_key_name in extra_keys:
+                            if extra_key_name in intf:
+                                if_dict[extra_key_name] = intf[extra_key_name]
                         fabric_device_variables["interfaces"].append(
-                            {**fabric_interfaces[intf["name"]], **{"indexnum": ifindexnum}}
+                            {**fabric_interfaces[intf["name"]], **{"indexnum": ifindexnum}, **if_dict}
                         )
                         del fabric_interfaces[intf["name"]]
                     else:

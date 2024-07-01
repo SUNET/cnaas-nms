@@ -151,6 +151,7 @@ class f_interface(BaseModel):
     acl_ipv4_out: Optional[str] = None
     acl_ipv6_in: Optional[str] = None
     acl_ipv6_out: Optional[str] = None
+    metric: Optional[int] = None
     cli_append_str: str = ""
 
     @field_validator("ipv4_address")

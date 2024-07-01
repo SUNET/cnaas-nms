@@ -412,6 +412,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * acl_ipv4_out: Access control list to apply for egress IPv4 traffic from interface. Optional.
   * acl_ipv6_in: Access control list to apply for ingress IPv6 traffic to interface. Optional.
   * acl_ipv6_out: Access control list to apply for egress IPv6 traffic from interface. Optional.
+  * metric: Optional integer specifying metric for this interface.
   * cli_append_str: Optional. Custom configuration to append to this interface.
 
 The "downlink" ifclass is used on DIST devices to specify that this interface
@@ -433,6 +434,11 @@ Contains base system settings like:
 - ntp_servers: List of
 
   * host: IP address or hostname of NTP server
+
+- radius_servers: List of
+
+  * host: IP address or hostname of RADIUS server
+  * port: Port number. Optional
 
 - snmp_servers: List of
 

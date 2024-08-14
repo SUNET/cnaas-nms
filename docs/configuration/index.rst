@@ -42,7 +42,7 @@ Defines parameters for the API:
   defines whether IP version 4 or 6 is preferred when an access device's primary
   management address is assigned. The only valid values are therefore 4 and 6.
 - commit_confirmed_mode: Integer specifying default commit confirm mode
-  (see :ref:`commit_confirm_modes`). Defaults to 1.
+  (see :ref:`Syncto commit confirm modes<commit_confirm_modes>`). Defaults to 1.
 - commit_confirmed_timeout: Time to wait before rolling back an unconfirmed commit,
   specified in seconds. Defaults to 300.
 - commit_confirmed_wait: Time to wait between comitting configuration and checking

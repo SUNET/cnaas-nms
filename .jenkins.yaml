@@ -55,6 +55,7 @@ extra_jobs:
     docker_name: cnaas/api
     docker_context_dir: docker/api
     docker_tags:
+      - "v1.6"
       - "master"
 
   - name: cnaas-postgres

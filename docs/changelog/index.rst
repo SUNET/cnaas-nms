@@ -18,6 +18,7 @@ Bug fixes:
  - Fix job status change events for refresh jobs (#352)
  - Fix initcheck fabric device proposed linknet IPs (#355)
  - Clean up device init failed job results and make more consistent (#358)
+ - Fix for FQDN checks in settings (#343)
 
 Changes:
 

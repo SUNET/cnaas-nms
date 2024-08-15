@@ -3,8 +3,7 @@ from typing import Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from pydantic import BaseModel, validator
-from pydantic.error_wrappers import ValidationError
+from pydantic import BaseModel, FieldValidationInfo, ValidationError, field_validator
 
 from cnaas_nms.api.generic import empty_result, parse_pydantic_error, update_sqla_object
 from cnaas_nms.db.device import Device, DeviceType
@@ -12,7 +11,7 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.underlay import find_free_infra_linknet
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 linknets_api = Namespace("linknets", description="API for handling linknets", prefix="/api/{}".format(__api_version__))
@@ -51,29 +50,31 @@ class f_linknet(BaseModel):
     device_a_ip: Optional[str] = None
     device_b_ip: Optional[str] = None
 
-    @validator("device_a_ip", "device_b_ip")
-    def device_ip_validator(cls, v, values, **kwargs):
+    @field_validator("device_a_ip", "device_b_ip")
+    @classmethod
+    def device_ip_validator(cls, v, info: FieldValidationInfo):
         if not v:
             return v
-        if not values["ipv4_network"]:
+        if not info.data["ipv4_network"]:
             raise ValueError("ipv4_network must be set")
         try:
             addr = IPv4Address(v)
-            net = IPv4Network(values["ipv4_network"])
+            net = IPv4Network(info.data["ipv4_network"])
         except Exception:  # noqa: S110
             raise ValueError("Invalid device IP or ipv4_network")
         else:
             if addr not in net.hosts():
                 raise ValueError("device IP must be part of ipv4_network")
-            if "device_a_ip" in values and v == values["device_a_ip"]:
+            if "device_a_ip" in info.data and v == info.data["device_a_ip"]:
                 raise ValueError("device_a_ip and device_b_ip can not be the same")
-            if "device_b_ip" in values and v == values["device_b_ip"]:
+            if "device_b_ip" in info.data and v == info.data["device_b_ip"]:
                 raise ValueError("device_a_ip and device_b_ip can not be the same")
 
         return v
 
-    @validator("ipv4_network")
-    def ipv4_network_validator(cls, v, values, **kwargs):
+    @field_validator("ipv4_network")
+    @classmethod
+    def ipv4_network_validator(cls, v):
         if not v:
             return v
         try:
@@ -100,7 +101,7 @@ class LinknetsApi(Resource):
             # Allow pre-provisioning of linknet to device that is not yet
             # managed or not assigned device_type, so no further checks here
 
-    @jwt_required
+    @login_required
     def get(self):
         """Get all linksnets"""
         result = {"linknets": []}
@@ -110,7 +111,7 @@ class LinknetsApi(Resource):
                 result["linknets"].append(instance.as_dict())
         return empty_result(status="success", data=result)
 
-    @jwt_required
+    @login_required
     @linknets_api.expect(linknets_model)
     def post(self):
         """Add a new linknet"""
@@ -182,7 +183,7 @@ class LinknetsApi(Resource):
 
         return empty_result(status="success", data=data), 201
 
-    @jwt_required
+    @login_required
     def delete(self):
         """Remove linknet"""
         json_data = request.get_json()
@@ -199,16 +200,16 @@ class LinknetsApi(Resource):
             if not cur_linknet:
                 return empty_result(status="error", data="No such linknet found in database"), 404
             cur_linknet.device_a.synchronized = False
-            add_sync_event(cur_linknet.device_a.hostname, "linknet_deleted", get_jwt_identity())
+            add_sync_event(cur_linknet.device_a.hostname, "linknet_deleted", get_identity())
             cur_linknet.device_b.synchronized = False
-            add_sync_event(cur_linknet.device_b.hostname, "linknet_deleted", get_jwt_identity())
+            add_sync_event(cur_linknet.device_b.hostname, "linknet_deleted", get_identity())
             session.delete(cur_linknet)
             session.commit()
             return empty_result(status="success", data={"deleted_linknet": cur_linknet.as_dict()}), 200
 
 
 class LinknetByIdApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, linknet_id):
         """Get a single specified linknet"""
         result = empty_result()
@@ -221,23 +222,23 @@ class LinknetByIdApi(Resource):
                 return empty_result("error", "Linknet not found"), 404
         return result
 
-    @jwt_required
+    @login_required
     def delete(self, linknet_id):
         """Remove a linknet"""
         with sqla_session() as session:
             instance: Linknet = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
-                add_sync_event(instance.device_a.hostname, "linknet_deleted", get_jwt_identity())
+                add_sync_event(instance.device_a.hostname, "linknet_deleted", get_identity())
                 instance.device_b.synchronized = False
-                add_sync_event(instance.device_b.hostname, "linknet_deleted", get_jwt_identity())
+                add_sync_event(instance.device_b.hostname, "linknet_deleted", get_identity())
                 session.delete(instance)
                 session.commit()
                 return empty_result(status="success", data={"deleted_linknet": instance.as_dict()}), 200
             else:
                 return empty_result("error", "No such linknet found in database"), 404
 
-    @jwt_required
+    @login_required
     @linknets_api.expect(linknet_model)
     def put(self, linknet_id):
         """Update data on existing linknet"""
@@ -258,7 +259,7 @@ class LinknetByIdApi(Resource):
             if instance:
                 try:
                     validate_data = {**instance.as_dict(), **json_data}
-                    f_linknet(**validate_data).dict()
+                    f_linknet(**validate_data).model_dump()
                 except ValidationError as e:
                     errors += parse_pydantic_error(e, f_linknet, validate_data)
                 if errors:
@@ -267,9 +268,9 @@ class LinknetByIdApi(Resource):
                 changed: bool = update_sqla_object(instance, json_data)
                 if changed:
                     instance.device_a.synchronized = False
-                    add_sync_event(instance.device_a.hostname, "linknet_updated", get_jwt_identity())
+                    add_sync_event(instance.device_a.hostname, "linknet_updated", get_identity())
                     instance.device_b.synchronized = False
-                    add_sync_event(instance.device_b.hostname, "linknet_updated", get_jwt_identity())
+                    add_sync_event(instance.device_b.hostname, "linknet_updated", get_identity())
                     return empty_result(status="success", data={"updated_linknet": instance.as_dict()}), 200
                 else:
                     return empty_result(status="success", data={"unchanged_linknet": instance.as_dict()}), 200

@@ -2,12 +2,14 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseSettings, PostgresDsn, validator
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
+
+from cnaas_nms.models.permissions import PermissionsModel
 
 
 class AppSettings(BaseSettings):
     # Database settings
-
     CNAAS_DB_HOSTNAME: str = "127.0.0.1"
     CNAAS_DB_USERNAME: str = "cnaas"
     CNAAS_DB_PASSWORD: str = "cnaas"
@@ -15,7 +17,7 @@ class AppSettings(BaseSettings):
     CNAAS_DB_PORT: int = 5432
     REDIS_HOSTNAME: str = "127.0.0.1"
     REDIS_PORT: int = 6379
-    POSTGRES_DSN: PostgresDsn = (
+    POSTGRES_DSN: str = (
         f"postgresql://{CNAAS_DB_USERNAME}:{CNAAS_DB_PASSWORD}@{CNAAS_DB_HOSTNAME}:{CNAAS_DB_PORT}/{CNAAS_DB_DATABASE}"
     )
     USERNAME_INIT: str = "admin"
@@ -38,14 +40,15 @@ class ApiSettings(BaseSettings):
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
     VERIFY_TLS: bool = False
     VERIFY_TLS_DEVICE: bool = False
-    JWT_CERT: Path = "/opt/cnaas/jwtcert/public.pem"
-    CAFILE: Optional[Path] = "/opt/cnaas/cacert/rootCA.crt"
-    CAKEYFILE: Path = "/opt/cnaas/cacert/rootCA.key"
-    CERTPATH: Path = "/tmp/devicecerts/"
+    JWT_CERT: Path = Path("/opt/cnaas/jwtcert/public.pem")
+    CAFILE: Optional[Path] = Path("/opt/cnaas/cacert/rootCA.crt")
+    CAKEYFILE: Path = Path("/opt/cnaas/cacert/rootCA.key")
+    CERTPATH: Path = Path("/tmp/devicecerts/")
     ALLOW_APPLY_CONFIG_LIVERUN: bool = False
     FIRMWARE_URL: str = HTTPD_URL
     JWT_ENABLED: bool = True
-    PLUGIN_FILE: Path = "/etc/cnaas-nms/plugins.yml"
+    JWT_SECRET_KEY: Optional[bytes] = None
+    PLUGIN_FILE: Path = Path("/etc/cnaas-nms/plugins.yml")
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
     MGMTDOMAIN_RESERVED_COUNT: int = 5
@@ -55,12 +58,27 @@ class ApiSettings(BaseSettings):
     COMMIT_CONFIRMED_WAIT: int = 1
     SETTINGS_OVERRIDE: Optional[dict] = None
 
-    @validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
+    @field_validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
     @classmethod
     def primary_ip_version_is_valid(cls, version: int) -> int:
         if version not in (4, 6):
             raise ValueError("must be either 4 or 6")
         return version
+
+
+class AuthSettings(BaseSettings):
+    # Authorization settings
+    FRONTEND_CALLBACK_URL: str = "http://localhost/callback"
+    OIDC_CONF_WELL_KNOWN_URL: str = "well-known-openid-configuration-endpoint"
+    OIDC_CLIENT_SECRET: str = "xxx"
+    OIDC_CLIENT_ID: str = "client-id"
+    OIDC_ENABLED: bool = False
+    OIDC_USERNAME_ATTRIBUTE: str = "email"
+    PERMISSIONS: Optional[PermissionsModel] = None
+    PERMISSIONS_DISABLED: bool = False
+    OIDC_CLIENT_SCOPE: str = "openid"
+    AUDIENCE: Optional[str] = None  # = OIDC_CLIENT_ID if not defined
+    VERIFY_AUDIENCE: bool = True
 
 
 def construct_api_settings() -> ApiSettings:
@@ -72,15 +90,22 @@ def construct_api_settings() -> ApiSettings:
 
         if config.get("firmware_url", False):
             firmware_url = config["firmware_url"]
-
         else:
             firmware_url = config["httpd_url"]
+
+        jwt_enabled = ApiSettings().JWT_ENABLED
+        jwt_secret_key = config.get("jwt_secret_key", ApiSettings().JWT_SECRET_KEY)
+        if jwt_enabled and jwt_secret_key is None:
+            raise ValueError("JWT_SECRET_KEY must be defined in environment or api.yml")
+
         return ApiSettings(
             HOST=config["host"],
             HTTPD_URL=config["httpd_url"],
             VERIFY_TLS=config["verify_tls"],
             VERIFY_TLS_DEVICE=config["verify_tls_device"],
+            JWT_ENABLED=jwt_enabled,
             JWT_CERT=config.get("jwtcert", ApiSettings().JWT_CERT),
+            JWT_SECRET_KEY=jwt_secret_key,
             CAFILE=config.get("cafile", ApiSettings().CAFILE),
             CAKEYFILE=config.get("cakeyfile", ApiSettings().CAKEYFILE),
             CERTPATH=config.get("certpath", ApiSettings().CERTPATH),
@@ -101,7 +126,6 @@ def construct_api_settings() -> ApiSettings:
 def construct_app_settings() -> AppSettings:
     db_config = Path("/etc/cnaas-nms/db_config.yml")
     repo_config = Path("/etc/cnaas-nms/repository.yml")
-
     app_settings = AppSettings()
 
     def _create_db_config(settings: AppSettings, config: dict) -> None:
@@ -132,5 +156,52 @@ def construct_app_settings() -> AppSettings:
     return app_settings
 
 
+def construct_auth_settings() -> AuthSettings:
+    auth_settings = AuthSettings()
+    permission_config = Path("/etc/cnaas-nms/permissions.yml")
+
+    auth_config = Path("/etc/cnaas-nms/auth_config.yml")
+
+    if auth_config.is_file():
+        with open(auth_config, "r") as auth_file:
+            config = yaml.safe_load(auth_file)
+        auth_settings.OIDC_ENABLED = config.get("oidc_enabled", AuthSettings().OIDC_ENABLED)
+        auth_settings.FRONTEND_CALLBACK_URL = config.get("frontend_callback_url", AuthSettings().FRONTEND_CALLBACK_URL)
+        auth_settings.OIDC_CONF_WELL_KNOWN_URL = config.get(
+            "oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL
+        )
+        auth_settings.OIDC_CLIENT_SECRET = config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET)
+        auth_settings.OIDC_CLIENT_ID = config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
+        auth_settings.OIDC_CLIENT_SCOPE = config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE)
+        auth_settings.OIDC_USERNAME_ATTRIBUTE = config.get(
+            "oidc_username_attribute", AuthSettings().OIDC_USERNAME_ATTRIBUTE
+        )
+        auth_settings.PERMISSIONS_DISABLED = config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED)
+        auth_settings.AUDIENCE = config.get("audience", AuthSettings().AUDIENCE)
+        auth_settings.VERIFY_AUDIENCE = config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE)
+
+    if auth_settings.AUDIENCE is None:
+        auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID
+
+    if auth_settings.PERMISSIONS_DISABLED:
+        permissions_rules = {
+            "config": {"default_permissions": "default"},
+            "roles": {
+                "default": {"permissions": [{"methods": ["*"], "endpoints": ["*"], "pages": ["*"], "rights": ["*"]}]}
+            },
+        }
+        auth_settings.PERMISSIONS = PermissionsModel(**permissions_rules)
+    elif permission_config.is_file():
+        """Load the file with role permission"""
+        with open(permission_config, "r") as permission_file:
+            permissions_rules = yaml.safe_load(permission_file)
+        auth_settings.PERMISSIONS = PermissionsModel(**permissions_rules)
+    else:
+        raise FileNotFoundError(f"{permission_config} not found")
+
+    return auth_settings
+
+
 app_settings = construct_app_settings()
 api_settings = construct_api_settings()
+auth_settings = construct_auth_settings()

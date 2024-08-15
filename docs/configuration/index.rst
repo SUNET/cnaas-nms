@@ -42,11 +42,56 @@ Defines parameters for the API:
   defines whether IP version 4 or 6 is preferred when an access device's primary
   management address is assigned. The only valid values are therefore 4 and 6.
 - commit_confirmed_mode: Integer specifying default commit confirm mode
-  (see :ref:`commit_confirm_modes`). Defaults to 1.
+  (see :ref:`Syncto commit confirm modes<commit_confirm_modes>`). Defaults to 1.
 - commit_confirmed_timeout: Time to wait before rolling back an unconfirmed commit,
   specified in seconds. Defaults to 300.
 - commit_confirmed_wait: Time to wait between comitting configuration and checking
   that the device is still reachable, specified in seconds. Defaults to 1.
+
+/etc/cnaas-nms/auth_config.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Define parameters for the authentication:
+
+- oidc_conf_well_known_url: OIDC well-known URL for metadata
+- oidc_client_secret: The client secret for OIDC
+- oidc_client_id: The client_id for OIDC
+- oidc_username_attribute: What attribute in access token or userinfo endpoint to use for username, defaults to "email"
+- frontend_callback_url: The frontend URL that the OIDC client should redirect to after the login process
+- oidc_enabled: Set True to enabled OIDC login. Defaults to False
+- audience: The string to verify the aud attribute in the access token with
+- verify_audience: Set to False to disable aud check. Defaults to True
+- permissions_disabled: set True to disable permissions. Default False
+
+/etc/cnaas-nms/permissions.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Defines permissions levels for users/groups when accessing the API and the frontend. These permissions
+are only active when OAuth is enabled.
+
+
+- config:
+
+  * default_permissions: the name of the role with permissions given to every user by default
+
+- group_mappings:
+
+  * [name_of_token_attribute]: The name of the group or email attribute in the access token, eg "groups" or "email"
+
+    + [value_of_attribute]: Example "admin@example.com" or "admingroup"
+
+      - role: The name of the role to give the user
+
+- roles:
+
+  * [name_of_the_role]:
+
+    + permissions: Each user group can have different sets of permissions for flexibility.
+      - methods: HTTP methods on the API, for example, "GET", "POST", "*"
+      - endpoints: Uri's of endpoints on the API with possibility to use Glob, for example "/devices", "job**", "/devices/**/interfaces", "*"
+      - pages: Pages shown in the menu of the frontend, for example "Devices", "Groups", "*"
+      - rights: Actions you can take in the frontend, for example "read", "write", "*"
+
 
 /etc/cnaas-nms/repository.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

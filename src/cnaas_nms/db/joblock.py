@@ -2,6 +2,7 @@ import datetime
 from typing import Dict, Optional
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import relationship
 
 import cnaas_nms.db.base
@@ -89,4 +90,10 @@ class Joblock(cnaas_nms.db.base.Base):
     @classmethod
     def clear_locks(cls, session: sqla_session):
         """Clear/release all locks in the database."""
-        return session.query(Joblock).delete()
+        try:
+            return session.query(Joblock).delete()
+        except DBAPIError as e:
+            if e.orig.pgcode == "42P01":
+                raise JoblockError("Jobblock table doesn't exist yet, we assume it will be created soon.")
+            else:
+                raise

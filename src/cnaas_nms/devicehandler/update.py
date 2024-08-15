@@ -251,7 +251,7 @@ def update_linknets(
         )
     )
 
-    for local_if, data in neighbors.items():
+    for idx, (local_if, data) in enumerate(neighbors.items()):
         logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
         remote_device_inst: Device = session.query(Device).filter(Device.hostname == data[0]["hostname"]).one_or_none()
         if not remote_device_inst:
@@ -339,7 +339,11 @@ def update_linknets(
             DeviceType.CORE,
             DeviceType.DIST,
         ]:
-            ipv4_network = find_free_infra_linknet(session)
+            if dry_run:
+                # dry_run requires linknet offset since linknet IPs are not added to database
+                ipv4_network = find_free_infra_linknet(session, idx)
+            else:
+                ipv4_network = find_free_infra_linknet(session)
         else:
             ipv4_network = None
         new_link = Linknet.create_linknet(
@@ -354,9 +358,6 @@ def update_linknets(
         if not dry_run:
             session.add(new_link)
             session.commit()
-        else:
-            # Make sure linknet object is not added to session because of foreign key load
-            session.expunge(new_link)
         # Make return data pretty
         ret_dict = {
             **new_link.as_dict(),

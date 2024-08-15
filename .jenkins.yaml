@@ -16,7 +16,6 @@ git:
     shallow_clone: true
 
 script:
-  - "ssh root@puckly.sunet.se /root/starttests.sh ${GIT_BRANCH}"
   # - "python3.7 -m venv venv"
   # - ". venv/bin/activate"
   # - "pip install --upgrade setuptools pip wheel mypy"
@@ -45,7 +44,7 @@ extra_jobs:
     docker_name: cnaas/api
     docker_context_dir: docker/api
     docker_tags:
-      - "v1.6"
+      - "v1.7"
       - "develop"
 
   - name: cnaas-api-master
@@ -56,7 +55,6 @@ extra_jobs:
     docker_name: cnaas/api
     docker_context_dir: docker/api
     docker_tags:
-      - "v1.5"
       - "master"
 
   - name: cnaas-postgres

@@ -1,7 +1,7 @@
 from typing import List
 
 from flask import request
-from flask_restx import Namespace, Resource
+from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.device import Device
@@ -11,14 +11,60 @@ from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.interface_state import bounce_interfaces, get_interface_states
 from cnaas_nms.devicehandler.sync_devices import resolve_vlanid, resolve_vlanid_list
 from cnaas_nms.devicehandler.sync_history import add_sync_event
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 api = Namespace("device", description="API for handling interfaces", prefix="/api/{}".format(__api_version__))
 
+interfacedata_model = api.model(
+    "interfacedata",
+    {
+        "untagged_vlan": fields.Raw(required=False, description="VLAN ID or name", example="STUDENTS"),
+        "tagged_vlan_list": fields.List(
+            fields.Raw(), required=False, description="List of VLAN IDs or names", example=["STUDENTS", "EMPLOYEES"]
+        ),
+        "description": fields.String(required=False, description="Interface description", example="Access point"),
+        "enabled": fields.Boolean(required=False, example=True),
+        "aggregate_id": fields.Integer(required=False, example=-1, description="LACP ID"),
+        "bpdu_filter": fields.Boolean(required=False, example=True),
+        "redundant_link": fields.Boolean(required=False, example=True),
+        "tags": fields.List(fields.String(), required=False, description="List of tags", example=["tag1", "tag2"]),
+        "cli_append_str": fields.String(required=False),
+    },
+)
+
+interface_model = api.model(
+    "interface",
+    {
+        "configtype": fields.String(
+            required=True,
+            description=(
+                "Type of interface, can be: ACCESS_AUTO, ACCESS_UNTAGGED, ACCESS_TAGGED, "
+                "ACCESS_UPLINK, ACCESS_DOWNLINK, MLAG_PEER"
+            ),
+            example="ACCESS_AUTO",
+        ),
+        "data": fields.Nested(interfacedata_model),
+    },
+)
+
+interfacename_model = api.model(
+    "interfacename",
+    {
+        "interfacename": fields.Nested(interface_model, required=True),
+    },
+)
+
+interfaces_model = api.model(
+    "interfaces",
+    {
+        "interfaces": fields.Nested(interfacename_model, required=True),
+    },
+)
+
 
 class InterfaceApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, hostname):
         """List all interfaces"""
         result = empty_result()
@@ -38,7 +84,8 @@ class InterfaceApi(Resource):
             result["data"]["interfaces"] = sorted(interfaces, key=lambda i: i["indexnum"])
         return result
 
-    @jwt_required
+    @login_required
+    @api.expect(interfaces_model)
     def put(self, hostname):
         """Take a map of interfaces and associated values to update.
         Example:
@@ -176,14 +223,14 @@ class InterfaceApi(Resource):
                                     )
                                 )
                         if "enabled" in if_dict["data"]:
-                            if type(if_dict["data"]["enabled"]) == bool:
+                            if type(if_dict["data"]["enabled"]) is bool:
                                 intfdata["enabled"] = if_dict["data"]["enabled"]
                             else:
                                 errors.append(
                                     "Enabled must be a bool, true or false, got: {}".format(if_dict["data"]["enabled"])
                                 )
                         if "aggregate_id" in if_dict["data"]:
-                            if type(if_dict["data"]["aggregate_id"]) == int:
+                            if type(if_dict["data"]["aggregate_id"]) is int:
                                 intfdata["aggregate_id"] = if_dict["data"]["aggregate_id"]
                             elif if_dict["data"]["aggregate_id"] is None:
                                 if "aggregate_id" in intfdata:
@@ -193,7 +240,7 @@ class InterfaceApi(Resource):
                                     "Aggregate ID must be an integer: {}".format(if_dict["data"]["aggregate_id"])
                                 )
                         if "bpdu_filter" in if_dict["data"]:
-                            if type(if_dict["data"]["bpdu_filter"]) == bool:
+                            if type(if_dict["data"]["bpdu_filter"]) is bool:
                                 intfdata["bpdu_filter"] = if_dict["data"]["bpdu_filter"]
                             else:
                                 errors.append(
@@ -202,7 +249,7 @@ class InterfaceApi(Resource):
                                     )
                                 )
                         if "redundant_link" in if_dict["data"]:
-                            if type(if_dict["data"]["redundant_link"]) == bool:
+                            if type(if_dict["data"]["redundant_link"]) is bool:
                                 intfdata["redundant_link"] = if_dict["data"]["redundant_link"]
                             else:
                                 errors.append(
@@ -237,7 +284,7 @@ class InterfaceApi(Resource):
 
             if updated:
                 dev.synchronized = False
-                add_sync_event(hostname, "interface_updated", get_jwt_identity())
+                add_sync_event(hostname, "interface_updated", get_identity())
 
         if errors:
             if data:
@@ -250,7 +297,7 @@ class InterfaceApi(Resource):
 
 
 class InterfaceStatusApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, hostname):
         """List all interfaces status"""
         result = empty_result()
@@ -262,7 +309,7 @@ class InterfaceStatusApi(Resource):
             return empty_result("error", "Could not get interface states, unknon exception: {}".format(e)), 400
         return result
 
-    @jwt_required
+    @login_required
     def put(self, hostname):
         """Bounce selected interfaces by appling bounce-down/bounce-up template"""
         json_data = request.get_json()

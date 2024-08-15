@@ -1,8 +1,9 @@
 import datetime
 import enum
+import json
 import os
 import shutil
-from typing import Optional, Set, Tuple
+from typing import Dict, Optional, Set, Tuple
 from urllib.parse import urldefrag
 
 import yaml
@@ -13,13 +14,20 @@ from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import DIR_STRUCTURE, SettingsSyntaxError, VlanConflictError, rebuild_settings_cache
+from cnaas_nms.db.settings import (
+    DIR_STRUCTURE,
+    SettingsSyntaxError,
+    VlanConflictError,
+    get_device_primary_groups,
+    get_groups,
+    rebuild_settings_cache,
+)
 from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.scheduler.thread_data import set_thread_data
+from cnaas_nms.tools.event import add_event
 from cnaas_nms.tools.log import get_logger
 from git import InvalidGitRepositoryError, Repo
 from git.exc import GitCommandError, NoSuchPathError
-
-logger = get_logger()
 
 
 class RepoType(enum.Enum):
@@ -69,13 +77,23 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
     # while another task is building configuration for devices using repo data
     with sqla_session() as session:
         job = Job()
-        job.start_job(function_name="refresh_repo", scheduled_by=scheduled_by)
         session.add(job)
         session.flush()
+        job.start_job(function_name="refresh_repo", scheduled_by=scheduled_by)
+        session.flush()
         job_id = job.id
+        set_thread_data(job_id)
+        logger = get_logger()
 
-        logger.info("Trying to acquire lock for devices to run refresh repo: {}".format(job_id))
+        logger.info("Trying to acquire lock for devices to run refresh repo")
         if not Joblock.acquire_lock(session, name="devices", job_id=job_id):
+            job.status = JobStatus.ABORTED
+            try:
+                event_data = {"job_id": job.id, "status": job.status.name}
+                json_data = json.dumps(event_data)
+                add_event(json_data=json_data, event_type="update", update_type="job")
+            except Exception:  # noqa: S110
+                pass
             raise JoblockError("Unable to acquire lock for configuring devices")
         try:
             result = _refresh_repo_task(repo_type, job_id=job_id)
@@ -83,25 +101,38 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
             job.status = JobStatus.FINISHED
             job.result = {"message": result, "repository": repo_type.name}
             try:
-                logger.info("Releasing lock for devices from refresh repo job: {}".format(job_id))
+                logger.info("Releasing lock for devices from refresh repo")
                 Joblock.release_lock(session, job_id=job_id)
             except Exception:
                 logger.error("Unable to release devices lock after refresh repo job")
+            try:
+                event_data = {"job_id": job.id, "status": job.status.name}
+                json_data = json.dumps(event_data)
+                add_event(json_data=json_data, event_type="update", update_type="job")
+            except Exception:  # noqa: S110
+                pass
             return result
         except Exception as e:
-            logger.exception("Exception while scheduling job for refresh repo: {}".format(str(e)))
+            logger.exception("Exception while scheduling job for refresh repo")
             job.finish_time = datetime.datetime.utcnow()
             job.status = JobStatus.EXCEPTION
             job.result = {"error": str(e), "repository": repo_type.name}
             try:
-                logger.info("Releasing lock for devices from refresh repo job: {}".format(job_id))
+                logger.info("Releasing lock for devices from refresh repo job")
                 Joblock.release_lock(session, job_id=job_id)
             except Exception:
                 logger.error("Unable to release devices lock after refresh repo job")
+            try:
+                event_data = {"job_id": job.id, "status": job.status.name}
+                json_data = json.dumps(event_data)
+                add_event(json_data=json_data, event_type="update", update_type="job")
+            except Exception:  # noqa: S110
+                pass
             raise e
 
 
 def repo_chekout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
+    logger = get_logger()
     with redis_session() as redis:
         hexsha: Optional[str] = redis.get(repo_type.name + "_working_commit")
         if hexsha:
@@ -125,8 +156,9 @@ def repo_chekout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
 
 
 def repo_save_working_commit(repo_type: RepoType, hexsha: str):
+    logger = get_logger()
     with redis_session() as redis:
-        logger.info("Saving known working comit for repo {} in cache: {}".format(repo_type.name, hexsha))
+        logger.info("Saving known working commit for repo {} in cache: {}".format(repo_type.name, hexsha))
         redis.set(repo_type.name + "_working_commit", hexsha)
 
 
@@ -146,6 +178,7 @@ def reset_repo(local_repo: Repo, remote_repo_path: str):
 
 def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optional[int] = None) -> str:
     """Should only be called by refresh_repo function."""
+    logger = get_logger()
     if repo_type == RepoType.TEMPLATES:
         local_repo_path = app_settings.TEMPLATES_LOCAL
         remote_repo_path = app_settings.TEMPLATES_REMOTE
@@ -187,6 +220,8 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
             shutil.rmtree(local_repo_path)
             raise NoSuchPathError
         prev_commit = local_repo.commit().hexsha
+        logger.debug("git pull from {}".format(remote_repo_path))
+
         diff = local_repo.remotes.origin.pull()
         for item in diff:
             if item.ref.remote_head != local_repo.head.ref.name:
@@ -229,14 +264,16 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
                 repo_save_working_commit(repo_type, local_repo.head.commit.hexsha)
             except Exception as e:  # noqa: F401
                 logger.error("Could not save last working commit: {}".format(e))
-        logger.debug("Files changed in settings repository: {}".format(changed_files))
+        logger.debug("Files changed in settings repository: {}".format(changed_files or "None"))
         updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)
         logger.debug(
             "Devicestypes to be marked unsynced after repo refresh: {}".format(
-                ", ".join([dt.name for dt in updated_devtypes])
+                (", ".join([dt.name for dt in updated_devtypes])) or "None"
             )
         )
-        logger.debug("Devices to be marked unsynced after repo refresh: {}".format(", ".join(updated_hostnames)))
+        logger.debug(
+            "Devices to be marked unsynced after repo refresh: {}".format((", ".join(updated_hostnames)) or "None")
+        )
         with sqla_session() as session:
             devtype: DeviceType
             for devtype in updated_devtypes:
@@ -250,10 +287,12 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
                     logger.warn("Settings updated for unknown device: {}".format(hostname))
 
     if repo_type == RepoType.TEMPLATES:
-        logger.debug("Files changed in template repository: {}".format(changed_files))
+        logger.debug("Files changed in template repository: {}".format(changed_files or "None"))
         updated_devtypes = template_syncstatus(updated_templates=changed_files)
         updated_list = ["{}:{}".format(platform, dt.name) for dt, platform in updated_devtypes]
-        logger.debug("Devicestypes to be marked unsynced after repo refresh: {}".format(", ".join(updated_list)))
+        logger.debug(
+            "Devicestypes to be marked unsynced after repo refresh: {}".format((", ".join(updated_list)) or "None")
+        )
         with sqla_session() as session:
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
@@ -265,6 +304,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
 def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
     """Determine what device types have become unsynchronized because
     of updated template files."""
+    logger = get_logger()
     unsynced_devtypes = set()
     local_repo_path = app_settings.TEMPLATES_LOCAL
 
@@ -319,6 +359,7 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
 def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str]]:
     """Determine what devices has become unsynchronized after updating
     the settings repository."""
+    logger = get_logger()
     unsynced_devtypes = set()
     unsynced_hostnames = set()
     filename: str
@@ -343,6 +384,21 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
                     unsynced_hostnames.add(hostname)
             except Exception as e:
                 logger.exception("Error in settings devices directory: {}".format(str(e)))
+        elif basedir.startswith("groups"):
+            try:
+                groupname = filename.split(os.path.sep)[1]
+                if groupname not in get_groups():
+                    logger.warning("Group {} not found in database, syncstatus not updated".format(groupname))
+                    continue
+                primary_group_mapping: Dict[str, str] = get_device_primary_groups()
+                # Find all hostnames that are mapped to this primary group
+                # and add them to the list of unsynced hostnames
+                for map_hostname, map_groupname in primary_group_mapping.items():
+                    if groupname == map_groupname:
+                        unsynced_hostnames.add(map_hostname)
+
+            except Exception as e:
+                logger.exception("Error in settings groups directory {}: {}".format(filename, str(e)))
         else:
             logger.warn("Unhandled settings file found {}, syncstatus not updated".format(filename))
     return (unsynced_devtypes, unsynced_hostnames)

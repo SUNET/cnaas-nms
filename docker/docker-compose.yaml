@@ -31,6 +31,7 @@ services:
       - PYTEST_REDIS_EXTERNAL
       - PYTEST_SETTINGS_CLONED
       - PYTEST_TEMPLATES_CLONED
+      - JWT_SECRET_KEY
     depends_on:
       - "cnaas_postgres"
       - "cnaas_redis"
@@ -84,7 +85,7 @@ services:
   #
 
   cnaas_postgres:
-    build: ./postgres/
+    image: postgres:11
     volumes:
       - cnaas-postgres-data:/var/lib/postgresql/data
     ports:

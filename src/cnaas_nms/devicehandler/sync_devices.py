@@ -20,6 +20,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.git import RepoStructureException
 from cnaas_nms.db.interface import Interface
+from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings
@@ -66,7 +67,7 @@ def get_evpn_peers(session, settings: dict):
 
 def resolve_vlanid(vlan_name: str, vxlans: dict) -> Optional[int]:
     logger = get_logger()
-    if type(vlan_name) == int:
+    if type(vlan_name) is int:
         return int(vlan_name)
     if not isinstance(vlan_name, str):
         return None
@@ -271,19 +272,22 @@ def populate_device_vars(
                     ifindexnum: int = 0
                 if "ifclass" not in intf:
                     continue
+                extra_keys = ["aggregate_id", "enabled", "cli_append_str", "metric", "mtu", "tags"]
                 if intf["ifclass"] == "downlink":
                     data = {}
                     if intf["name"] in ifname_peer_map:
                         data["description"] = ifname_peer_map[intf["name"]]
-                    fabric_device_variables["interfaces"].append(
-                        {
-                            "name": intf["name"],
-                            "ifclass": intf["ifclass"],
-                            "redundant_link": intf["redundant_link"],
-                            "indexnum": ifindexnum,
-                            "data": data,
-                        }
-                    )
+                    if_dict = {
+                        "name": intf["name"],
+                        "ifclass": intf["ifclass"],
+                        "redundant_link": intf["redundant_link"],
+                        "indexnum": ifindexnum,
+                        "data": data,
+                    }
+                    for extra_key_name in extra_keys:
+                        if extra_key_name in intf:
+                            if_dict[extra_key_name] = intf[extra_key_name]
+                    fabric_device_variables["interfaces"].append(if_dict)
                 elif intf["ifclass"] == "custom":
                     fabric_device_variables["interfaces"].append(
                         {
@@ -295,8 +299,12 @@ def populate_device_vars(
                     )
                 elif intf["ifclass"] == "fabric":
                     if intf["name"] in fabric_interfaces:
+                        if_dict = {}
+                        for extra_key_name in extra_keys:
+                            if extra_key_name in intf:
+                                if_dict[extra_key_name] = intf[extra_key_name]
                         fabric_device_variables["interfaces"].append(
-                            {**fabric_interfaces[intf["name"]], **{"indexnum": ifindexnum}}
+                            {**fabric_interfaces[intf["name"]], **{"indexnum": ifindexnum}, **if_dict}
                         )
                         del fabric_interfaces[intf["name"]]
                     else:
@@ -314,8 +322,8 @@ def populate_device_vars(
                         )
                 else:
                     if_dict = {"indexnum": ifindexnum}
-                    for key, value in intf.items():
-                        if_dict[key] = value
+                    for extra_key_name, value in intf.items():
+                        if_dict[extra_key_name] = value
                     fabric_device_variables["interfaces"].append(if_dict)
 
         for local_if, data in fabric_interfaces.items():
@@ -329,6 +337,7 @@ def populate_device_vars(
                     {
                         "id": mgmtdom.id,
                         "ipv4_gw": mgmtdom.ipv4_gw,
+                        "ipv6_gw": mgmtdom.ipv6_gw,
                         "vlan": mgmtdom.vlan,
                         "description": mgmtdom.description,
                         "esi_mac": mgmtdom.esi_mac,
@@ -370,7 +379,7 @@ def get_confirm_mode(confirm_mode_override: Optional[int] = None) -> int:
     valid_modes = [0, 1, 2]
     if confirm_mode_override is not None and confirm_mode_override in valid_modes:
         return confirm_mode_override
-    elif api_settings.COMMIT_CONFIRMED_MODE and api_settings.COMMIT_CONFIRMED_MODE in valid_modes:
+    elif api_settings.COMMIT_CONFIRMED_MODE is not None and api_settings.COMMIT_CONFIRMED_MODE in valid_modes:
         return api_settings.COMMIT_CONFIRMED_MODE
     else:
         return 1
@@ -607,7 +616,7 @@ def generate_only(hostname: str) -> (str, dict):
     """
     logger = get_logger()
     nr = cnaas_init()
-    nr_filtered, _, _ = inventory_selector(nr, hostname=hostname)
+    nr_filtered = nr.filter(name=hostname)
     template_vars = {}
     if len(nr_filtered.inventory.hosts) != 1:
         raise ValueError("Invalid hostname: {}".format(hostname))
@@ -1009,6 +1018,10 @@ def sync_devices(
                 kwargs={"prev_job_id": job_id, "hostnames": changed_hosts},
             )
             logger.info(f"Commit-confirm for job id {job_id} scheduled as job id {next_job_id}")
+            # keep this thread running until next_job has finished so the device session is not closed,
+            # causing cancellation of pending commits
+            with sqla_session() as session:
+                Job.wait_for_job_completion(session, next_job_id)
 
     return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id, change_score=total_change_score)
 

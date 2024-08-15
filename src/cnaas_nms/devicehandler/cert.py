@@ -53,6 +53,7 @@ def arista_copy_cert(task, job_id: Optional[str] = None) -> str:
         dest_file="cnaasnms.crt",
         file_system="/mnt/flash",
         overwrite_file=True,
+        socket_timeout=30,
     )
     if res_crt.failed:
         logger.exception(res_crt.exception)
@@ -114,7 +115,6 @@ def renew_cert(
     job_id: Optional[str] = None,
     scheduled_by: Optional[str] = None,
 ) -> NornirJobResult:
-
     logger = get_logger()
     nr = cnaas_init()
     if hostname:

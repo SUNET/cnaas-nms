@@ -39,7 +39,7 @@ from cnaas_nms.devicehandler.sync_history import (
 )
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
-from cnaas_nms.tools.security import get_jwt_identity, jwt_required
+from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()
@@ -126,7 +126,18 @@ device_syncto_model = device_syncto_api.model(
         "force": fields.Boolean(required=False),
         "auto_push": fields.Boolean(required=False),
         "resync": fields.Boolean(required=False),
-        "confirm_mode": fields.Integer(required=False),
+        "confirm_mode": fields.Integer(required=False, min=0, max=2),
+    },
+)
+
+device_syncto_hostname_model = device_syncto_api.model(
+    "device_hostname_sync",
+    {
+        "dry_run": fields.Boolean(required=False),
+        "force": fields.Boolean(required=False),
+        "auto_push": fields.Boolean(required=False),
+        "resync": fields.Boolean(required=False),
+        "confirm_mode": fields.Integer(required=False, min=0, max=2),
     },
 )
 
@@ -226,7 +237,7 @@ def device_data_postprocess(device_list: List[Device]) -> List[dict]:
 
 
 class DeviceByIdApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, device_id):
         """Get a device from ID"""
         result = empty_result()
@@ -239,7 +250,7 @@ class DeviceByIdApi(Resource):
                 return empty_result("error", "Device not found"), 404
         return result
 
-    @jwt_required
+    @login_required
     @device_api.expect(delete_device_model)
     def delete(self, device_id):
         """Delete device from ID"""
@@ -254,7 +265,7 @@ class DeviceByIdApi(Resource):
                 job_id = scheduler.add_onetime_job(
                     "cnaas_nms.devicehandler.erase:device_erase",
                     when=1,
-                    scheduled_by=get_jwt_identity(),
+                    scheduled_by=get_identity(),
                     kwargs={"device_id": device_id},
                 )
                 res = empty_result(data="Scheduled job {} to factory default device".format(job_id))
@@ -270,7 +281,7 @@ class DeviceByIdApi(Resource):
                 remove_sync_events(dev.hostname)
                 for nei in dev.get_neighbors(session):
                     nei.synchronized = False
-                    add_sync_event(nei.hostname, "neighbor_deleted", get_jwt_identity())
+                    add_sync_event(nei.hostname, "neighbor_deleted", get_identity())
             except Exception as e:
                 logger.warning("Could not mark neighbor as unsync after deleting {}: {}".format(dev.hostname, e))
             try:
@@ -289,7 +300,7 @@ class DeviceByIdApi(Resource):
                 return empty_result(status="error", data="Could not remove device: {}".format(e)), 500
             return empty_result(status="success", data={"deleted_device": dev.as_dict()}), 200
 
-    @jwt_required
+    @login_required
     @device_api.expect(device_model)
     def put(self, device_id):
         """Modify device from ID"""
@@ -326,7 +337,7 @@ class DeviceByIdApi(Resource):
                 and json_data["state"].upper() == "UNMANAGED"
                 and dev_prev_state == DeviceState.MANAGED
             ):
-                add_sync_event(dev.hostname, "was_unmanaged", by=get_jwt_identity())
+                add_sync_event(dev.hostname, "was_unmanaged", by=get_identity())
             session.commit()
             update_device_primary_groups()
             dev_dict = device_data_postprocess([dev])[0]
@@ -334,7 +345,7 @@ class DeviceByIdApi(Resource):
 
 
 class DeviceByHostnameApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, hostname):
         """Get a device from hostname"""
         result = empty_result()
@@ -349,7 +360,7 @@ class DeviceByHostnameApi(Resource):
 
 
 class DeviceApi(Resource):
-    @jwt_required
+    @login_required
     @device_api.expect(device_model)
     def post(self):
         """Add a device"""
@@ -386,9 +397,10 @@ class DeviceApi(Resource):
 
 
 class DevicesApi(Resource):
-    @jwt_required
+    @login_required
     def get(self):
         """Get all devices"""
+        logger.info("started get devices")
         device_list: List[Device] = []
         total_count = 0
         with sqla_session() as session:
@@ -409,7 +421,7 @@ class DevicesApi(Resource):
 
 
 class DeviceInitApi(Resource):
-    @jwt_required
+    @login_required
     @device_init_api.expect(device_init_model)
     def post(self, device_id: int):
         """Init a device"""
@@ -433,7 +445,7 @@ class DeviceInitApi(Resource):
                 job_id = scheduler.add_onetime_job(
                     "cnaas_nms.devicehandler.init_device:init_device_step2",
                     when=1,
-                    scheduled_by=get_jwt_identity(),
+                    scheduled_by=get_identity(),
                     kwargs={"device_id": device_id, "iteration": 1},
                 )
 
@@ -449,7 +461,7 @@ class DeviceInitApi(Resource):
             job_id = scheduler.add_onetime_job(
                 "cnaas_nms.devicehandler.init_device:init_access_device_step1",
                 when=1,
-                scheduled_by=get_jwt_identity(),
+                scheduled_by=get_identity(),
                 kwargs=job_kwargs,
             )
         elif job_kwargs["device_type"] in [DeviceType.CORE.name, DeviceType.DIST.name]:
@@ -457,7 +469,7 @@ class DeviceInitApi(Resource):
             job_id = scheduler.add_onetime_job(
                 "cnaas_nms.devicehandler.init_device:init_fabric_device_step1",
                 when=1,
-                scheduled_by=get_jwt_identity(),
+                scheduled_by=get_identity(),
                 kwargs=job_kwargs,
             )
         else:
@@ -523,7 +535,7 @@ class DeviceInitApi(Resource):
 
 
 class DeviceInitCheckApi(Resource):
-    @jwt_required
+    @login_required
     @device_init_api.expect(device_initcheck_model)
     def post(self, device_id: int):
         """Perform init check on a device"""
@@ -623,7 +635,7 @@ class DeviceInitCheckApi(Resource):
 
 
 class DeviceDiscoverApi(Resource):
-    @jwt_required
+    @login_required
     @device_discover_api.expect(device_discover_model)
     def post(self):
         """Discover device"""
@@ -637,7 +649,7 @@ class DeviceDiscoverApi(Resource):
         dhcp_ip = json_data["dhcp_ip"]
 
         job_id = cnaas_nms.devicehandler.init_device.schedule_discover_device(
-            ztp_mac=ztp_mac, dhcp_ip=dhcp_ip, iteration=1, scheduled_by=get_jwt_identity()
+            ztp_mac=ztp_mac, dhcp_ip=dhcp_ip, iteration=1, scheduled_by=get_identity()
         )
 
         logger.debug(f"Discover device for ztp_mac {ztp_mac} scheduled as ID {job_id}")
@@ -648,37 +660,40 @@ class DeviceDiscoverApi(Resource):
         return res
 
 
+def parse_syncto_args(json_data: dict):
+    # default args
+    kwargs: dict = {
+        "dry_run": True,
+        "auto_push": False,
+        "force": False,
+        "resync": False,
+    }
+
+    if "dry_run" in json_data and isinstance(json_data["dry_run"], bool) and not json_data["dry_run"]:
+        kwargs["dry_run"] = False
+    if "force" in json_data and isinstance(json_data["force"], bool):
+        kwargs["force"] = json_data["force"]
+    if "auto_push" in json_data and isinstance(json_data["auto_push"], bool):
+        kwargs["auto_push"] = json_data["auto_push"]
+    if "resync" in json_data and isinstance(json_data["resync"], bool):
+        kwargs["resync"] = json_data["resync"]
+    if "comment" in json_data and isinstance(json_data["comment"], str):
+        kwargs["job_comment"] = json_data["comment"]
+    if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
+        kwargs["job_ticket_ref"] = json_data["ticket_ref"]
+    if "confirm_mode" in json_data and isinstance(json_data["confirm_mode"], int):
+        kwargs["confirm_mode_override"] = json_data["confirm_mode"]
+
+    return kwargs
+
+
 class DeviceSyncApi(Resource):
-    @jwt_required
+    @login_required
     @device_syncto_api.expect(device_syncto_model)
     def post(self):
         """Start sync of device(s)"""
         json_data = request.get_json()
-        # default args
-        kwargs: dict = {"dry_run": True, "auto_push": False, "force": False, "resync": False}
-
-        if "dry_run" in json_data and isinstance(json_data["dry_run"], bool) and not json_data["dry_run"]:
-            kwargs["dry_run"] = False
-        if "force" in json_data and isinstance(json_data["force"], bool):
-            kwargs["force"] = json_data["force"]
-        if "auto_push" in json_data and isinstance(json_data["auto_push"], bool):
-            kwargs["auto_push"] = json_data["auto_push"]
-        if "resync" in json_data and isinstance(json_data["resync"], bool):
-            kwargs["resync"] = json_data["resync"]
-        if "comment" in json_data and isinstance(json_data["comment"], str):
-            kwargs["job_comment"] = json_data["comment"]
-        if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
-            kwargs["job_ticket_ref"] = json_data["ticket_ref"]
-        if "confirm_mode" in json_data and isinstance(json_data["confirm_mode"], int):
-            if 0 <= json_data["confirm_mode"] <= 2:
-                kwargs["confirm_mode_override"] = json_data["confirm_mode"]
-            else:
-                return (
-                    empty_result(
-                        status="error", data="If optional value confirm_mode is specified it must be an integer 0-2"
-                    ),
-                    400,
-                )
+        kwargs = parse_syncto_args(json_data)
 
         total_count: Optional[int] = None
         nr = cnaas_init()
@@ -720,7 +735,7 @@ class DeviceSyncApi(Resource):
             return empty_result(status="error", data="No devices to synchronize were specified"), 400
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.devicehandler.sync_devices:sync_devices", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+            "cnaas_nms.devicehandler.sync_devices:sync_devices", when=1, scheduled_by=get_identity(), kwargs=kwargs
         )
 
         res = empty_result(data=f"Scheduled job to synchronize {what}")
@@ -733,8 +748,52 @@ class DeviceSyncApi(Resource):
         return resp
 
 
+class DeviceSyncHostnameApi(Resource):
+    @login_required
+    @device_syncto_api.expect(device_syncto_hostname_model)
+    def post(self, hostname: str):
+        """Start sync of device(s)"""
+        json_data = request.get_json()
+
+        kwargs = parse_syncto_args(json_data)
+
+        total_count: Optional[int] = None
+        nr = cnaas_init()
+
+        # Hostname
+        if not Device.valid_hostname(hostname):
+            return empty_result(status="error", data=f"Hostname '{hostname}' is not a valid hostname"), 400
+        _, total_count, _ = inventory_selector(nr, hostname=hostname)
+        if total_count != 1:
+            return (
+                empty_result(
+                    status="error",
+                    data=f"Hostname '{hostname}' not found or is not a managed device",
+                ),
+                400,
+            )
+        kwargs["hostnames"] = [hostname]
+        what = hostname
+
+        scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            "cnaas_nms.devicehandler.sync_devices:sync_devices",
+            when=1,
+            scheduled_by=get_identity(),
+            kwargs=kwargs,
+        )
+        res = empty_result(data=f"Scheduled job to synchronize {what}")
+        res["job_id"] = job_id
+
+        resp = make_response(json.dumps(res), 200)
+        if total_count:
+            resp.headers["X-Total-Count"] = total_count
+        resp.headers["Content-Type"] = "application/json"
+        return resp
+
+
 class DeviceUpdateFactsApi(Resource):
-    @jwt_required
+    @login_required
     @device_update_facts_api.expect(device_update_facts_model)
     def post(self):
         """Start update facts of device(s)"""
@@ -761,7 +820,7 @@ class DeviceUpdateFactsApi(Resource):
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.devicehandler.update:update_facts", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+            "cnaas_nms.devicehandler.update:update_facts", when=1, scheduled_by=get_identity(), kwargs=kwargs
         )
 
         res = empty_result(data=f"Scheduled job to update facts for {hostname}")
@@ -775,7 +834,7 @@ class DeviceUpdateFactsApi(Resource):
 
 
 class DeviceUpdateInterfacesApi(Resource):
-    @jwt_required
+    @login_required
     @device_update_interfaces_api.expect(device_update_interfaces_model)
     def post(self):
         """Update/scan interfaces of device"""
@@ -840,7 +899,7 @@ class DeviceUpdateInterfacesApi(Resource):
 
         scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.devicehandler.update:update_interfacedb", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+            "cnaas_nms.devicehandler.update:update_interfacedb", when=1, scheduled_by=get_identity(), kwargs=kwargs
         )
 
         res = empty_result(data=f"Scheduled job to update interfaces for {hostname}")
@@ -854,7 +913,7 @@ class DeviceUpdateInterfacesApi(Resource):
 
 
 class DeviceGenerateConfigApi(Resource):
-    @jwt_required
+    @login_required
     @device_api.doc(model=device_generate_config_model)
     def get(self, hostname: str):
         """Get device configuration"""
@@ -888,7 +947,7 @@ class DeviceGenerateConfigApi(Resource):
 
 
 class DeviceRunningConfigApi(Resource):
-    @jwt_required
+    @login_required
     @device_api.param("interface")
     def get(self, hostname: str):
         args = request.args
@@ -917,7 +976,7 @@ class DeviceRunningConfigApi(Resource):
 
 
 class DevicePreviousConfigApi(Resource):
-    @jwt_required
+    @login_required
     @device_api.param("job_id")
     @device_api.param("previous")
     @device_api.param("before")
@@ -957,7 +1016,7 @@ class DevicePreviousConfigApi(Resource):
 
         return result
 
-    @jwt_required
+    @login_required
     @device_api.expect(device_restore_model)
     def post(self, hostname: str):
         """Restore configuration to previous version"""
@@ -1005,7 +1064,7 @@ class DevicePreviousConfigApi(Resource):
         job_id = scheduler.add_onetime_job(
             "cnaas_nms.devicehandler.sync_devices:apply_config",
             when=1,
-            scheduled_by=get_jwt_identity(),
+            scheduled_by=get_identity(),
             kwargs=apply_kwargs,
         )
 
@@ -1016,7 +1075,7 @@ class DevicePreviousConfigApi(Resource):
 
 
 class DeviceApplyConfigApi(Resource):
-    @jwt_required
+    @login_required
     @device_api.expect(device_apply_config_model)
     def post(self, hostname: str):
         """Apply exact specified configuration to device without using templates"""
@@ -1043,7 +1102,7 @@ class DeviceApplyConfigApi(Resource):
         job_id = scheduler.add_onetime_job(
             "cnaas_nms.devicehandler.sync_devices:apply_config",
             when=1,
-            scheduled_by=get_jwt_identity(),
+            scheduled_by=get_identity(),
             kwargs=apply_kwargs,
         )
 
@@ -1054,7 +1113,7 @@ class DeviceApplyConfigApi(Resource):
 
 
 class DeviceCertApi(Resource):
-    @jwt_required
+    @login_required
     @device_api.expect(device_cert_model)
     def post(self):
         """Execute certificate related actions on device"""
@@ -1098,7 +1157,7 @@ class DeviceCertApi(Resource):
         if action == "RENEW":
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
-                "cnaas_nms.devicehandler.cert:renew_cert", when=1, scheduled_by=get_jwt_identity(), kwargs=kwargs
+                "cnaas_nms.devicehandler.cert:renew_cert", when=1, scheduled_by=get_identity(), kwargs=kwargs
             )
 
             res = empty_result(data="Scheduled job to renew certificates")
@@ -1114,7 +1173,7 @@ class DeviceCertApi(Resource):
 
 
 class DeviceStackmembersApi(Resource):
-    @jwt_required
+    @login_required
     def get(self, hostname):
         """Get stackmembers for device"""
         result = empty_result(data={"stackmembers": []})
@@ -1127,11 +1186,11 @@ class DeviceStackmembersApi(Resource):
                 result["data"]["stackmembers"].append(stackmember.as_dict())
         return result
 
-    @jwt_required
+    @login_required
     @device_api.expect(stackmembers_model)
     def put(self, hostname):
         try:
-            validated_json_data = StackmembersModel(**request.get_json()).dict()
+            validated_json_data = StackmembersModel(**request.get_json()).model_dump()
             data = validated_json_data["stackmembers"]
         except ValidationError as e:
             errors = DeviceStackmembersApi.format_errors(e.errors())
@@ -1167,7 +1226,7 @@ class DeviceStackmembersApi(Resource):
 
 
 class DeviceSyncHistoryApi(Resource):
-    @jwt_required
+    @login_required
     @device_synchistory_api.param("hostname")
     def get(self):
         args = request.args
@@ -1184,11 +1243,11 @@ class DeviceSyncHistoryApi(Resource):
         result["data"]["hostnames"] = sync_history.asdict()
         return result
 
-    @jwt_required
+    @login_required
     @device_synchistory_api.expect(device_synchistory_api)
     def post(self):
         try:
-            validated_json_data = NewSyncEventModel(**request.get_json()).dict()
+            validated_json_data = NewSyncEventModel(**request.get_json()).model_dump()
         except ValidationError as e:
             return empty_result("error", parse_pydantic_error(e, NewSyncEventModel, request.get_json())), 400
         with sqla_session() as session:
@@ -1217,6 +1276,7 @@ device_init_api.add_resource(DeviceInitApi, "/<int:device_id>")
 device_initcheck_api.add_resource(DeviceInitCheckApi, "/<int:device_id>")
 device_discover_api.add_resource(DeviceDiscoverApi, "")
 device_syncto_api.add_resource(DeviceSyncApi, "")
+device_syncto_api.add_resource(DeviceSyncHostnameApi, "/hostname/<string:hostname>")
 device_update_facts_api.add_resource(DeviceUpdateFactsApi, "")
 device_update_interfaces_api.add_resource(DeviceUpdateInterfacesApi, "")
 device_cert_api.add_resource(DeviceCertApi, "")

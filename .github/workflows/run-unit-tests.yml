@@ -4,6 +4,26 @@ on:
   workflow_dispatch:
   pull_request:
 jobs:
+  free-disk-space:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: false
+
+        # all of these default to true, but feel free to set to
+        # "false" if necessary for your workflow
+        android: true
+        dotnet: true
+        haskell: true
+        large-packages: true
+        docker-images: false
+        swap-storage: false
+
   docker-tests:
     name: "Run unit tests in docker"
     runs-on: ubuntu-latest
@@ -28,11 +48,13 @@ jobs:
           echo "PYTEST_POSTGRES_EXTERNAL=1" >> $GITHUB_ENV
           echo "PYTEST_REDIS_EXTERNAL=1" >> $GITHUB_ENV
           echo "JWT_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw" >> $GITHUB_ENV
+          echo "JWT_SECRET_KEY=unittestsharedsecret" >> $GITHUB_ENV
+          echo "COMPOSE_COMPATIBILITY=1" >> $GITHUB_ENV
 
 #      - name: Create code coverage dir
 #        run: mkdir -p docker/coverage/
 #
-      - uses: jpribyl/action-docker-layer-caching@v0.1.1
+      - uses: satackey/action-docker-layer-caching@v0.0.11
         # Ignore the failure of a step and avoid terminating the job.
         continue-on-error: true
 
@@ -54,28 +76,28 @@ jobs:
         run: echo ${{ env.BRANCH_NAME }} at ${{ env.CNAAS_REPO }}
 
       - name: Build docker
-        run: docker-compose -f docker/docker-compose_test.yaml build --build-arg GITREPO_BASE=${{ env.CNAAS_REPO }} --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }}
+        run: docker compose -f docker/docker-compose_test.yaml build --build-arg GITREPO_BASE=${{ env.CNAAS_REPO }} --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }}
 
       - name: Start docker
-        run: docker-compose -f docker/docker-compose_test.yaml up -d
+        run: docker compose -f docker/docker-compose_test.yaml up -d
 
       - name: Install API certificates
         run: |
           docker cp ./docker/jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
-          docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
-          docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api /opt/cnaas/createca.sh
+          docker compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
+          docker compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api /opt/cnaas/createca.sh
 
       - name: Check running containers
         run: docker ps -a
 
       - name: Check API running version
-        run: curl -ks --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 0 --retry-max-time 30 https://localhost/api/v1.0/system/version
+        run: curl -ks --connect-timeout 5 --max-time 10 --retry 10 --retry-delay 5 --retry-max-time 120 https://localhost/api/v1.0/system/version
 
       - name: Fix permissions for code coverage
-        run: docker-compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
+        run: docker compose -f docker/docker-compose_test.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 
       - name: Run unit tests in container
-        run: docker-compose -f docker/docker-compose_test.yaml exec -u www-data -T cnaas_api /opt/cnaas/pytest.sh
+        run: docker compose -f docker/docker-compose_test.yaml exec -u www-data -T cnaas_api /opt/cnaas/pytest.sh
 
       - name: Check logs
         if: always()

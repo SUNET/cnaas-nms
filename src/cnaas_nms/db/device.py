@@ -7,14 +7,15 @@ import json
 import re
 from typing import List, Optional, Set
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Unicode, UniqueConstraint, event
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Unicode, UniqueConstraint, event
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
 import cnaas_nms.db.linknet
 import cnaas_nms.db.site
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.site import Site
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
 from cnaas_nms.tools.event import add_event
@@ -72,28 +73,28 @@ class Device(cnaas_nms.db.base.Base):
         None,
         UniqueConstraint("hostname"),
     )
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    hostname = Column(String(64), nullable=False)
-    site_id = Column(Integer, ForeignKey("site.id"))
-    site = relationship("Site")
-    description = Column(Unicode(255))
-    management_ip = Column(IPAddressType)
-    secondary_management_ip = Column(IPAddressType)
-    dhcp_ip = Column(IPAddressType)
-    infra_ip = Column(IPAddressType)
-    oob_ip = Column(IPAddressType)
-    serial = Column(String(64))
-    ztp_mac = Column(String(12))
-    platform = Column(String(64))
-    vendor = Column(String(64))
-    model = Column(String(64))
-    os_version = Column(String(64))
-    synchronized = Column(Boolean, default=False)
-    state = Column(Enum(DeviceState), nullable=False)  # type: ignore
-    device_type = Column(Enum(DeviceType), nullable=False)
-    confhash = Column(String(64))  # SHA256 = 64 characters
-    last_seen = Column(DateTime, default=datetime.datetime.utcnow)
-    port = Column(Integer)
+    id: Mapped[int] = mapped_column(Integer, autoincrement=True, primary_key=True)
+    hostname: Mapped[str] = mapped_column(String(64), nullable=False)
+    site_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("site.id"))
+    site: Mapped[Optional["Site"]] = relationship("Site")
+    description: Mapped[Optional[str]] = mapped_column(Unicode(255))
+    management_ip: Mapped[Optional[IPAddressType]] = mapped_column(IPAddressType)
+    secondary_management_ip: Mapped[Optional[IPAddressType]] = mapped_column(IPAddressType)
+    dhcp_ip: Mapped[Optional[IPAddressType]] = mapped_column(IPAddressType)
+    infra_ip: Mapped[Optional[IPAddressType]] = mapped_column(IPAddressType)
+    oob_ip: Mapped[Optional[IPAddressType]] = mapped_column(IPAddressType)
+    serial: Mapped[Optional[str]] = mapped_column(String(64))
+    ztp_mac: Mapped[Optional[str]] = mapped_column(String(12))
+    platform: Mapped[Optional[str]] = mapped_column(String(64))
+    vendor: Mapped[Optional[str]] = mapped_column(String(64))
+    model: Mapped[Optional[str]] = mapped_column(String(64))
+    os_version: Mapped[Optional[str]] = mapped_column(String(64))
+    synchronized: Mapped[Optional[bool]] = mapped_column(Boolean, default=False)
+    state: Mapped[DeviceState] = mapped_column(Enum(DeviceState), nullable=False)  # type: ignore
+    device_type: Mapped[DeviceType] = mapped_column(Enum(DeviceType), nullable=False)
+    confhash: Mapped[Optional[str]] = mapped_column(String(64))  # SHA256 = 64 characters
+    last_seen: Mapped[Optional[DateTime]] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    port: Mapped[Optional[int]] = mapped_column(Integer)
     stack_members = relationship(
         "Stackmember", foreign_keys="[Stackmember.device_id]", lazy="subquery", back_populates="device"
     )
@@ -258,6 +259,20 @@ class Device(cnaas_nms.db.base.Base):
             if intf.data:
                 peer_hostnames.append(intf.data["neighbor"])
         return peer_hostnames
+
+    def reset_uplink_interfaces(self, session):
+        intfs = (
+            session.query(Interface)
+            .filter(Interface.device == self)
+            .filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK)
+            .all()
+        )
+        intf: Interface = Interface()
+        for intf in intfs:
+            intf.configtype = InterfaceConfigType.ACCESS_AUTO
+            if intf.data:
+                intf.data = {}
+        session.commit()
 
     def get_mlag_peer(self, session) -> Optional[Device]:
         intfs = (

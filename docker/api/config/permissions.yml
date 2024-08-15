@@ -1,0 +1,46 @@
+config:
+  default_permissions: "default"
+
+group_mappings:
+  email:
+    example@email.com: ["admin"]
+  edumember_is_member_of:
+    urn:collab:group:test.surfconext.nl:nl:surfnet:diensten:surfwired-admin: ["admin"]
+roles:
+  admin:
+    permissions:
+      - methods: ["GET", "PUT"]
+        endpoints:
+          - "/devices/**/interfaces"
+          - "/repository"
+        pages:
+          - "Devices"
+          - "Dashboard"
+          - "Groups"
+          - "Jobs"
+          - "Firmware"
+          - "Config change"
+        rights:
+          - "read"
+          - "write"
+      - methods: ["GET", "POST"]
+        endpoints:
+          - "/auth/*"
+          - /devices
+          - /device
+      - methods: ["*"]
+        endpoints:
+          - "*"
+  default:
+    permissions:
+      - methods: ["GET"]
+        endpoints:
+          - "/devices"
+          - "/repository/**"
+          - "/groups"
+        pages:
+          - "Devices"
+          - "Dashboard"
+          - "Groups"
+        rights:
+          - "read"

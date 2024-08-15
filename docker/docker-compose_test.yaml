@@ -33,6 +33,8 @@ services:
       - PYTEST_SETTINGS_CLONED
       - PYTEST_TEMPLATES_CLONED
       - JWT_AUTH_TOKEN
+      - JWT_SECRET_KEY
+      - PERMISSIONS_DISABLED=True
     depends_on:
       - "cnaas_postgres"
       - "cnaas_redis"

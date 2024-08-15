@@ -1,8 +1,8 @@
 import datetime
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy import DateTime, ForeignKey, Integer
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
@@ -15,10 +15,13 @@ logger = get_logger()
 class ReservedIP(cnaas_nms.db.base.Base):
     __tablename__ = "reservedip"
     __table_args__ = (None,)
-    device_id = Column(Integer, ForeignKey("device.id"), primary_key=True, index=True)
-    device = relationship("Device", foreign_keys=[device_id], backref=backref("TempIP", cascade="all, delete-orphan"))
-    ip = Column(IPAddressType)
-    last_seen = Column(DateTime, default=datetime.datetime.now)
+    device_id: Mapped[int] = mapped_column(Integer, ForeignKey("device.id"), primary_key=True)
+    ip_version: Mapped[int] = mapped_column(Integer, primary_key=True, default=4)
+    device: Mapped["cnaas_nms.db.device.Device"] = relationship(
+        back_populates="reserved_ips",
+    )
+    ip: Mapped[IPAddressType] = mapped_column(IPAddressType)
+    last_seen: Mapped[DateTime] = mapped_column(DateTime, default=datetime.datetime.now)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -34,7 +37,7 @@ class ReservedIP(cnaas_nms.db.base.Base):
     def clean_reservations(
         cls, session, device: Optional[cnaas_nms.db.device.Device] = None, expiry_time=datetime.timedelta(days=1)
     ):
-        rip: ReservedIP = None
+        rip: Optional[ReservedIP] = None
         for rip in session.query(ReservedIP):
             if device and rip.device == device:
                 logger.debug("Clearing reservation of ip {} for device {}".format(rip.ip, device.hostname))
@@ -46,3 +49,8 @@ class ReservedIP(cnaas_nms.db.base.Base):
                     )
                 )
                 session.delete(rip)
+
+
+cnaas_nms.db.device.Device.reserved_ips = relationship(
+    ReservedIP, foreign_keys="ReservedIP.device_id", back_populates="device", cascade="all, delete-orphan"
+)

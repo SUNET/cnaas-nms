@@ -386,12 +386,20 @@ class f_group_item(BaseModel):
     name: str = group_name
     regex: str = ""
     group_priority: int = group_priority_schema
+    templates_branch: Optional[str] = None
 
     @field_validator("group_priority")
     @classmethod
     def reserved_priority(cls, v: int, info: FieldValidationInfo):
         if v and v == 1 and info.data["name"] != "DEFAULT":
             raise ValueError("group_priority 1 is reserved for built-in group DEFAULT")
+        return v
+
+    @field_validator("templates_branch")
+    @classmethod
+    def templates_branch_primary_group_only(cls, v: str, info: FieldValidationInfo):
+        if v and info.data["group_priority"] <= 1:
+            raise ValueError("templates_branch can only be specified on primary groups")
         return v
 
 

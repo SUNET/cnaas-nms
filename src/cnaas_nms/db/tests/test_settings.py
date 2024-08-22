@@ -4,7 +4,6 @@ import unittest
 import pkg_resources
 import pytest
 import yaml
-from pydantic import ValidationError
 
 from cnaas_nms.db.device import DeviceType
 from cnaas_nms.db.settings import (
@@ -18,7 +17,6 @@ from cnaas_nms.db.settings import (
     get_settings,
     verify_dir_structure,
 )
-from cnaas_nms.db.settings_fields import f_groups
 
 
 class SettingsTests(unittest.TestCase):
@@ -209,33 +207,6 @@ class SettingsTests(unittest.TestCase):
         # Remove duplicate entry
         del group_settings_dict["groups"][2]
         self.assertIsNone(check_group_priority_collisions(group_settings_dict))
-
-    def test_groups_templates_braches(self):
-        group_settings_dict = {
-            "groups": [
-                {
-                    "group": {"name": "DEFAULT", "group_priority": 1},
-                },
-                {
-                    "group": {
-                        "name": "TEMPLATE1",
-                        "regex": "eosdist1$",
-                        "group_priority": 100,
-                        "templates_branch": "test1",
-                    }
-                },
-                {"group": {"name": "NOT_PRIMARY_GROUP", "templates_branch": "test2"}},
-            ]
-        }
-        with self.assertRaises(
-            ValidationError,
-            msg="Group with template_branch set but no group_priority value should raise ValidationError",
-        ):
-            f_groups(**group_settings_dict).model_dump()
-
-        # Remove bad entry
-        del group_settings_dict["groups"][2]
-        f_groups(**group_settings_dict).model_dump()
 
 
 if __name__ == "__main__":

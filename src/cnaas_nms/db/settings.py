@@ -2,7 +2,7 @@ import importlib
 import json
 import os
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 import pkg_resources
 import yaml
@@ -12,7 +12,6 @@ from redis_lru import RedisLRU
 
 from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
-from cnaas_nms.db.git_worktrees import refresh_templates_worktree
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings_fields import f_groups
@@ -613,12 +612,8 @@ def get_settings(
         )
         settings = get_downstream_dependencies(hostname, settings)
         # 5. Get settings repo group specific settings
-        primary_group = get_device_primary_groups().get(hostname)
-        if primary_group:
-            # add templates worktree
-            templates_branch = get_group_templates_branch(primary_group)
-            if templates_branch:
-                refresh_templates_worktree(templates_branch)
+        if hostname in get_device_primary_groups():
+            primary_group = get_device_primary_groups()[hostname]
             if os.path.isdir(os.path.join(local_repo_path, "groups", primary_group)):
                 settings, settings_origin = read_settings(
                     local_repo_path,
@@ -757,30 +752,18 @@ def get_groups(hostname: Optional[str] = None) -> List[str]:
 def get_group_regex(group_name: str) -> Optional[str]:
     """Returns a string containing the regex defining the specified
     group name if it's found."""
-    return get_group_settings_asdict().get(group_name, {}).get("regex")
-
-
-def get_group_templates_branch(group_name: str) -> Optional[str]:
-    """Returns a string containing the regex defining the specified
-    group name if it's found."""
-    return get_group_settings_asdict().get(group_name, {}).get("templates_branch")
-
-
-@redis_lru_cache
-def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
-    """Returns a dict with group name as key and other parameters as values"""
-    settings, _ = get_group_settings()
+    settings, origin = get_group_settings()
     if not settings:
-        return {}
-    if not settings.get("groups"):
-        return {}
-    group_dict: Dict[str, Dict[str, Any]] = {}
+        return None
+    if not settings.get("groups", None):
+        return None
     for group in settings["groups"]:
         if "name" not in group["group"]:
             continue
-        group_dict[group["group"]["name"]] = group["group"]
-        del group_dict[group["group"]["name"]]["name"]
-    return group_dict
+        if "regex" not in group["group"]:
+            continue
+        if group_name == group["group"]["name"]:
+            return group["group"]["regex"]
 
 
 def get_groups_priorities(hostname: Optional[str] = None, settings: Optional[dict] = None) -> Dict[str, int]:

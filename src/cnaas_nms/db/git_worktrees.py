@@ -31,7 +31,13 @@ def refresh_templates_worktree(branch: str):
     branch_folder = get_branch_folder(branch)
     if os.path.isdir(branch_folder):
         return
-    local_repo = Repo(app_settings.TEMPLATES_LOCAL)
+    try:
+        local_repo = Repo(app_settings.TEMPLATES_LOCAL)
+    except git.exc.InvalidGitRepositoryError:
+        logger.warning(
+            "Could not add worktree for templates branch {}: templates repository is not initialized".format(branch)
+        )
+        return
     if not os.path.isdir("/tmp/worktrees"):
         os.mkdir("/tmp/worktrees")
     logger.debug("Adding worktree for templates branch {} in folder {}".format(branch, branch_folder))

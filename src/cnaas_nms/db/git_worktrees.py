@@ -42,6 +42,7 @@ def refresh_templates_worktree(branch: str):
         os.mkdir("/tmp/worktrees")
     logger.debug("Adding worktree for templates branch {} in folder {}".format(branch, branch_folder))
     try:
+        local_repo.git.worktree("prune")
         local_repo.git.worktree("add", branch_folder, branch)
     except git.exc.GitCommandError as e:
         logger.error("Error adding worktree for templates branch {}: {}".format(branch, e.stderr.strip()))

@@ -93,8 +93,7 @@ class Joblock(cnaas_nms.db.base.Base):
         try:
             return session.query(Joblock).delete()
         except DBAPIError as e:
-            if e.orig.pgcode == '42P01':
+            if e.orig.pgcode == "42P01":
                 raise JoblockError("Jobblock table doesn't exist yet, we assume it will be created soon.")
             else:
                 raise
-

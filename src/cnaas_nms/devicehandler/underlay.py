@@ -52,9 +52,10 @@ def find_free_mgmt_lo_ip(session) -> Optional[IPv4Address]:
     return None
 
 
-def find_free_infra_linknet(session) -> Optional[IPv4Network]:
+def find_free_infra_linknet(session, offset: int = 0) -> Optional[IPv4Network]:
     """Returns first free IPv4 infra linknet (/31)."""
     used_linknets = []
+    current_offset = offset
     linknet_query = session.query(Linknet).filter(Linknet.device_a_ip.isnot(None))
     ln: Linknet
     for ln in linknet_query:
@@ -64,6 +65,9 @@ def find_free_infra_linknet(session) -> Optional[IPv4Network]:
     infra_ip_net = IPv4Network(settings["underlay"]["infra_link_net"])
     for num, net in enumerate(infra_ip_net.subnets(new_prefix=31)):
         if net in used_linknets:
+            continue
+        elif current_offset > 0:
+            current_offset -= 1
             continue
         else:
             return net

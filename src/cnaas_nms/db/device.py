@@ -260,6 +260,20 @@ class Device(cnaas_nms.db.base.Base):
                 peer_hostnames.append(intf.data["neighbor"])
         return peer_hostnames
 
+    def reset_uplink_interfaces(self, session):
+        intfs = (
+            session.query(Interface)
+            .filter(Interface.device == self)
+            .filter(Interface.configtype == InterfaceConfigType.ACCESS_UPLINK)
+            .all()
+        )
+        intf: Interface = Interface()
+        for intf in intfs:
+            intf.configtype = InterfaceConfigType.ACCESS_AUTO
+            if intf.data:
+                intf.data = {}
+        session.commit()
+
     def get_mlag_peer(self, session) -> Optional[Device]:
         intfs = (
             session.query(Interface)

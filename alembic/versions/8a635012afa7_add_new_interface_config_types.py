@@ -21,8 +21,6 @@ def upgrade():
     op.execute("ALTER TYPE interfaceconfigtype ADD VALUE 'ACCESS_DOWNLINK' AFTER 'ACCESS_UPLINK'")
 
 
-
 def downgrade():
     # removing extra types in an enum can make fields in the database invalid
     pass
-

@@ -3,6 +3,7 @@ import os
 from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import List, Optional, Union
 
+import napalm.base.exceptions
 import yaml
 from apscheduler.job import Job
 from netmiko.exceptions import ReadTimeout as NMReadTimeout
@@ -112,6 +113,8 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             configuration=task.host["config"],
             dry_run=False,
         )
+    except (napalm.base.exceptions.ReplaceConfigException, napalm.base.exceptions.CommitError) as e:
+        raise InitError("Device {} did not commit new base management config: {}".format(task.host.name, str(e)))
     except Exception:
         task.run(task=napalm_get, getters=["facts"])
         if not task.results[-1].failed:
@@ -374,6 +377,24 @@ def init_mlag_peer_only(
         schedule_mlag_peer_init(mlag_peer_id, mlag_peer_new_hostname, uplink_hostnames, scheduled_by)
 
 
+def cleanup_init_step1_result(nrresult: List[Union[Result, MultiResult]]) -> List[Union[Result, MultiResult]]:
+    res: Union[Result, MultiResult]
+    for res in nrresult:
+        # These tasks are supposed to get connection timeouts etc, setting them
+        # to failed=False will keep job history clean and cause less confusion
+        if res.name in ["Push base management config", "push_base_management", "napalm_get"]:
+            res.failed = False
+            res.result = ""
+        if res.name == "ztp_device_cert" and not api_settings.VERIFY_TLS_DEVICE:
+            if type(res) is Result:
+                res.failed = False
+            elif type(res) is MultiResult:
+                for sres in res:
+                    if type(sres) is Result:
+                        sres.failed = False
+    return nrresult
+
+
 @job_wrapper
 def init_access_device_step1(
     device_id: int,
@@ -585,6 +606,7 @@ def init_access_device_step1(
             reserved_ips = session.query(ReservedIP).filter(ReservedIP.device == dev).all()
             for reserved_ip in reserved_ips:
                 session.delete(reserved_ip)
+            dev.reset_uplink_interfaces(session)
             return NornirJobResult(nrresult=nrresult)
 
         dev.management_ip = device_variables["mgmt_ip"]
@@ -625,20 +647,7 @@ def init_access_device_step1(
     if mlag_peer_id and mlag_peer_new_hostname:
         schedule_mlag_peer_init(mlag_peer_id, mlag_peer_new_hostname, uplink_hostnames, scheduled_by)
 
-    res: Union[Result, MultiResult]
-    for res in nrresult[hostname]:
-        # These tasks are supposed to get connection timeouts etc, setting them
-        # to failed=False will keep job history clean and cause less confusion
-        if res.name in ["Push base management config", "push_base_management", "napalm_get"]:
-            res.failed = False
-            res.result = ""
-        if res.name == "ztp_device_cert" and not api_settings.VERIFY_TLS_DEVICE:
-            if type(res) is Result:
-                res.failed = False
-            elif type(res) is MultiResult:
-                for sres in res:
-                    if type(sres) is Result:
-                        sres.failed = False
+    nrresult[hostname] = cleanup_init_step1_result(nrresult[hostname])
 
     return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id)
 
@@ -800,6 +809,8 @@ def init_fabric_device_step1(
     )
 
     logger.info("Init step 2 for {} scheduled as job # {}".format(new_hostname, next_job_id))
+
+    nrresult[hostname] = cleanup_init_step1_result(nrresult[hostname])
 
     return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id)
 

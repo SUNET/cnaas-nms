@@ -1,6 +1,32 @@
 Changelog
 =========
 
+Version 1.6.0
+-------------
+
+New features:
+
+ - Single-sign on (SSO) via OIDC, enabled via config options in auth_config.yml
+ - Role-based access control (RBAC) for API endpoints configured via permissions.yml
+ - Logging for refresh settings action includes jobid so it can be filtered for displaying in webUI etc
+ - Allow setting aggregate_id, metric, enabled, tags etc on fabric interfaces
+
+Bug fixes:
+
+ - Update device syncstatus if primary group settings file changed (#325)
+ - ZTP of dualstack switches (#341)
+ - Fix job status change events for refresh jobs (#352)
+ - Fix initcheck fabric device proposed linknet IPs (#355)
+ - Clean up device init failed job results and make more consistent (#358)
+ - Fix for FQDN checks in settings (#343)
+
+Changes:
+
+ - Python upgraded to version 3.11
+ - NAPALM upgraded to 5.0, support for Arista EOS 4.22 and earlier has been dropped
+ - Initial tables will be created when api container starts, no need for seed sql file for postgres container
+ - uwsgi has four processes for http and one process for websocket, api should be more responsive for concurrent http connections
+
 Version 1.5.1
 -------------
 

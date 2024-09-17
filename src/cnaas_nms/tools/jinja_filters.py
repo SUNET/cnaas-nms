@@ -5,6 +5,7 @@ import hashlib
 import ipaddress
 import re
 from typing import Any, Callable, Optional, Union
+from netutils.config.parser import BaseConfigParser, JunosConfigParser
 
 # This global dict can be used to update the Jinja environment filters dict to include all
 # registered template filter function
@@ -210,3 +211,30 @@ def sha512(s: str) -> str:
 def md5(s: str) -> str:
     """Return SHA256 hexdigest of string s."""
     return hashlib.md5(s.encode()).hexdigest()
+
+
+@template_filter()
+def get_config_block_regex(config:str, section: str = "firewall", parser: Optional[BaseConfigParser] = JunosConfigParser) -> str:
+    """
+    Get the configuration block for a specific section.
+    
+    Args:
+        config (str): The config used to for parsing and search a specific section.
+        section (str, optional): The section to retrieve. Defaults to "firewall". Regex can be used as ^(firewall)\s*\{
+        parser (str, optional): The parser corresponding to the config type. Defaults to "JunosConfigParser".
+    
+    Returns:
+        str: The text of the configuration block if found, empty string otherwise.
+        
+    test:
+        get_config_block_regex(config=firewall_config, section="firewall")
+    """
+    
+    config_parser = parser(config)
+    config_relationship = config_parser.build_config_relationship()
+    children = config_parser.find_all_children(section, match_type="regex")
+
+    if len(children) > 1:
+        return "\n".join(children) + "\n}"
+    
+    return []

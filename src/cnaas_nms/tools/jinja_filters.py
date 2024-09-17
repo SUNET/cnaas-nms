@@ -233,8 +233,9 @@ def get_config_block_regex(config:str, section: str = "firewall", parser: Option
     config_parser = parser(config)
     config_relationship = config_parser.build_config_relationship()
     children = config_parser.find_all_children(section, match_type="regex")
-
+    
     if len(children) > 1:
-        return "\n".join(children) + "\n}"
+        collect = "\n".join(children)
+        return collect + "\n}" if isinstance(config_parser, JunosConfigParser) else collect
     
     return []

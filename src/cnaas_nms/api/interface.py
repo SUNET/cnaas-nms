@@ -1,7 +1,7 @@
 from typing import List
 
 from flask import request
-from flask_restx import Namespace, Resource
+from flask_restx import Namespace, Resource, fields
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.device import Device
@@ -15,6 +15,52 @@ from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
 
 api = Namespace("device", description="API for handling interfaces", prefix="/api/{}".format(__api_version__))
+
+interfacedata_model = api.model(
+    "interfacedata",
+    {
+        "untagged_vlan": fields.Raw(required=False, description="VLAN ID or name", example="STUDENTS"),
+        "tagged_vlan_list": fields.List(
+            fields.Raw(), required=False, description="List of VLAN IDs or names", example=["STUDENTS", "EMPLOYEES"]
+        ),
+        "description": fields.String(required=False, description="Interface description", example="Access point"),
+        "enabled": fields.Boolean(required=False, example=True),
+        "aggregate_id": fields.Integer(required=False, example=-1, description="LACP ID"),
+        "bpdu_filter": fields.Boolean(required=False, example=True),
+        "redundant_link": fields.Boolean(required=False, example=True),
+        "tags": fields.List(fields.String(), required=False, description="List of tags", example=["tag1", "tag2"]),
+        "cli_append_str": fields.String(required=False),
+    },
+)
+
+interface_model = api.model(
+    "interface",
+    {
+        "configtype": fields.String(
+            required=True,
+            description=(
+                "Type of interface, can be: ACCESS_AUTO, ACCESS_UNTAGGED, ACCESS_TAGGED, "
+                "ACCESS_UPLINK, ACCESS_DOWNLINK, MLAG_PEER"
+            ),
+            example="ACCESS_AUTO",
+        ),
+        "data": fields.Nested(interfacedata_model),
+    },
+)
+
+interfacename_model = api.model(
+    "interfacename",
+    {
+        "interfacename": fields.Nested(interface_model, required=True),
+    },
+)
+
+interfaces_model = api.model(
+    "interfaces",
+    {
+        "interfaces": fields.Nested(interfacename_model, required=True),
+    },
+)
 
 
 class InterfaceApi(Resource):
@@ -39,6 +85,7 @@ class InterfaceApi(Resource):
         return result
 
     @login_required
+    @api.expect(interfaces_model)
     def put(self, hostname):
         """Take a map of interfaces and associated values to update.
         Example:

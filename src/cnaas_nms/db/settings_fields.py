@@ -19,10 +19,9 @@ IPV6_REGEX = (
     r"[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|"  # 1::3:4:5:6:7:8   1::3:4:5:6:7:8  1::8
     r":((:[0-9a-fA-F]{1,4}){1,7}|:))"
 )
-FQDN_REGEX = r"([a-zA-Z0-9-]{1,63}\.)([a-z-][a-z0-9-]{1,62}\.?)+"
-HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{FQDN_REGEX})$"
-HOSTNAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-z0-9-]{1,63})*$"
-DOMAIN_NAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-z0-9-]{1,63})+$"
+HOSTNAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-zA-Z-][a-zA-Z0-9-]{0,62})*$"
+HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{HOSTNAME_REGEX})$"
+DOMAIN_NAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-zA-Z0-9-]{1,63})+$"
 host_schema = Field(..., pattern=HOST_REGEX, max_length=253, description="Hostname, FQDN or IP address")
 hostname_schema = Field(..., pattern=HOSTNAME_REGEX, max_length=253, description="Hostname or FQDN")
 domain_name_schema = Field(None, pattern=DOMAIN_NAME_REGEX, max_length=251, description="DNS domain name")
@@ -151,6 +150,7 @@ class f_interface(BaseModel):
     acl_ipv4_out: Optional[str] = None
     acl_ipv6_in: Optional[str] = None
     acl_ipv6_out: Optional[str] = None
+    metric: Optional[int] = None
     cli_append_str: str = ""
 
     @field_validator("ipv4_address")
@@ -386,12 +386,20 @@ class f_group_item(BaseModel):
     name: str = group_name
     regex: str = ""
     group_priority: int = group_priority_schema
+    templates_branch: Optional[str] = None
 
     @field_validator("group_priority")
     @classmethod
     def reserved_priority(cls, v: int, info: FieldValidationInfo):
         if v and v == 1 and info.data["name"] != "DEFAULT":
             raise ValueError("group_priority 1 is reserved for built-in group DEFAULT")
+        return v
+
+    @field_validator("templates_branch")
+    @classmethod
+    def templates_branch_primary_group_only(cls, v: str, info: FieldValidationInfo):
+        if v and info.data["group_priority"] <= 1:
+            raise ValueError("templates_branch can only be specified on primary groups")
         return v
 
 

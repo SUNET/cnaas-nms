@@ -19,11 +19,12 @@ from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.git import RepoStructureException
+from cnaas_nms.db.git_worktrees import find_templates_worktree_path
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import get_settings
+from cnaas_nms.db.settings import get_device_primary_groups, get_group_templates_branch, get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
@@ -272,19 +273,22 @@ def populate_device_vars(
                     ifindexnum: int = 0
                 if "ifclass" not in intf:
                     continue
+                extra_keys = ["aggregate_id", "enabled", "cli_append_str", "metric", "mtu", "tags"]
                 if intf["ifclass"] == "downlink":
                     data = {}
                     if intf["name"] in ifname_peer_map:
                         data["description"] = ifname_peer_map[intf["name"]]
-                    fabric_device_variables["interfaces"].append(
-                        {
-                            "name": intf["name"],
-                            "ifclass": intf["ifclass"],
-                            "redundant_link": intf["redundant_link"],
-                            "indexnum": ifindexnum,
-                            "data": data,
-                        }
-                    )
+                    if_dict = {
+                        "name": intf["name"],
+                        "ifclass": intf["ifclass"],
+                        "redundant_link": intf["redundant_link"],
+                        "indexnum": ifindexnum,
+                        "data": data,
+                    }
+                    for extra_key_name in extra_keys:
+                        if extra_key_name in intf:
+                            if_dict[extra_key_name] = intf[extra_key_name]
+                    fabric_device_variables["interfaces"].append(if_dict)
                 elif intf["ifclass"] == "custom":
                     fabric_device_variables["interfaces"].append(
                         {
@@ -296,8 +300,12 @@ def populate_device_vars(
                     )
                 elif intf["ifclass"] == "fabric":
                     if intf["name"] in fabric_interfaces:
+                        if_dict = {}
+                        for extra_key_name in extra_keys:
+                            if extra_key_name in intf:
+                                if_dict[extra_key_name] = intf[extra_key_name]
                         fabric_device_variables["interfaces"].append(
-                            {**fabric_interfaces[intf["name"]], **{"indexnum": ifindexnum}}
+                            {**fabric_interfaces[intf["name"]], **{"indexnum": ifindexnum}, **if_dict}
                         )
                         del fabric_interfaces[intf["name"]]
                     else:
@@ -315,8 +323,8 @@ def populate_device_vars(
                         )
                 else:
                     if_dict = {"indexnum": ifindexnum}
-                    for key, value in intf.items():
-                        if_dict[key] = value
+                    for extra_key_name, value in intf.items():
+                        if_dict[extra_key_name] = value
                     fabric_device_variables["interfaces"].append(if_dict)
 
         for local_if, data in fabric_interfaces.items():
@@ -510,6 +518,15 @@ def push_sync_device(
         devtype = dev.device_type
 
     local_repo_path = app_settings.TEMPLATES_LOCAL
+
+    # override template path if primary group template path is set
+    primary_group = get_device_primary_groups().get(hostname)
+    if primary_group:
+        templates_branch = get_group_templates_branch(primary_group)
+        if templates_branch:
+            primary_group_template_path = find_templates_worktree_path(templates_branch)
+            if primary_group_template_path:
+                local_repo_path = primary_group_template_path
 
     mapfile = os.path.join(local_repo_path, platform, "mapping.yml")
     if not os.path.isfile(mapfile):

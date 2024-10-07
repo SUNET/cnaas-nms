@@ -29,13 +29,17 @@ if is_coverage_enabled():
     cov = coverage.coverage(data_file=".coverage-{}".format(os.getpid()), concurrency="gevent")
     cov.start()
 
+    def save_coverage_signal(signum, frame):
+        cov.stop()
+        cov.save()
+
     def save_coverage():
         cov.stop()
         cov.save()
 
     atexit.register(save_coverage)
-    gevent_signal.signal(signal.SIGTERM, save_coverage)
-    gevent_signal.signal(signal.SIGINT, save_coverage)
+    gevent_signal.signal(signal.SIGTERM, save_coverage_signal)
+    gevent_signal.signal(signal.SIGINT, save_coverage_signal)
 
 
 def get_app():

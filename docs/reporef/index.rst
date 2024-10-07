@@ -153,6 +153,10 @@ and that key contains a dictionary with two keys:
   have the highest priority when determining the primary group for a device.
   Higher value means higher priority. Defaults to 0, value of 1 is reserved
   for builtin group DEFAULT.
+- templates_branch: Optional string that specifies an alternative git branch
+  in the templates repository to use for devices in this primary group. Make
+  sure the branch exists in the templates repository and that the templates
+  repository is refreshed before setting this value or you will get an error.
 
 There will always exist a group called DEFAULT with group_priority 1 even
 if it's not specified in groups.yml.
@@ -179,6 +183,7 @@ All devices that matches the regex will be included in the group.
          name: 'E1'
          regex: 'eosdist1$'
          group_priority: 100
+         templates_branch: "new_dist_features"
      - group:
          name: 'E'
          regex: 'eosdist.*'
@@ -412,6 +417,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * acl_ipv4_out: Access control list to apply for egress IPv4 traffic from interface. Optional.
   * acl_ipv6_in: Access control list to apply for ingress IPv6 traffic to interface. Optional.
   * acl_ipv6_out: Access control list to apply for egress IPv6 traffic from interface. Optional.
+  * metric: Optional integer specifying metric for this interface.
   * cli_append_str: Optional. Custom configuration to append to this interface.
 
 The "downlink" ifclass is used on DIST devices to specify that this interface
@@ -433,6 +439,11 @@ Contains base system settings like:
 - ntp_servers: List of
 
   * host: IP address or hostname of NTP server
+
+- radius_servers: List of
+
+  * host: IP address or hostname of RADIUS server
+  * port: Port number. Optional
 
 - snmp_servers: List of
 

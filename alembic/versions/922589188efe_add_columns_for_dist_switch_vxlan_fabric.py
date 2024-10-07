@@ -24,9 +24,8 @@ def upgrade():
     op.add_column(
         "device", sa.Column("oob_ip", sqlalchemy_utils.types.ip_address.IPAddressType(length=50), nullable=True)
     )
-    op.add_column(
-        "mgmtdomain", sa.Column("esi_mac", sa.String(length=12), nullable=True)
-    )
+    op.add_column("mgmtdomain", sa.Column("esi_mac", sa.String(length=12), nullable=True))
+
 
 def downgrade():
     op.drop_column("mgmtdomain", "esi_mac")

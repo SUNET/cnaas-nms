@@ -7,26 +7,19 @@ else
 	touch "/tmp/pre-exec.lock"
 fi
 
-set -e
-
+cp /etc/cnaas-nms/repository.yml /tmp/repository.yml.original
 sed -e "s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|" \
     -e "s|^\(settings_remote: \).\+$|\1 $GITREPO_SETTINGS|" \
-  < /etc/cnaas-nms/repository.yml > /tmp/repository.yml.new \
+  < /tmp/repository.yml.original > /tmp/repository.yml.new \
   && cat /tmp/repository.yml.new > /etc/cnaas-nms/repository.yml
 
-#if [ -e "/opt/cnaas/settings" ]; then
-#    rm -rf /opt/cnaas/settings
-#fi
-#if [ -e "/opt/cnaas/templates" ]; then
-#    rm -rf /opt/cnaas/templates
-#fi
-#git clone $GITREPO_SETTINGS /opt/cnaas/settings
-#git clone $GITREPO_TEMPLATES /opt/cnaas/templates
+set -e
 
 # Wait for postgres to start
 echo ">> Waiting for postgres to start"
 WAIT=0
-while ! nc -z cnaas_postgres 5432; do
+DB_HOSTNAME=`cat /etc/cnaas-nms/db_config.yml | awk '/^hostname/ {print $2}'`
+while ! nc -z $DB_HOSTNAME 5432; do
     sleep 1
     WAIT=$(($WAIT + 1))
     if [ "$WAIT" -gt 15 ]; then

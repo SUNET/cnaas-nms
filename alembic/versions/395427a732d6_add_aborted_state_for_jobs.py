@@ -22,7 +22,6 @@ def upgrade():
     op.execute("ALTER TYPE jobstatus ADD VALUE 'ABORTED' AFTER 'EXCEPTION'")
 
 
-
 def downgrade():
     op.drop_index(op.f("ix_job_ticket_ref"), table_name="job")
     op.drop_index(op.f("ix_job_status"), table_name="job")

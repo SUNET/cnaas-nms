@@ -36,8 +36,8 @@ class Scheduler(object, metaclass=SingletonType):
         # If scheduler is already started, use uwsgi ipc to send job to mule process
         self.lock_f = open("/tmp/scheduler.lock", "w")
         try:
-            portalocker.lock(self.lock_f, flags=portalocker.LOCK_EX | portalocker.LOCK_NB)
-        except portalocker.exceptions.LockException:
+            portalocker.Lock(self.lock_f, flags=portalocker.LOCK_EX | portalocker.LOCK_NB)
+        except BlockingIOError:
             try:
                 import uwsgi  # noqa: F401
             except Exception:

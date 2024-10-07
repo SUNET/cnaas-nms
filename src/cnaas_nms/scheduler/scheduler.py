@@ -1,11 +1,11 @@
 import datetime
-import fcntl
 import inspect
 import json
 import os
 from types import FunctionType
 from typing import Optional, Union
 
+import portalocker
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -36,7 +36,7 @@ class Scheduler(object, metaclass=SingletonType):
         # If scheduler is already started, use uwsgi ipc to send job to mule process
         self.lock_f = open("/tmp/scheduler.lock", "w")
         try:
-            fcntl.lockf(self.lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            portalocker.Lock(self.lock_f, flags=portalocker.LOCK_EX | portalocker.LOCK_NB)
         except BlockingIOError:
             try:
                 import uwsgi  # noqa: F401
@@ -80,7 +80,7 @@ class Scheduler(object, metaclass=SingletonType):
 
     def __del__(self):
         if self.lock_f:
-            fcntl.lockf(self.lock_f, fcntl.LOCK_UN)
+            portalocker.unlock(self.lock_f)
             self.lock_f.close()
             os.unlink("/tmp/scheduler.lock")
 

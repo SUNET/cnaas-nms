@@ -19,11 +19,12 @@ from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.git import RepoStructureException
+from cnaas_nms.db.git_worktrees import find_templates_worktree_path
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import get_settings
+from cnaas_nms.db.settings import get_device_primary_groups, get_group_templates_branch, get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
@@ -517,6 +518,15 @@ def push_sync_device(
         devtype = dev.device_type
 
     local_repo_path = app_settings.TEMPLATES_LOCAL
+
+    # override template path if primary group template path is set
+    primary_group = get_device_primary_groups().get(hostname)
+    if primary_group:
+        templates_branch = get_group_templates_branch(primary_group)
+        if templates_branch:
+            primary_group_template_path = find_templates_worktree_path(templates_branch)
+            if primary_group_template_path:
+                local_repo_path = primary_group_template_path
 
     mapfile = os.path.join(local_repo_path, platform, "mapping.yml")
     if not os.path.isfile(mapfile):

@@ -11,6 +11,7 @@ import yaml
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
+from cnaas_nms.db.git_worktrees import WorktreeError, clean_templates_worktree
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
@@ -259,6 +260,10 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
             if repo_chekout_working(repo_type):
                 rebuild_settings_cache()
             raise e
+        except WorktreeError as e:
+            if repo_chekout_working(repo_type):
+                rebuild_settings_cache()
+            raise e
         else:
             try:
                 repo_save_working_commit(repo_type, local_repo.head.commit.hexsha)
@@ -297,6 +302,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
                 Device.set_devtype_syncstatus(session, devtype, ret, "templates", platform, job_id)
+        clean_templates_worktree()
 
     return ret
 

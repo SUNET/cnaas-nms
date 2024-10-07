@@ -153,6 +153,10 @@ and that key contains a dictionary with two keys:
   have the highest priority when determining the primary group for a device.
   Higher value means higher priority. Defaults to 0, value of 1 is reserved
   for builtin group DEFAULT.
+- templates_branch: Optional string that specifies an alternative git branch
+  in the templates repository to use for devices in this primary group. Make
+  sure the branch exists in the templates repository and that the templates
+  repository is refreshed before setting this value or you will get an error.
 
 There will always exist a group called DEFAULT with group_priority 1 even
 if it's not specified in groups.yml.
@@ -179,6 +183,7 @@ All devices that matches the regex will be included in the group.
          name: 'E1'
          regex: 'eosdist1$'
          group_priority: 100
+         templates_branch: "new_dist_features"
      - group:
          name: 'E'
          regex: 'eosdist.*'

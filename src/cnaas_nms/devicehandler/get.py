@@ -221,7 +221,7 @@ def get_interfaces_names(hostname: str) -> List[str]:
 def filter_interfaces(iflist, platform=None, include=None):
     # TODO: include pattern matching from external configurable file
     ret = []
-    junos_phy_r = r"^[gx]e-([0-9]+\/)+[0-9]+$"
+    junos_phy_r = r"^(ge|xe|et|mge)-([0-9]+\/)+[0-9]+$"
     for intf in iflist:
         if include == "physical":
             if platform == "junos":

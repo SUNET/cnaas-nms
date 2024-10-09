@@ -1,5 +1,5 @@
 from ipaddress import AddressValueError, IPv4Interface
-from typing import Annotated, Dict, List, Optional
+from typing import Annotated, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, FieldValidationInfo, conint, field_validator
 from pydantic.functional_validators import AfterValidator
@@ -131,6 +131,15 @@ class f_evpn_peer(BaseModel):
     hostname: str = hostname_schema
 
 
+def vlan_range_check(v: str):
+    if "-" in v:
+        start, end = v.split("-")
+        assert int(start) < int(end), "Start of range must be less than end of range"
+        assert int(start) >= 1 and int(end) <= 4095, "VLAN IDs in range must be between 1-4095"
+    else:
+        assert 1 <= int(v) <= 4095, "VLAN IDs in range must be between 1-4095"
+
+
 class f_interface(BaseModel):
     name: str = ifname_range_schema
     ifclass: str = ifclass_schema
@@ -139,7 +148,10 @@ class f_interface(BaseModel):
     description: Optional[str] = ifdescr_schema
     enabled: Optional[bool] = None
     untagged_vlan: Optional[int] = vlan_id_schema_optional
-    tagged_vlan_list: Optional[List[Annotated[int, Field(ge=1, le=4094)]]] = None
+    # tagged vlan list can be list of vlans IDs or ranges of VLAN IDs ("1-10")
+    tagged_vlan_list: Optional[
+        List[Union[Annotated[int, Field(ge=1, le=4095)], Annotated[str, AfterValidator(vlan_range_check)]]]
+    ] = None
     aggregate_id: Optional[int] = None
     tags: Optional[List[str]] = None
     vrf: Optional[str] = vlan_name_schema

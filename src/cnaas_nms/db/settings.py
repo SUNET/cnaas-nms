@@ -38,7 +38,6 @@ def get_settings_root():
 
 f_root = get_settings_root()
 
-
 redis_client = StrictRedis(
     host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, retry_on_timeout=True, socket_keepalive=True
 )
@@ -193,6 +192,8 @@ def get_pydantic_error_value(data: dict, loc: tuple):
     try:
         obj = data
         for item in loc:
+            if type(obj) is str:
+                return obj
             obj = obj[item]
     except KeyError:
         return None

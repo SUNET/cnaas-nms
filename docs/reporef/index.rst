@@ -403,7 +403,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
 * Additional interface options for port_template type:
 
   * untagged_vlan: Optional. Numeric VLAN ID for untagged frames.
-  * tagged_vlan_list: Optional. List of allowed numeric VLAN IDs for tagged frames.
+  * tagged_vlan_list: Optional. List of allowed VLAN IDs, can be single values or ranges, ex: [1, 5, "10-15"]
   * description: Optional. Description for the interface, this should be a string 0-64 characters.
   * enabled: Optional. Set the administrative state of the interface. Defaults to true if not set.
   * aggregate_id: Optional. Identifier for configuring LACP etc. Integer value.

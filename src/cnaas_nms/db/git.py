@@ -7,6 +7,7 @@ from typing import Dict, Optional, Set, Tuple
 from urllib.parse import urldefrag
 
 import yaml
+from git.exc import GitCommandError, NoSuchPathError
 
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceType
@@ -28,7 +29,6 @@ from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.tools.event import add_event
 from cnaas_nms.tools.log import get_logger
 from git import InvalidGitRepositoryError, Repo
-from git.exc import GitCommandError, NoSuchPathError
 
 
 class RepoType(enum.Enum):

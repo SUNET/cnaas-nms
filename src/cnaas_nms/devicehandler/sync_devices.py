@@ -363,7 +363,9 @@ def populate_device_vars(
     # if device type in api_settings.DEVICE_TYPES_WITH_INCLUDE_RUNNING_CONFIG
     for dt_str in api_settings.DEVICE_TYPES_WITH_INCLUDE_RUNNING_CONFIG:
         if dev.device_type.name.lower() == dt_str.lower():
+            task.host.open_connection("napalm", configuration=task.nornir.config)
             res = task.run(task=napalm_get, getters=["config"])
+            task.host.close_connection("napalm")
 
             running_config = dict(res.result)["config"]["running"]
             # Remove the first task result, which is the napalm_get result, since it's not needed anymore

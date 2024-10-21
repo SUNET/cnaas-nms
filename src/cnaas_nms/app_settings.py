@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import yaml
 from pydantic import field_validator
@@ -57,6 +57,7 @@ class ApiSettings(BaseSettings):
     COMMIT_CONFIRMED_TIMEOUT: int = 300
     COMMIT_CONFIRMED_WAIT: int = 1
     SETTINGS_OVERRIDE: Optional[dict] = None
+    DEVICE_TYPES_WITH_INCLUDE_RUNNING_CONFIG: List[str] = []
 
     @field_validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
     @classmethod
@@ -118,6 +119,7 @@ def construct_api_settings() -> ApiSettings:
             COMMIT_CONFIRMED_TIMEOUT=config.get("commit_confirmed_timeout", 300),
             COMMIT_CONFIRMED_WAIT=config.get("commit_confirmed_wait", 1),
             SETTINGS_OVERRIDE=config.get("settings_override", None),
+            DEVICE_TYPES_WITH_INCLUDE_RUNNING_CONFIG=config.get("device_types_with_include_running_config", []),
         )
     else:
         return ApiSettings()

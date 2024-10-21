@@ -107,7 +107,7 @@ def get_mlag_vars(session, dev: Device) -> dict:
 
 
 def populate_device_vars(
-    session, dev: Device, ztp_hostname: Optional[str] = None, ztp_devtype: Optional[DeviceType] = None
+    task, session, dev: Device, ztp_hostname: Optional[str] = None, ztp_devtype: Optional[DeviceType] = None
 ):
     logger = get_logger()
     device_variables = {
@@ -360,6 +360,21 @@ def populate_device_vars(
             )
         device_variables = {**device_variables, **fabric_device_variables}
 
+    # if device type in api_settings.DEVICE_TYPES_WITH_INCLUDE_RUNNING_CONFIG
+    for dt_str in api_settings.DEVICE_TYPES_WITH_INCLUDE_RUNNING_CONFIG:
+        if dev.device_type.name.lower() == dt_str.lower():
+            task.host.open_connection("napalm", configuration=task.nornir.config)
+            res = task.run(task=napalm_get, getters=["config"])
+            task.host.close_connection("napalm")
+
+            running_config = dict(res.result)["config"]["running"]
+            # Remove the first task result, which is the napalm_get result, since it's not needed anymore
+            del task.results[0]
+            if running_config is None:
+                raise Exception(f"Failed to get running configuration for {dev.hostname}")
+
+            device_variables["running_config"] = running_config
+
     # Add all environment variables starting with TEMPLATE_SECRET_ to
     # the list of configuration variables. The idea is to store secret
     # configuration outside of the templates repository.
@@ -513,7 +528,7 @@ def push_sync_device(
     hostname = task.host.name
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-        template_vars = populate_device_vars(session, dev)
+        template_vars = populate_device_vars(task, session, dev)
         platform = dev.platform
         devtype = dev.device_type
 

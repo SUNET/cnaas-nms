@@ -1,9 +1,9 @@
 from ipaddress import IPv4Address, IPv4Network
-from typing import Optional
+from typing import Any, Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
-from pydantic import BaseModel, FieldValidationInfo, ValidationError, field_validator
+from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator
 
 from cnaas_nms.api.generic import empty_result, parse_pydantic_error, update_sqla_object
 from cnaas_nms.db.device import Device, DeviceType
@@ -52,7 +52,7 @@ class f_linknet(BaseModel):
 
     @field_validator("device_a_ip", "device_b_ip")
     @classmethod
-    def device_ip_validator(cls, v, info: FieldValidationInfo):
+    def device_ip_validator(cls, v, info: ValidationInfo):
         if not v:
             return v
         if not info.data["ipv4_network"]:
@@ -94,7 +94,7 @@ class LinknetsApi(Resource):
     def validate_hostname(hostname):
         if not Device.valid_hostname(hostname):
             raise ValueError("Invalid hostname: {}".format(hostname))
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 raise ValueError("Hostname {} not found in database")
@@ -104,8 +104,8 @@ class LinknetsApi(Resource):
     @login_required
     def get(self):
         """Get all linksnets"""
-        result = {"linknets": []}
-        with sqla_session() as session:
+        result: dict[str, Any] = {"linknets": []}
+        with sqla_session() as session:  # type: ignore
             query = session.query(Linknet)
             for instance in query:
                 result["linknets"].append(instance.as_dict())
@@ -143,7 +143,7 @@ class LinknetsApi(Resource):
         if errors:
             return empty_result(status="error", data=errors), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev_a: Device = session.query(Device).filter(Device.hostname == json_data["device_a"]).one_or_none()
             if not dev_a:
                 return empty_result(status="error", data="Hostname '{}' not found".format(json_data["device_a"])), 500
@@ -195,7 +195,7 @@ class LinknetsApi(Resource):
         if errors:
             return empty_result(status="error", data=errors), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             cur_linknet: Linknet = session.query(Linknet).filter(Linknet.id == json_data["id"]).one_or_none()
             if not cur_linknet:
                 return empty_result(status="error", data="No such linknet found in database"), 404
@@ -214,7 +214,7 @@ class LinknetByIdApi(Resource):
         """Get a single specified linknet"""
         result = empty_result()
         result["data"] = {"linknets": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
             if instance:
                 result["data"]["linknets"].append(instance.as_dict())
@@ -225,7 +225,7 @@ class LinknetByIdApi(Resource):
     @login_required
     def delete(self, linknet_id):
         """Remove a linknet"""
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance: Linknet = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
@@ -254,7 +254,7 @@ class LinknetByIdApi(Resource):
         if errors:
             return empty_result(status="error", data=errors), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance: Linknet = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
             if instance:
                 try:

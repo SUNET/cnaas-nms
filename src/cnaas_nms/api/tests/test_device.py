@@ -22,7 +22,7 @@ class DeviceTests(unittest.TestCase):
         pass
 
     def cleandb(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             for hardware_id in ["AB1234", "CD5555", "GF43534"]:
                 stack = session.query(Stackmember).filter(Stackmember.hardware_id == hardware_id).one_or_none()
                 if stack:
@@ -53,7 +53,7 @@ class DeviceTests(unittest.TestCase):
         self.cleandb()
 
     def add_device(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             device = Device(
                 hostname="testdevice",
                 platform="eos",
@@ -110,14 +110,14 @@ class DeviceTests(unittest.TestCase):
         json_data = json.loads(result.data.decode())
         updated_device = json_data["data"]["updated_device"]
         self.assertEqual(modify_data["description"], updated_device["description"])
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertEqual(modify_data["description"], q_device.description)
 
     def test_delete_device(self):
         result = self.client.delete(f"/api/v1.0/device/{self.device_id}")
         self.assertEqual(result.status_code, 200)
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertIsNone(q_device)
 
@@ -146,7 +146,7 @@ class DeviceTests(unittest.TestCase):
         self.assertEqual(json_data["data"]["stackmembers"], [])
 
     def test_get_stackmembers(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             stackmember = Stackmember(device_id=self.device_id, hardware_id="AB1234", member_no=1, priority=3)
             session.add(stackmember)
         result = self.client.get(f"/api/v1.0/device/{self.hostname}/stackmember")
@@ -167,7 +167,7 @@ class DeviceTests(unittest.TestCase):
         json_data = json.loads(result.data.decode())
         self.assertEqual(result.status_code, 200, msg=json_data)
         self.assertEqual(len(json_data["data"]["stackmembers"]), 3, msg=json_data)
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             q_stackmembers = session.query(Stackmember).filter(Stackmember.device_id == self.device_id).all()
             self.assertEqual(len(q_stackmembers), 3, msg=json_data)
 
@@ -187,7 +187,7 @@ class DeviceTests(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
 
     def test_put_stackmembers_clear(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             stackmember = Stackmember(
                 device_id=self.device_id,
                 hardware_id="AB1234",
@@ -200,7 +200,7 @@ class DeviceTests(unittest.TestCase):
         json_data = json.loads(result.data.decode())
         self.assertEqual(result.status_code, 200)
         self.assertEqual(len(json_data["data"]["stackmembers"]), 0)
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             q_stackmembers = session.query(Stackmember).filter(Stackmember.device_id == self.device_id).all()
             self.assertEqual(len(q_stackmembers), 0)
 

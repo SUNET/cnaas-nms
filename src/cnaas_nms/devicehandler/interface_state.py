@@ -27,7 +27,7 @@ def get_interface_states(hostname) -> dict:
 
 def pre_bounce_check(hostname: str, interfaces: List[str]):
     # Check1: Database state
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise ValueError(f"Hostname {hostname} not found in database")

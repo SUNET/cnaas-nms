@@ -104,7 +104,9 @@ def isofy_ipv4(ip_string, prefix=""):
 
 
 @template_filter()
-def ipv4_to_ipv6(v6_network: Union[str, ipaddress.IPv6Network], v4_address: Union[str, ipaddress.IPv4Interface]):
+def ipv4_to_ipv6(
+    v6_network: str | ipaddress.IPv6Network, v4_address: str | ipaddress.IPv4Interface | ipaddress.IPv4Address
+):
     """Transforms an IPv4 address to an IPv6 interface address. This will combine an arbitrary
     IPv6 network address with the 32 address bytes of an IPv4 address into a valid IPv6 address
     + prefix length notation - the equivalent of dotted quad compatible notation.
@@ -133,8 +135,9 @@ def ipv4_to_ipv6(v6_network: Union[str, ipaddress.IPv6Network], v4_address: Unio
 
 @template_filter()
 def get_interface(
-    network: Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface, str], index: int
-) -> Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface]:
+    network: Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface, ipaddress.IPv6Network, ipaddress.IPv4Network, str],
+    index: int,
+) -> Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface, ipaddress.IPv6Network, ipaddress.IPv4Network]:
     """Returns a host address with a prefix length from its index in a network.
 
     Example:
@@ -148,8 +151,8 @@ def get_interface(
     if isinstance(network, str):
         network = ipaddress.ip_network(network)
 
-    host = network[index]
-    return ipaddress.ip_interface(f"{host}/{network.prefixlen}")
+    host = network[index]  # type: ignore
+    return ipaddress.ip_interface(f"{host}/{network.prefixlen}")  # type: ignore
 
 
 @template_filter()

@@ -33,7 +33,7 @@ def test_add_schedule(postgresql, scheduler):
     print(f"Test job 1 scheduled as ID { job1_id }")
     print(f"Test job 2 scheduled as ID { job2_id }")
     time.sleep(3)
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         job1 = session.query(Job).filter(Job.id == job1_id).one_or_none()
         assert isinstance(job1, Job), "Test job 1 could not be found"
         assert job1.status == JobStatus.FINISHED, "Test job 1 did not finish"
@@ -53,7 +53,7 @@ def test_abort_schedule(postgresql, scheduler):
     print(f"Test job 3 scheduled as ID { job3_id }")
     scheduler.remove_scheduled_job(job3_id)
     time.sleep(3)
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         job3 = session.query(Job).filter(Job.id == job3_id).one_or_none()
         assert isinstance(job3, Job), "Test job 3 could not be found"
         assert job3.status == JobStatus.ABORTED, "Test job 3 did not abort"

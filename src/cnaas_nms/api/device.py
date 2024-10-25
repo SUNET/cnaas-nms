@@ -1,6 +1,6 @@
 import datetime
 import json
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from flask import make_response, request
 from flask_restx import Namespace, Resource, fields, marshal
@@ -242,7 +242,7 @@ class DeviceByIdApi(Resource):
         """Get a device from ID"""
         result = empty_result()
         result["data"] = {"devices": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance = session.query(Device).filter(Device.id == device_id).one_or_none()
             if instance:
                 result["data"]["devices"] = device_data_postprocess([instance])
@@ -273,7 +273,8 @@ class DeviceByIdApi(Resource):
                 return res
             elif not isinstance(json_data["factory_default"], bool):
                 return empty_result(status="error", data="Argument factory_default must be boolean"), 400
-        with sqla_session() as session:
+
+        with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
@@ -305,7 +306,7 @@ class DeviceByIdApi(Resource):
     def put(self, device_id):
         """Modify device from ID"""
         json_data = request.get_json()
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
             dev_prev_state: DeviceState = dev.state
 
@@ -350,7 +351,7 @@ class DeviceByHostnameApi(Resource):
         """Get a device from hostname"""
         result = empty_result()
         result["data"] = {"devices": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if instance:
                 result["data"]["devices"] = device_data_postprocess([instance])
@@ -371,7 +372,7 @@ class DeviceApi(Resource):
         data, errors = Device.validate(**json_data)
         if errors != []:
             return empty_result(status="error", data=errors), 400
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance: Device = session.query(Device).filter(Device.hostname == data["hostname"]).one_or_none()
             if instance:
                 errors.append("Device already exists")
@@ -403,7 +404,7 @@ class DevicesApi(Resource):
         logger.info("started get devices")
         device_list: List[Device] = []
         total_count = 0
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             query = session.query(Device, func.count(Device.id).over().label("total"))
             try:
                 query = build_filter(Device, query)
@@ -416,7 +417,7 @@ class DevicesApi(Resource):
 
         resp = make_response(json.dumps(empty_result(status="success", data=data)), 200)
         resp.headers["Content-Type"] = "application/json"
-        resp.headers = {**resp.headers, **pagination_headers(total_count)}
+        resp.headers = {**resp.headers, **pagination_headers(total_count)}  # type: ignore
         return resp
 
 
@@ -433,7 +434,7 @@ class DeviceInitApi(Resource):
 
         # If device init is already in progress, reschedule a new step2 (connectivity check)
         # instead of trying to restart initialization
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
             if (
                 dev
@@ -475,14 +476,14 @@ class DeviceInitApi(Resource):
         else:
             return empty_result(status="error", data="Unsupported 'device_type' provided"), 400
 
-        res = empty_result(data=f"Scheduled job to initialize device_id { device_id }")
+        res = empty_result(data=f"Scheduled job to initialize device_id { str(device_id) }")
         res["job_id"] = job_id
 
         return res
 
     @classmethod
     def arg_check(cls, device_id: int, json_data: dict) -> dict:
-        parsed_args = {"device_id": device_id}
+        parsed_args: dict[str, Any] = {"device_id": device_id}
         if not isinstance(device_id, int):
             raise ValueError("'device_id' must be an integer")
 
@@ -540,22 +541,23 @@ class DeviceInitCheckApi(Resource):
     def post(self, device_id: int):
         """Perform init check on a device"""
         json_data = request.get_json()
-        ret = {}
+        ret: dict[str, Any] = {}
         linknets_all = []
+        mlag_peer_dev: Optional[Device]
         try:
             parsed_args = DeviceInitApi.arg_check(device_id, json_data)
             target_devtype = DeviceType[parsed_args["device_type"]]
             target_hostname = parsed_args["new_hostname"]
             mlag_peer_target_hostname: Optional[str] = None
             mlag_peer_id: Optional[int] = None
-            mlag_peer_dev: Optional[Device] = None
+            mlag_peer_dev = None
             if "mlag_peer_id" in parsed_args and "mlag_peer_new_hostname" in parsed_args:
                 mlag_peer_target_hostname = parsed_args["mlag_peer_new_hostname"]
                 mlag_peer_id = parsed_args["mlag_peer_id"]
         except ValueError as e:
             return empty_result(status="error", data="Error parsing arguments: {}".format(e)), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             try:
                 dev: Device = cnaas_nms.devicehandler.init_device.pre_init_checks(session, device_id)
                 linknets_all = dev.get_linknets_as_dict(session)
@@ -566,7 +568,7 @@ class DeviceInitCheckApi(Resource):
 
             if mlag_peer_id:
                 try:
-                    mlag_peer_dev: Device = cnaas_nms.devicehandler.init_device.pre_init_checks(session, mlag_peer_id)
+                    mlag_peer_dev = cnaas_nms.devicehandler.init_device.pre_init_checks(session, mlag_peer_id)
                     linknets_all += mlag_peer_dev.get_linknets_as_dict(session)
                 except ValueError as e:
                     return empty_result(status="error", data="ValueError in pre_init_checks: {}".format(e)), 400
@@ -743,7 +745,7 @@ class DeviceSyncApi(Resource):
 
         resp = make_response(json.dumps(res), 200)
         if total_count:
-            resp.headers["X-Total-Count"] = total_count
+            resp.headers["X-Total-Count"] = str(total_count)
         resp.headers["Content-Type"] = "application/json"
         return resp
 
@@ -787,7 +789,7 @@ class DeviceSyncHostnameApi(Resource):
 
         resp = make_response(json.dumps(res), 200)
         if total_count:
-            resp.headers["X-Total-Count"] = total_count
+            resp.headers["X-Total-Count"] = str(total_count)
         resp.headers["Content-Type"] = "application/json"
         return resp
 
@@ -806,7 +808,7 @@ class DeviceUpdateFactsApi(Resource):
             hostname = str(json_data["hostname"])
             if not Device.valid_hostname(hostname):
                 return empty_result(status="error", data=f"Hostname '{hostname}' is not a valid hostname"), 400
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if not dev or (dev.state != DeviceState.MANAGED and dev.state != DeviceState.UNMANAGED):
                     return (
@@ -828,7 +830,7 @@ class DeviceUpdateFactsApi(Resource):
 
         resp = make_response(json.dumps(res), 200)
         if total_count:
-            resp.headers["X-Total-Count"] = total_count
+            resp.headers["X-Total-Count"] = str(total_count)
         resp.headers["Content-Type"] = "application/json"
         return resp
 
@@ -847,7 +849,7 @@ class DeviceUpdateInterfacesApi(Resource):
             hostname = str(json_data["hostname"])
             if not Device.valid_hostname(hostname):
                 return empty_result(status="error", data=f"Hostname '{hostname}' is not a valid hostname"), 400
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if not dev or (dev.state != DeviceState.MANAGED and dev.state != DeviceState.UNMANAGED):
                     return (
@@ -873,8 +875,8 @@ class DeviceUpdateInterfacesApi(Resource):
                     empty_result(status="error", data=f"Hostname '{mlag_peer_hostname}' is not a valid hostname"),
                     400,
                 )
-            with sqla_session() as session:
-                dev: Device = session.query(Device).filter(Device.hostname == mlag_peer_hostname).one_or_none()
+            with sqla_session() as session:  # type: ignore
+                dev = session.query(Device).filter(Device.hostname == mlag_peer_hostname).one_or_none()
                 if not dev or (dev.state != DeviceState.MANAGED and dev.state != DeviceState.UNMANAGED):
                     return (
                         empty_result(
@@ -907,7 +909,7 @@ class DeviceUpdateInterfacesApi(Resource):
 
         resp = make_response(json.dumps(res), 200)
         if total_count:
-            resp.headers["X-Total-Count"] = total_count
+            resp.headers["X-Total-Count"] = str(total_count)
         resp.headers["Content-Type"] = "application/json"
         return resp
 
@@ -956,7 +958,7 @@ class DeviceRunningConfigApi(Resource):
         if not Device.valid_hostname(hostname):
             return empty_result(status="error", data="Invalid hostname specified"), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
@@ -987,7 +989,7 @@ class DevicePreviousConfigApi(Resource):
         if not Device.valid_hostname(hostname):
             return empty_result(status="error", data="Invalid hostname specified"), 400
 
-        kwargs = {}
+        kwargs: dict[str, Any] = {}
         if "job_id" in args:
             try:
                 kwargs["job_id"] = int(args["job_id"])
@@ -1004,7 +1006,7 @@ class DevicePreviousConfigApi(Resource):
             except Exception:
                 return empty_result("error", "before must be a valid ISO format date time string"), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             try:
                 result["data"] = Job.get_previous_config(session, hostname, **kwargs)
             except JobNotFoundError as e:
@@ -1021,7 +1023,7 @@ class DevicePreviousConfigApi(Resource):
     def post(self, hostname: str):
         """Restore configuration to previous version"""
         json_data = request.get_json()
-        apply_kwargs = {"hostname": hostname}
+        apply_kwargs: dict[str, Any] = {"hostname": hostname}
         config = None
         if not Device.valid_hostname(hostname):
             return empty_result(status="error", data="Invalid hostname specified"), 400
@@ -1034,7 +1036,7 @@ class DevicePreviousConfigApi(Resource):
         else:
             return empty_result("error", "job_id must be specified"), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             try:
                 prev_config_result = Job.get_previous_config(session, hostname, job_id=job_id)
                 failed = prev_config_result["failed"]
@@ -1080,7 +1082,7 @@ class DeviceApplyConfigApi(Resource):
     def post(self, hostname: str):
         """Apply exact specified configuration to device without using templates"""
         json_data = request.get_json()
-        apply_kwargs = {"hostname": hostname}
+        apply_kwargs: dict[str, Any] = {"hostname": hostname}
         allow_live_run = api_settings.ALLOW_APPLY_CONFIG_LIVERUN
         if not Device.valid_hostname(hostname):
             return empty_result(status="error", data="Invalid hostname specified"), 400
@@ -1165,7 +1167,7 @@ class DeviceCertApi(Resource):
 
             resp = make_response(json.dumps(res), 200)
             if total_count:
-                resp.headers["X-Total-Count"] = total_count
+                resp.headers["X-Total-Count"] = str(total_count)
             resp.headers["Content-Type"] = "application/json"
             return resp
         else:
@@ -1177,7 +1179,7 @@ class DeviceStackmembersApi(Resource):
     def get(self, hostname):
         """Get stackmembers for device"""
         result = empty_result(data={"stackmembers": []})
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not device:
                 return empty_result("error", "Device not found"), 404
@@ -1196,7 +1198,7 @@ class DeviceStackmembersApi(Resource):
             errors = DeviceStackmembersApi.format_errors(e.errors())
             return empty_result("error", errors), 400
         result = empty_result(data={"stackmembers": []})
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             device_instance = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not device_instance:
                 return empty_result("error", "Device not found"), 404
@@ -1232,13 +1234,14 @@ class DeviceSyncHistoryApi(Resource):
         args = request.args
         result = empty_result()
         result["data"] = {"hostnames": {}}
+        sync_history: SyncHistory
 
         if "hostname" in args:
             if not Device.valid_hostname(args["hostname"]):
                 return empty_result(status="error", data="Invalid hostname specified"), 400
-            sync_history: SyncHistory = get_sync_events([args["hostname"]])
+            sync_history = get_sync_events([args["hostname"]])
         else:
-            sync_history: SyncHistory = get_sync_events()
+            sync_history = get_sync_events()
 
         result["data"]["hostnames"] = sync_history.asdict()
         return result
@@ -1250,7 +1253,7 @@ class DeviceSyncHistoryApi(Resource):
             validated_json_data = NewSyncEventModel(**request.get_json()).model_dump()
         except ValidationError as e:
             return empty_result("error", parse_pydantic_error(e, NewSyncEventModel, request.get_json())), 400
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             device_instance = (
                 session.query(Device).filter(Device.hostname == validated_json_data["hostname"]).one_or_none()
             )

@@ -20,7 +20,7 @@ def _get_session():
 
 
 @contextmanager
-def sqla_session(**kwargs) -> sessionmaker:
+def sqla_session(**kwargs):
     session = _get_session()
     try:
         yield session
@@ -42,7 +42,7 @@ def sqla_execute(**kwargs):
 
 
 @contextmanager
-def redis_session(**kwargs) -> StrictRedis:
+def redis_session(**kwargs):
     with StrictRedis(
         host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, encoding="utf-8", decode_responses=True
     ) as conn:

@@ -17,7 +17,7 @@ REDIS_OAUTH_TOKEN_INFO_KEY = "oauth_userinfo"
 def get_token_info_from_cache(token: Token) -> Optional[dict]:
     """Check if the userinfo is in the cache to avoid multiple calls to the OIDC server"""
     try:
-        with redis_session() as redis:
+        with redis_session() as redis:  # type: ignore
             cached_token_info = redis.hget(REDIS_OAUTH_TOKEN_INFO_KEY, token.decoded_token["sub"])
             if cached_token_info:
                 return json.loads(cached_token_info)
@@ -31,7 +31,7 @@ def get_token_info_from_cache(token: Token) -> Optional[dict]:
 def put_token_info_in_cache(token: Token, token_info) -> bool:
     """Put the userinfo in the cache to avoid multiple calls to the OIDC server"""
     try:
-        with redis_session() as redis:
+        with redis_session() as redis:  # type: ignore
             if "exp" in token.decoded_token:
                 redis.hsetnx(REDIS_OAUTH_TOKEN_INFO_KEY, token.decoded_token["sub"], token_info)
                 # expire hash at access_token expiry time or 1 hour from now (whichever is sooner)

@@ -17,7 +17,7 @@ class CopyError(Exception):
     pass
 
 
-def arista_copy_cert(task, job_id: Optional[str] = None) -> str:
+def arista_copy_cert(task, job_id: Optional[int] = None) -> str:
     set_thread_data(job_id)
     logger = get_logger()
 
@@ -85,7 +85,7 @@ def renew_cert_task(task, job_id: str) -> str:
     set_thread_data(job_id)
     logger = get_logger()
 
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
         ip = dev.management_ip
         if not ip:
@@ -112,8 +112,8 @@ def renew_cert_task(task, job_id: str) -> str:
 def renew_cert(
     hostname: Optional[str] = None,
     group: Optional[str] = None,
-    job_id: Optional[str] = None,
-    scheduled_by: Optional[str] = None,
+    job_id: Optional[int] = None,
+    scheduled_by: str = "",
 ) -> NornirJobResult:
     logger = get_logger()
     nr = cnaas_init()
@@ -130,7 +130,7 @@ def renew_cert(
     supported_platforms = ["eos"]
     # Make sure we only attempt supported devices
     for device in device_list:
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == device).one_or_none()
             if not dev:
                 raise Exception("Could not find device: {}".format(device))

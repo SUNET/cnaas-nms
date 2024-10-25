@@ -58,7 +58,7 @@ class VlanConflictError(Exception):
 
 DIR_STRUCTURE_HOST = {"base_system.yml": "file", "interfaces.yml": "file", "routing.yml": "file"}
 
-DIR_STRUCTURE = {
+DIR_STRUCTURE: dict[str, Any] = {
     "global": {"base_system.yml": "file", "groups.yml": "file", "routing.yml": "file", "vxlans.yml": "file"},
     "fabric": {"base_system.yml": "file"},
     "core": {"base_system.yml": "file"},
@@ -84,7 +84,7 @@ def get_model_specific_configfiles(only_modelname: bool = False) -> dict:
             'DIST': ['interfaces_veos.yml']
         }
     """
-    ret = {"CORE": [], "DIST": []}
+    ret: dict[str, List[str]] = {"CORE": [], "DIST": []}
     local_repo_path = app_settings.SETTINGS_LOCAL
 
     for devtype in ["CORE", "DIST"]:
@@ -204,7 +204,7 @@ def get_pydantic_error_value(data: dict, loc: tuple):
 def get_pydantic_field_descr(schema: dict, loc: tuple):
     """Get the description from a pydantic Field definition based on a model
     schema and a "loc" tuple from pydantic ValidatorError.errors()"""
-    next_schema = None
+    next_schema: dict[str, Any] | None = None
     for loc_part in loc:
         if next_schema and "$ref" in next_schema:
             ref_to = next_schema["$ref"].split("/")[2]
@@ -216,7 +216,7 @@ def get_pydantic_field_descr(schema: dict, loc: tuple):
                 next_schema = schema["definitions"][next_schema]["properties"][loc_part]
         else:
             next_schema = schema["properties"][loc_part]
-    if "description" in next_schema:
+    if next_schema and "description" in next_schema:
         return next_schema["description"]
     else:
         return None
@@ -287,7 +287,7 @@ def check_settings_collisions(unique_vlans: bool = True):
     logger = get_logger()
     mgmt_vlans: Set[int] = set()
     devices_dict: dict[str, dict] = {}
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         mgmtdoms = session.query(Mgmtdomain).all()
         for mgmtdom in mgmtdoms:
             if mgmtdom.vlan and isinstance(mgmtdom.vlan, int):
@@ -329,7 +329,7 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
     device_vlan_ids: dict[str, Set[int]] = {}  # save used VLAN IDs per device
     device_vlan_names: dict[str, Set[str]] = {}  # save used VLAN names per device
     access_hostnames: List[str] = []
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         access_devs = session.query(Device).filter(Device.device_type == DeviceType.ACCESS).all()
         for dev in access_devs:
             access_hostnames.append(dev.hostname)
@@ -428,8 +428,8 @@ def read_settings(
     origin: str,
     merged_settings,
     merged_settings_origin,
-    groups: List[str] = None,
-    hostname: str = None,
+    groups: List[str] | None = None,
+    hostname: str | None = None,
 ) -> Tuple[dict, dict]:
     """
 
@@ -457,11 +457,22 @@ def read_settings(
     if groups or hostname:
         syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings, {}, origin)
         check_settings_syntax(syntax_dict, syntax_dict_origin)
-        settings = filter_yamldata(settings, groups, hostname)
+        settings = filter_yamldata(settings, groups if groups else [], hostname if hostname else "")
     return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
 
 
-def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, recdepth=100) -> Union[List, dict]:
+def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str) -> dict:
+    logger = get_logger()
+    filtered_yaml_data = recursive_filter_yamldata(data, groups, hostname)
+    if not isinstance(filtered_yaml_data, dict):
+        logger.info("Invalid yaml file ignored")
+        return {}
+    return filtered_yaml_data
+
+
+def recursive_filter_yamldata(
+    data: Union[List, dict], groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
     """Filter data and remove dictionary items if they have a key that specifies
     a list of groups, but none of those groups are included in the groups argument.
     Should only be called with yaml.safe_load:ed data.
@@ -480,7 +491,7 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
     elif isinstance(data, list):
         ret_l = []
         for item in data:
-            f_item = filter_yamldata(item, groups, hostname, recdepth - 1)
+            f_item = recursive_filter_yamldata(item, groups, hostname, recdepth - 1)
             if f_item:
                 ret_l.append(f_item)
         return ret_l
@@ -490,33 +501,33 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
         hostname_match = False
         do_filter_group = False
         do_filter_hostname = False
-        for k, v in data.items():
-            if not v:
-                ret_d[k] = v
+        for key, value in data.items():
+            if not value:
+                ret_d[key] = value
                 continue
-            if k == "groups":
-                if not isinstance(v, list):  # Should already be checked by pydantic now
+            if key == "groups":
+                if not isinstance(value, list):  # Should already be checked by pydantic now
                     raise SettingsSyntaxError(
-                        "Groups field must be a list or empty (currently {}) in: {}".format(type(v).__name__, data)
+                        "Groups field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
                     )
                 do_filter_group = True
-                ret_d[k] = v
-                for group in v:
+                ret_d[key] = value
+                for group in value:
                     if group in groups:
                         group_match = True
-            elif k == "devices":
-                if not isinstance(v, list):  # Should already be checked by pydantic now
+            elif key == "devices":
+                if not isinstance(value, list):  # Should already be checked by pydantic now
                     raise SettingsSyntaxError(
-                        "Devices field must be a list or empty (currently {}) in: {}".format(type(v).__name__, data)
+                        "Devices field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
                     )
                 do_filter_hostname = True
-                ret_d[k] = v
-                if hostname in v:
+                ret_d[key] = value
+                if hostname in value:
                     hostname_match = True
             else:
-                ret_v = filter_yamldata(v, groups, hostname, recdepth - 1)
+                ret_v = recursive_filter_yamldata(value, groups, hostname, recdepth - 1)
                 if ret_v:
-                    ret_d[k] = ret_v
+                    ret_d[key] = ret_v
         if (do_filter_group or do_filter_hostname) and not group_match and not hostname_match:
             return None
         else:
@@ -526,7 +537,7 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
 
 
 def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             return settings
@@ -736,7 +747,7 @@ def get_group_settings() -> Tuple[dict, dict]:
 @redis_lru_cache
 def get_groups(hostname: Optional[str] = None) -> List[str]:
     """Return list of names for valid groups."""
-    groups = []
+    groups: list[str] = []
     settings, origin = get_group_settings()
     if not settings:
         return groups
@@ -779,14 +790,22 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     for group in settings["groups"]:
         if "name" not in group["group"]:
             continue
+<<<<<<< HEAD
         group_dict[group["group"]["name"]] = group["group"]
         del group_dict[group["group"]["name"]]["name"]
     return group_dict
+=======
+        if "regex" not in group["group"]:
+            continue
+        if group_name == group["group"]["name"]:
+            return group["group"]["regex"]
+    return None
+>>>>>>> 52d76c6 (add mypy to pre-commit and solved mypy errors)
 
 
 def get_groups_priorities(hostname: Optional[str] = None, settings: Optional[dict] = None) -> Dict[str, int]:
     """Return dicts with {name: priority} for groups"""
-    groups_priorities = {}
+    groups_priorities: dict[str, Any] = {}
 
     if not settings:
         settings, _ = get_group_settings()
@@ -832,7 +851,7 @@ def parse_device_primary_groups() -> Dict[str, str]:
     """Returns a dict with {hostname: primary_group} from settings"""
     groups_priorities_sorted = get_groups_priorities_sorted()
     device_primary_group: Dict[str, str] = {}
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         devices: List[Device] = session.query(Device).all()
         for dev in devices:
             groups = get_groups(dev.hostname)
@@ -845,7 +864,7 @@ def update_device_primary_groups():
     device_primary_group = parse_device_primary_groups()
     if not device_primary_group:
         return
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         redis.hset("device_primary_group", mapping=device_primary_group)
 
 
@@ -857,13 +876,13 @@ def get_device_primary_groups(no_cache: bool = False) -> Dict[str, str]:
     """
     logger = get_logger()
     # update redis if redis is empty
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         if not redis.exists("device_primary_group"):
             update_device_primary_groups()
     if no_cache:
         update_device_primary_groups()
     device_primary_group: dict = {}
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         try:
             device_primary_group = redis.hgetall("device_primary_group")
         except Exception as e:
@@ -880,7 +899,7 @@ def rebuild_settings_cache() -> None:
     """
     logger = get_logger()
     logger.debug("Clearing redis-lru cache for settings")
-    with redis_session() as redis_db:
+    with redis_session() as redis_db:  # type: ignore
         mem_stats_before = redis_db.memory_stats()
         cache = RedisLRU(redis_db)
         cache.clear_all_cache()
@@ -904,7 +923,7 @@ def rebuild_settings_cache() -> None:
     for devtype in test_devtypes:
         get_settings(device_type=devtype)
     logger.debug("Rebuilding settings cache for device specific settings")
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         for hostname in os.listdir(os.path.join(app_settings.SETTINGS_LOCAL, "devices")):
             hostname_path = os.path.join(app_settings.SETTINGS_LOCAL, "devices", hostname)
             if not os.path.isdir(hostname_path) or hostname.startswith("."):

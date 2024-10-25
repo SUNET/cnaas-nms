@@ -24,3 +24,21 @@ repos:
       - id: ruff
         args: [ --fix, --exit-non-zero-on-fix, --show-fixes ]
         exclude: (alembic/.*)
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        language: system
+        entry: "mypy"
+        types: [ python ]
+        require_serial: true
+        verbose: true
+        args:
+          - --no-warn-incomplete-stub
+          - --ignore-missing-imports
+          - --no-warn-unused-ignores
+          - --allow-untyped-decorators
+          - --no-namespace-packages
+          - --allow-untyped-globals
+          - --check-untyped-defs
+        exclude: "(alembic/.*)|(.*test.*)"

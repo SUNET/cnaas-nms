@@ -1,6 +1,6 @@
 import hashlib
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from netutils.config import compliance
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
@@ -13,7 +13,6 @@ import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
-from cnaas_nms.db.session import sqla_session
 from cnaas_nms.tools.log import get_logger
 
 
@@ -22,7 +21,7 @@ def get_inventory():
     return nr.dict()["inventory"]
 
 
-def get_running_config(hostname: str) -> Optional[str]:
+def get_running_config(hostname: str) -> str:
     nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     nr_result = nr_filtered.run(task=napalm_get, getters=["config"])
@@ -32,10 +31,10 @@ def get_running_config(hostname: str) -> Optional[str]:
         return nr_result[hostname].result["config"]["running"]
 
 
-def get_running_config_interface(session: sqla_session, hostname: str, interface: str) -> str:
+def get_running_config_interface(session, hostname: str, interface: str) -> str:
     running_config = get_running_config(hostname)
     dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-    os_parser = compliance.parser_map[NAPALM_LIB_MAPPER.get(dev.platform)]
+    os_parser = compliance.parser_map[str(NAPALM_LIB_MAPPER.get(str(dev.platform)))]
     config_parsed = os_parser(running_config)
     ret = []
     leading_whitespace: Optional[int] = None
@@ -89,7 +88,7 @@ def get_uplinks(
     session,
     hostname: str,
     recheck: bool = False,
-    neighbors: Optional[List[Device]] = None,
+    neighbors: Optional[Set[Device]] = None,
     linknets: Optional[List[dict]] = None,
 ) -> Dict[str, str]:
     """Returns dict with mapping of interface -> neighbor hostname"""
@@ -122,7 +121,7 @@ def get_uplinks(
     if not neighbors:
         neighbors = dev.get_neighbors(session, linknets)
 
-    for neighbor_d in neighbors:
+    for neighbor_d in neighbors:  # type: ignore
         if neighbor_d.device_type == DeviceType.DIST:
             local_ifs = dev.get_neighbor_ifnames(session, neighbor_d, linknets)
             # Neighbor interface ifclass is already verified in
@@ -162,7 +161,7 @@ def get_uplinks(
 
 
 def get_local_ifnames(local_devid: int, peer_devid: int, linknets: List[dict]) -> List[str]:
-    ifnames = []
+    ifnames: List[str] = []
     if not linknets:
         return ifnames
     for linknet in linknets:
@@ -173,9 +172,7 @@ def get_local_ifnames(local_devid: int, peer_devid: int, linknets: List[dict]) -
     return ifnames
 
 
-def get_mlag_ifs(
-    session, dev: Device, mlag_peer_hostname: str, linknets: Optional[List[dict]] = None
-) -> Dict[str, int]:
+def get_mlag_ifs(session, dev: Device, mlag_peer_hostname: str, linknets: List[dict] = []) -> Dict[str, int]:
     """Returns dict with mapping of interface -> neighbor id
     Return id instead of hostname since mlag peer will change hostname during init"""
     logger = get_logger()
@@ -218,7 +215,7 @@ def get_interfaces_names(hostname: str) -> List[str]:
         return list(getfacts_task.result["interfaces"].keys())
 
 
-def filter_interfaces(iflist, platform=None, include=None):
+def filter_interfaces(iflist: List[str], platform=None, include=None) -> List[str]:
     # TODO: include pattern matching from external configurable file
     ret = []
     junos_phy_r = r"^(ge|xe|et|mge)-([0-9]+\/)+[0-9]+$"

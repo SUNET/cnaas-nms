@@ -34,7 +34,7 @@ class SettingsApi(Resource):
                 hostname = args["hostname"]
             else:
                 return empty_result("error", "Invalid hostname specified"), 400
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if dev:
                     device_type = dev.device_type

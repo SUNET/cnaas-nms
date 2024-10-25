@@ -74,7 +74,7 @@ class PostgresTemporaryInstance(object):
         else:
             self.shutdown()
             logging.debug("Failed to start postgres")
-            assert (False, "Could not start postgres")
+            assert False, "Could not start postgres"
 
         # Copy the database dump to the container.
         subprocess.call(

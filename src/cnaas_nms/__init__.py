@@ -6,7 +6,7 @@ def setup_package():
     from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
     app = cnaas_nms.api.app.app
-    app.wsgi_app = TestAppWrapper(app.wsgi_app, None)
+    app.wsgi_app = TestAppWrapper(app.wsgi_app, None)  # type: ignore
     client = app.test_client()
     data = {"action": "refresh"}
     client.put("/api/v1.0/repository/settings", json=data)

@@ -17,8 +17,8 @@ def groups_populate(group_name: Optional[str] = None) -> dict:
     if group_name:
         tmpgroups: dict = {group_name: []}
     else:
-        tmpgroups: dict = {key: [] for key in get_groups()}
-    with sqla_session() as session:
+        tmpgroups = {key: [] for key in get_groups()}
+    with sqla_session() as session:  # type: ignore
         devices: List[Device] = session.query(Device).all()
         for dev in devices:
             groups = get_groups(dev.hostname)
@@ -52,7 +52,7 @@ def groups_osversion_populate(group_name: str):
     else:
         raise ValueError("Could not find group {}".format(group_name))
 
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         devices: List[Device] = (
             session.query(Device).filter(Device.state == DeviceState.MANAGED).order_by(Device.hostname.asc()).all()
         )

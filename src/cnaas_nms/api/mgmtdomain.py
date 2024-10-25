@@ -88,7 +88,7 @@ class MgmtdomainByIdApi(Resource):
         """Get management domain by ID"""
         result = empty_result()
         result["data"] = {"mgmtdomains": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
                 result["data"]["mgmtdomains"].append(instance.as_dict())
@@ -99,7 +99,7 @@ class MgmtdomainByIdApi(Resource):
     @login_required
     def delete(self, mgmtdomain_id):
         """Remove management domain"""
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance: Mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
@@ -126,7 +126,7 @@ class MgmtdomainByIdApi(Resource):
         if errors:
             return empty_result("error", errors), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance: Mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
                 changed: bool = update_sqla_object(instance, json_data)
@@ -148,7 +148,7 @@ class MgmtdomainsApi(Resource):
         """Get all management domains"""
         result = empty_result()
         result["data"] = {"mgmtdomains": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             query = session.query(Mgmtdomain)
             try:
                 query = build_filter(Mgmtdomain, query).limit(limit_results())
@@ -165,7 +165,7 @@ class MgmtdomainsApi(Resource):
         json_data = request.get_json()
         data = {}
         errors = []
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             if "device_a" in json_data:
                 hostname_a = str(json_data["device_a"])
                 if not Device.valid_hostname(hostname_a):
@@ -212,7 +212,7 @@ class MgmtdomainsApi(Resource):
                     session.flush()
                 except IntegrityError as e:
                     session.rollback()
-                    if "duplicate" in str(e):
+                    if "duplicate" in str(e) and e.orig:
                         return empty_result("error", "Duplicate value: {}".format(e.orig.args[0])), 400
                     else:
                         return empty_result("error", "Integrity error: {}".format(e)), 400

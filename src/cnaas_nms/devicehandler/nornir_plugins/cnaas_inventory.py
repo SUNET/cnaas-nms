@@ -74,7 +74,7 @@ class CnaasInventory:
             groups[group_name] = Group(name=group_name, defaults=defaults)
 
         hosts = Hosts()
-        with cnaas_nms.db.session.sqla_session() as session:
+        with cnaas_nms.db.session.sqla_session() as session:  # typing: ignore
             instance: Device
             for instance in session.query(Device):
                 hostname = self._get_management_ip(instance.management_ip, instance.dhcp_ip)

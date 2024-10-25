@@ -19,7 +19,7 @@ class DeviceTests(unittest.TestCase):
         pass
 
     def cleandb(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             for hardware_id in ["FO64534", "FO64535"]:
                 stack = session.query(Stackmember).filter(Stackmember.hardware_id == hardware_id).one_or_none()
                 if stack:
@@ -51,7 +51,7 @@ class DeviceTests(unittest.TestCase):
     def test_get_linknets(self):
         device1 = DeviceTests.create_test_device("test-device1")
         device2 = DeviceTests.create_test_device("test-device2")
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             session.add(device1)
             session.add(device2)
             test_linknet = Linknet(device_a=device1, device_b=device2)
@@ -64,7 +64,7 @@ class DeviceTests(unittest.TestCase):
     def test_get_links_to(self):
         device1 = DeviceTests.create_test_device("test-device1")
         device2 = DeviceTests.create_test_device("test-device2")
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             session.add(device1)
             session.add(device2)
             test_linknet = Linknet(device_a=device1, device_b=device2)
@@ -77,7 +77,7 @@ class DeviceTests(unittest.TestCase):
     def test_get_neighbors(self):
         device1 = DeviceTests.create_test_device("test-device1")
         device2 = DeviceTests.create_test_device("test-device2")
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             session.add(device1)
             session.add(device2)
             new_linknet = Linknet(device_a=device1, device_b=device2)
@@ -88,7 +88,7 @@ class DeviceTests(unittest.TestCase):
             self.assertEqual(set([device1]), device2.get_neighbors(session))
 
     def test_is_stack(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             new_stack = DeviceTests.create_test_device()
             session.add(new_stack)
             session.flush()
@@ -103,7 +103,7 @@ class DeviceTests(unittest.TestCase):
             self.assertFalse(new_stack.is_stack(session))
 
     def test_get_stackmembers(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             new_stack = DeviceTests.create_test_device()
             session.add(new_stack)
             session.flush()

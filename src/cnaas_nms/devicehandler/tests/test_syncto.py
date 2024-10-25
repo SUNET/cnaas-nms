@@ -36,7 +36,7 @@ def run_syncto_job(scheduler, testdata: dict, dry_run: bool = True) -> Optional[
     job_res: Optional[Job] = None
     job_dict: Optional[dict] = None
     jobstatus_wait = [JobStatus.SCHEDULED, JobStatus.RUNNING]
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         for i in range(1, 60):
             time.sleep(1)
             if not job_res or job_res.status in jobstatus_wait:

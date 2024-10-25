@@ -1,10 +1,11 @@
 import math
 import re
 import urllib
-from typing import List
+from typing import Any, Dict, List
 
 import sqlalchemy
 from flask import request
+from pydantic import ValidationError
 
 from cnaas_nms.db.settings import get_pydantic_error_value, get_pydantic_field_descr
 
@@ -151,7 +152,7 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
 
         query = query.filter(f_class_op(value))
 
-    if f_class_order_by_field:
+    if f_class_order_by_field and order:
         query = query.order_by(order(f_class_order_by_field))
     else:
         if "id" in f_class.__table__._columns.keys():
@@ -163,14 +164,16 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
     return query
 
 
-def empty_result(status="success", data=None):
+def empty_result(status="success", data=None) -> Dict[str, Any]:
     if status == "success":
         return {"status": status, "data": data}
     elif status == "error":
         return {"status": status, "message": data if data else "Unknown error"}
+    else:
+        return {}
 
 
-def parse_pydantic_error(e: Exception, schema, data: dict) -> List[str]:
+def parse_pydantic_error(e: ValidationError, schema, data: dict) -> List[str]:
     errors = []
     for num, error in enumerate(e.errors()):
         loc = error["loc"]

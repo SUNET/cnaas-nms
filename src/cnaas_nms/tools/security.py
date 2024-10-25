@@ -30,7 +30,7 @@ def get_jwt_identity():
 
 
 class MyBearerTokenValidator(BearerTokenValidator):
-    def authenticate_token(self, token_string: str) -> Token:
+    def authenticate_token(self, token_string: str) -> str | Token:
         """Check if token is active.
 
         If JWT is disabled, we return because no token is needed.
@@ -60,9 +60,8 @@ class MyBearerTokenValidator(BearerTokenValidator):
             raise InvalidTokenError(e)
         except exceptions.JWTError:
             # check if we can still authenticate the user with user info
-            token = Token(token_string, None)
-            get_oauth_token_info(token)
-            return token
+            token = Token(token_string, {})
+            return Token(token_string, get_oauth_token_info(token))
 
         # get the key
         key = get_key(unverified_header.get("kid"))

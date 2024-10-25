@@ -1,7 +1,7 @@
 from ipaddress import AddressValueError, IPv4Interface
 from typing import Annotated, Dict, List, Optional
 
-from pydantic import BaseModel, Field, FieldValidationInfo, conint, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 from pydantic.functional_validators import AfterValidator
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
@@ -46,8 +46,9 @@ vlan_id_schema_optional = Field(None, gt=0, lt=4096, description="Numeric 802.1Q
 vxlan_vni_schema = Field(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
 vrf_id_schema = Field(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
 mtu_schema = Field(None, ge=68, le=9214, description="MTU (Maximum transmission unit) value between 68-9214")
-as_num_schema = Field(None, description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)")
-as_num_type = conint(strict=True, gt=0, lt=4294967296)
+as_num_schema = Field(
+    None, gt=0, lt=4294967296, description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)"
+)
 IFNAME_REGEX = r"([a-zA-Z0-9\/\.:-])+"
 ifname_schema = Field(None, pattern=f"^{IFNAME_REGEX}$", description="Interface name")
 IFNAME_RANGE_REGEX = r"([a-zA-Z0-9\/\.:\-\[\]])+"
@@ -155,7 +156,7 @@ class f_interface(BaseModel):
 
     @field_validator("ipv4_address")
     @classmethod
-    def vrf_required_if_ipv4_address_set(cls, v: str, info: FieldValidationInfo):
+    def vrf_required_if_ipv4_address_set(cls, v: str, info: ValidationInfo):
         if v:
             validate_ipv4_if(v)
             if "vrf" not in info.data or not info.data["vrf"]:
@@ -164,7 +165,7 @@ class f_interface(BaseModel):
 
 
 class f_vrf(BaseModel):
-    name: str = None
+    name: Optional[str] = None
     vrf_id: int = vrf_id_schema
     import_route_targets: List[str] = []
     export_route_targets: List[str] = []
@@ -212,7 +213,7 @@ class f_extroute_ospfv3(BaseModel):
 
 class f_extroute_bgp_neighbor_v4(BaseModel):
     peer_ipv4: str = ipv4_schema
-    peer_as: as_num_type = as_num_schema
+    peer_as: str = as_num_schema
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
@@ -229,7 +230,7 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
 
 class f_extroute_bgp_neighbor_v6(BaseModel):
     peer_ipv6: str = ipv6_schema
-    peer_as: as_num_type = as_num_schema
+    peer_as: str = as_num_schema
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
@@ -246,7 +247,7 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
 
 class f_extroute_bgp_vrf(BaseModel):
     name: str
-    local_as: as_num_type = as_num_schema
+    local_as: str = as_num_schema
     neighbor_v4: List[f_extroute_bgp_neighbor_v4] = []
     neighbor_v6: List[f_extroute_bgp_neighbor_v6] = []
     cli_append_str: str = ""
@@ -263,7 +264,7 @@ class f_internal_vlans(BaseModel):
 
     @field_validator("vlan_id_high")
     @classmethod
-    def vlan_id_high_greater_than_low(cls, v: int, info: FieldValidationInfo):
+    def vlan_id_high_greater_than_low(cls, v: int, info: ValidationInfo):
         if v:
             if info.data["vlan_id_low"] >= v:
                 raise ValueError("vlan_id_high must be greater than vlan_id_low")
@@ -293,7 +294,7 @@ class f_vxlan(BaseModel):
 
     @field_validator("ipv4_gw")
     @classmethod
-    def vrf_required_if_ipv4_gw_set(cls, v: str, info: FieldValidationInfo):
+    def vrf_required_if_ipv4_gw_set(cls, v: str, info: ValidationInfo):
         if v:
             validate_ipv4_if(v)
             if "vrf" not in info.data or not info.data["vrf"]:
@@ -302,7 +303,7 @@ class f_vxlan(BaseModel):
 
     @field_validator("ipv6_gw")
     @classmethod
-    def vrf_required_if_ipv6_gw_set(cls, v: str, info: FieldValidationInfo):
+    def vrf_required_if_ipv6_gw_set(cls, v: str, info: ValidationInfo):
         if v:
             if "vrf" not in info.data or not info.data["vrf"]:
                 raise ValueError("VRF is required when specifying ipv6_gw")
@@ -313,7 +314,7 @@ class f_underlay(BaseModel):
     infra_lo_net: str = ipv4_if_schema
     infra_link_net: str = ipv4_if_schema
     mgmt_lo_net: str = ipv4_if_schema
-    bgp_asn: Optional[as_num_type] = as_num_schema
+    bgp_asn: Optional[str] = as_num_schema
 
 
 class f_user(BaseModel):
@@ -364,7 +365,7 @@ class f_root(BaseModel):
     interfaces: List[f_interface] = []
     vrfs: List[f_vrf] = []
     vxlans: Dict[str, f_vxlan] = {}
-    underlay: f_underlay = None
+    underlay: Optional[f_underlay] = None
     evpn_peers: List[f_evpn_peer] = []
     extroute_static: Optional[f_extroute_static] = None
     extroute_ospfv3: Optional[f_extroute_ospfv3] = None
@@ -389,7 +390,7 @@ class f_group_item(BaseModel):
 
     @field_validator("group_priority")
     @classmethod
-    def reserved_priority(cls, v: int, info: FieldValidationInfo):
+    def reserved_priority(cls, v: int, info: ValidationInfo):
         if v and v == 1 and info.data["name"] != "DEFAULT":
             raise ValueError("group_priority 1 is reserved for built-in group DEFAULT")
         return v

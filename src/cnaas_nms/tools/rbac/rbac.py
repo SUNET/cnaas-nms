@@ -9,7 +9,7 @@ from cnaas_nms.version import __api_version__
 
 def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
     """Get the API permissions of the user"""
-    permissions_of_user = []
+    permissions_of_user: list[PermissionModel] = []
 
     # if no rules, return
     if not permissions_rules:
@@ -17,9 +17,9 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
 
     # first give all the permissions of the fallback role
     if permissions_rules.config and permissions_rules.config.default_permissions:
-        permissions_of_user.extend(
-            permissions_rules.roles.get(permissions_rules.config.default_permissions).permissions
-        )
+        default_role = permissions_rules.roles.get(permissions_rules.config.default_permissions)
+        if default_role is not None:
+            permissions_of_user.extend(default_role.permissions)
 
     user_roles: List[str] = []
     # read the group mappings and add the relevant roles
@@ -50,10 +50,13 @@ def check_if_api_call_is_permitted(request: FlaskJsonRequest, permissions_of_use
         allowed_methods = permission.methods
         allowed_endpoints = permission.endpoints
 
+        # check if any endpoints or methods allowed
+        if allowed_endpoints is None or allowed_methods is None:
+            continue
+
         # check if allowed based on the method
         if "*" not in allowed_methods and request.method not in allowed_methods:
             continue
-
         # prepare the uri
         prefix = "/api/{}".format(__api_version__)
         short_uri = request.uri.split(prefix, 1)[1].split("?", 1)[0]

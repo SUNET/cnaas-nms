@@ -31,7 +31,7 @@ class InitTests(unittest.TestCase):
         time.sleep(1)
         for i in range(1, 11):
             num_scheduled_jobs = len(ap_scheduler.get_jobs())
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 num_running_jobs = session.query(Job).count()
             print(
                 "Number of jobs scheduled: {}, number of jobs running: {}".format(num_scheduled_jobs, num_running_jobs)
@@ -83,7 +83,7 @@ class InitTests(unittest.TestCase):
 
         reset_interfacedb(self.testdata["init_access_new_hostname"])
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev: Device = (
                 session.query(Device).filter(Device.hostname == self.testdata["init_access_new_hostname"]).one()
             )

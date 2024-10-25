@@ -5,9 +5,9 @@ import time
 from typing import Dict, List, Optional
 
 from nornir.core.task import AggregatedResult
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, SmallInteger, Unicode
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, SmallInteger, Unicode
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import mapped_column, relationship
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device
@@ -49,22 +49,22 @@ class JobStatus(enum.Enum):
 class Job(cnaas_nms.db.base.Base):
     __tablename__ = "job"
     __table_args__ = (None,)
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    status = Column(Enum(JobStatus), index=True, default=JobStatus.SCHEDULED)
-    scheduled_time = Column(DateTime, default=datetime.datetime.utcnow)
-    start_time = Column(DateTime)
-    finish_time = Column(DateTime, index=True)
-    function_name = Column(Unicode(255))
-    scheduled_by = Column(Unicode(255))
-    comment = Column(Unicode(255))
-    ticket_ref = Column(Unicode(32), index=True)
-    next_job_id = Column(Integer, ForeignKey("job.id"))
+    id = mapped_column(Integer, autoincrement=True, primary_key=True)
+    status = mapped_column(Enum(JobStatus), index=True, default=JobStatus.SCHEDULED)
+    scheduled_time = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    start_time = mapped_column(DateTime)
+    finish_time = mapped_column(DateTime, index=True)
+    function_name = mapped_column(Unicode(255))
+    scheduled_by = mapped_column(Unicode(255))
+    comment = mapped_column(Unicode(255))
+    ticket_ref = mapped_column(Unicode(32), index=True)
+    next_job_id = mapped_column(Integer, ForeignKey("job.id"))
     next_job = relationship("Job", remote_side=[id])
-    result = Column(JSONB)
-    exception = Column(JSONB)
-    finished_devices = Column(JSONB)
-    change_score = Column(SmallInteger)  # should be in range 0-100
-    start_arguments = Column(JSONB)
+    result = mapped_column(JSONB)
+    exception = mapped_column(JSONB)
+    finished_devices = mapped_column(JSONB)
+    change_score = mapped_column(SmallInteger)  # should be in range 0-100
+    start_arguments = mapped_column(JSONB)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -82,8 +82,8 @@ class Job(cnaas_nms.db.base.Base):
             d[col.name] = value
         return d
 
-    def start_job(self, function_name: Optional[str] = None, scheduled_by: Optional[str] = None):
-        self.start_time = datetime.datetime.utcnow()
+    def start_job(self, function_name: Optional[str] = None, scheduled_by: str = ""):
+        self.start_time = datetime.datetime.utcnow()  # type: ignore
         self.status = JobStatus.RUNNING
         self.finished_devices = []
         if function_name:
@@ -119,7 +119,7 @@ class Job(cnaas_nms.db.base.Base):
             )
             self.result = {"error": "unserializable"}
 
-        self.finish_time = datetime.datetime.utcnow()
+        self.finish_time = datetime.datetime.utcnow()  # type: ignore
         if self.status == JobStatus.ABORTING:
             self.status = JobStatus.ABORTED
         else:
@@ -136,13 +136,13 @@ class Job(cnaas_nms.db.base.Base):
         except Exception:  # noqa: S110
             pass
 
-    def finish_exception(self, e: Exception, traceback: str):
-        logger.warning("Job {} finished with exception: {}".format(self.id, str(e)))
-        self.finish_time = datetime.datetime.utcnow()
+    def finish_exception(self, exc: Exception, traceback: str):
+        logger.warning("Job {} finished with exception: {}".format(self.id, str(exc)))
+        self.finish_time = datetime.datetime.utcnow()  # type: ignore
         self.status = JobStatus.EXCEPTION
         try:
             self.exception = json.dumps(
-                {"message": str(e), "type": type(e).__name__, "args": e.args, "traceback": traceback},
+                {"message": str(exc), "type": type(exc).__name__, "args": exc.args, "traceback": traceback},
                 default=json_dumper,
             )
         except Exception as e:
@@ -154,7 +154,7 @@ class Job(cnaas_nms.db.base.Base):
                 {
                     "job_id": self.id,
                     "status": "EXCEPTION",
-                    "exception": str(e),
+                    "exception": str(exc),
                 }
             )
             add_event(json_data=json_data, event_type="update", update_type="job")
@@ -163,7 +163,7 @@ class Job(cnaas_nms.db.base.Base):
 
     def finish_abort(self, message: str):
         logger.debug("Job {} aborted: {}".format(self.id, message))
-        self.finish_time = datetime.datetime.utcnow()
+        self.finish_time = datetime.datetime.utcnow()  # type: ignore
         self.status = JobStatus.ABORTED
         self.result = {"message": message}
         try:
@@ -188,13 +188,12 @@ class Job(cnaas_nms.db.base.Base):
             job.status = JobStatus.ABORTED
 
         aborting_jobs = session.query(Job).filter(Job.status == JobStatus.ABORTING).all()
-        job: Job
         for job in aborting_jobs:
             logger.warning("Job found in unfinished ABORTING state at startup moved to ABORTED, id: {}".format(job.id))
             job.status = JobStatus.ABORTED
 
         scheduled_jobs = session.query(Job).filter(Job.status == JobStatus.SCHEDULED).all()
-        job: Job
+
         for job in scheduled_jobs:
             # Clear jobs that should have been run in the past, timing might need tuning if
             # APschedulers misfire_grace_time is modified

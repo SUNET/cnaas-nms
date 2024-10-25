@@ -88,7 +88,7 @@ class AuthApi(Resource):
 
         req = PreparedRequest()
         req.prepare_url(url, parameters)
-        resp = redirect(req.url, code=302)
+        resp = redirect(str(req.url), code=302)
         if "refresh_token" in token:
             resp.set_cookie(
                 "REFRESH_TOKEN",
@@ -106,7 +106,7 @@ class RefreshApi(Resource):
     def post(self):
         oauth_client = current_app.extensions["authlib.integrations.flask_client"]
         oauth_client_connext: FlaskOAuth2App = oauth_client.connext
-        token_string = request.headers.get("Authorization").split(" ")[-1]
+        token_string = str(request.headers.get("Authorization")).split(" ")[-1]
         oauth_client_connext.token = token_string
         oauth_client_connext.load_server_metadata()
         url = oauth_client_connext.server_metadata["token_endpoint"]
@@ -155,7 +155,7 @@ class PermissionsAPI(Resource):
             logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
             return []
         user_info = get_oauth_token_info(current_token)
-        permissions_of_user = get_permissions_user(permissions_rules, user_info)
+        permissions_of_user = get_permissions_user(permissions_rules, user_info)  # check check
 
         # convert to dictionaries so it can be converted to json
         permissions_as_dics = []

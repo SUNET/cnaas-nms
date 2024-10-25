@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
@@ -69,7 +69,7 @@ class InterfaceApi(Resource):
         """List all interfaces"""
         result = empty_result()
         result["data"] = {"interfaces": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
@@ -95,8 +95,7 @@ class InterfaceApi(Resource):
         data = {}
         errors = []
         device_settings = None
-
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
@@ -117,8 +116,8 @@ class InterfaceApi(Resource):
                         errors.append(f"Interface {if_name} not found")
                         continue
                     if intf.data and isinstance(intf.data, dict):
-                        intfdata_original = dict(intf.data)
-                        intfdata = dict(intf.data)
+                        intfdata_original: dict[str, Any] = dict(intf.data)
+                        intfdata: dict[str, Any] = dict(intf.data)
                     else:
                         intfdata_original = {}
                         intfdata = {}
@@ -130,8 +129,8 @@ class InterfaceApi(Resource):
                             errors.append("configtype is not a string")
                         else:
                             if InterfaceConfigType.has_name(configtype):
-                                if intf.configtype != InterfaceConfigType[configtype]:
-                                    intf.configtype = InterfaceConfigType[configtype]
+                                if intf.configtype != str(InterfaceConfigType[configtype]):
+                                    intf.configtype = str(InterfaceConfigType[configtype])
                                     updated = True
                                     data[if_name] = {"configtype": configtype}
                             else:
@@ -272,7 +271,7 @@ class InterfaceApi(Resource):
                                     "cli_append_str must be a string, got: {}".format(if_dict["data"]["cli_append_str"])
                                 )
                     elif "data" in if_dict and not if_dict["data"]:
-                        intfdata = None
+                        intfdata = {}
 
                     if intfdata != intfdata_original:
                         intf.data = intfdata

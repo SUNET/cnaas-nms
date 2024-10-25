@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+from typing import Union
 
 import netaddr
 import requests
@@ -54,7 +55,7 @@ def canonical_mac(mac):
     return str(na_mac)
 
 
-def main() -> int:
+def main() -> Union[int, None]:
     if len(sys.argv) < 3:
         return 1
 
@@ -175,6 +176,7 @@ def main() -> int:
                     r_data["data"]["added_device"]["hostname"], r_data["data"]["added_device"]["id"]
                 )
             )
+    return None
 
 
 if __name__ == "__main__":

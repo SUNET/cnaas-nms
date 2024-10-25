@@ -143,12 +143,12 @@ class Scheduler(object, metaclass=SingletonType):
         else:
             self.remove_local_job(job_id)
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             job.finish_abort(message=abort_message)
 
     def add_onetime_job(
-        self, func: Union[str, FunctionType], when: Optional[int] = None, scheduled_by: Optional[str] = None, **kwargs
+        self, func: Union[str, FunctionType], when: Optional[int] = None, scheduled_by: str = "", **kwargs
     ) -> int:
         """Schedule a job to run at a later time on the mule worker or
         local scheduler depending on setup.
@@ -191,10 +191,10 @@ class Scheduler(object, metaclass=SingletonType):
         except Exception:
             pass
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             job = Job()
             if run_date:
-                job.scheduled_time = run_date
+                job.scheduled_time = run_date  # type: ignore
             job.function_name = func_name
             if scheduled_by is None:
                 scheduled_by = "unknown"

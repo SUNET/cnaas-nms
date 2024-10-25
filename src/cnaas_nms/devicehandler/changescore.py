@@ -1,10 +1,11 @@
 import re
+from typing import List
 
 line_start = r"^[+-][ ]*"
 line_start_remove = r"^-[ ]*"
 DEFAULT_LINE_SCORE = 1.0
 # Stops looking after first match. Only searches a single line at a time.
-change_patterns = [
+change_patterns: List[dict[str, str | float | re.Pattern]] = [
     {"name": "description", "regex": re.compile(str(line_start + r"description")), "modifier": 0.0},
     {"name": "name", "regex": re.compile(str(line_start + r"name")), "modifier": 0.0},
     {"name": "comment", "regex": re.compile(str(line_start + r"!")), "modifier": 0.0},
@@ -28,10 +29,10 @@ change_patterns = [
 # TODO: multiline patterns / block-aware config
 
 
-def calculate_line_score(line: str):
+def calculate_line_score(line: str) -> float:
     for pattern in change_patterns:
-        if re.match(pattern["regex"], line):
-            return 1 * pattern["modifier"]
+        if re.match(str(pattern["regex"]), line):
+            return float(1) * float(str(pattern["modifier"]))
     return DEFAULT_LINE_SCORE
 
 

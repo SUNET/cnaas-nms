@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 from pydantic import field_validator
@@ -29,9 +29,9 @@ class AppSettings(BaseSettings):
     USERNAME_MANAGED: str = "admin"
     PASSWORD_MANAGED: str = "abc123abc123"
     TEMPLATES_REMOTE: str = "/opt/git/cnaas-templates-origin.git"
-    TEMPLATES_LOCAL: str = "/opt/cnaas/templates"
+    TEMPLATES_LOCAL: str = "/opt/git/cnaas-templates"
     SETTINGS_REMOTE: str = "/opt/git/cnaas-settings-origin.git"
-    SETTINGS_LOCAL: str = "/opt/cnaas/settings"
+    SETTINGS_LOCAL: str = "/opt/git/cnaas-settings"
 
 
 class ApiSettings(BaseSettings):
@@ -184,7 +184,7 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID
 
     if auth_settings.PERMISSIONS_DISABLED:
-        permissions_rules = {
+        permissions_rules: dict[str, Any] = {
             "config": {"default_permissions": "default"},
             "roles": {
                 "default": {"permissions": [{"methods": ["*"], "endpoints": ["*"], "pages": ["*"], "rights": ["*"]}]}

@@ -16,7 +16,7 @@ class WorktreeError(Exception):
     pass
 
 
-def refresh_existing_templates_worktrees(by: str, job_id: int, group_settings: dict, device_primary_groups: dict):
+def refresh_existing_templates_worktrees(job_id: int, group_settings: dict, device_primary_groups: dict):
     """Look for existing worktrees and refresh them"""
     logger = get_logger()
     updated_groups: Set[str] = set()
@@ -27,6 +27,19 @@ def refresh_existing_templates_worktrees(by: str, job_id: int, group_settings: d
                 wt_repo = Repo("/tmp/worktrees/" + subdir)
                 diff = wt_repo.remotes.origin.pull()
                 if not diff:
+                    continue
+
+                ret: str = ""
+                for item in diff:
+                    # only check for changes in our branch
+                    if item.ref.remote_head != wt_repo.head.ref.name:
+                        continue
+
+                    ret += "Commit {} by {} at {}\n".format(
+                        item.commit.name_rev, item.commit.committer, item.commit.committed_datetime
+                    )
+                # don't update updated_groups if changes were only in other branches
+                if not ret:
                     continue
             except Exception as e:
                 logger.exception(e)
@@ -43,7 +56,7 @@ def refresh_existing_templates_worktrees(by: str, job_id: int, group_settings: d
                 dev: Device = session.query(Device).filter_by(hostname=hostname).one_or_none()
                 if dev:
                     dev.synchronized = False
-                    add_sync_event(hostname, "refresh_templates", by, job_id)
+                    add_sync_event(hostname, "refresh_templates", ret, job_id)
                     updated_hostnames.add(hostname)
     if updated_hostnames:
         logger.debug(

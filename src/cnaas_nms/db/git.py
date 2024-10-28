@@ -303,7 +303,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
                 Device.set_devtype_syncstatus(session, devtype, ret, "templates", platform, job_id)
-        refresh_existing_templates_worktrees(ret, job_id, get_group_settings_asdict(), get_device_primary_groups())
+        refresh_existing_templates_worktrees(job_id, get_group_settings_asdict(), get_device_primary_groups())
 
     return ret
 

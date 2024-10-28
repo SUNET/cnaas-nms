@@ -8,6 +8,7 @@ from cnaas_nms.db.device import Device
 from cnaas_nms.db.groups import get_groups_using_branch
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.tools.githelpers import parse_git_changed_files
 from cnaas_nms.tools.log import get_logger
 from git import Repo
 
@@ -25,21 +26,16 @@ def refresh_existing_templates_worktrees(job_id: int, group_settings: dict, devi
             try:
                 logger.info("Pulling worktree for branch {}".format(subdir))
                 wt_repo = Repo("/tmp/worktrees/" + subdir)
+                prev_commit = wt_repo.commit().hexsha
                 diff = wt_repo.remotes.origin.pull()
                 if not diff:
                     continue
 
-                ret: str = ""
-                for item in diff:
-                    # only check for changes in our branch
-                    if item.ref.remote_head != wt_repo.head.ref.name:
-                        continue
-
-                    ret += "Commit {} by {} at {}\n".format(
-                        item.commit.name_rev, item.commit.committer, item.commit.committed_datetime
-                    )
+                ret: str
+                changed_files: Set[str]
+                ret, changed_files = parse_git_changed_files(diff, prev_commit, wt_repo)
                 # don't update updated_groups if changes were only in other branches
-                if not ret:
+                if not changed_files:
                     continue
             except Exception as e:
                 logger.exception(e)

@@ -3,11 +3,12 @@ import enum
 import json
 import os
 import shutil
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urldefrag
 
 import yaml
 
+import git.remote
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
@@ -27,6 +28,7 @@ from cnaas_nms.db.settings import (
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.tools.event import add_event
+from cnaas_nms.tools.githelpers import parse_git_changed_files
 from cnaas_nms.tools.log import get_logger
 from git import InvalidGitRepositoryError, Repo
 from git.exc import GitCommandError, NoSuchPathError
@@ -224,17 +226,9 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
         prev_commit = local_repo.commit().hexsha
         logger.debug("git pull from {}".format(remote_repo_path))
 
-        diff = local_repo.remotes.origin.pull()
-        for item in diff:
-            if item.ref.remote_head != local_repo.head.ref.name:
-                continue
+        diff: List[git.remote.FetchInfo] = local_repo.remotes.origin.pull()
+        ret, changed_files = parse_git_changed_files(diff, prev_commit, local_repo)
 
-            ret += "Commit {} by {} at {}\n".format(
-                item.commit.name_rev, item.commit.committer, item.commit.committed_datetime
-            )
-            diff_files = local_repo.git.diff("{}..{}".format(prev_commit, item.commit.hexsha), name_only=True).split()
-            changed_files.update(diff_files)
-            prev_commit = item.commit.hexsha
     except (InvalidGitRepositoryError, NoSuchPathError):  # noqa: S110
         logger.info("Local repository {} not found, cloning from remote".format(local_repo_path))
         try:

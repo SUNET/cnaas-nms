@@ -36,7 +36,7 @@ def refresh_existing_templates_worktrees(by: str, job_id: int, group_settings: d
     # find all devices that are using these branches and mark them as unsynchronized
     updated_hostnames: List[str] = []
     with sqla_session() as session:
-        for hostname, primary_group in device_primary_groups:
+        for hostname, primary_group in device_primary_groups.items():
             if hostname in updated_hostnames:
                 continue
             if primary_group in updated_groups:

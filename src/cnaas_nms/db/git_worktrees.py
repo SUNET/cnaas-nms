@@ -5,8 +5,8 @@ from typing import List, Optional
 import git.exc
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device
+from cnaas_nms.db.groups import get_groups_using_branch
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import get_device_primary_groups, get_groups_using_branch
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.tools.log import get_logger
 from git import Repo
@@ -16,7 +16,7 @@ class WorktreeError(Exception):
     pass
 
 
-def refresh_existing_templates_worktrees(by: str, job_id: int):
+def refresh_existing_templates_worktrees(by: str, job_id: int, group_settings: dict, device_primary_groups: dict):
     """Look for existing worktrees and refresh them"""
     logger = get_logger()
     updated_groups: List[str] = []
@@ -31,12 +31,12 @@ def refresh_existing_templates_worktrees(by: str, job_id: int):
             except Exception as e:
                 logger.exception(e)
                 shutil.rmtree("/tmp/worktrees/" + subdir, ignore_errors=True)
-            updated_groups.append(get_groups_using_branch(subdir))
+            updated_groups.append(get_groups_using_branch(subdir, group_settings))
 
     # find all devices that are using these branches and mark them as unsynchronized
     updated_hostnames: List[str] = []
     with sqla_session() as session:
-        for hostname, primary_group in get_device_primary_groups():
+        for hostname, primary_group in device_primary_groups:
             if hostname in updated_hostnames:
                 continue
             if primary_group in updated_groups:

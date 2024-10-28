@@ -767,15 +767,6 @@ def get_group_templates_branch(group_name: str) -> Optional[str]:
     return get_group_settings_asdict().get(group_name, {}).get("templates_branch")
 
 
-def get_groups_using_branch(branch_name: str) -> List[str]:
-    """Returns a list of group names that use the specified branch name"""
-    groups = []
-    for group_name, group_data in get_group_settings_asdict().items():
-        if group_data.get("templates_branch") == branch_name:
-            groups.append(group_name)
-    return groups
-
-
 @redis_lru_cache
 def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     """Returns a dict with group name as key and other parameters as values"""

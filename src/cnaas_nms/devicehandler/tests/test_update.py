@@ -25,6 +25,7 @@ class UpdateTests(unittest.TestCase):
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
 
+    # maybe ar tge type of dict
     def get_linknets(self, session, neighbors_data: Optional[dict] = None, hostname: str = "eosaccess"):
         if not neighbors_data:
             neighbors_data = self.testdata["lldp_data_redundant"]

@@ -213,7 +213,7 @@ class f_extroute_ospfv3(BaseModel):
 
 class f_extroute_bgp_neighbor_v4(BaseModel):
     peer_ipv4: str = ipv4_schema
-    peer_as: str = as_num_schema
+    peer_as: int = as_num_schema
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
@@ -230,7 +230,7 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
 
 class f_extroute_bgp_neighbor_v6(BaseModel):
     peer_ipv6: str = ipv6_schema
-    peer_as: str = as_num_schema
+    peer_as: int = as_num_schema
     route_map_in: str = vlan_name_schema
     route_map_out: str = vlan_name_schema
     description: str = "undefined"
@@ -247,7 +247,7 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
 
 class f_extroute_bgp_vrf(BaseModel):
     name: str
-    local_as: str = as_num_schema
+    local_as: int = as_num_schema
     neighbor_v4: List[f_extroute_bgp_neighbor_v4] = []
     neighbor_v6: List[f_extroute_bgp_neighbor_v6] = []
     cli_append_str: str = ""
@@ -314,7 +314,7 @@ class f_underlay(BaseModel):
     infra_lo_net: str = ipv4_if_schema
     infra_link_net: str = ipv4_if_schema
     mgmt_lo_net: str = ipv4_if_schema
-    bgp_asn: Optional[str] = as_num_schema
+    bgp_asn: Optional[int] = as_num_schema
 
 
 class f_user(BaseModel):

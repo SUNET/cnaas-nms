@@ -129,8 +129,8 @@ class InterfaceApi(Resource):
                             errors.append("configtype is not a string")
                         else:
                             if InterfaceConfigType.has_name(configtype):
-                                if intf.configtype != str(InterfaceConfigType[configtype]):
-                                    intf.configtype = str(InterfaceConfigType[configtype])
+                                if intf.configtype != InterfaceConfigType[configtype]:
+                                    intf.configtype = InterfaceConfigType[configtype]
                                     updated = True
                                     data[if_name] = {"configtype": configtype}
                             else:

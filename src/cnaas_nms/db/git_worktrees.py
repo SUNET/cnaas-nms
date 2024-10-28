@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import List, Optional
+from typing import Optional, Set
 
 import git.exc
 from cnaas_nms.app_settings import app_settings
@@ -19,7 +19,7 @@ class WorktreeError(Exception):
 def refresh_existing_templates_worktrees(by: str, job_id: int, group_settings: dict, device_primary_groups: dict):
     """Look for existing worktrees and refresh them"""
     logger = get_logger()
-    updated_groups: List[str] = []
+    updated_groups: Set[str] = set()
     if os.path.isdir("/tmp/worktrees"):
         for subdir in os.listdir("/tmp/worktrees"):
             try:
@@ -31,10 +31,10 @@ def refresh_existing_templates_worktrees(by: str, job_id: int, group_settings: d
             except Exception as e:
                 logger.exception(e)
                 shutil.rmtree("/tmp/worktrees/" + subdir, ignore_errors=True)
-            updated_groups.append(get_groups_using_branch(subdir, group_settings))
+            updated_groups.update(get_groups_using_branch(subdir, group_settings))
 
     # find all devices that are using these branches and mark them as unsynchronized
-    updated_hostnames: List[str] = []
+    updated_hostnames: Set[str] = set()
     with sqla_session() as session:
         for hostname, primary_group in device_primary_groups.items():
             if hostname in updated_hostnames:
@@ -44,12 +44,13 @@ def refresh_existing_templates_worktrees(by: str, job_id: int, group_settings: d
                 if dev:
                     dev.synchronized = False
                     add_sync_event(hostname, "refresh_templates", by, job_id)
-                    updated_hostnames.append(hostname)
-    logger.debug(
-        "Devices marked as unsynchronized because git worktree branches were refreshed: {}".format(
-            ", ".join(updated_hostnames)
+                    updated_hostnames.add(hostname)
+    if updated_hostnames:
+        logger.debug(
+            "Devices marked as unsynchronized because git worktree branches were refreshed: {}".format(
+                ", ".join(updated_hostnames)
+            )
         )
-    )
 
     local_repo = Repo(app_settings.TEMPLATES_LOCAL)
     local_repo.git.worktree("prune")

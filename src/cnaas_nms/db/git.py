@@ -7,6 +7,7 @@ from typing import Dict, Optional, Set, Tuple
 from urllib.parse import urldefrag
 
 import yaml
+from git.exc import GitCommandError, NoSuchPathError
 
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceType
@@ -28,7 +29,6 @@ from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.tools.event import add_event
 from cnaas_nms.tools.log import get_logger
 from git import InvalidGitRepositoryError, Repo
-from git.exc import GitCommandError, NoSuchPathError
 
 
 class RepoType(enum.Enum):
@@ -61,7 +61,7 @@ def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         return "Repository is not yet cloned from remote"
 
 
-def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = None) -> str:
+def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "") -> str:
     """Refresh the repository for repo_type
 
     Args:
@@ -97,7 +97,12 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
                 pass
             raise JoblockError("Unable to acquire lock for configuring devices")
         try:
-            result = _refresh_repo_task(repo_type, job_id=job_id)
+            if repo_type == RepoType.TEMPLATES:
+                result = _refresh_repo_task_templates(job_id=job_id)
+            elif repo_type == RepoType.SETTINGS:
+                result = _refresh_repo_task_settings(job_id=job_id)
+            else:
+                raise ValueError("Invalid repository")
             job.finish_time = datetime.datetime.utcnow()
             job.status = JobStatus.FINISHED
             job.result = {"message": result, "repository": repo_type.name}
@@ -132,7 +137,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = N
             raise e
 
 
-def repo_chekout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
+def repo_checkout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
     logger = get_logger()
     with redis_session() as redis:
         hexsha: Optional[str] = redis.get(repo_type.name + "_working_commit")
@@ -151,7 +156,7 @@ def repo_chekout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
         raise ValueError("Invalid repository")
 
     local_repo = Repo(local_repo_path)
-    local_repo.head.reference = local_repo.commit(hexsha)
+    local_repo.head.reference = local_repo.commit(hexsha)  # type: ignore
     local_repo.head.reset(index=True, working_tree=True)
     return True
 
@@ -173,23 +178,89 @@ def reset_repo(local_repo: Repo, remote_repo_path: str):
         ).ref.name.split("/")[-1]
         new_head = next(h for h in local_repo.heads if h.name == remote_head_name)
 
-    local_repo.head.reference = new_head
+    local_repo.head.reference = new_head  # type: ignore
     local_repo.head.reset(index=True, working_tree=True)
 
 
-def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optional[int] = None) -> str:
+def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
+    logger = get_logger()
+    local_repo_path = app_settings.SETTINGS_LOCAL
+    remote_repo_path = app_settings.SETTINGS_REMOTE
+    ret, changed_files = _refresh_repo_task(local_repo_path, remote_repo_path, job_id)
+
+    try:
+        rebuild_settings_cache()
+    except SettingsSyntaxError as e:
+        logger.error("Error in settings repo configuration: {}".format(e))
+        if repo_checkout_working(RepoType.SETTINGS):
+            rebuild_settings_cache()
+        raise e
+    except VlanConflictError as e:
+        logger.error("VLAN conflict in repo configuration: {}".format(e))
+        if repo_checkout_working(RepoType.SETTINGS):
+            rebuild_settings_cache()
+        raise e
+    except WorktreeError as e:
+        if repo_checkout_working(RepoType.SETTINGS):
+            rebuild_settings_cache()
+        raise e
+    else:
+        try:
+            local_repo = Repo(local_repo_path)
+            repo_save_working_commit(RepoType.SETTINGS, local_repo.head.commit.hexsha)
+        except Exception as e:  # noqa: F401
+            logger.error("Could not save last working commit: {}".format(e))
+    logger.debug("Files changed in settings repository: {}".format(changed_files or "None"))
+    updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)
+    logger.debug(
+        "Devicestypes to be marked unsynced after repo refresh: {}".format(
+            (", ".join([dt.name for dt in updated_devtypes])) or "None"
+        )
+    )
+    logger.debug(
+        "Devices to be marked unsynced after repo refresh: {}".format((", ".join(updated_hostnames)) or "None")
+    )
+    with sqla_session() as session:
+        devtype: DeviceType
+        for devtype in updated_devtypes:
+            Device.set_devtype_syncstatus(session, devtype, ret, "settings", job_id=job_id)
+        for hostname in updated_hostnames:
+            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if dev:
+                dev.synchronized = False
+                add_sync_event(hostname, "refresh_settings", ret, job_id)
+            else:
+                logger.warn("Settings updated for unknown device: {}".format(hostname))
+
+    return ret
+
+
+def _refresh_repo_task_templates(job_id: Optional[int] = None) -> str:
+    logger = get_logger()
+    local_repo_path = app_settings.TEMPLATES_LOCAL
+    remote_repo_path = app_settings.TEMPLATES_REMOTE
+    ret, changed_files = _refresh_repo_task(local_repo_path, remote_repo_path, job_id)
+
+    logger.debug("Files changed in template repository: {}".format(changed_files or "None"))
+    updated_devtypes = template_syncstatus(updated_templates=changed_files)
+    updated_list = ["{}:{}".format(platform, dt.name) for dt, platform in updated_devtypes]
+    logger.debug(
+        "Devicestypes to be marked unsynced after repo refresh: {}".format((", ".join(updated_list)) or "None")
+    )
+    with sqla_session() as session:
+        devtype: DeviceType
+        for devtype, platform in updated_devtypes:
+            Device.set_devtype_syncstatus(session, devtype, ret, "templates", platform, job_id)
+    clean_templates_worktree()
+
+    return ret
+
+
+def _refresh_repo_task(local_repo_path, remote_repo_path, job_id: Optional[int] = None) -> Tuple[str, Set[str]]:
     """Should only be called by refresh_repo function."""
     logger = get_logger()
-    if repo_type == RepoType.TEMPLATES:
-        local_repo_path = app_settings.TEMPLATES_LOCAL
-        remote_repo_path = app_settings.TEMPLATES_REMOTE
-    elif repo_type == RepoType.SETTINGS:
-        local_repo_path = app_settings.SETTINGS_LOCAL
-        remote_repo_path = app_settings.SETTINGS_REMOTE
-    else:
-        raise ValueError("Invalid repository")
 
-    ret = ""
+    ret: str = ""
     changed_files: Set[str] = set()
     try:
         url, branch = parse_repo_url(remote_repo_path)
@@ -210,8 +281,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
             else:
                 current_branch = local_repo.head.ref.name
             logger.info(
-                "Repo URL for {} has changed from {}#{} to {}#{}, hard reset repo clone".format(
-                    repo_type.name,
+                "Repo URL has changed from {}#{} to {}#{}, hard reset repo clone".format(
                     current_repo_url,
                     current_branch,
                     url,
@@ -225,7 +295,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
 
         diff = local_repo.remotes.origin.pull()
         for item in diff:
-            if item.ref.remote_head != local_repo.head.ref.name:
+            if item.ref.remote_head != local_repo.head.ref.name:  # type: ignore
                 continue
 
             ret += "Commit {} by {} at {}\n".format(
@@ -247,64 +317,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
             local_repo.head.commit.name_rev, local_repo.head.commit.committer, local_repo.head.commit.committed_datetime
         )
 
-    if repo_type == RepoType.SETTINGS:
-        try:
-            rebuild_settings_cache()
-        except SettingsSyntaxError as e:
-            logger.error("Error in settings repo configuration: {}".format(e))
-            if repo_chekout_working(repo_type):
-                rebuild_settings_cache()
-            raise e
-        except VlanConflictError as e:
-            logger.error("VLAN conflict in repo configuration: {}".format(e))
-            if repo_chekout_working(repo_type):
-                rebuild_settings_cache()
-            raise e
-        except WorktreeError as e:
-            if repo_chekout_working(repo_type):
-                rebuild_settings_cache()
-            raise e
-        else:
-            try:
-                repo_save_working_commit(repo_type, local_repo.head.commit.hexsha)
-            except Exception as e:  # noqa: F401
-                logger.error("Could not save last working commit: {}".format(e))
-        logger.debug("Files changed in settings repository: {}".format(changed_files or "None"))
-        updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)
-        logger.debug(
-            "Devicestypes to be marked unsynced after repo refresh: {}".format(
-                (", ".join([dt.name for dt in updated_devtypes])) or "None"
-            )
-        )
-        logger.debug(
-            "Devices to be marked unsynced after repo refresh: {}".format((", ".join(updated_hostnames)) or "None")
-        )
-        with sqla_session() as session:
-            devtype: DeviceType
-            for devtype in updated_devtypes:
-                Device.set_devtype_syncstatus(session, devtype, ret, "settings", job_id=job_id)
-            for hostname in updated_hostnames:
-                dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
-                if dev:
-                    dev.synchronized = False
-                    add_sync_event(hostname, "refresh_settings", ret, job_id)
-                else:
-                    logger.warn("Settings updated for unknown device: {}".format(hostname))
-
-    if repo_type == RepoType.TEMPLATES:
-        logger.debug("Files changed in template repository: {}".format(changed_files or "None"))
-        updated_devtypes = template_syncstatus(updated_templates=changed_files)
-        updated_list = ["{}:{}".format(platform, dt.name) for dt, platform in updated_devtypes]
-        logger.debug(
-            "Devicestypes to be marked unsynced after repo refresh: {}".format((", ".join(updated_list)) or "None")
-        )
-        with sqla_session() as session:
-            devtype: DeviceType
-            for devtype, platform in updated_devtypes:
-                Device.set_devtype_syncstatus(session, devtype, ret, "templates", platform, job_id)
-        clean_templates_worktree()
-
-    return ret
+    return ret, changed_files
 
 
 def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:

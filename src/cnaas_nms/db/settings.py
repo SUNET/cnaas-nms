@@ -790,17 +790,9 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     for group in settings["groups"]:
         if "name" not in group["group"]:
             continue
-<<<<<<< HEAD
         group_dict[group["group"]["name"]] = group["group"]
         del group_dict[group["group"]["name"]]["name"]
     return group_dict
-=======
-        if "regex" not in group["group"]:
-            continue
-        if group_name == group["group"]["name"]:
-            return group["group"]["regex"]
-    return None
->>>>>>> 52d76c6 (add mypy to pre-commit and solved mypy errors)
 
 
 def get_groups_priorities(hostname: Optional[str] = None, settings: Optional[dict] = None) -> Dict[str, int]:

@@ -410,7 +410,7 @@ class f_group_item(BaseModel):
 
     @field_validator("templates_branch")
     @classmethod
-    def templates_branch_primary_group_only(cls, v: str, info: FieldValidationInfo):
+    def templates_branch_primary_group_only(cls, v: str, info: ValidationInfo):
         if v and info.data["group_priority"] <= 1:
             raise ValueError("templates_branch can only be specified on primary groups")
         return v

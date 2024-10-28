@@ -531,7 +531,7 @@ def push_sync_device(
             if primary_group_template_path:
                 local_repo_path = primary_group_template_path
 
-    mapfile = os.path.join(local_repo_path, platform, "mapping.yml")
+    mapfile = os.path.join(local_repo_path, str(platform), "mapping.yml")
     if not os.path.isfile(mapfile):
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, "r") as f:

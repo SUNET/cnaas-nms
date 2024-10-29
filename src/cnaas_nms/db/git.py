@@ -76,8 +76,8 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "
     """
     # Acquire lock for devices to make sure no one refreshes the repository
     # while another task is building configuration for devices using repo data
-    with sqla_session() as session:
-        job = Job()
+    with sqla_session() as session:  # type: ignore
+        job: Job = Job()
         session.add(job)
         session.flush()
         job.start_job(function_name="refresh_repo", scheduled_by=scheduled_by)
@@ -103,7 +103,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "
                 result = _refresh_repo_task_settings(job_id=job_id)
             else:
                 raise ValueError("Invalid repository")
-            job.finish_time = datetime.datetime.utcnow()
+            job.finish_time = datetime.datetime.utcnow()  # type: ignore
             job.status = JobStatus.FINISHED
             job.result = {"message": result, "repository": repo_type.name}
             try:
@@ -120,7 +120,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "
             return result
         except Exception as e:
             logger.exception("Exception while scheduling job for refresh repo")
-            job.finish_time = datetime.datetime.utcnow()
+            job.finish_time = datetime.datetime.utcnow()  # type: ignore
             job.status = JobStatus.EXCEPTION
             job.result = {"error": str(e), "repository": repo_type.name}
             try:
@@ -139,7 +139,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "
 
 def repo_checkout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
     logger = get_logger()
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         hexsha: Optional[str] = redis.get(repo_type.name + "_working_commit")
         if hexsha:
             logger.info("Trying to check out last known working commit for repo {}: {}".format(repo_type.name, hexsha))
@@ -163,7 +163,7 @@ def repo_checkout_working(repo_type: RepoType, dry_run: bool = False) -> bool:
 
 def repo_save_working_commit(repo_type: RepoType, hexsha: str):
     logger = get_logger()
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         logger.info("Saving known working commit for repo {} in cache: {}".format(repo_type.name, hexsha))
         redis.set(repo_type.name + "_working_commit", hexsha)
 

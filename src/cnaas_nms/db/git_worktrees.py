@@ -21,6 +21,7 @@ def refresh_existing_templates_worktrees(job_id: int, group_settings: dict, devi
     """Look for existing worktrees and refresh them"""
     logger = get_logger()
     updated_groups: Set[str] = set()
+    commit_by: str = ""
     if os.path.isdir("/tmp/worktrees"):
         for subdir in os.listdir("/tmp/worktrees"):
             try:
@@ -31,9 +32,9 @@ def refresh_existing_templates_worktrees(job_id: int, group_settings: dict, devi
                 if not diff:
                     continue
 
-                ret: str
                 changed_files: Set[str]
-                ret, changed_files = parse_git_changed_files(diff, prev_commit, wt_repo)
+                commit_by_new, changed_files = parse_git_changed_files(diff, prev_commit, wt_repo)
+                commit_by += commit_by_new
                 # don't update updated_groups if changes were only in other branches
                 if not changed_files:
                     continue
@@ -52,7 +53,7 @@ def refresh_existing_templates_worktrees(job_id: int, group_settings: dict, devi
                 dev: Device = session.query(Device).filter_by(hostname=hostname).one_or_none()
                 if dev:
                     dev.synchronized = False
-                    add_sync_event(hostname, "refresh_templates", ret, job_id)
+                    add_sync_event(hostname, "refresh_templates", commit_by, job_id)
                     updated_hostnames.add(hostname)
     if updated_hostnames:
         logger.debug(

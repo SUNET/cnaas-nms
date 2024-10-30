@@ -1,7 +1,6 @@
 import datetime
 import os
 import time
-from hashlib import sha256
 from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import List, Optional, Tuple
 
@@ -15,16 +14,15 @@ from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
-from cnaas_nms.app_settings import api_settings, app_settings
+from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
-from cnaas_nms.db.git import RepoStructureException
-from cnaas_nms.db.git_worktrees import find_templates_worktree_path
+from cnaas_nms.db.git import RepoStructureException, get_template_repo_path
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import get_device_primary_groups, get_group_templates_branch, get_settings
+from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
@@ -532,16 +530,7 @@ def push_sync_device(
         platform = dev.platform
         devtype = dev.device_type
 
-    local_repo_path = app_settings.TEMPLATES_LOCAL
-
-    # override template path if primary group template path is set
-    primary_group = get_device_primary_groups().get(hostname)
-    if primary_group:
-        templates_branch = get_group_templates_branch(primary_group)
-        if templates_branch:
-            primary_group_template_path = find_templates_worktree_path(templates_branch)
-            if primary_group_template_path:
-                local_repo_path = primary_group_template_path
+    local_repo_path = get_template_repo_path(hostname)
 
     mapfile = os.path.join(local_repo_path, platform, "mapping.yml")
     if not os.path.isfile(mapfile):
@@ -674,6 +663,7 @@ def sync_check_hash(task, force=False, job_id=None):
         task: Nornir task
         force: Ignore device hash
     """
+    logger = get_logger()
     set_thread_data(job_id)
     if force is True:
         return
@@ -686,11 +676,12 @@ def sync_check_hash(task, force=False, job_id=None):
     res = task.run(task=napalm_get, getters=["config"])
     task.host.close_connection("napalm")
 
-    running_config = dict(res.result)["config"]["running"].encode()
-    if running_config is None:
-        raise Exception("Failed to get running configuration")
-    hash_obj = sha256(running_config)
-    running_hash = hash_obj.hexdigest()
+    try:
+        devtype = Device.nornir_groups_to_devicetype(task.host.groups)
+    except Exception as e:
+        logger.error("Unable to determine device type")
+        logger.exception(e)
+    running_hash = calc_config_hash(task.host.name, dict(res.result)["config"]["running"], task.host.platform, devtype)
     if stored_hash != running_hash:
         raise Exception("Device {} configuration is altered outside of CNaaS!".format(task.host.name))
 
@@ -706,7 +697,16 @@ def update_config_hash(task):
             or "config" not in res[0].result
         ):
             raise Exception("Unable to get config from device")
-        new_config_hash = calc_config_hash(task.host.name, res[0].result["config"]["running"])
+
+        try:
+            devtype = Device.nornir_groups_to_devicetype(task.host.groups)
+        except Exception as e:
+            logger.error("Unable to determine device type")
+            logger.exception(e)
+
+        new_config_hash = calc_config_hash(
+            task.host.name, res[0].result["config"]["running"], task.host.platform, devtype
+        )
         if not new_config_hash:
             raise ValueError("Empty config hash")
     except Exception as e:

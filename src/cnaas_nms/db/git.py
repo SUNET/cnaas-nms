@@ -12,7 +12,7 @@ import git.remote
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
-from cnaas_nms.db.git_worktrees import WorktreeError, refresh_existing_templates_worktrees
+from cnaas_nms.db.git_worktrees import WorktreeError, find_templates_worktree_path, refresh_existing_templates_worktrees
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
@@ -22,6 +22,7 @@ from cnaas_nms.db.settings import (
     VlanConflictError,
     get_device_primary_groups,
     get_group_settings_asdict,
+    get_group_templates_branch,
     get_groups,
     rebuild_settings_cache,
 )
@@ -409,3 +410,17 @@ def parse_repo_url(url: str) -> Tuple[str, Optional[str]]:
     """Parses a URL to a repository, returning the path and branch refspec separately"""
     path, branch = urldefrag(url)
     return path, branch if branch else None
+
+
+def get_template_repo_path(hostname: str):
+    local_repo_path = app_settings.TEMPLATES_LOCAL
+
+    # override template path if primary group template path is set
+    primary_group = get_device_primary_groups().get(hostname)
+    if primary_group:
+        templates_branch = get_group_templates_branch(primary_group)
+        if templates_branch:
+            primary_group_template_path = find_templates_worktree_path(templates_branch)
+            if primary_group_template_path:
+                local_repo_path = primary_group_template_path
+    return local_repo_path

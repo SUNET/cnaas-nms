@@ -358,15 +358,23 @@ def populate_device_vars(
             )
         device_variables = {**device_variables, **fabric_device_variables}
 
-    # if device type in api_settings.DEVICE_TYPES_WITH_INCLUDE_RUNNING_CONFIG
-    for dt_str in api_settings.DEVICE_TYPES_WITH_INCLUDE_RUNNING_CONFIG:
-        if dev.device_type.name.lower() == dt_str.lower():
+    # if platform/devtype has unmanaged config sections, get running_config and add to device_variables
+    local_repo_path = get_template_repo_path(hostname)
+    mapfile = os.path.join(local_repo_path, dev.platform, "mapping.yml")
+    if not os.path.isfile(mapfile):
+        raise RepoStructureException("File {} not found in template repo".format(mapfile))
+    with open(mapfile, "r") as f:
+        mapping = yaml.safe_load(f)
+        if (
+            "unmanaged_config_sections" in mapping[devtype.name]
+            and type(mapping[devtype.name]["unmanaged_config_sections"]) is list
+        ):
             task.host.open_connection("napalm", configuration=task.nornir.config)
             res = task.run(task=napalm_get, getters=["config"])
             task.host.close_connection("napalm")
 
             running_config = dict(res.result)["config"]["running"]
-            # Remove the first task result, which is the napalm_get result, since it's not needed anymore
+            # Remove the first task result, which is the napalm_get result, since it's not needed for final job result
             del task.results[0]
             if running_config is None:
                 raise Exception(f"Failed to get running configuration for {dev.hostname}")

@@ -80,6 +80,9 @@ def calc_config_hash(hostname: str, config: str, platform: str, devtype: DeviceT
         skip_section = get_config_section(config, section, platform)
         if skip_section:
             config = config.replace(skip_section, "")
+    if platform == "junos":
+        # remove line starting with "## Last commit" from config string so we don't get config hash mismatch
+        config = re.sub(r"^#{2}.*\n", "", config, flags=re.MULTILINE)
     config = config.replace("\n", "")
     try:
         hash_object = hashlib.sha256(config.encode())

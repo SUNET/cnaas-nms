@@ -186,7 +186,7 @@ def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
     logger = get_logger()
     local_repo_path = app_settings.SETTINGS_LOCAL
     remote_repo_path = app_settings.SETTINGS_REMOTE
-    ret, changed_files = _refresh_repo_task(local_repo_path, remote_repo_path, job_id)
+    ret, changed_files = _refresh_repo_task(local_repo_path, remote_repo_path)
 
     try:
         rebuild_settings_cache()
@@ -239,7 +239,7 @@ def _refresh_repo_task_templates(job_id: Optional[int] = None) -> str:
     logger = get_logger()
     local_repo_path = app_settings.TEMPLATES_LOCAL
     remote_repo_path = app_settings.TEMPLATES_REMOTE
-    ret, changed_files = _refresh_repo_task(local_repo_path, remote_repo_path, job_id)
+    ret, changed_files = _refresh_repo_task(local_repo_path, remote_repo_path)
 
     logger.debug("Files changed in template repository: {}".format(changed_files or "None"))
     updated_devtypes = template_syncstatus(updated_templates=changed_files)
@@ -256,7 +256,7 @@ def _refresh_repo_task_templates(job_id: Optional[int] = None) -> str:
     return ret
 
 
-def _refresh_repo_task(local_repo_path, remote_repo_path, job_id: Optional[int] = None) -> Tuple[str, Set[str]]:
+def _refresh_repo_task(local_repo_path, remote_repo_path) -> Tuple[str, Set[str]]:
     """Should only be called by refresh_repo function."""
     logger = get_logger()
 

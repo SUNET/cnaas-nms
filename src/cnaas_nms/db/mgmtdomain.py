@@ -3,7 +3,7 @@ import enum
 import ipaddress
 from ipaddress import IPv4Address, IPv6Address, ip_interface
 from itertools import dropwhile, islice
-from typing import List, Optional, Set, Union
+from typing import Optional, Set, Union
 
 from sqlalchemy import ForeignKey, Integer, String, Unicode, UniqueConstraint
 from sqlalchemy.orm import load_only, mapped_column, relationship
@@ -116,7 +116,7 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
         else:
             mgmt_net = ip_interface(intf_addr).network
         candidates = islice(mgmt_net.hosts(), api_settings.MGMTDOMAIN_RESERVED_COUNT, None)
-        free_ips: List[IPAddress] = dropwhile(is_taken, candidates)  # type: ignore
+        free_ips = dropwhile(is_taken, candidates)  # type: ignore
         return next(free_ips, None)  # type: ignore
 
     @staticmethod

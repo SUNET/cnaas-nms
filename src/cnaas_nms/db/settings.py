@@ -470,6 +470,58 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str) -
     return filtered_yaml_data
 
 
+def recursive_filter_yamldata_dictionary(
+    data: dict, groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
+    ret_d = {}
+    group_match = False
+    hostname_match = False
+    do_filter_group = False
+    do_filter_hostname = False
+    for key, value in data.items():
+        if not value:
+            ret_d[key] = value
+            continue
+        if key == "groups":
+            if not isinstance(value, list):  # Should already be checked by pydantic now
+                raise SettingsSyntaxError(
+                    "Groups field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
+                )
+            do_filter_group = True
+            ret_d[key] = value
+            for group in value:
+                if group in groups:
+                    group_match = True
+        elif key == "devices":
+            if not isinstance(value, list):  # Should already be checked by pydantic now
+                raise SettingsSyntaxError(
+                    "Devices field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
+                )
+            do_filter_hostname = True
+            ret_d[key] = value
+            if hostname in value:
+                hostname_match = True
+        else:
+            ret_v = recursive_filter_yamldata(value, groups, hostname, recdepth - 1)
+            if ret_v:
+                ret_d[key] = ret_v
+    if (do_filter_group or do_filter_hostname) and not group_match and not hostname_match:
+        return None
+    else:
+        return ret_d
+
+
+def recursive_filter_yamldata_list(
+    data: List, groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
+    ret_l = []
+    for item in data:
+        f_item = recursive_filter_yamldata(item, groups, hostname, recdepth - 1)
+        if f_item:
+            ret_l.append(f_item)
+    return ret_l
+
+
 def recursive_filter_yamldata(
     data: Union[List, dict], groups: List[str], hostname: str, recdepth=100
 ) -> Union[List, dict, None]:
@@ -489,49 +541,9 @@ def recursive_filter_yamldata(
     if recdepth < 1:
         return data
     elif isinstance(data, list):
-        ret_l = []
-        for item in data:
-            f_item = recursive_filter_yamldata(item, groups, hostname, recdepth - 1)
-            if f_item:
-                ret_l.append(f_item)
-        return ret_l
+        return recursive_filter_yamldata_list(data, groups, hostname, recdepth)
     elif isinstance(data, dict):
-        ret_d = {}
-        group_match = False
-        hostname_match = False
-        do_filter_group = False
-        do_filter_hostname = False
-        for key, value in data.items():
-            if not value:
-                ret_d[key] = value
-                continue
-            if key == "groups":
-                if not isinstance(value, list):  # Should already be checked by pydantic now
-                    raise SettingsSyntaxError(
-                        "Groups field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
-                    )
-                do_filter_group = True
-                ret_d[key] = value
-                for group in value:
-                    if group in groups:
-                        group_match = True
-            elif key == "devices":
-                if not isinstance(value, list):  # Should already be checked by pydantic now
-                    raise SettingsSyntaxError(
-                        "Devices field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
-                    )
-                do_filter_hostname = True
-                ret_d[key] = value
-                if hostname in value:
-                    hostname_match = True
-            else:
-                ret_v = recursive_filter_yamldata(value, groups, hostname, recdepth - 1)
-                if ret_v:
-                    ret_d[key] = ret_v
-        if (do_filter_group or do_filter_hostname) and not group_match and not hostname_match:
-            return None
-        else:
-            return ret_d
+        return recursive_filter_yamldata_dictionary(data, groups, hostname, recdepth)
     else:
         return data
 

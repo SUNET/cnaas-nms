@@ -773,7 +773,7 @@ def confirm_devices(
     logger = get_logger()
     nr = cnaas_init()
 
-    nr_filtered, dev_count, skipped_hostnames = select_devices(nr, hostnames, resync=resync)
+    nr_filtered, dev_count, _ = select_devices(nr, hostnames, resync=resync)
 
     device_list = list(nr_filtered.inventory.hosts.keys())
     logger.info("Device(s) selected for commit-confirm ({}): {}".format(dev_count, ", ".join(device_list)))

@@ -17,7 +17,7 @@ class Joblock(cnaas_nms.db.base.Base):
     job_id = mapped_column(Integer, ForeignKey("job.id"), unique=True, primary_key=True)
     job = relationship("Job", foreign_keys=[job_id])
     name = mapped_column(String(32), unique=True, nullable=False)
-    start_time = mapped_column(DateTime, default=datetime.datetime.now)  # onupdate=now
+    start_time = mapped_column(DateTime, default=datetime.datetime.now)
     abort = mapped_column(Boolean, default=False)
 
     def as_dict(self) -> dict:

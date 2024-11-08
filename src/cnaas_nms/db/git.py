@@ -103,7 +103,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "
                 result = _refresh_repo_task_settings(job_id=job_id)
             else:
                 raise ValueError("Invalid repository")
-            job.finish_time = datetime.datetime.utcnow()  # type: ignore
+            job.finish_time = datetime.datetime.now()
             job.status = JobStatus.FINISHED
             job.result = {"message": result, "repository": repo_type.name}
             try:
@@ -120,7 +120,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "
             return result
         except Exception as e:
             logger.exception("Exception while scheduling job for refresh repo")
-            job.finish_time = datetime.datetime.utcnow()  # type: ignore
+            job.finish_time = datetime.datetime.now()
             job.status = JobStatus.EXCEPTION
             job.result = {"error": str(e), "repository": repo_type.name}
             try:

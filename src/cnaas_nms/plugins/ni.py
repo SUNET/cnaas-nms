@@ -36,7 +36,7 @@ class Plugin(CnaasBasePlugin):
 
         data: dict[str, dict[str, Any]] = {"node": {"operational_state": "In service"}}
 
-        res = requests.get(str(self.urlbase), headers=headers, verify=False)
+        res = requests.get(self.urlbase, headers=headers, verify=False)  # type: ignore
         if not res.status_code == 200:
             logger.warn("Failed to fetch devices from NI: {}: {} ({})".format(res.status_code, res.text, data))
 
@@ -55,7 +55,7 @@ class Plugin(CnaasBasePlugin):
                     data["node"]["ip_addresses"] = [management_ip]
 
             handle_id = device["handle_id"]
-            res = requests.put(str(self.urlbase) + str(handle_id) + "/", headers=headers, json=data, verify=False)
+            res = requests.put(self.urlbase + str(handle_id) + "/", headers=headers, json=data, verify=False)  # type: ignore
 
             if res.status_code != 204:
                 logger.warn("Could not change device {} with ID {}.".format(hostname, handle_id))

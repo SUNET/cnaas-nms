@@ -9,6 +9,7 @@ from typing import List, Optional, Set, Tuple
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Unicode, UniqueConstraint, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
@@ -93,7 +94,7 @@ class Device(cnaas_nms.db.base.Base):
     state: Mapped[DeviceState] = mapped_column(Enum(DeviceState), nullable=False)  # type: ignore
     device_type: Mapped[DeviceType] = mapped_column(Enum(DeviceType), nullable=False)
     confhash: Mapped[Optional[str]] = mapped_column(String(64))  # SHA256 = 64 characters
-    last_seen: Mapped[Optional[DateTime]] = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    last_seen: Mapped[Optional[DateTime]] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     port: Mapped[Optional[int]] = mapped_column(Integer)
     stack_members = relationship(
         "Stackmember", foreign_keys="[Stackmember.device_id]", lazy="subquery", back_populates="device"

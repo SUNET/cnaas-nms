@@ -1,4 +1,3 @@
-import datetime
 import os
 import time
 from hashlib import sha256
@@ -817,7 +816,6 @@ def confirm_devices(
                 dev = session.query(Device).filter(Device.hostname == host).one()
                 dev.synchronized = True
                 remove_sync_events(host)
-                dev.last_seen = datetime.datetime.utcnow()  # type: ignore
 
         logger.info("Releasing lock for devices from syncto job: {} (in commit-job {})".format(prev_job_id, job_id))
         Joblock.release_lock(session, job_id=prev_job_id)
@@ -958,18 +956,15 @@ def sync_devices(
                 if dev.synchronized:
                     dev.synchronized = False
                     add_sync_event(hostname, "syncto_dryrun", scheduled_by, job_id)
-                dev.last_seen = datetime.datetime.utcnow()  # type: ignore
             # if next job will commit, that job will mark synchronized on success
             elif get_confirm_mode(confirm_mode_override) != 2:
                 dev = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
                 remove_sync_events(hostname)
-                dev.last_seen = datetime.datetime.utcnow()  # type: ignore
         for hostname in unchanged_hosts:
             dev = session.query(Device).filter(Device.hostname == hostname).one()
             dev.synchronized = True
             remove_sync_events(hostname)
-            dev.last_seen = datetime.datetime.utcnow()  # type: ignore
         if not dry_run and get_confirm_mode(confirm_mode_override) != 2:
             if failed_hosts and get_confirm_mode(confirm_mode_override) == 1:
                 logger.error(

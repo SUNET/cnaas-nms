@@ -3,6 +3,7 @@ import shutil
 from typing import Optional
 
 import git.exc
+
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.tools.log import get_logger
 from git import Repo

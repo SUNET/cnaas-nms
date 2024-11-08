@@ -1,4 +1,3 @@
-import datetime
 import os
 from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import Any, List, Optional, Union
@@ -12,6 +11,7 @@ from nornir.core.task import MultiResult, Result
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
+from sqlalchemy.sql import func
 
 import cnaas_nms.db.helper
 import cnaas_nms.devicehandler.get
@@ -880,7 +880,7 @@ def init_device_step2(
         set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None
-        dev.last_seen = datetime.datetime.utcnow()  # type: ignore
+        dev.last_seen = func.now()  # type: ignore
 
     # Plugin hook: new managed device
     # Send: hostname , device type , serial , platform , vendor , model , os version
@@ -925,7 +925,6 @@ def set_hostname_task(task, new_hostname: str):
         template="hostname.j2",
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
         path=f"{local_repo_path}/{task.host.platform}",
-        # **template_vars,
     )
     task.host["config"] = r.result
     task.run(
@@ -971,7 +970,7 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration: int, job_id: Optional
             dev.model = facts["model"][:64]
             dev.os_version = facts["os_version"][:64]
             dev.state = DeviceState.DISCOVERED
-            dev.last_seen = datetime.datetime.utcnow()  # type: ignore
+            dev.last_seen = func.now()  # type: ignore
             new_hostname = dev.hostname
             logger.info(
                 f"Device with ztp_mac {ztp_mac} successfully scanned"

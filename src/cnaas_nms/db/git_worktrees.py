@@ -1,10 +1,15 @@
 import os
 import shutil
-from typing import Optional
+from typing import Optional, Set
 
 import git.exc
 
 from cnaas_nms.app_settings import app_settings
+from cnaas_nms.db.device import Device
+from cnaas_nms.db.groups import get_groups_using_branch
+from cnaas_nms.db.session import sqla_session
+from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.tools.githelpers import parse_git_changed_files
 from cnaas_nms.tools.log import get_logger
 from git import Repo
 
@@ -13,10 +18,50 @@ class WorktreeError(Exception):
     pass
 
 
-def clean_templates_worktree():
+def refresh_existing_templates_worktrees(job_id: int | None, group_settings: dict, device_primary_groups: dict):
+    """Look for existing worktrees and refresh them"""
+    logger = get_logger()
+    updated_groups: Set[str] = set()
+    commit_by: str = ""
     if os.path.isdir("/tmp/worktrees"):
         for subdir in os.listdir("/tmp/worktrees"):
-            shutil.rmtree("/tmp/worktrees/" + subdir, ignore_errors=True)
+            try:
+                logger.info("Pulling worktree for branch {}".format(subdir))
+                wt_repo = Repo("/tmp/worktrees/" + subdir)
+                prev_commit = wt_repo.commit().hexsha
+                diff = wt_repo.remotes.origin.pull()
+                if not diff:
+                    continue
+
+                changed_files: Set[str]
+                commit_by_new, changed_files = parse_git_changed_files(diff, prev_commit, wt_repo)
+                commit_by += commit_by_new
+                # don't update updated_groups if changes were only in other branches
+                if not changed_files:
+                    continue
+            except Exception as e:
+                logger.exception(e)
+                shutil.rmtree("/tmp/worktrees/" + subdir, ignore_errors=True)
+            updated_groups.update(get_groups_using_branch(subdir, group_settings))
+
+    # find all devices that are using these branches and mark them as unsynchronized
+    updated_hostnames: Set[str] = set()
+    with sqla_session() as session:
+        for hostname, primary_group in device_primary_groups.items():
+            if hostname in updated_hostnames:
+                continue
+            if primary_group in updated_groups:
+                dev: Device = session.query(Device).filter_by(hostname=hostname).one_or_none()
+                if dev:
+                    dev.synchronized = False
+                    add_sync_event(hostname, "refresh_templates", commit_by, job_id)
+                    updated_hostnames.add(hostname)
+    if updated_hostnames:
+        logger.debug(
+            "Devices marked as unsynchronized because git worktree branches were refreshed: {}".format(
+                ", ".join(updated_hostnames)
+            )
+        )
 
     local_repo = Repo(app_settings.TEMPLATES_LOCAL)
     local_repo.git.worktree("prune")

@@ -4,7 +4,7 @@ import base64
 import hashlib
 import ipaddress
 import re
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional
 
 # This global dict can be used to update the Jinja environment filters dict to include all
 # registered template filter function
@@ -135,9 +135,9 @@ def ipv4_to_ipv6(
 
 @template_filter()
 def get_interface(
-    network: Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface, ipaddress.IPv6Network, ipaddress.IPv4Network, str],
+    network: ipaddress.IPv6Interface | ipaddress.IPv4Interface | ipaddress.IPv6Network | ipaddress.IPv4Network | str,
     index: int,
-) -> Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface, ipaddress.IPv6Network, ipaddress.IPv4Network]:
+) -> ipaddress.IPv6Interface | ipaddress.IPv4Interface | ipaddress.IPv6Network | ipaddress.IPv4Network:
     """Returns a host address with a prefix length from its index in a network.
 
     Example:

@@ -483,7 +483,7 @@ class DeviceInitApi(Resource):
 
     @classmethod
     def arg_check(cls, device_id: int, json_data: dict) -> dict:
-        parsed_args: dict[str, Any] = {"device_id": device_id}
+        parsed_args: dict[str, int | str | list[Any] | None] = {"device_id": device_id}
         if not isinstance(device_id, int):
             raise ValueError("'device_id' must be an integer")
 

@@ -3,7 +3,7 @@
 import logging
 import os
 import sys
-from typing import Union
+from typing import Optional
 
 import netaddr
 import requests
@@ -55,7 +55,7 @@ def canonical_mac(mac):
     return str(na_mac)
 
 
-def main() -> Union[int, None]:
+def main() -> Optional[int]:
     if len(sys.argv) < 3:
         return 1
 

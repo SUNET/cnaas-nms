@@ -12,7 +12,7 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.app_settings import auth_settings
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.rbac.rbac import get_permissions_user
-from cnaas_nms.tools.security import get_identity, get_oauth_token_info, login_required, login_required_all_permitted
+from cnaas_nms.tools.security import get_identity, get_oauth_token_info, login_required_all_permitted
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()
@@ -141,7 +141,7 @@ class RefreshApi(Resource):
 
 
 class IdentityApi(Resource):
-    @login_required
+    @login_required_all_permitted
     def get(self):
         identity = get_identity()
         return identity
@@ -155,7 +155,7 @@ class PermissionsAPI(Resource):
             logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
             return []
         user_info = get_oauth_token_info(current_token)
-        permissions_of_user = get_permissions_user(permissions_rules, user_info)  # check check
+        permissions_of_user = get_permissions_user(permissions_rules, user_info)
 
         # convert to dictionaries so it can be converted to json
         permissions_as_dics = []

@@ -879,14 +879,12 @@ def sync_devices(
                 )
             raise Exception("Configuration hash check failed for {}".format(" ".join(nrresult.failed_hosts.keys())))
 
-    if not dry_run:
+    if not dry_run and job_id:
         with sqla_session() as session:  # type: ignore
             logger.info("Trying to acquire lock for devices to run syncto job: {}".format(job_id))
             max_attempts = 5
             lock_ok: bool = False
             for i in range(max_attempts):
-                if not job_id:
-                    continue
                 lock_ok = Joblock.acquire_lock(session, name="devices", job_id=job_id)
                 if lock_ok:
                     break

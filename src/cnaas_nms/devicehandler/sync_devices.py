@@ -1,7 +1,6 @@
 import datetime
 import os
 import time
-from hashlib import sha256
 from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import List, Optional, Tuple
 
@@ -15,16 +14,15 @@ from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
-from cnaas_nms.app_settings import api_settings, app_settings
+from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
-from cnaas_nms.db.git import RepoStructureException
-from cnaas_nms.db.git_worktrees import find_templates_worktree_path
+from cnaas_nms.db.git import RepoStructureException, get_template_repo_path
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import get_device_primary_groups, get_group_templates_branch, get_settings
+from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
@@ -107,7 +105,7 @@ def get_mlag_vars(session, dev: Device) -> dict:
 
 
 def populate_device_vars(
-    session, dev: Device, ztp_hostname: Optional[str] = None, ztp_devtype: Optional[DeviceType] = None
+    task, session, dev: Device, ztp_hostname: Optional[str] = None, ztp_devtype: Optional[DeviceType] = None
 ):
     logger = get_logger()
     device_variables = {
@@ -360,6 +358,29 @@ def populate_device_vars(
             )
         device_variables = {**device_variables, **fabric_device_variables}
 
+    # if platform/devtype has unmanaged config sections, get running_config and add to device_variables
+    local_repo_path = get_template_repo_path(hostname)
+    mapfile = os.path.join(local_repo_path, dev.platform, "mapping.yml")
+    if not os.path.isfile(mapfile):
+        raise RepoStructureException("File {} not found in template repo".format(mapfile))
+    with open(mapfile, "r") as f:
+        mapping = yaml.safe_load(f)
+        if (
+            "unmanaged_config_sections" in mapping[devtype.name]
+            and type(mapping[devtype.name]["unmanaged_config_sections"]) is list
+        ):
+            task.host.open_connection("napalm", configuration=task.nornir.config)
+            res = task.run(task=napalm_get, getters=["config"])
+            task.host.close_connection("napalm")
+
+            running_config = dict(res.result)["config"]["running"]
+            # Remove the first task result, which is the napalm_get result, since it's not needed for final job result
+            del task.results[0]
+            if running_config is None:
+                raise Exception(f"Failed to get running configuration for {dev.hostname}")
+
+            device_variables["running_config"] = running_config
+
     # Add all environment variables starting with TEMPLATE_SECRET_ to
     # the list of configuration variables. The idea is to store secret
     # configuration outside of the templates repository.
@@ -513,20 +534,11 @@ def push_sync_device(
     hostname = task.host.name
     with sqla_session() as session:
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-        template_vars = populate_device_vars(session, dev)
+        template_vars = populate_device_vars(task, session, dev)
         platform = dev.platform
         devtype = dev.device_type
 
-    local_repo_path = app_settings.TEMPLATES_LOCAL
-
-    # override template path if primary group template path is set
-    primary_group = get_device_primary_groups().get(hostname)
-    if primary_group:
-        templates_branch = get_group_templates_branch(primary_group)
-        if templates_branch:
-            primary_group_template_path = find_templates_worktree_path(templates_branch)
-            if primary_group_template_path:
-                local_repo_path = primary_group_template_path
+    local_repo_path = get_template_repo_path(hostname)
 
     mapfile = os.path.join(local_repo_path, platform, "mapping.yml")
     if not os.path.isfile(mapfile):
@@ -659,6 +671,7 @@ def sync_check_hash(task, force=False, job_id=None):
         task: Nornir task
         force: Ignore device hash
     """
+    logger = get_logger()
     set_thread_data(job_id)
     if force is True:
         return
@@ -671,11 +684,12 @@ def sync_check_hash(task, force=False, job_id=None):
     res = task.run(task=napalm_get, getters=["config"])
     task.host.close_connection("napalm")
 
-    running_config = dict(res.result)["config"]["running"].encode()
-    if running_config is None:
-        raise Exception("Failed to get running configuration")
-    hash_obj = sha256(running_config)
-    running_hash = hash_obj.hexdigest()
+    try:
+        devtype = Device.nornir_groups_to_devicetype(task.host.groups)
+    except Exception as e:
+        logger.error("Unable to determine device type")
+        logger.exception(e)
+    running_hash = calc_config_hash(task.host.name, dict(res.result)["config"]["running"], task.host.platform, devtype)
     if stored_hash != running_hash:
         raise Exception("Device {} configuration is altered outside of CNaaS!".format(task.host.name))
 
@@ -691,7 +705,16 @@ def update_config_hash(task):
             or "config" not in res[0].result
         ):
             raise Exception("Unable to get config from device")
-        new_config_hash = calc_config_hash(task.host.name, res[0].result["config"]["running"])
+
+        try:
+            devtype = Device.nornir_groups_to_devicetype(task.host.groups)
+        except Exception as e:
+            logger.error("Unable to determine device type")
+            logger.exception(e)
+
+        new_config_hash = calc_config_hash(
+            task.host.name, res[0].result["config"]["running"], task.host.platform, devtype
+        )
         if not new_config_hash:
             raise ValueError("Empty config hash")
     except Exception as e:

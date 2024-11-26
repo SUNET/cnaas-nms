@@ -3,15 +3,16 @@ import enum
 import json
 import os
 import shutil
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urldefrag
 
 import yaml
 
+import git.remote
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
-from cnaas_nms.db.git_worktrees import WorktreeError, clean_templates_worktree
+from cnaas_nms.db.git_worktrees import WorktreeError, find_templates_worktree_path, refresh_existing_templates_worktrees
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
@@ -20,12 +21,15 @@ from cnaas_nms.db.settings import (
     SettingsSyntaxError,
     VlanConflictError,
     get_device_primary_groups,
+    get_group_settings_asdict,
+    get_group_templates_branch,
     get_groups,
     rebuild_settings_cache,
 )
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.tools.event import add_event
+from cnaas_nms.tools.githelpers import parse_git_changed_files
 from cnaas_nms.tools.log import get_logger
 from git import InvalidGitRepositoryError, Repo
 from git.exc import GitCommandError, NoSuchPathError
@@ -223,17 +227,9 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
         prev_commit = local_repo.commit().hexsha
         logger.debug("git pull from {}".format(remote_repo_path))
 
-        diff = local_repo.remotes.origin.pull()
-        for item in diff:
-            if item.ref.remote_head != local_repo.head.ref.name:
-                continue
+        diff: List[git.remote.FetchInfo] = local_repo.remotes.origin.pull()
+        ret, changed_files = parse_git_changed_files(diff, prev_commit, local_repo)
 
-            ret += "Commit {} by {} at {}\n".format(
-                item.commit.name_rev, item.commit.committer, item.commit.committed_datetime
-            )
-            diff_files = local_repo.git.diff("{}..{}".format(prev_commit, item.commit.hexsha), name_only=True).split()
-            changed_files.update(diff_files)
-            prev_commit = item.commit.hexsha
     except (InvalidGitRepositoryError, NoSuchPathError):  # noqa: S110
         logger.info("Local repository {} not found, cloning from remote".format(local_repo_path))
         try:
@@ -302,7 +298,7 @@ def _refresh_repo_task(repo_type: RepoType = RepoType.TEMPLATES, job_id: Optiona
             devtype: DeviceType
             for devtype, platform in updated_devtypes:
                 Device.set_devtype_syncstatus(session, devtype, ret, "templates", platform, job_id)
-        clean_templates_worktree()
+        refresh_existing_templates_worktrees(job_id, get_group_settings_asdict(), get_device_primary_groups())
 
     return ret
 
@@ -414,3 +410,17 @@ def parse_repo_url(url: str) -> Tuple[str, Optional[str]]:
     """Parses a URL to a repository, returning the path and branch refspec separately"""
     path, branch = urldefrag(url)
     return path, branch if branch else None
+
+
+def get_template_repo_path(hostname: str):
+    local_repo_path = app_settings.TEMPLATES_LOCAL
+
+    # override template path if primary group template path is set
+    primary_group = get_device_primary_groups().get(hostname)
+    if primary_group:
+        templates_branch = get_group_templates_branch(primary_group)
+        if templates_branch:
+            primary_group_template_path = find_templates_worktree_path(templates_branch)
+            if primary_group_template_path:
+                local_repo_path = primary_group_template_path
+    return local_repo_path

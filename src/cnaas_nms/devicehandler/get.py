@@ -1,7 +1,9 @@
 import hashlib
+import os
 import re
 from typing import Dict, List, Optional
 
+import yaml
 from netutils.config import compliance
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 from nornir.core.filter import F
@@ -12,8 +14,11 @@ from nornir_utils.plugins.functions import print_result
 import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
+from cnaas_nms.db.exceptions import RepoStructureException
+from cnaas_nms.db.git import get_template_repo_path
 from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.tools.jinja_filters import get_config_section
 from cnaas_nms.tools.log import get_logger
 
 
@@ -53,7 +58,32 @@ def get_running_config_interface(session: sqla_session, hostname: str, interface
     return "\n".join(ret)
 
 
-def calc_config_hash(hostname, config):
+def get_unmanaged_config_sections(hostname: str, platform: str, devtype: DeviceType) -> List[str]:
+    local_repo_path = get_template_repo_path(hostname)
+
+    mapfile = os.path.join(local_repo_path, platform, "mapping.yml")
+    if not os.path.isfile(mapfile):
+        raise RepoStructureException("File {} not found in template repo".format(mapfile))
+    with open(mapfile, "r") as f:
+        mapping = yaml.safe_load(f)
+        if (
+            "unmanaged_config_sections" in mapping[devtype.name]
+            and type(mapping[devtype.name]["unmanaged_config_sections"]) is list
+        ):
+            return mapping[devtype.name]["unmanaged_config_sections"]
+    return []
+
+
+def calc_config_hash(hostname: str, config: str, platform: str, devtype: DeviceType):
+    ignore_config_sections: List[str] = get_unmanaged_config_sections(hostname, platform, devtype)
+    for section in ignore_config_sections:
+        skip_section = get_config_section(config, section, platform)
+        if skip_section:
+            config = config.replace(skip_section, "")
+    if platform == "junos":
+        # remove line starting with "## Last commit" from config string so we don't get config hash mismatch
+        config = re.sub(r"^#{2}.*\n", "", config, flags=re.MULTILINE)
+    config = config.replace("\n", "")
     try:
         hash_object = hashlib.sha256(config.encode())
     except Exception:

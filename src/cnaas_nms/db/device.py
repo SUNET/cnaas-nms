@@ -7,6 +7,7 @@ import json
 import re
 from typing import List, Optional, Set
 
+from nornir.core.inventory import Group as NornirGroup
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Unicode, UniqueConstraint, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import IPAddressType
@@ -498,6 +499,16 @@ class Device(cnaas_nms.db.base.Base):
                 errors.append("Unknown attribute '{}' for device".format(k))
 
         return data, errors
+
+    @classmethod
+    def nornir_groups_to_devicetype(cls, groups: List[NornirGroup]) -> DeviceType:
+        """Parse list of groups from nornir (task.host.groups) and return DeviceType"""
+        devtype: DeviceType = DeviceType.UNKNOWN
+        # Get the first group that starts with T_ and use that name to determine DeviceType
+        # Eg group name T_DIST -> DeviceType.DIST
+        devtype_name = next(filter(lambda x: x.name.startswith("T_"), groups)).name[2:]
+        devtype = DeviceType[devtype_name]
+        return devtype
 
 
 @event.listens_for(Device, "after_update")

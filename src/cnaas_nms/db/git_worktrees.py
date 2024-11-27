@@ -3,7 +3,6 @@ import shutil
 from typing import Optional, Set
 
 import git.exc
-
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.groups import get_groups_using_branch

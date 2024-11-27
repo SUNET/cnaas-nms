@@ -1,7 +1,6 @@
 from typing import List, Set, Tuple
 
 import git.remote
-
 from git import Repo
 
 

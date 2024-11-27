@@ -30,6 +30,10 @@ interfacedata_model = api.model(
         "redundant_link": fields.Boolean(required=False, example=True),
         "tags": fields.List(fields.String(), required=False, description="List of tags", example=["tag1", "tag2"]),
         "cli_append_str": fields.String(required=False),
+        "patch_position": fields.String(
+            required=False,
+            description="Patch Position",
+        ),
     },
 )
 
@@ -269,6 +273,13 @@ class InterfaceApi(Resource):
                             else:
                                 errors.append(
                                     "cli_append_str must be a string, got: {}".format(if_dict["data"]["cli_append_str"])
+                                )
+                        if "patch_postion" in if_dict["data"]:
+                            if isinstance(if_dict["data"]["patch_postion"], str):
+                                intfdata["patch_postion"] = if_dict["data"]["patch_postion"]
+                            else:
+                                errors.append(
+                                    "patch_postion must be a string, got: {}".format(if_dict["data"]["patch_postion"])
                                 )
                     elif "data" in if_dict and not if_dict["data"]:
                         intfdata: None = None  # type: ignore [no-redef]

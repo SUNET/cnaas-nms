@@ -562,7 +562,7 @@ def init_access_device_step1(
                     "secondary_mgmt_gw": secondary_mgmt_gw_ipif.ip,
                 }
             )
-        device_variables = populate_device_vars(session, dev, new_hostname, DeviceType.ACCESS)
+        device_variables = populate_device_vars(None, session, dev, new_hostname, DeviceType.ACCESS)
         device_variables = {**device_variables, **mgmt_variables}
         # Update device state
         old_hostname = dev.hostname
@@ -747,7 +747,7 @@ def init_fabric_device_step1(
             "infra_ip": str(infra_ip),
         }
 
-        device_variables = populate_device_vars(session, dev, new_hostname, devtype)
+        device_variables = populate_device_vars(None, session, dev, new_hostname, devtype)
         device_variables = {**device_variables, **mgmt_variables}
         # Update device state
         dev.hostname = new_hostname

@@ -368,6 +368,7 @@ def populate_device_vars(
         if (
             "unmanaged_config_sections" in mapping[devtype.name]
             and type(mapping[devtype.name]["unmanaged_config_sections"]) is list
+            and task
         ):
             task.host.open_connection("napalm", configuration=task.nornir.config)
             res = task.run(task=napalm_get, getters=["config"])

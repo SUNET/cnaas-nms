@@ -1,3 +1,4 @@
+import datetime
 import os
 from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import Any, List, Optional, Union
@@ -11,7 +12,6 @@ from nornir.core.task import MultiResult, Result
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
-from sqlalchemy.sql import func
 
 import cnaas_nms.db.helper
 import cnaas_nms.devicehandler.get
@@ -74,9 +74,9 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             task=ztp_device_cert, job_id=job_id, new_hostname=task.host.name, management_ip=device_variables["mgmt_ip"]
         )
     except NornirSubTaskError as e:
-        copy_res: MultiResult | None = next(iter([res for res in e.result if res.name == "arista_copy_cert"]), None)
+        copy_res: Optional[MultiResult] = next(iter([res for res in e.result if res.name == "arista_copy_cert"]), None)
         if copy_res:
-            nm_res: Result | None = next(
+            nm_res: Optional[Result] = next(
                 iter([sres for sres in copy_res if sres.name == "netmiko_file_transfer"]), None
             )
             if nm_res and isinstance(nm_res.exception, NMReadTimeout):
@@ -361,7 +361,7 @@ def init_mlag_peer_only(
     """Try to initialize second MLAG switch if first succeeded but second failed"""
     logger = get_logger()
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+        dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
         if not dev:
             raise ValueError(f"No device with id {device_id} found")
         if dev.state != DeviceState.MANAGED:
@@ -880,7 +880,7 @@ def init_device_step2(
         set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None
-        dev.last_seen = func.now()  # type: ignore
+        dev.last_seen = datetime.datetime.utcnow()  # type: ignore
 
     # Plugin hook: new managed device
     # Send: hostname , device type , serial , platform , vendor , model , os version
@@ -918,13 +918,14 @@ def schedule_discover_device(ztp_mac: str, dhcp_ip: str, iteration: int, schedul
 
 def set_hostname_task(task, new_hostname: str):
     local_repo_path = app_settings.TEMPLATES_LOCAL
-    # template_vars = {}  # host is already set by nornir
+    template_vars: dict[Any, Any] = {}  # host is already set by nornir
     r = task.run(
         task=template_file,
         name="Generate hostname config",
         template="hostname.j2",
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
         path=f"{local_repo_path}/{task.host.platform}",
+        **template_vars,
     )
     task.host["config"] = r.result
     task.run(
@@ -940,7 +941,7 @@ def set_hostname_task(task, new_hostname: str):
 def discover_device(ztp_mac: str, dhcp_ip: str, iteration: int, job_id: Optional[int] = None, scheduled_by: str = ""):
     logger = get_logger()
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.ztp_mac == ztp_mac).one_or_none()
+        dev: Optional[Device] = session.query(Device).filter(Device.ztp_mac == ztp_mac).one_or_none()
         if not dev:
             raise ValueError("Device with ztp_mac {} not found".format(ztp_mac))
         if dev.state != DeviceState.DHCP_BOOT:
@@ -970,7 +971,7 @@ def discover_device(ztp_mac: str, dhcp_ip: str, iteration: int, job_id: Optional
             dev.model = facts["model"][:64]
             dev.os_version = facts["os_version"][:64]
             dev.state = DeviceState.DISCOVERED
-            dev.last_seen = func.now()  # type: ignore
+            dev.last_seen = datetime.datetime.utcnow()  # type: ignore
             new_hostname = dev.hostname
             logger.info(
                 f"Device with ztp_mac {ztp_mac} successfully scanned"

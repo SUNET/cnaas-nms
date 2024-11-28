@@ -550,7 +550,7 @@ def recursive_filter_yamldata(
 
 def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        dev: Device | None = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             return settings
         if dev.device_type != DeviceType.DIST:
@@ -934,7 +934,7 @@ def rebuild_settings_cache() -> None:
                 continue
             if not Device.valid_hostname(hostname):
                 continue
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if dev is None or dev.device_type == DeviceType.UNKNOWN:
                 logger.warning(f"Device {hostname} specified in settings/devices but it was not found in database")
                 continue

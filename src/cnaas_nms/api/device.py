@@ -275,7 +275,7 @@ class DeviceByIdApi(Resource):
                 return empty_result(status="error", data="Argument factory_default must be boolean"), 400
 
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
             try:
@@ -307,12 +307,12 @@ class DeviceByIdApi(Resource):
         """Modify device from ID"""
         json_data = request.get_json()
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
-            dev_prev_state: DeviceState = dev.state
+            dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
 
             if not dev:
                 return empty_result(status="error", data=f"No device with id {device_id}"), 404
 
+            dev_prev_state: DeviceState = dev.state
             errors = dev.device_update(**json_data)
             if errors:
                 return empty_result(status="error", data=errors), 400
@@ -373,7 +373,7 @@ class DeviceApi(Resource):
         if errors != []:
             return empty_result(status="error", data=errors), 400
         with sqla_session() as session:  # type: ignore
-            instance: Device = session.query(Device).filter(Device.hostname == data["hostname"]).one_or_none()
+            instance: Device | None = session.query(Device).filter(Device.hostname == data["hostname"]).one_or_none()
             if instance:
                 errors.append("Device already exists")
                 return empty_result(status="error", data=errors), 400
@@ -435,7 +435,7 @@ class DeviceInitApi(Resource):
         # If device init is already in progress, reschedule a new step2 (connectivity check)
         # instead of trying to restart initialization
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
             if (
                 dev
                 and dev.state == DeviceState.INIT
@@ -809,7 +809,7 @@ class DeviceUpdateFactsApi(Resource):
             if not Device.valid_hostname(hostname):
                 return empty_result(status="error", data=f"Hostname '{hostname}' is not a valid hostname"), 400
             with sqla_session() as session:  # type: ignore
-                dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+                dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if not dev or (dev.state != DeviceState.MANAGED and dev.state != DeviceState.UNMANAGED):
                     return (
                         empty_result(status="error", data=f"Hostname '{hostname}' not found or is in invalid state"),
@@ -850,7 +850,7 @@ class DeviceUpdateInterfacesApi(Resource):
             if not Device.valid_hostname(hostname):
                 return empty_result(status="error", data=f"Hostname '{hostname}' is not a valid hostname"), 400
             with sqla_session() as session:  # type: ignore
-                dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+                dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if not dev or (dev.state != DeviceState.MANAGED and dev.state != DeviceState.UNMANAGED):
                     return (
                         empty_result(status="error", data=f"Hostname '{hostname}' not found or is in invalid state"),
@@ -959,7 +959,7 @@ class DeviceRunningConfigApi(Resource):
             return empty_result(status="error", data="Invalid hostname specified"), 400
 
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
 

@@ -95,7 +95,7 @@ class LinknetsApi(Resource):
         if not Device.valid_hostname(hostname):
             raise ValueError("Invalid hostname: {}".format(hostname))
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 raise ValueError("Hostname {} not found in database")
             # Allow pre-provisioning of linknet to device that is not yet
@@ -144,11 +144,15 @@ class LinknetsApi(Resource):
             return empty_result(status="error", data=errors), 400
 
         with sqla_session() as session:  # type: ignore
-            dev_a: Device = session.query(Device).filter(Device.hostname == json_data["device_a"]).one_or_none()
+            dev_a: Optional[Device] = (
+                session.query(Device).filter(Device.hostname == json_data["device_a"]).one_or_none()
+            )
             if not dev_a:
                 return empty_result(status="error", data="Hostname '{}' not found".format(json_data["device_a"])), 500
 
-            dev_b: Device = session.query(Device).filter(Device.hostname == json_data["device_b"]).one_or_none()
+            dev_b: Optional[Device] = (
+                session.query(Device).filter(Device.hostname == json_data["device_b"]).one_or_none()
+            )
             if not dev_b:
                 return empty_result(status="error", data="Hostname '{}' not found".format(json_data["device_b"])), 500
 
@@ -196,7 +200,7 @@ class LinknetsApi(Resource):
             return empty_result(status="error", data=errors), 400
 
         with sqla_session() as session:  # type: ignore
-            cur_linknet: Linknet = session.query(Linknet).filter(Linknet.id == json_data["id"]).one_or_none()
+            cur_linknet: Optional[Linknet] = session.query(Linknet).filter(Linknet.id == json_data["id"]).one_or_none()
             if not cur_linknet:
                 return empty_result(status="error", data="No such linknet found in database"), 404
             cur_linknet.device_a.synchronized = False
@@ -226,7 +230,7 @@ class LinknetByIdApi(Resource):
     def delete(self, linknet_id):
         """Remove a linknet"""
         with sqla_session() as session:  # type: ignore
-            instance: Linknet = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
+            instance: Optional[Linknet] = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
                 add_sync_event(instance.device_a.hostname, "linknet_deleted", get_identity())
@@ -255,7 +259,7 @@ class LinknetByIdApi(Resource):
             return empty_result(status="error", data=errors), 400
 
         with sqla_session() as session:  # type: ignore
-            instance: Linknet = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
+            instance: Optional[Linknet] = session.query(Linknet).filter(Linknet.id == linknet_id).one_or_none()
             if instance:
                 try:
                     validate_data = {**instance.as_dict(), **json_data}

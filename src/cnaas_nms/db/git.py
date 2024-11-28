@@ -107,7 +107,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "
                 result = _refresh_repo_task_settings(job_id=job_id)
             else:
                 raise ValueError("Invalid repository")
-            job.finish_time = datetime.datetime.now()
+            job.finish_time = datetime.datetime.utcnow()
             job.status = JobStatus.FINISHED
             job.result = {"message": result, "repository": repo_type.name}
             try:
@@ -124,7 +124,7 @@ def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "
             return result
         except Exception as e:
             logger.exception("Exception while scheduling job for refresh repo")
-            job.finish_time = datetime.datetime.now()
+            job.finish_time = datetime.datetime.utcnow()
             job.status = JobStatus.EXCEPTION
             job.result = {"error": str(e), "repository": repo_type.name}
             try:
@@ -224,12 +224,12 @@ def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
     logger.debug(
         "Devices to be marked unsynced after repo refresh: {}".format((", ".join(updated_hostnames)) or "None")
     )
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         devtype: DeviceType
         for devtype in updated_devtypes:
             Device.set_devtype_syncstatus(session, devtype, ret, "settings", job_id=job_id)
         for hostname in updated_hostnames:
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if dev:
                 dev.synchronized = False
                 add_sync_event(hostname, "refresh_settings", ret, job_id)
@@ -251,7 +251,7 @@ def _refresh_repo_task_templates(job_id: Optional[int] = None) -> str:
     logger.debug(
         "Devicestypes to be marked unsynced after repo refresh: {}".format((", ".join(updated_list)) or "None")
     )
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         devtype: DeviceType
         for devtype, platform in updated_devtypes:
             Device.set_devtype_syncstatus(session, devtype, ret, "templates", platform, job_id)

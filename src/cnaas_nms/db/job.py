@@ -136,17 +136,17 @@ class Job(cnaas_nms.db.base.Base):
         except Exception:  # noqa: S110
             pass
 
-    def finish_exception(self, exc: Exception, traceback: str):
-        logger.warning("Job {} finished with exception: {}".format(self.id, str(exc)))
+    def finish_exception(self, e: Exception, traceback: str):
+        logger.warning("Job {} finished with exception: {}".format(self.id, str(e)))
         self.finish_time = datetime.datetime.utcnow()  # type: ignore
         self.status = JobStatus.EXCEPTION
         try:
             self.exception = json.dumps(
-                {"message": str(exc), "type": type(exc).__name__, "args": exc.args, "traceback": traceback},
+                {"message": str(e), "type": type(e).__name__, "args": e.args, "traceback": traceback},
                 default=json_dumper,
             )
-        except Exception as e:
-            errmsg = "Unable to serialize exception or traceback: {}".format(str(e))
+        except Exception as err:
+            errmsg = "Unable to serialize exception or traceback: {}".format(str(err))
             logger.exception(errmsg)
             self.exception = {"error": errmsg}
         try:
@@ -154,7 +154,7 @@ class Job(cnaas_nms.db.base.Base):
                 {
                     "job_id": self.id,
                     "status": "EXCEPTION",
-                    "exception": str(exc),
+                    "exception": str(e),
                 }
             )
             add_event(json_data=json_data, event_type="update", update_type="job")

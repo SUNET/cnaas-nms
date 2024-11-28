@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 import signal
+from typing import Optional
 
 import coverage
 
@@ -54,8 +55,9 @@ def pre_schedule_checks(scheduler, kwargs):
     if not check_ok:
         logger.debug(message)
         with sqla_session() as session:  # type: ignore
-            job_entry: Job = session.query(Job).filter(Job.id == kwargs["job_id"]).one_or_none()
-            job_entry.finish_abort(message)
+            job_entry: Optional[Job] = session.query(Job).filter(Job.id == kwargs["job_id"]).one_or_none()
+            if job_entry:
+                job_entry.finish_abort(message)
 
     return check_ok
 

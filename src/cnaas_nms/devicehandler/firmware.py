@@ -126,7 +126,9 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
 
     try:
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
+            if not dev:
+                raise Exception("Could not find a device with hostname {}".format(task.host.name))
             device_type = dev.device_type
 
         if device_type == DeviceType.ACCESS:
@@ -377,7 +379,7 @@ def device_upgrade(
     # Make sure we only upgrade Arista access switches
     for device in device_list:
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.hostname == device).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == device).one_or_none()
             if not dev:
                 raise Exception("Could not find device: {}".format(device))
             if dev.platform != "eos":

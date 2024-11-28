@@ -135,10 +135,14 @@ class JobByIdApi(Resource):
             elif job_status == JobStatus.RUNNING:
                 with sqla_session() as session:  # type: ignore
                     job = session.query(Job).filter(Job.id == job_id).one_or_none()
+                    if not job:
+                        return empty_result(status="error", data="No job with id {} found".format(job_id)), 400
                     job.status = JobStatus.ABORTING
 
             with sqla_session() as session:  # type: ignore
                 job = session.query(Job).filter(Job.id == job_id).one_or_none()
+                if not job:
+                    return empty_result(status="error", data="No job with id {} found".format(job_id)), 400
                 return empty_result(data={"jobs": [job.as_dict()]})
         else:
             return empty_result(status="error", data="Unknown action: {}".format(action)), 400

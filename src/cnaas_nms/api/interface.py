@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
@@ -96,7 +96,7 @@ class InterfaceApi(Resource):
         errors = []
         device_settings = None
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
 
@@ -106,7 +106,7 @@ class InterfaceApi(Resource):
                     if not isinstance(if_dict, dict):
                         errors.append("Each interface must have a dict with data to update")
                         continue
-                    intf: Interface = (
+                    intf: Optional[Interface] = (
                         session.query(Interface)
                         .filter(Interface.device == dev)
                         .filter(Interface.name == if_name)
@@ -142,7 +142,7 @@ class InterfaceApi(Resource):
                         if not device_settings:
                             device_settings, _ = get_settings(hostname, dev.device_type)
                         if "vxlan" in if_dict["data"]:
-                            if if_dict["data"]["vxlan"] in device_settings["vxlans"]:
+                            if intfdata and if_dict["data"]["vxlan"] in device_settings["vxlans"]:
                                 intfdata["vxlan"] = if_dict["data"]["vxlan"]
                             else:
                                 errors.append(
@@ -271,7 +271,7 @@ class InterfaceApi(Resource):
                                     "cli_append_str must be a string, got: {}".format(if_dict["data"]["cli_append_str"])
                                 )
                     elif "data" in if_dict and not if_dict["data"]:
-                        intfdata = {}
+                        intfdata: None = None  # type: ignore [no-redef]
 
                     if intfdata != intfdata_original:
                         intf.data = intfdata

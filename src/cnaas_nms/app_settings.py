@@ -29,9 +29,9 @@ class AppSettings(BaseSettings):
     USERNAME_MANAGED: str = "admin"
     PASSWORD_MANAGED: str = "abc123abc123"
     TEMPLATES_REMOTE: str = "/opt/git/cnaas-templates-origin.git"
-    TEMPLATES_LOCAL: str = "/opt/git/cnaas-templates"
+    TEMPLATES_LOCAL: str = "/opt/cnaas/templates"
     SETTINGS_REMOTE: str = "/opt/git/cnaas-settings-origin.git"
-    SETTINGS_LOCAL: str = "/opt/git/cnaas-settings"
+    SETTINGS_LOCAL: str = "/opt/cnaas/settings"
 
 
 class ApiSettings(BaseSettings):

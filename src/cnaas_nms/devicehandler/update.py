@@ -126,7 +126,7 @@ def update_interfacedb(
         List of interfaces that was added to DB
     """
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise ValueError(f"Hostname {hostname} not found in database")
         if dev.state != DeviceState.MANAGED:
@@ -144,7 +144,7 @@ def update_interfacedb(
 
 def reset_interfacedb(hostname: str):
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise ValueError(f"Hostname {hostname} not found in database")
 
@@ -176,7 +176,7 @@ def set_facts(dev: Device, facts: dict) -> dict:
 def update_facts(hostname: str, job_id: Optional[int] = None, scheduled_by: str = ""):
     logger = get_logger()
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise ValueError("Device with hostname {} not found".format(hostname))
         if not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):

@@ -145,7 +145,8 @@ class Scheduler(object, metaclass=SingletonType):
 
         with sqla_session() as session:  # type: ignore
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
-            job.finish_abort(message=abort_message)
+            if job:
+                job.finish_abort(message=abort_message)
 
     def add_onetime_job(
         self, func: Union[str, FunctionType], when: Optional[int] = None, scheduled_by: str = "", **kwargs

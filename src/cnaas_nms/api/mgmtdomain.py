@@ -100,7 +100,9 @@ class MgmtdomainByIdApi(Resource):
     def delete(self, mgmtdomain_id):
         """Remove management domain"""
         with sqla_session() as session:  # type: ignore
-            instance: Mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+            instance: Optional[Mgmtdomain] = (
+                session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+            )
             if instance:
                 instance.device_a.synchronized = False
                 add_sync_event(instance.device_a.hostname, "mgmtdomain_deleted", get_identity())
@@ -127,7 +129,9 @@ class MgmtdomainByIdApi(Resource):
             return empty_result("error", errors), 400
 
         with sqla_session() as session:  # type: ignore
-            instance: Mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+            instance: Optional[Mgmtdomain] = (
+                session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+            )
             if instance:
                 changed: bool = update_sqla_object(instance, json_data)
                 if changed:
@@ -171,7 +175,9 @@ class MgmtdomainsApi(Resource):
                 if not Device.valid_hostname(hostname_a):
                     errors.append(f"Invalid hostname for device_a: {hostname_a}")
                 else:
-                    device_a: Device = session.query(Device).filter(Device.hostname == hostname_a).one_or_none()
+                    device_a: Optional[Device] = (
+                        session.query(Device).filter(Device.hostname == hostname_a).one_or_none()
+                    )
                     if not device_a:
                         errors.append(f"Device with hostname {hostname_a} not found")
                     else:
@@ -181,7 +187,9 @@ class MgmtdomainsApi(Resource):
                 if not Device.valid_hostname(hostname_b):
                     errors.append(f"Invalid hostname for device_b: {hostname_b}")
                 else:
-                    device_b: Device = session.query(Device).filter(Device.hostname == hostname_b).one_or_none()
+                    device_b: Optional[Device] = (
+                        session.query(Device).filter(Device.hostname == hostname_b).one_or_none()
+                    )
                     if not device_b:
                         errors.append(f"Device with hostname {hostname_b} not found")
                     else:
@@ -217,10 +225,10 @@ class MgmtdomainsApi(Resource):
                     else:
                         return empty_result("error", "Integrity error: {}".format(e)), 400
 
-                device_a.synchronized = False
-                add_sync_event(device_a.hostname, "mgmtdomain_created", get_identity())
-                device_b.synchronized = False
-                add_sync_event(device_b.hostname, "mgmtdomain_created", get_identity())
+                device_a.synchronized = False  # type: ignore[union-attr]
+                add_sync_event(device_a.hostname, "mgmtdomain_created", get_identity())  # type: ignore[union-attr]
+                device_b.synchronized = False  # type: ignore[union-attr]
+                add_sync_event(device_b.hostname, "mgmtdomain_created", get_identity())  # type: ignore[union-attr]
                 return empty_result(status="success", data={"added_mgmtdomain": new_mgmtd.as_dict()}), 200
             else:
                 errors.append(

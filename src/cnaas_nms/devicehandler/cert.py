@@ -86,7 +86,9 @@ def renew_cert_task(task, job_id: str) -> str:
     logger = get_logger()
 
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
+        if not dev:
+            raise Exception("Device with hostname {} not found".format(task.host.name))
         ip = dev.management_ip
         if not ip:
             raise Exception("Device {} has no management_ip".format(task.host.name))
@@ -131,7 +133,7 @@ def renew_cert(
     # Make sure we only attempt supported devices
     for device in device_list:
         with sqla_session() as session:  # type: ignore
-            dev: Device = session.query(Device).filter(Device.hostname == device).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == device).one_or_none()
             if not dev:
                 raise Exception("Could not find device: {}".format(device))
             if dev.platform not in supported_platforms:

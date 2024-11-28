@@ -55,7 +55,7 @@ def device_erase(
 ) -> NornirJobResult:
     logger = get_logger()
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+        dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
         if dev:
             hostname = dev.hostname
             device_type = dev.device_type
@@ -92,6 +92,8 @@ def device_erase(
     if failed_hosts == []:
         with sqla_session() as session:  # type: ignore
             dev = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if not dev:
+                raise Exception("Could not find a device with ID {}".format(device_id))
             remove_sync_events(dev.hostname)
             try:
                 for nei in dev.get_neighbors(session):

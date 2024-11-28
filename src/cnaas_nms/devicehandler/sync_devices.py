@@ -1096,7 +1096,7 @@ def apply_config(
     logger = get_logger()
 
     with sqla_session() as session:  # type: ignore
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise Exception("Device {} not found".format(hostname))
         elif not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
@@ -1113,6 +1113,8 @@ def apply_config(
         if not dry_run:
             with sqla_session() as session:  # type: ignore
                 dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+                if not dev:
+                    raise Exception("Device {} not found".format(hostname))
                 dev.state = DeviceState.UNMANAGED
                 dev.synchronized = False
                 add_sync_event(hostname, "apply_config", scheduled_by, job_id)

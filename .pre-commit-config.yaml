@@ -9,7 +9,7 @@ repos:
     rev: v0.6.1
     hooks:
       - id: ruff
-        args: [ --fix, --exit-non-zero-on-fix, --show-fixes ]
+        args: [ --fix, --exit-non-zero-on-fix, --show-fixes, --line-length=120 ]
         exclude: (alembic/.*)
   - repo: local
     hooks:

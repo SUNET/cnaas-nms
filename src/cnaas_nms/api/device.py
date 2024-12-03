@@ -44,32 +44,19 @@ from cnaas_nms.version import __api_version__
 
 logger = get_logger()
 
-
-device_api = Namespace(
-    "device", description="API for handling a single device", prefix="/api/{}".format(__api_version__)
-)
+device_api = Namespace("device", description="API for handling a single device", prefix="/api/{}".format(__api_version__))
 devices_api = Namespace("devices", description="API for handling devices", prefix="/api/{}".format(__api_version__))
 device_init_api = Namespace("device_init", description="API for init devices", prefix="/api/{}".format(__api_version__))
-device_initcheck_api = Namespace(
-    "device_initcheck", description="API for init check of devices", prefix="/api/{}".format(__api_version__)
-)
-device_syncto_api = Namespace(
-    "device_syncto", description="API to sync devices", prefix="/api/{}".format(__api_version__)
-)
-device_discover_api = Namespace(
-    "device_discover", description="API to discover devices", prefix="/api/{}".format(__api_version__)
-)
-device_update_facts_api = Namespace(
-    "device_update_facts", description="API to update facts about devices", prefix="/api/{}".format(__api_version__)
-)
+device_initcheck_api = Namespace("device_initcheck", description="API for init check of devices", prefix="/api/{}".format(__api_version__))
+device_syncto_api = Namespace("device_syncto", description="API to sync devices", prefix="/api/{}".format(__api_version__))
+device_discover_api = Namespace("device_discover", description="API to discover devices", prefix="/api/{}".format(__api_version__))
+device_update_facts_api = Namespace("device_update_facts", description="API to update facts about devices", prefix="/api/{}".format(__api_version__))
 device_update_interfaces_api = Namespace(
     "device_update_interfaces",
     description="API to update/scan device interfaces",
     prefix="/api/{}".format(__api_version__),
 )
-device_cert_api = Namespace(
-    "device_cert", description="API to handle device certificates", prefix="/api/{}".format(__api_version__)
-)
+device_cert_api = Namespace("device_cert", description="API to handle device certificates", prefix="/api/{}".format(__api_version__))
 device_synchistory_api = Namespace(
     "device_synchistory", description="API to query sync history for devices", prefix="/api/{}".format(__api_version__)
 )
@@ -97,9 +84,7 @@ device_model = device_api.model(
     },
 )
 
-device_init_model = device_init_api.model(
-    "device_init", {"hostname": fields.String(required=False), "device_type": fields.String(required=False)}
-)
+device_init_model = device_init_api.model("device_init", {"hostname": fields.String(required=False), "device_type": fields.String(required=False)})
 
 device_initcheck_model = device_initcheck_api.model(
     "device_initcheck",
@@ -291,9 +276,7 @@ class DeviceByIdApi(Resource):
             except IntegrityError as e:
                 session.rollback()
                 return (
-                    empty_result(
-                        status="error", data="Could not remove device because existing references: {}".format(e)
-                    ),
+                    empty_result(status="error", data="Could not remove device because existing references: {}".format(e)),
                     500,
                 )
             except Exception as e:
@@ -333,11 +316,7 @@ class DeviceByIdApi(Resource):
                     return empty_result(status="error", data=msg), 500
             if "synchronized" in json_data and json_data["synchronized"]:
                 remove_sync_events(dev.hostname)
-            if (
-                "state" in json_data
-                and json_data["state"].upper() == "UNMANAGED"
-                and dev_prev_state == DeviceState.MANAGED
-            ):
+            if "state" in json_data and json_data["state"].upper() == "UNMANAGED" and dev_prev_state == DeviceState.MANAGED:
                 add_sync_event(dev.hostname, "was_unmanaged", by=get_identity())
             session.commit()
             update_device_primary_groups()
@@ -378,11 +357,7 @@ class DeviceApi(Resource):
                 errors.append("Device already exists")
                 return empty_result(status="error", data=errors), 400
             if "platform" not in data or data["platform"] not in supported_platforms:
-                errors.append(
-                    "Device platform not specified or not known (must be any of: {})".format(
-                        ", ".join(supported_platforms)
-                    )
-                )
+                errors.append("Device platform not specified or not known (must be any of: {})".format(", ".join(supported_platforms)))
                 return empty_result(status="error", data=errors), 400
             if data["device_type"] in ["DIST", "CORE"]:
                 if "management_ip" not in data or not data["management_ip"]:
@@ -436,12 +411,7 @@ class DeviceInitApi(Resource):
         # instead of trying to restart initialization
         with sqla_session() as session:  # type: ignore
             dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
-            if (
-                dev
-                and dev.state == DeviceState.INIT
-                and dev.management_ip
-                and dev.device_type is not DeviceType.UNKNOWN
-            ):
+            if dev and dev.state == DeviceState.INIT and dev.management_ip and dev.device_type is not DeviceType.UNKNOWN:
                 scheduler = Scheduler()
                 job_id = scheduler.add_onetime_job(
                     "cnaas_nms.devicehandler.init_device:init_device_step2",
@@ -525,10 +495,7 @@ class DeviceInitApi(Resource):
                         raise ValueError("Invalid hostname specified in neighbor list")
                 parsed_args["neighbors"] = json_data["neighbors"]
             else:
-                raise ValueError(
-                    "Neighbors must be specified as either a list of hostnames,"
-                    "an empty list, or not specified at all"
-                )
+                raise ValueError("Neighbors must be specified as either a list of hostnames," "an empty list, or not specified at all")
         else:
             parsed_args["neighbors"] = None
 
@@ -736,9 +703,7 @@ class DeviceSyncApi(Resource):
         else:
             return empty_result(status="error", data="No devices to synchronize were specified"), 400
         scheduler = Scheduler()
-        job_id = scheduler.add_onetime_job(
-            "cnaas_nms.devicehandler.sync_devices:sync_devices", when=1, scheduled_by=get_identity(), kwargs=kwargs
-        )
+        job_id = scheduler.add_onetime_job("cnaas_nms.devicehandler.sync_devices:sync_devices", when=1, scheduled_by=get_identity(), kwargs=kwargs)
 
         res = empty_result(data=f"Scheduled job to synchronize {what}")
         res["job_id"] = job_id
@@ -821,9 +786,7 @@ class DeviceUpdateFactsApi(Resource):
             return empty_result(status="error", data="No target to be updated was specified"), 400
 
         scheduler = Scheduler()
-        job_id = scheduler.add_onetime_job(
-            "cnaas_nms.devicehandler.update:update_facts", when=1, scheduled_by=get_identity(), kwargs=kwargs
-        )
+        job_id = scheduler.add_onetime_job("cnaas_nms.devicehandler.update:update_facts", when=1, scheduled_by=get_identity(), kwargs=kwargs)
 
         res = empty_result(data=f"Scheduled job to update facts for {hostname}")
         res["job_id"] = job_id
@@ -858,9 +821,7 @@ class DeviceUpdateInterfacesApi(Resource):
                     )
                 if dev.device_type != DeviceType.ACCESS:
                     return (
-                        empty_result(
-                            status="error", data="Only devices of type ACCESS has interface database to update"
-                        ),
+                        empty_result(status="error", data="Only devices of type ACCESS has interface database to update"),
                         400,
                     )
             kwargs["hostname"] = hostname
@@ -879,16 +840,12 @@ class DeviceUpdateInterfacesApi(Resource):
                 dev = session.query(Device).filter(Device.hostname == mlag_peer_hostname).one_or_none()
                 if not dev or (dev.state != DeviceState.MANAGED and dev.state != DeviceState.UNMANAGED):
                     return (
-                        empty_result(
-                            status="error", data=f"Hostname '{mlag_peer_hostname}' not found or is in invalid state"
-                        ),
+                        empty_result(status="error", data=f"Hostname '{mlag_peer_hostname}' not found or is in invalid state"),
                         400,
                     )
                 if dev.device_type != DeviceType.ACCESS:
                     return (
-                        empty_result(
-                            status="error", data="Only devices of type ACCESS has interface database to update"
-                        ),
+                        empty_result(status="error", data="Only devices of type ACCESS has interface database to update"),
                         400,
                     )
             kwargs["mlag_peer_hostname"] = mlag_peer_hostname
@@ -900,9 +857,7 @@ class DeviceUpdateInterfacesApi(Resource):
             kwargs["delete_all"] = True
 
         scheduler = Scheduler()
-        job_id = scheduler.add_onetime_job(
-            "cnaas_nms.devicehandler.update:update_interfacedb", when=1, scheduled_by=get_identity(), kwargs=kwargs
-        )
+        job_id = scheduler.add_onetime_job("cnaas_nms.devicehandler.update:update_interfacedb", when=1, scheduled_by=get_identity(), kwargs=kwargs)
 
         res = empty_result(data=f"Scheduled job to update interfaces for {hostname}")
         res["job_id"] = job_id
@@ -965,9 +920,7 @@ class DeviceRunningConfigApi(Resource):
 
             try:
                 if "interface" in args:
-                    running_config = cnaas_nms.devicehandler.get.get_running_config_interface(
-                        session, hostname, args["interface"]
-                    )
+                    running_config = cnaas_nms.devicehandler.get.get_running_config_interface(session, hostname, args["interface"])
                 else:
                     running_config = cnaas_nms.devicehandler.get.get_running_config(hostname)
             except Exception as e:
@@ -1158,9 +1111,7 @@ class DeviceCertApi(Resource):
 
         if action == "RENEW":
             scheduler = Scheduler()
-            job_id = scheduler.add_onetime_job(
-                "cnaas_nms.devicehandler.cert:renew_cert", when=1, scheduled_by=get_identity(), kwargs=kwargs
-            )
+            job_id = scheduler.add_onetime_job("cnaas_nms.devicehandler.cert:renew_cert", when=1, scheduled_by=get_identity(), kwargs=kwargs)
 
             res = empty_result(data="Scheduled job to renew certificates")
             res["job_id"] = job_id
@@ -1254,9 +1205,7 @@ class DeviceSyncHistoryApi(Resource):
         except ValidationError as e:
             return empty_result("error", parse_pydantic_error(e, NewSyncEventModel, request.get_json())), 400
         with sqla_session() as session:  # type: ignore
-            device_instance = (
-                session.query(Device).filter(Device.hostname == validated_json_data["hostname"]).one_or_none()
-            )
+            device_instance = session.query(Device).filter(Device.hostname == validated_json_data["hostname"]).one_or_none()
             if not device_instance:
                 return empty_result("error", "Device not found"), 400
         try:

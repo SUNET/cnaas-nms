@@ -6,25 +6,57 @@ line_start_remove = r"^-[ ]*"
 DEFAULT_LINE_SCORE = 1.0
 # Stops looking after first match. Only searches a single line at a time.
 change_patterns: List[dict[str, str | float | re.Pattern]] = [
-    {"name": "description", "regex": re.compile(str(line_start + r"description")), "modifier": 0.0},
+    {
+        "name": "description",
+        "regex": re.compile(str(line_start + r"description")),
+        "modifier": 0.0,
+    },
     {"name": "name", "regex": re.compile(str(line_start + r"name")), "modifier": 0.0},
     {"name": "comment", "regex": re.compile(str(line_start + r"!")), "modifier": 0.0},
     {"name": "dot1x", "regex": re.compile(str(line_start + r"dot1x")), "modifier": 0.5},
     {"name": "ntp", "regex": re.compile(str(line_start + r"ntp")), "modifier": 0.5},
     {"name": "snmp", "regex": re.compile(str(line_start + r"snmp")), "modifier": 0.5},
     {"name": "vrf", "regex": re.compile(str(line_start + r"vrf")), "modifier": 5.0},
-    {"name": "removed ip address", "regex": re.compile(str(line_start_remove + r".*(ip address).*")), "modifier": 10.0},
-    {"name": "removed vlan", "regex": re.compile(str(line_start_remove + r"vlan")), "modifier": 10.0},
-    {"name": "spanning-tree mode", "regex": re.compile(str(line_start + r"spanning-tree mode")), "modifier": 50.0},
-    {"name": "spanning-tree", "regex": re.compile(str(line_start + r"spanning-tree")), "modifier": 5.0},
+    {
+        "name": "removed ip address",
+        "regex": re.compile(str(line_start_remove + r".*(ip address).*")),
+        "modifier": 10.0,
+    },
+    {
+        "name": "removed vlan",
+        "regex": re.compile(str(line_start_remove + r"vlan")),
+        "modifier": 10.0,
+    },
+    {
+        "name": "spanning-tree mode",
+        "regex": re.compile(str(line_start + r"spanning-tree mode")),
+        "modifier": 50.0,
+    },
+    {
+        "name": "spanning-tree",
+        "regex": re.compile(str(line_start + r"spanning-tree")),
+        "modifier": 5.0,
+    },
     {
         "name": "removed routing",
         "regex": re.compile(str(line_start_remove + r".*(routing|router).*")),
         "modifier": 50.0,
     },
-    {"name": "removed neighbor", "regex": re.compile(str(line_start_remove + r"neighbor")), "modifier": 10.0},
-    {"name": "address-family", "regex": re.compile(str(line_start + r"address-family")), "modifier": 10.0},
-    {"name": "redistribute", "regex": re.compile(str(line_start + r"redistribute")), "modifier": 10.0},
+    {
+        "name": "removed neighbor",
+        "regex": re.compile(str(line_start_remove + r"neighbor")),
+        "modifier": 10.0,
+    },
+    {
+        "name": "address-family",
+        "regex": re.compile(str(line_start + r"address-family")),
+        "modifier": 10.0,
+    },
+    {
+        "name": "redistribute",
+        "regex": re.compile(str(line_start + r"redistribute")),
+        "modifier": 10.0,
+    },
 ]
 # TODO: multiline patterns / block-aware config
 
@@ -32,7 +64,7 @@ change_patterns: List[dict[str, str | float | re.Pattern]] = [
 def calculate_line_score(line: str) -> float:
     for pattern in change_patterns:
         if re.match(str(pattern["regex"]), line):
-            return float(1) * float(str(pattern["modifier"]))
+            return float(1) * pattern["modifier"]  # type: ignore
     return DEFAULT_LINE_SCORE
 
 

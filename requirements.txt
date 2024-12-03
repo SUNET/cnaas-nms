@@ -28,7 +28,6 @@ redis==5.0.8
 redis-lru==0.1.0
 Sphinx==8.0.2
 SQLAlchemy==2.0.32
-sqlalchemy-stubs==0.4
 SQLAlchemy-Utils==0.41.2
 pydantic==2.8.2
 Werkzeug==3.0.3
@@ -37,7 +36,7 @@ pydantic_settings==2.4.0
 Authlib==1.3.1
 python-jose==3.3.0
 portalocker==2.8.2
-requests==2.31.0
+requests==2.32.3
 PyYAML==5.3.1
 pytz==2023.3.post1
 types-pytz==2024.2.0.20241003

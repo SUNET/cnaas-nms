@@ -373,7 +373,7 @@ class DeviceApi(Resource):
         if errors != []:
             return empty_result(status="error", data=errors), 400
         with sqla_session() as session:  # type: ignore
-            instance: Device | None = session.query(Device).filter(Device.hostname == data["hostname"]).one_or_none()
+            instance: Optional[Device] = session.query(Device).filter(Device.hostname == data["hostname"]).one_or_none()
             if instance:
                 errors.append("Device already exists")
                 return empty_result(status="error", data=errors), 400

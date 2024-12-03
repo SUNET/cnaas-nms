@@ -92,7 +92,7 @@ def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
 
 def get_mlag_vars(session, dev: Device) -> dict:
     ret: dict[str, Any] = {"mlag_peer": False, "mlag_peer_hostname": None, "mlag_peer_low": None}
-    mlag_peer: Device | None = dev.get_mlag_peer(session)
+    mlag_peer: Optional[Device] = dev.get_mlag_peer(session)
     if not mlag_peer:
         return ret
     ret["mlag_peer"] = True

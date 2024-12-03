@@ -352,7 +352,11 @@ def populate_device_vars(task, session, dev: Device, ztp_hostname: Optional[str]
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, "r") as f:
         mapping = yaml.safe_load(f)
-        if "unmanaged_config_sections" in mapping[devtype.name] and type(mapping[devtype.name]["unmanaged_config_sections"]) is list:
+        if (
+            "unmanaged_config_sections" in mapping[devtype.name]
+            and type(mapping[devtype.name]["unmanaged_config_sections"]) is list
+            and task
+        ):
             task.host.open_connection("napalm", configuration=task.nornir.config)
             res = task.run(task=napalm_get, getters=["config"])
             task.host.close_connection("napalm")

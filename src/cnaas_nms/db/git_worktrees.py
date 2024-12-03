@@ -56,7 +56,11 @@ def refresh_existing_templates_worktrees(job_id: Optional[int], group_settings: 
                     add_sync_event(hostname, "refresh_templates", commit_by, job_id)
                     updated_hostnames.add(hostname)
     if updated_hostnames:
-        logger.debug("Devices marked as unsynchronized because git worktree branches were refreshed: {}".format(", ".join(updated_hostnames)))
+        logger.debug(
+            "Devices marked as unsynchronized because git worktree branches were refreshed: {}".format(
+                ", ".join(updated_hostnames)
+            )
+        )
 
     local_repo = Repo(app_settings.TEMPLATES_LOCAL)
     local_repo.git.worktree("prune")
@@ -75,7 +79,9 @@ def refresh_templates_worktree(branch: str):
     try:
         local_repo = Repo(app_settings.TEMPLATES_LOCAL)
     except git.exc.InvalidGitRepositoryError:
-        logger.warning("Could not add worktree for templates branch {}: templates repository is not initialized".format(branch))
+        logger.warning(
+            "Could not add worktree for templates branch {}: templates repository is not initialized".format(branch)
+        )
         return
     if not os.path.isdir("/tmp/worktrees"):
         os.mkdir("/tmp/worktrees")

@@ -17,7 +17,11 @@ change_patterns: List[dict[str, str | float | re.Pattern]] = [
     {"name": "removed vlan", "regex": re.compile(str(line_start_remove + r"vlan")), "modifier": 10.0},
     {"name": "spanning-tree mode", "regex": re.compile(str(line_start + r"spanning-tree mode")), "modifier": 50.0},
     {"name": "spanning-tree", "regex": re.compile(str(line_start + r"spanning-tree")), "modifier": 5.0},
-    {"name": "removed routing", "regex": re.compile(str(line_start_remove + r".*(routing|router).*")), "modifier": 50.0},
+    {
+        "name": "removed routing",
+        "regex": re.compile(str(line_start_remove + r".*(routing|router).*")),
+        "modifier": 50.0,
+    },
     {"name": "removed neighbor", "regex": re.compile(str(line_start_remove + r"neighbor")), "modifier": 10.0},
     {"name": "address-family", "regex": re.compile(str(line_start + r"address-family")), "modifier": 10.0},
     {"name": "redistribute", "regex": re.compile(str(line_start + r"redistribute")), "modifier": 10.0},

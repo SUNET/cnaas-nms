@@ -306,7 +306,9 @@ def check_settings_collisions(unique_vlans: bool = True):
         for mgmtdom in mgmtdoms:
             if mgmtdom.vlan and isinstance(mgmtdom.vlan, int):
                 if unique_vlans and mgmtdom.vlan in mgmt_vlans:
-                    raise VlanConflictError("Management VLAN {} used in multiple management domains".format(mgmtdom.vlan))
+                    raise VlanConflictError(
+                        "Management VLAN {} used in multiple management domains".format(mgmtdom.vlan)
+                    )
                 mgmt_vlans.add(mgmtdom.vlan)
         managed_devices: List[Device] = session.query(Device).filter(Device.state == DeviceState.MANAGED).all()
         for dev in managed_devices:
@@ -358,32 +360,48 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
                 logger.error("VXLAN {} is missing vni".format(vxlan_name))
                 continue
             if vxlan_data["vni"] in global_vnis and global_vnis[vxlan_data["vni"]] != vxlan_name:
-                raise VlanConflictError("VXLAN VNI {} used in VXLAN {} is already used elsewhere".format(vxlan_data["vni"], vxlan_name))
+                raise VlanConflictError(
+                    "VXLAN VNI {} used in VXLAN {} is already used elsewhere".format(vxlan_data["vni"], vxlan_name)
+                )
             elif vxlan_data["vni"] not in global_vnis:
                 global_vnis[vxlan_data["vni"]] = vxlan_name
             # VLAN id checks
             if "vlan_id" not in vxlan_data or not isinstance(vxlan_data["vlan_id"], int):
                 logger.error("VXLAN {} is missing vlan_id".format(vxlan_name))
                 continue
-            if unique_vlans and vxlan_data["vlan_id"] in global_vlans and global_vlans[vxlan_data["vlan_id"]] != vxlan_name:
-                raise VlanConflictError("VLAN id {} used in VXLAN {} is already used elsewhere".format(vxlan_data["vlan_id"], vxlan_name))
+            if (
+                unique_vlans
+                and vxlan_data["vlan_id"] in global_vlans
+                and global_vlans[vxlan_data["vlan_id"]] != vxlan_name
+            ):
+                raise VlanConflictError(
+                    "VLAN id {} used in VXLAN {} is already used elsewhere".format(vxlan_data["vlan_id"], vxlan_name)
+                )
             elif hostname in device_vlan_ids and vxlan_data["vlan_id"] in device_vlan_ids[hostname]:
-                raise VlanConflictError("VLAN id {} used multiple times in device {}".format(vxlan_data["vlan_id"], hostname))
+                raise VlanConflictError(
+                    "VLAN id {} used multiple times in device {}".format(vxlan_data["vlan_id"], hostname)
+                )
             elif hostname in device_vlan_ids:
                 device_vlan_ids[hostname].add(vxlan_data["vlan_id"])
             else:
                 device_vlan_ids[hostname] = {vxlan_data["vlan_id"]}
             if vxlan_data["vlan_id"] in get_internal_vlan_range(settings):
-                raise VlanConflictError("VLAN id {} is overlapping with internal VLAN range".format(vxlan_data["vlan_id"]))
+                raise VlanConflictError(
+                    "VLAN id {} is overlapping with internal VLAN range".format(vxlan_data["vlan_id"])
+                )
             global_vlans[vxlan_data["vlan_id"]] = vxlan_name
             # VLAN name checks
             if "vlan_name" not in vxlan_data or not isinstance(vxlan_data["vlan_name"], str):
                 logger.error("VXLAN {} is missing vlan_name".format(vxlan_name))
                 continue
             if (
-                hostname in device_vlan_names and vxlan_data["vlan_name"] in device_vlan_names[hostname] and hostname in access_hostnames
+                hostname in device_vlan_names
+                and vxlan_data["vlan_name"] in device_vlan_names[hostname]
+                and hostname in access_hostnames
             ):  # only trigger for access switches
-                raise VlanConflictError("VLAN name {} used multiple times in device {}".format(vxlan_data["vlan_name"], hostname))
+                raise VlanConflictError(
+                    "VLAN name {} used multiple times in device {}".format(vxlan_data["vlan_name"], hostname)
+                )
             elif hostname in device_vlan_names:
                 device_vlan_names[hostname].add(vxlan_data["vlan_name"])
             else:
@@ -468,7 +486,9 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str) -
     return filtered_yaml_data
 
 
-def recursive_filter_yamldata_dictionary(data: dict, groups: List[str], hostname: str, recdepth=100) -> Union[List, dict, None]:
+def recursive_filter_yamldata_dictionary(
+    data: dict, groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
     ret_d = {}
     group_match = False
     hostname_match = False
@@ -480,7 +500,9 @@ def recursive_filter_yamldata_dictionary(data: dict, groups: List[str], hostname
             continue
         if key == "groups":
             if not isinstance(value, list):  # Should already be checked by pydantic now
-                raise SettingsSyntaxError("Groups field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data))
+                raise SettingsSyntaxError(
+                    "Groups field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
+                )
             do_filter_group = True
             ret_d[key] = value
             for group in value:
@@ -488,7 +510,9 @@ def recursive_filter_yamldata_dictionary(data: dict, groups: List[str], hostname
                     group_match = True
         elif key == "devices":
             if not isinstance(value, list):  # Should already be checked by pydantic now
-                raise SettingsSyntaxError("Devices field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data))
+                raise SettingsSyntaxError(
+                    "Devices field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
+                )
             do_filter_hostname = True
             ret_d[key] = value
             if hostname in value:
@@ -503,7 +527,9 @@ def recursive_filter_yamldata_dictionary(data: dict, groups: List[str], hostname
         return ret_d
 
 
-def recursive_filter_yamldata_list(data: List, groups: List[str], hostname: str, recdepth=100) -> Union[List, dict, None]:
+def recursive_filter_yamldata_list(
+    data: List, groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
     ret_l = []
     for item in data:
         f_item = recursive_filter_yamldata(item, groups, hostname, recdepth - 1)
@@ -512,7 +538,9 @@ def recursive_filter_yamldata_list(data: List, groups: List[str], hostname: str,
     return ret_l
 
 
-def recursive_filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, recdepth=100) -> Union[List, dict, None]:
+def recursive_filter_yamldata(
+    data: Union[List, dict], groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
     """Filter data and remove dictionary items if they have a key that specifies
     a list of groups, but none of those groups are included in the groups argument.
     Should only be called with yaml.safe_load:ed data.
@@ -753,7 +781,9 @@ def get_settings(
     set_model = set(verified_settings)
     diff_model = set_everything - set_model
     if diff_model:
-        logger.warn("Some configured settings for {} are undefined in model: {}".format(get_type, set_everything - set_model))
+        logger.warn(
+            "Some configured settings for {} are undefined in model: {}".format(get_type, set_everything - set_model)
+        )
     return verified_settings, settings_origin
 
 
@@ -774,7 +804,9 @@ def get_group_settings() -> Tuple[dict, dict]:
     with open(os.path.join(data_dir, "default_groups.yml"), "r") as f_default_settings:
         default_settings: dict = yaml.safe_load(f_default_settings)
 
-    settings, settings_origin = read_settings(local_repo_path, ["global", "groups.yml"], "global", settings, settings_origin)
+    settings, settings_origin = read_settings(
+        local_repo_path, ["global", "groups.yml"], "global", settings, settings_origin
+    )
     settings["groups"] += default_settings["groups"]
     check_settings_syntax(settings, settings_origin)
     return f_groups(**settings).model_dump(), settings_origin

@@ -142,7 +142,7 @@ class InterfaceApi(Resource):
                         if not device_settings:
                             device_settings, _ = get_settings(hostname, dev.device_type)
                         if "vxlan" in if_dict["data"]:
-                            if intfdata and if_dict["data"]["vxlan"] in device_settings["vxlans"]:
+                            if if_dict["data"]["vxlan"] in device_settings["vxlans"]:
                                 intfdata["vxlan"] = if_dict["data"]["vxlan"]
                             else:
                                 errors.append(

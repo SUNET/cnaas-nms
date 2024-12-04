@@ -259,7 +259,7 @@ def device_upgrade_task(
     post_flight: Optional[bool] = False,
     post_waittime: Optional[int] = 0,
     activate: Optional[bool] = False,
-) -> NornirJobResult:
+) -> str:
     # If pre-flight is selected, execute the pre-flight task which
     # will verify the amount of disk space and so on.
     set_thread_data(job_id)
@@ -342,7 +342,7 @@ def device_upgrade_task(
         with redis_session() as db:  # type: ignore
             db.lpush("finished_devices_" + str(job_id), task.host.name)
 
-    return res
+    return "Devices upgraded"
 
 
 @job_wrapper

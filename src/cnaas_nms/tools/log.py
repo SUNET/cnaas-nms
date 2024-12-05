@@ -23,13 +23,13 @@ def get_logger():
                 "[%(asctime)s] %(levelname)s in %(module)s job #{}: %(message)s".format(thread_data.job_id)
             )
             # stdout logging
-            handler = logging.StreamHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
+            stdout_handler = logging.StreamHandler()
+            stdout_handler.setFormatter(formatter)
+            logger.addHandler(stdout_handler)
             # websocket logging
-            handler = WebsocketHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
+            websocket_handler = WebsocketHandler()
+            websocket_handler.setFormatter(formatter)
+            logger.addHandler(websocket_handler)
     elif current_app:
         logger = current_app.logger
     else:
@@ -37,12 +37,12 @@ def get_logger():
         if not logger.handlers:
             formatter = logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
             # stdout logging
-            handler = logging.StreamHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
+            stdout_handler = logging.StreamHandler()
+            stdout_handler.setFormatter(formatter)
+            logger.addHandler(stdout_handler)
             # websocket logging
-            handler = WebsocketHandler()
-            handler.setFormatter(formatter)
-            logger.addHandler(handler)
+            websocket_handler = WebsocketHandler()
+            websocket_handler.setFormatter(formatter)
+            logger.addHandler(websocket_handler)
     logger.setLevel(logging.DEBUG)  # TODO: get from /etc config ?
     return logger

@@ -50,10 +50,12 @@ def device_erase_task(task, hostname: str, job_id: int) -> str:
 
 
 @job_wrapper
-def device_erase(device_id: int = None, job_id: int = None, scheduled_by: Optional[str] = None) -> NornirJobResult:
+def device_erase(
+    device_id: Optional[int] = None, job_id: Optional[int] = None, scheduled_by: str = ""
+) -> NornirJobResult:
     logger = get_logger()
-    with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+    with sqla_session() as session:  # type: ignore
+        dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
         if dev:
             hostname = dev.hostname
             device_type = dev.device_type
@@ -88,8 +90,10 @@ def device_erase(device_id: int = None, job_id: int = None, scheduled_by: Option
         logger.error("Factory default failed")
 
     if failed_hosts == []:
-        with sqla_session() as session:
-            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+        with sqla_session() as session:  # type: ignore
+            dev = session.query(Device).filter(Device.id == device_id).one_or_none()
+            if not dev:
+                raise Exception("Could not find a device with ID {}".format(device_id))
             remove_sync_events(dev.hostname)
             try:
                 for nei in dev.get_neighbors(session):

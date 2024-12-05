@@ -25,6 +25,7 @@ class UpdateTests(unittest.TestCase):
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
 
+    # maybe ar tge type of dict
     def get_linknets(self, session, neighbors_data: Optional[dict] = None, hostname: str = "eosaccess"):
         if not neighbors_data:
             neighbors_data = self.testdata["lldp_data_redundant"]
@@ -38,7 +39,7 @@ class UpdateTests(unittest.TestCase):
         )
 
     def test_update_linknet_eosaccess(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             linknets = self.get_linknets(session)
             for ln in linknets:
                 ln["device_a_id"] = None
@@ -50,7 +51,7 @@ class UpdateTests(unittest.TestCase):
             )
 
     def test_update_linknet_eosaccess_nonredundant(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             linknets = self.get_linknets(session, self.testdata["lldp_data_nonredundant"])
             for ln in linknets:
                 ln["device_a_id"] = None
@@ -62,7 +63,7 @@ class UpdateTests(unittest.TestCase):
             )
 
     def test_update_linknet_wrong_porttype(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             neighbors_data = {
                 "Ethernet2": [{"hostname": "eosdist1", "port": "Ethernet1"}],
                 "Ethernet3": [{"hostname": "eosdist2", "port": "Ethernet1"}],
@@ -79,7 +80,7 @@ class UpdateTests(unittest.TestCase):
             )
 
     def test_pre_init_check_access_redundant(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             linknets = self.get_linknets(session)
             dev: Device = session.query(Device).filter(Device.hostname == "eosaccess").one()
             self.assertListEqual(
@@ -87,13 +88,13 @@ class UpdateTests(unittest.TestCase):
             )
 
     def test_pre_init_check_access_nonredundant(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             linknets = self.get_linknets(session, self.testdata["lldp_data_nonredundant"])
             dev: Device = session.query(Device).filter(Device.hostname == "eosaccess").one()
             self.assertListEqual(pre_init_check_neighbors(session, dev, DeviceType.ACCESS, linknets), ["eosdist1"])
 
     def test_pre_init_check_access_nonredundant_error(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             linknets = self.get_linknets(session, self.testdata["lldp_data_nonredundant_error"])
             dev: Device = session.query(Device).filter(Device.hostname == "eosaccess").one()
             self.assertRaises(

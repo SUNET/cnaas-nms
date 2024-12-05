@@ -88,7 +88,7 @@ class MgmtdomainByIdApi(Resource):
         """Get management domain by ID"""
         result = empty_result()
         result["data"] = {"mgmtdomains": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             instance = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
                 result["data"]["mgmtdomains"].append(instance.as_dict())
@@ -99,8 +99,10 @@ class MgmtdomainByIdApi(Resource):
     @login_required
     def delete(self, mgmtdomain_id):
         """Remove management domain"""
-        with sqla_session() as session:
-            instance: Mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+        with sqla_session() as session:  # type: ignore
+            instance: Optional[Mgmtdomain] = (
+                session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+            )
             if instance:
                 instance.device_a.synchronized = False
                 add_sync_event(instance.device_a.hostname, "mgmtdomain_deleted", get_identity())
@@ -126,8 +128,10 @@ class MgmtdomainByIdApi(Resource):
         if errors:
             return empty_result("error", errors), 400
 
-        with sqla_session() as session:
-            instance: Mgmtdomain = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+        with sqla_session() as session:  # type: ignore
+            instance: Optional[Mgmtdomain] = (
+                session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
+            )
             if instance:
                 changed: bool = update_sqla_object(instance, json_data)
                 if changed:
@@ -148,7 +152,7 @@ class MgmtdomainsApi(Resource):
         """Get all management domains"""
         result = empty_result()
         result["data"] = {"mgmtdomains": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             query = session.query(Mgmtdomain)
             try:
                 query = build_filter(Mgmtdomain, query).limit(limit_results())
@@ -165,13 +169,15 @@ class MgmtdomainsApi(Resource):
         json_data = request.get_json()
         data = {}
         errors = []
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             if "device_a" in json_data:
                 hostname_a = str(json_data["device_a"])
                 if not Device.valid_hostname(hostname_a):
                     errors.append(f"Invalid hostname for device_a: {hostname_a}")
                 else:
-                    device_a: Device = session.query(Device).filter(Device.hostname == hostname_a).one_or_none()
+                    device_a: Optional[Device] = (
+                        session.query(Device).filter(Device.hostname == hostname_a).one_or_none()
+                    )
                     if not device_a:
                         errors.append(f"Device with hostname {hostname_a} not found")
                     else:
@@ -181,7 +187,9 @@ class MgmtdomainsApi(Resource):
                 if not Device.valid_hostname(hostname_b):
                     errors.append(f"Invalid hostname for device_b: {hostname_b}")
                 else:
-                    device_b: Device = session.query(Device).filter(Device.hostname == hostname_b).one_or_none()
+                    device_b: Optional[Device] = (
+                        session.query(Device).filter(Device.hostname == hostname_b).one_or_none()
+                    )
                     if not device_b:
                         errors.append(f"Device with hostname {hostname_b} not found")
                     else:
@@ -212,15 +220,15 @@ class MgmtdomainsApi(Resource):
                     session.flush()
                 except IntegrityError as e:
                     session.rollback()
-                    if "duplicate" in str(e):
+                    if "duplicate" in str(e) and e.orig:
                         return empty_result("error", "Duplicate value: {}".format(e.orig.args[0])), 400
                     else:
                         return empty_result("error", "Integrity error: {}".format(e)), 400
 
-                device_a.synchronized = False
-                add_sync_event(device_a.hostname, "mgmtdomain_created", get_identity())
-                device_b.synchronized = False
-                add_sync_event(device_b.hostname, "mgmtdomain_created", get_identity())
+                device_a.synchronized = False  # type: ignore[union-attr]
+                add_sync_event(device_a.hostname, "mgmtdomain_created", get_identity())  # type: ignore[union-attr]
+                device_b.synchronized = False  # type: ignore[union-attr]
+                add_sync_event(device_b.hostname, "mgmtdomain_created", get_identity())  # type: ignore[union-attr]
                 return empty_result(status="success", data={"added_mgmtdomain": new_mgmtd.as_dict()}), 200
             else:
                 errors.append(

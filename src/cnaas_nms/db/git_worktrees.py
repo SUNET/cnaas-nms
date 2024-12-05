@@ -17,7 +17,7 @@ class WorktreeError(Exception):
     pass
 
 
-def refresh_existing_templates_worktrees(job_id: int, group_settings: dict, device_primary_groups: dict):
+def refresh_existing_templates_worktrees(job_id: Optional[int], group_settings: dict, device_primary_groups: dict):
     """Look for existing worktrees and refresh them"""
     logger = get_logger()
     updated_groups: Set[str] = set()
@@ -45,12 +45,12 @@ def refresh_existing_templates_worktrees(job_id: int, group_settings: dict, devi
 
     # find all devices that are using these branches and mark them as unsynchronized
     updated_hostnames: Set[str] = set()
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         for hostname, primary_group in device_primary_groups.items():
             if hostname in updated_hostnames:
                 continue
             if primary_group in updated_groups:
-                dev: Device = session.query(Device).filter_by(hostname=hostname).one_or_none()
+                dev: Optional[Device] = session.query(Device).filter_by(hostname=hostname).one_or_none()
                 if dev:
                     dev.synchronized = False
                     add_sync_event(hostname, "refresh_templates", commit_by, job_id)

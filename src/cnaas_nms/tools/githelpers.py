@@ -1,14 +1,16 @@
-from typing import List, Set
+from typing import List, Set, Tuple
 
 import git.remote
 from git import Repo
 
 
-def parse_git_changed_files(diff: List[git.remote.FetchInfo], prev_commit: str, local_repo: Repo) -> (str, Set[str]):
+def parse_git_changed_files(
+    diff: List[git.remote.FetchInfo], prev_commit: str, local_repo: Repo
+) -> Tuple[str, Set[str]]:
     ret_msg = ""
     changed_files: Set[str] = set()
     for item in diff:
-        if item.ref.remote_head != local_repo.head.ref.name:
+        if item.ref.remote_head != local_repo.head.ref.name:  # type: ignore[attr-defined]
             continue
 
         ret_msg += "Commit {} by {} at {}\n".format(

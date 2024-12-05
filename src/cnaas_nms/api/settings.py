@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 from flask import make_response, request
 from flask_restx import Namespace, Resource
@@ -34,8 +35,8 @@ class SettingsApi(Resource):
                 hostname = args["hostname"]
             else:
                 return empty_result("error", "Invalid hostname specified"), 400
-            with sqla_session() as session:
-                dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            with sqla_session() as session:  # type: ignore
+                dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if dev:
                     device_type = dev.device_type
                     model = dev.model

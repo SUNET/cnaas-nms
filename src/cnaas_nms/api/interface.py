@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, List, Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
@@ -69,7 +69,7 @@ class InterfaceApi(Resource):
         """List all interfaces"""
         result = empty_result()
         result["data"] = {"interfaces": []}
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
@@ -95,9 +95,8 @@ class InterfaceApi(Resource):
         data = {}
         errors = []
         device_settings = None
-
-        with sqla_session() as session:
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+        with sqla_session() as session:  # type: ignore
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
 
@@ -107,7 +106,7 @@ class InterfaceApi(Resource):
                     if not isinstance(if_dict, dict):
                         errors.append("Each interface must have a dict with data to update")
                         continue
-                    intf: Interface = (
+                    intf: Optional[Interface] = (
                         session.query(Interface)
                         .filter(Interface.device == dev)
                         .filter(Interface.name == if_name)
@@ -117,8 +116,8 @@ class InterfaceApi(Resource):
                         errors.append(f"Interface {if_name} not found")
                         continue
                     if intf.data and isinstance(intf.data, dict):
-                        intfdata_original = dict(intf.data)
-                        intfdata = dict(intf.data)
+                        intfdata_original: dict[str, Any] = dict(intf.data)
+                        intfdata: dict[str, Any] = dict(intf.data)
                     else:
                         intfdata_original = {}
                         intfdata = {}
@@ -272,7 +271,7 @@ class InterfaceApi(Resource):
                                     "cli_append_str must be a string, got: {}".format(if_dict["data"]["cli_append_str"])
                                 )
                     elif "data" in if_dict and not if_dict["data"]:
-                        intfdata = None
+                        intfdata: None = None  # type: ignore [no-redef]
 
                     if intfdata != intfdata_original:
                         intf.data = intfdata

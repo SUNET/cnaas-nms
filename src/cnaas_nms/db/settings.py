@@ -39,7 +39,10 @@ def get_settings_root():
 f_root = get_settings_root()
 
 redis_client = StrictRedis(
-    host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, retry_on_timeout=True, socket_keepalive=True
+    host=app_settings.REDIS_HOSTNAME,
+    port=app_settings.REDIS_PORT,
+    retry_on_timeout=True,
+    socket_keepalive=True,
 )
 redis_lru_cache = RedisLRU(redis_client, default_ttl=24 * 3600)
 
@@ -56,10 +59,19 @@ class VlanConflictError(Exception):
     pass
 
 
-DIR_STRUCTURE_HOST = {"base_system.yml": "file", "interfaces.yml": "file", "routing.yml": "file"}
+DIR_STRUCTURE_HOST = {
+    "base_system.yml": "file",
+    "interfaces.yml": "file",
+    "routing.yml": "file",
+}
 
-DIR_STRUCTURE = {
-    "global": {"base_system.yml": "file", "groups.yml": "file", "routing.yml": "file", "vxlans.yml": "file"},
+DIR_STRUCTURE: dict[str, Any] = {
+    "global": {
+        "base_system.yml": "file",
+        "groups.yml": "file",
+        "routing.yml": "file",
+        "vxlans.yml": "file",
+    },
     "fabric": {"base_system.yml": "file"},
     "core": {"base_system.yml": "file"},
     "dist": {"base_system.yml": "file"},
@@ -84,7 +96,7 @@ def get_model_specific_configfiles(only_modelname: bool = False) -> dict:
             'DIST': ['interfaces_veos.yml']
         }
     """
-    ret = {"CORE": [], "DIST": []}
+    ret: dict[str, List[str]] = {"CORE": [], "DIST": []}
     local_repo_path = app_settings.SETTINGS_LOCAL
 
     for devtype in ["CORE", "DIST"]:
@@ -204,7 +216,7 @@ def get_pydantic_error_value(data: dict, loc: tuple):
 def get_pydantic_field_descr(schema: dict, loc: tuple):
     """Get the description from a pydantic Field definition based on a model
     schema and a "loc" tuple from pydantic ValidatorError.errors()"""
-    next_schema = None
+    next_schema: Optional[dict[str, Any]] = None
     for loc_part in loc:
         if next_schema and "$ref" in next_schema:
             ref_to = next_schema["$ref"].split("/")[2]
@@ -216,7 +228,7 @@ def get_pydantic_field_descr(schema: dict, loc: tuple):
                 next_schema = schema["definitions"][next_schema]["properties"][loc_part]
         else:
             next_schema = schema["properties"][loc_part]
-    if "description" in next_schema:
+    if next_schema and "description" in next_schema:
         return next_schema["description"]
     else:
         return None
@@ -247,7 +259,9 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
             if loc[0] in settings_metadata_dict:
                 origin = settings_metadata_dict[loc[0]]
             error_msg = "Validation error for setting {}, bad value: {} (value origin: {})\n".format(
-                "->".join(str(x) for x in loc), get_pydantic_error_value(settings_dict, loc), origin
+                "->".join(str(x) for x in loc),
+                get_pydantic_error_value(settings_dict, loc),
+                origin,
             )
             try:
                 pydantic_descr = get_pydantic_field_descr(f_root.model_json_schema(), loc)
@@ -287,7 +301,7 @@ def check_settings_collisions(unique_vlans: bool = True):
     logger = get_logger()
     mgmt_vlans: Set[int] = set()
     devices_dict: dict[str, dict] = {}
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         mgmtdoms = session.query(Mgmtdomain).all()
         for mgmtdom in mgmtdoms:
             if mgmtdom.vlan and isinstance(mgmtdom.vlan, int):
@@ -316,7 +330,10 @@ def get_internal_vlan_range(settings) -> range:
         and type(settings["internal_vlans"]["vlan_id_low"]) is int
         and type(settings["internal_vlans"]["vlan_id_high"]) is int
     ):
-        return range(settings["internal_vlans"]["vlan_id_low"], settings["internal_vlans"]["vlan_id_high"] + 1)
+        return range(
+            settings["internal_vlans"]["vlan_id_low"],
+            settings["internal_vlans"]["vlan_id_high"] + 1,
+        )
     else:
         return range(0)
 
@@ -329,7 +346,7 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
     device_vlan_ids: dict[str, Set[int]] = {}  # save used VLAN IDs per device
     device_vlan_names: dict[str, Set[str]] = {}  # save used VLAN names per device
     access_hostnames: List[str] = []
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         access_devs = session.query(Device).filter(Device.device_type == DeviceType.ACCESS).all()
         for dev in access_devs:
             access_hostnames.append(dev.hostname)
@@ -406,8 +423,7 @@ def check_group_priority_collisions(settings: Optional[dict] = None):
             continue
         if group["group"]["group_priority"] in priorities.keys():
             raise ValueError(
-                "Groups must have unique group_priority values, "
-                "but group {} and {} both have priority {}".format(
+                "Groups must have unique group_priority values, " "but group {} and {} both have priority {}".format(
                     priorities[group["group"]["group_priority"]],
                     group["group"]["name"],
                     group["group"]["group_priority"],
@@ -428,8 +444,8 @@ def read_settings(
     origin: str,
     merged_settings,
     merged_settings_origin,
-    groups: List[str] = None,
-    hostname: str = None,
+    groups: Optional[List[str]] = None,
+    hostname: Optional[str] = None,
 ) -> Tuple[dict, dict]:
     """
 
@@ -457,11 +473,74 @@ def read_settings(
     if groups or hostname:
         syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings, {}, origin)
         check_settings_syntax(syntax_dict, syntax_dict_origin)
-        settings = filter_yamldata(settings, groups, hostname)
+        settings = filter_yamldata(settings, groups if groups else [], hostname if hostname else "")
     return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
 
 
-def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, recdepth=100) -> Union[List, dict]:
+def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str) -> dict:
+    logger = get_logger()
+    filtered_yaml_data = recursive_filter_yamldata(data, groups, hostname)
+    if not isinstance(filtered_yaml_data, dict):
+        logger.info("Invalid yaml file ignored")
+        return {}
+    return filtered_yaml_data
+
+
+def recursive_filter_yamldata_dictionary(
+    data: dict, groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
+    ret_d = {}
+    group_match = False
+    hostname_match = False
+    do_filter_group = False
+    do_filter_hostname = False
+    for key, value in data.items():
+        if not value:
+            ret_d[key] = value
+            continue
+        if key == "groups":
+            if not isinstance(value, list):  # Should already be checked by pydantic now
+                raise SettingsSyntaxError(
+                    "Groups field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
+                )
+            do_filter_group = True
+            ret_d[key] = value
+            for group in value:
+                if group in groups:
+                    group_match = True
+        elif key == "devices":
+            if not isinstance(value, list):  # Should already be checked by pydantic now
+                raise SettingsSyntaxError(
+                    "Devices field must be a list or empty (currently {}) in: {}".format(type(value).__name__, data)
+                )
+            do_filter_hostname = True
+            ret_d[key] = value
+            if hostname in value:
+                hostname_match = True
+        else:
+            ret_v = recursive_filter_yamldata(value, groups, hostname, recdepth - 1)
+            if ret_v:
+                ret_d[key] = ret_v
+    if (do_filter_group or do_filter_hostname) and not group_match and not hostname_match:
+        return None
+    else:
+        return ret_d
+
+
+def recursive_filter_yamldata_list(
+    data: List, groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
+    ret_l = []
+    for item in data:
+        f_item = recursive_filter_yamldata(item, groups, hostname, recdepth - 1)
+        if f_item:
+            ret_l.append(f_item)
+    return ret_l
+
+
+def recursive_filter_yamldata(
+    data: Union[List, dict], groups: List[str], hostname: str, recdepth=100
+) -> Union[List, dict, None]:
     """Filter data and remove dictionary items if they have a key that specifies
     a list of groups, but none of those groups are included in the groups argument.
     Should only be called with yaml.safe_load:ed data.
@@ -478,56 +557,16 @@ def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str, r
     if recdepth < 1:
         return data
     elif isinstance(data, list):
-        ret_l = []
-        for item in data:
-            f_item = filter_yamldata(item, groups, hostname, recdepth - 1)
-            if f_item:
-                ret_l.append(f_item)
-        return ret_l
+        return recursive_filter_yamldata_list(data, groups, hostname, recdepth)
     elif isinstance(data, dict):
-        ret_d = {}
-        group_match = False
-        hostname_match = False
-        do_filter_group = False
-        do_filter_hostname = False
-        for k, v in data.items():
-            if not v:
-                ret_d[k] = v
-                continue
-            if k == "groups":
-                if not isinstance(v, list):  # Should already be checked by pydantic now
-                    raise SettingsSyntaxError(
-                        "Groups field must be a list or empty (currently {}) in: {}".format(type(v).__name__, data)
-                    )
-                do_filter_group = True
-                ret_d[k] = v
-                for group in v:
-                    if group in groups:
-                        group_match = True
-            elif k == "devices":
-                if not isinstance(v, list):  # Should already be checked by pydantic now
-                    raise SettingsSyntaxError(
-                        "Devices field must be a list or empty (currently {}) in: {}".format(type(v).__name__, data)
-                    )
-                do_filter_hostname = True
-                ret_d[k] = v
-                if hostname in v:
-                    hostname_match = True
-            else:
-                ret_v = filter_yamldata(v, groups, hostname, recdepth - 1)
-                if ret_v:
-                    ret_d[k] = ret_v
-        if (do_filter_group or do_filter_hostname) and not group_match and not hostname_match:
-            return None
-        else:
-            return ret_d
+        return recursive_filter_yamldata_dictionary(data, groups, hostname, recdepth)
     else:
         return data
 
 
 def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
-    with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+    with sqla_session() as session:  # type: ignore
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             return settings
         if dev.device_type != DeviceType.DIST:
@@ -548,7 +587,9 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
 
 @redis_lru_cache
 def get_settings(
-    hostname: Optional[str] = None, device_type: Optional[DeviceType] = None, device_model: Optional[str] = None
+    hostname: Optional[str] = None,
+    device_type: Optional[DeviceType] = None,
+    device_model: Optional[str] = None,
 ) -> Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
@@ -576,17 +617,30 @@ def get_settings(
         # Some settings parsing require knowledge of group memberships
         groups = get_groups(hostname)
         settings, settings_origin = read_settings(
-            local_repo_path, ["global", "base_system.yml"], "global->base_system.yml", settings, settings_origin, groups
+            local_repo_path,
+            ["global", "base_system.yml"],
+            "global->base_system.yml",
+            settings,
+            settings_origin,
+            groups,
         )
     else:
         settings, settings_origin = read_settings(
-            local_repo_path, ["global", "base_system.yml"], "global->base_system.yml", settings, settings_origin
+            local_repo_path,
+            ["global", "base_system.yml"],
+            "global->base_system.yml",
+            settings,
+            settings_origin,
         )
 
     # 3. Get settings from special fabric classification (dist + core)
     if device_type and (device_type == DeviceType.DIST or device_type == DeviceType.CORE):
         settings, settings_origin = read_settings(
-            local_repo_path, ["fabric", "base_system.yml"], "fabric->base_system.yml", settings, settings_origin
+            local_repo_path,
+            ["fabric", "base_system.yml"],
+            "fabric->base_system.yml",
+            settings,
+            settings_origin,
         )
     # 4. Get settings repo device type settings
     if device_type:
@@ -607,10 +661,21 @@ def get_settings(
     if hostname:
         get_type = "hostname {}".format(hostname)
         settings, settings_origin = read_settings(
-            local_repo_path, ["global", "routing.yml"], "global->routing.yml", settings, settings_origin, groups
+            local_repo_path,
+            ["global", "routing.yml"],
+            "global->routing.yml",
+            settings,
+            settings_origin,
+            groups,
         )
         settings, settings_origin = read_settings(
-            local_repo_path, ["global", "vxlans.yml"], "global->vxlans.yml", settings, settings_origin, groups, hostname
+            local_repo_path,
+            ["global", "vxlans.yml"],
+            "global->vxlans.yml",
+            settings,
+            settings_origin,
+            groups,
+            hostname,
         )
         settings = get_downstream_dependencies(hostname, settings)
         # 5. Get settings repo group specific settings
@@ -681,7 +746,10 @@ def get_settings(
         ):
             settings, settings_origin = read_settings(
                 local_repo_path,
-                [device_type.name.lower(), "interfaces_{}.yml".format(device_model.lower())],
+                [
+                    device_type.name.lower(),
+                    "interfaces_{}.yml".format(device_model.lower()),
+                ],
                 "{}->interfaces_{}.yml".format(device_type.name.lower(), model_name_sanitize(device_model)),
                 settings,
                 settings_origin,
@@ -691,10 +759,21 @@ def get_settings(
         # Some settings parsing require knowledge of group memberships
         groups = []
         settings, settings_origin = read_settings(
-            local_repo_path, ["global", "routing.yml"], "global->routing.yml", settings, settings_origin, groups
+            local_repo_path,
+            ["global", "routing.yml"],
+            "global->routing.yml",
+            settings,
+            settings_origin,
+            groups,
         )
         settings, settings_origin = read_settings(
-            local_repo_path, ["global", "vxlans.yml"], "global->vxlans.yml", settings, settings_origin, groups, hostname
+            local_repo_path,
+            ["global", "vxlans.yml"],
+            "global->vxlans.yml",
+            settings,
+            settings_origin,
+            groups,
+            hostname,
         )
     # Verify syntax
     verified_settings = check_settings_syntax(settings, settings_origin)
@@ -736,7 +815,7 @@ def get_group_settings() -> Tuple[dict, dict]:
 @redis_lru_cache
 def get_groups(hostname: Optional[str] = None) -> List[str]:
     """Return list of names for valid groups."""
-    groups = []
+    groups: list[str] = []
     settings, origin = get_group_settings()
     if not settings:
         return groups
@@ -786,7 +865,7 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
 
 def get_groups_priorities(hostname: Optional[str] = None, settings: Optional[dict] = None) -> Dict[str, int]:
     """Return dicts with {name: priority} for groups"""
-    groups_priorities = {}
+    groups_priorities: dict[str, Any] = {}
 
     if not settings:
         settings, _ = get_group_settings()
@@ -832,7 +911,7 @@ def parse_device_primary_groups() -> Dict[str, str]:
     """Returns a dict with {hostname: primary_group} from settings"""
     groups_priorities_sorted = get_groups_priorities_sorted()
     device_primary_group: Dict[str, str] = {}
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         devices: List[Device] = session.query(Device).all()
         for dev in devices:
             groups = get_groups(dev.hostname)
@@ -845,7 +924,7 @@ def update_device_primary_groups():
     device_primary_group = parse_device_primary_groups()
     if not device_primary_group:
         return
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         redis.hset("device_primary_group", mapping=device_primary_group)
 
 
@@ -857,13 +936,13 @@ def get_device_primary_groups(no_cache: bool = False) -> Dict[str, str]:
     """
     logger = get_logger()
     # update redis if redis is empty
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         if not redis.exists("device_primary_group"):
             update_device_primary_groups()
     if no_cache:
         update_device_primary_groups()
     device_primary_group: dict = {}
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         try:
             device_primary_group = redis.hgetall("device_primary_group")
         except Exception as e:
@@ -880,7 +959,7 @@ def rebuild_settings_cache() -> None:
     """
     logger = get_logger()
     logger.debug("Clearing redis-lru cache for settings")
-    with redis_session() as redis_db:
+    with redis_session() as redis_db:  # type: ignore
         mem_stats_before = redis_db.memory_stats()
         cache = RedisLRU(redis_db)
         cache.clear_all_cache()
@@ -904,14 +983,14 @@ def rebuild_settings_cache() -> None:
     for devtype in test_devtypes:
         get_settings(device_type=devtype)
     logger.debug("Rebuilding settings cache for device specific settings")
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         for hostname in os.listdir(os.path.join(app_settings.SETTINGS_LOCAL, "devices")):
             hostname_path = os.path.join(app_settings.SETTINGS_LOCAL, "devices", hostname)
             if not os.path.isdir(hostname_path) or hostname.startswith("."):
                 continue
             if not Device.valid_hostname(hostname):
                 continue
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if dev is None or dev.device_type == DeviceType.UNKNOWN:
                 logger.warning(f"Device {hostname} specified in settings/devices but it was not found in database")
                 continue

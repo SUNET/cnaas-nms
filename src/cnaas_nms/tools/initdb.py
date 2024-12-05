@@ -28,7 +28,7 @@ print(Linknet.__table__)
 print(Mgmtdomain.__table__)
 print(Interface.__table__)
 
-print(Base.metadata.create_all(engine))
+Base.metadata.create_all(engine)
 
 t = Site()
 t.description = "default"

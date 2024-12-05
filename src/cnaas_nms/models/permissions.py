@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, model_validator
 
@@ -20,7 +20,7 @@ class RoleModel(BaseModel):
 
 class PermissionsModel(BaseModel):
     config: Optional[PemissionConfig] = None
-    group_mappings: Optional[Dict[str, Dict[str, list[str]]]] = {}
+    group_mappings: Optional[Dict[str, Any]] = {}
     roles: Dict[str, RoleModel]
 
     @model_validator(mode="after")
@@ -32,6 +32,8 @@ class PermissionsModel(BaseModel):
 
     @model_validator(mode="after")
     def check_if_roles_in_mappings_exist(self) -> "PermissionsModel":
+        if self.group_mappings is None:
+            return self
         for map_type in self.group_mappings:
             for group in self.group_mappings[map_type]:
                 for role_name in self.group_mappings[map_type][group]:

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 from pydantic import field_validator
@@ -186,7 +186,7 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID
 
     if auth_settings.PERMISSIONS_DISABLED:
-        permissions_rules = {
+        permissions_rules: dict[str, Any] = {
             "config": {"default_permissions": "default"},
             "roles": {
                 "default": {"permissions": [{"methods": ["*"], "endpoints": ["*"], "pages": ["*"], "rights": ["*"]}]}

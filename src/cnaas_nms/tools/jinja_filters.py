@@ -4,10 +4,10 @@ import base64
 import hashlib
 import ipaddress
 import re
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional
 
 from netutils.config.parser import (
-    BaseConfigParser,
+    BaseSpaceConfigParser,
     EOSConfigParser,
     IOSConfigParser,
     IOSXRConfigParser,
@@ -113,7 +113,9 @@ def isofy_ipv4(ip_string, prefix=""):
 
 
 @template_filter()
-def ipv4_to_ipv6(v6_network: Union[str, ipaddress.IPv6Network], v4_address: Union[str, ipaddress.IPv4Interface]):
+def ipv4_to_ipv6(
+    v6_network: str | ipaddress.IPv6Network, v4_address: str | ipaddress.IPv4Interface | ipaddress.IPv4Address
+):
     """Transforms an IPv4 address to an IPv6 interface address. This will combine an arbitrary
     IPv6 network address with the 32 address bytes of an IPv4 address into a valid IPv6 address
     + prefix length notation - the equivalent of dotted quad compatible notation.
@@ -142,8 +144,9 @@ def ipv4_to_ipv6(v6_network: Union[str, ipaddress.IPv6Network], v4_address: Unio
 
 @template_filter()
 def get_interface(
-    network: Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface, str], index: int
-) -> Union[ipaddress.IPv6Interface, ipaddress.IPv4Interface]:
+    network: ipaddress.IPv6Interface | ipaddress.IPv4Interface | ipaddress.IPv6Network | ipaddress.IPv4Network | str,
+    index: int,
+) -> ipaddress.IPv6Interface | ipaddress.IPv4Interface | ipaddress.IPv6Network | ipaddress.IPv4Network:
     """Returns a host address with a prefix length from its index in a network.
 
     Example:
@@ -157,8 +160,8 @@ def get_interface(
     if isinstance(network, str):
         network = ipaddress.ip_network(network)
 
-    host = network[index]
-    return ipaddress.ip_interface(f"{host}/{network.prefixlen}")
+    host = network[index]  # type: ignore
+    return ipaddress.ip_interface(f"{host}/{network.prefixlen}")  # type: ignore
 
 
 @template_filter()
@@ -238,7 +241,7 @@ def get_config_section(config: str, section: str, parser: str) -> str:
         get_config_section(config=firewall_config, section="firewall", parser="junos")
     """  # noqa: W605
     if parser.lower() == "junos":
-        parser_obj = JunosConfigParser
+        parser_obj: type[BaseSpaceConfigParser] = JunosConfigParser
     elif parser.lower() == "eos":
         parser_obj = EOSConfigParser
     elif parser.lower() == "nxos":
@@ -248,7 +251,7 @@ def get_config_section(config: str, section: str, parser: str) -> str:
     elif parser.lower() == "ios":
         parser_obj = IOSConfigParser
     else:
-        parser_obj = BaseConfigParser
+        parser_obj = BaseSpaceConfigParser
     config_parser = parser_obj(config)
     config_parser.build_config_relationship()
     children = config_parser.find_all_children(section, match_type="regex")

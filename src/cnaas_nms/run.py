@@ -7,7 +7,6 @@ from typing import List
 import coverage
 from gevent import monkey
 from gevent import signal as gevent_signal
-from redis import StrictRedis
 
 from cnaas_nms.app_settings import api_settings
 
@@ -62,13 +61,13 @@ def get_app():
     pmh.load_plugins()
 
     try:
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             Joblock.clear_locks(session)
     except Exception as e:
         print("Unable to clear old locks from database at startup: {}".format(str(e)))  # noqa: T001
 
     try:
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             Job.clear_jobs(session)
     except Exception as e:
         print("Unable to clear jobs with invalid states: {}".format(str(e)))  # noqa: T001
@@ -93,6 +92,8 @@ def loglevel_to_rooms(levelname: str) -> List[str]:
         return ["DEBUG", "INFO", "WARNING", "ERROR"]
     elif levelname == "CRITICAL":
         return ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+    else:
+        raise Exception("Invalid levelname given")
 
 
 def parse_redis_event(event):
@@ -117,8 +118,7 @@ def emit_redis_event(event):
 
 
 def thread_websocket_events():
-    redis: StrictRedis
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         last_event = b"$"
         while True:
             result = redis.xread({"events": last_event}, count=10, block=200)

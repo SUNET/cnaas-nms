@@ -21,7 +21,7 @@ class FirmwareAlreadyActiveException(Exception):
     pass
 
 
-def arista_pre_flight_check(task, job_id: Optional[int] = None) -> str:
+def arista_pre_flight_check(task, job_id: Optional[int] = None) -> str:  # type: ignore
     """
     NorNir task to do some basic checks before attempting to upgrade a switch.
 
@@ -34,7 +34,7 @@ def arista_pre_flight_check(task, job_id: Optional[int] = None) -> str:
     """
     set_thread_data(job_id)
     logger = get_logger()
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         if Job.check_job_abort_status(session, job_id):
             return "Pre-flight aborted"
 
@@ -75,7 +75,7 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
     logger = get_logger()
     time.sleep(int(post_waittime))
     logger.info("Post-flight check wait ({}s) complete, starting check for {}".format(post_waittime, task.host.name))
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         if Job.check_job_abort_status(session, job_id):
             return "Post-flight aborted"
 
@@ -83,7 +83,7 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
         res = task.run(napalm_get, getters=["facts"])
         os_version = res[0].result["facts"]["os_version"]
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
             prev_os_version = dev.os_version
             dev.os_version = os_version
@@ -94,7 +94,7 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
                 dev.confhash = None
                 dev.synchronized = False
                 add_sync_event(task.host.name, "firmware_upgrade", scheduled_by, job_id)
-                dev.last_seen = datetime.datetime.utcnow()
+                dev.last_seen = datetime.datetime.utcnow()  # type: ignore
     except Exception as e:
         logger.exception("Could not update OS version on device {}: {}".format(task.host.name, str(e)))
         return "Post-flight failed, could not update OS version: {}".format(str(e))
@@ -118,15 +118,17 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
     """
     set_thread_data(job_id)
     logger = get_logger()
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         if Job.check_job_abort_status(session, job_id):
             return "Firmware download aborted"
 
     url = httpd_url + "/" + filename
 
     try:
-        with sqla_session() as session:
-            dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
+        with sqla_session() as session:  # type: ignore
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
+            if not dev:
+                raise Exception("Could not find a device with hostname {}".format(task.host.name))
             device_type = dev.device_type
 
         if device_type == DeviceType.ACCESS:
@@ -162,7 +164,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
     return "Firmware download done."
 
 
-def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) -> str:
+def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) -> str:  # type: ignore
     """
     NorNir task to modify the boot config for new firmwares.
 
@@ -177,7 +179,7 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) 
     """
     set_thread_data(job_id)
     logger = get_logger()
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         if Job.check_job_abort_status(session, job_id):
             return "Firmware activate aborted"
 
@@ -214,7 +216,7 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) 
     return "Firmware activate done."
 
 
-def arista_device_reboot(task, job_id: Optional[int] = None) -> str:
+def arista_device_reboot(task, job_id: Optional[int] = None) -> str:  # type: ignore
     """
     NorNir task to reboot a single device.
 
@@ -228,7 +230,7 @@ def arista_device_reboot(task, job_id: Optional[int] = None) -> str:
     """
     set_thread_data(job_id)
     logger = get_logger()
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         if Job.check_job_abort_status(session, job_id):
             return "Reboot aborted"
 
@@ -246,7 +248,7 @@ def arista_device_reboot(task, job_id: Optional[int] = None) -> str:
 
 
 def device_upgrade_task(
-    task,
+    task,  # type: ignore
     job_id: int,
     scheduled_by: str,
     filename: str,
@@ -257,7 +259,7 @@ def device_upgrade_task(
     post_flight: Optional[bool] = False,
     post_waittime: Optional[int] = 0,
     activate: Optional[bool] = False,
-) -> NornirJobResult:
+) -> str:
     # If pre-flight is selected, execute the pre-flight task which
     # will verify the amount of disk space and so on.
     set_thread_data(job_id)
@@ -337,8 +339,10 @@ def device_upgrade_task(
                 logger.error("Post-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
 
     if job_id:
-        with redis_session() as db:
+        with redis_session() as db:  # type: ignore
             db.lpush("finished_devices_" + str(job_id), task.host.name)
+
+    return "Devices upgraded"
 
 
 @job_wrapper
@@ -354,7 +358,7 @@ def device_upgrade(
     post_flight: Optional[bool] = False,
     post_waittime: Optional[int] = 600,
     reboot: Optional[bool] = False,
-    scheduled_by: Optional[str] = None,
+    scheduled_by: str = "",
 ) -> NornirJobResult:
     logger = get_logger()
     nr = cnaas_init()
@@ -374,8 +378,8 @@ def device_upgrade(
 
     # Make sure we only upgrade Arista access switches
     for device in device_list:
-        with sqla_session() as session:
-            dev: Device = session.query(Device).filter(Device.hostname == device).one_or_none()
+        with sqla_session() as session:  # type: ignore
+            dev: Optional[Device] = session.query(Device).filter(Device.hostname == device).one_or_none()
             if not dev:
                 raise Exception("Could not find device: {}".format(device))
             if dev.platform != "eos":

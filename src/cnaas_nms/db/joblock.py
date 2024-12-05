@@ -1,12 +1,11 @@
 import datetime
 from typing import Dict, Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
-from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
+from sqlalchemy.exc import DBAPIError, ProgrammingError
+from sqlalchemy.orm import mapped_column, relationship
 
 import cnaas_nms.db.base
-from cnaas_nms.db.session import sqla_session
 
 
 class JoblockError(Exception):
@@ -15,11 +14,11 @@ class JoblockError(Exception):
 
 class Joblock(cnaas_nms.db.base.Base):
     __tablename__ = "joblock"
-    job_id = Column(Integer, ForeignKey("job.id"), unique=True, primary_key=True)
+    job_id = mapped_column(Integer, ForeignKey("job.id"), unique=True, primary_key=True)
     job = relationship("Job", foreign_keys=[job_id])
-    name = Column(String(32), unique=True, nullable=False)
-    start_time = Column(DateTime, default=datetime.datetime.now)  # onupdate=now
-    abort = Column(Boolean, default=False)
+    name = mapped_column(String(32), unique=True, nullable=False)
+    start_time = mapped_column(DateTime, default=datetime.datetime.now)
+    abort = mapped_column(Boolean, default=False)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
@@ -34,7 +33,7 @@ class Joblock(cnaas_nms.db.base.Base):
         return d
 
     @classmethod
-    def acquire_lock(cls, session: sqla_session, name: str, job_id: int) -> bool:
+    def acquire_lock(cls, session, name: str, job_id: int) -> bool:  # type: ignore
         curlock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
         if curlock:
             return False
@@ -44,7 +43,7 @@ class Joblock(cnaas_nms.db.base.Base):
         return True
 
     @classmethod
-    def release_lock(cls, session: sqla_session, name: Optional[str] = None, job_id: Optional[int] = None):
+    def release_lock(cls, session, name: Optional[str] = None, job_id: Optional[int] = None):
         if job_id:
             curlock = session.query(Joblock).filter(Joblock.job_id == job_id).one_or_none()
         elif name:
@@ -61,7 +60,7 @@ class Joblock(cnaas_nms.db.base.Base):
 
     @classmethod
     def get_lock(
-        cls, session: sqla_session, name: Optional[str] = None, job_id: Optional[int] = None
+        cls, session, name: Optional[str] = None, job_id: Optional[int] = None  # type: ignore
     ) -> Optional[Dict[str, str]]:
         """
 
@@ -78,7 +77,7 @@ class Joblock(cnaas_nms.db.base.Base):
         if job_id:
             curlock: Joblock = session.query(Joblock).filter(Joblock.job_id == job_id).one_or_none()
         elif name:
-            curlock: Joblock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
+            curlock = session.query(Joblock).filter(Joblock.name == name).one_or_none()
         else:
             raise ValueError("Either name or jobid must be set to release lock")
 
@@ -88,12 +87,11 @@ class Joblock(cnaas_nms.db.base.Base):
             return None
 
     @classmethod
-    def clear_locks(cls, session: sqla_session):
+    def clear_locks(cls, session):
         """Clear/release all locks in the database."""
         try:
             return session.query(Joblock).delete()
-        except DBAPIError as e:
-            if e.orig.pgcode == "42P01":
-                raise JoblockError("Jobblock table doesn't exist yet, we assume it will be created soon.")
-            else:
-                raise
+        except ProgrammingError:
+            raise JoblockError("Jobblock table doesn't exist yet, we assume it will be created soon.")
+        except DBAPIError:
+            raise

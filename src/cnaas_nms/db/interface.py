@@ -1,9 +1,9 @@
 import enum
 import re
 
-from sqlalchemy import Column, Enum, ForeignKey, Integer, Unicode
+from sqlalchemy import Enum, ForeignKey, Integer, Unicode
 from sqlalchemy.dialects.postgresql.json import JSONB
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import backref, mapped_column, relationship
 
 import cnaas_nms.db.base
 import cnaas_nms.db.device
@@ -38,13 +38,13 @@ class InterfaceConfigType(enum.Enum):
 class Interface(cnaas_nms.db.base.Base):
     __tablename__ = "interface"
     __table_args__ = (None,)
-    device_id = Column(Integer, ForeignKey("device.id"), primary_key=True, index=True)
+    device_id = mapped_column(Integer, ForeignKey("device.id"), primary_key=True, index=True)
     device = relationship(
         "Device", foreign_keys=[device_id], backref=backref("Interfaces", cascade="all, delete-orphan")
     )
-    name = Column(Unicode(255), primary_key=True)
-    configtype = Column(Enum(InterfaceConfigType), nullable=False)
-    data = Column(JSONB)
+    name = mapped_column(Unicode(255), primary_key=True)
+    configtype = mapped_column(Enum(InterfaceConfigType), nullable=False)
+    data = mapped_column(JSONB)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""

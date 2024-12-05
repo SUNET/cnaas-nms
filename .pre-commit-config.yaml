@@ -5,16 +5,27 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
-  - repo: https://github.com/psf/black
-    rev: 23.11.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.1
     hooks:
-      - id: black
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+      - id: ruff
+        args: [ --fix, --exit-non-zero-on-fix, --show-fixes, --line-length=120 ]
+        exclude: (alembic/.*)
+  - repo: local
     hooks:
-      - id: isort
-        name: isort (python)
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.1.0
-    hooks:
-    - id: flake8
+      - id: mypy
+        name: mypy
+        language: system
+        entry: "mypy"
+        types: [ python ]
+        require_serial: true
+        verbose: true
+        args:
+          - --no-warn-incomplete-stub
+          - --ignore-missing-imports
+          - --no-warn-unused-ignores
+          - --allow-untyped-decorators
+          - --no-namespace-packages
+          - --allow-untyped-globals
+          - --check-untyped-defs
+        exclude: "(alembic/.*)|(.*test.*)"

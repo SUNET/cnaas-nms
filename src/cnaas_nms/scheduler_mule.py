@@ -3,6 +3,7 @@ import datetime
 import json
 import os
 import signal
+from typing import Optional
 
 import coverage
 
@@ -26,17 +27,17 @@ if is_coverage_enabled():
     cov = coverage.coverage(data_file=".coverage-{}".format(os.getpid()))
     cov.start()
 
-    def save_coverage():
+    def save_coverage() -> None:
         cov.stop()
         cov.save()
 
-    def save_coverage_signal():
+    def save_coverage_signal() -> None:
         cov.stop()
         cov.save()
 
     atexit.register(save_coverage)
-    signal.signal(signal.SIGTERM, save_coverage_signal)
-    signal.signal(signal.SIGINT, save_coverage_signal)
+    signal.signal(signal.SIGTERM, save_coverage_signal)  # type: ignore
+    signal.signal(signal.SIGINT, save_coverage_signal)  # type: ignore
 
 
 def pre_schedule_checks(scheduler, kwargs):
@@ -53,14 +54,15 @@ def pre_schedule_checks(scheduler, kwargs):
 
     if not check_ok:
         logger.debug(message)
-        with sqla_session() as session:
-            job_entry: Job = session.query(Job).filter(Job.id == kwargs["job_id"]).one_or_none()
-            job_entry.finish_abort(message)
+        with sqla_session() as session:  # type: ignore
+            job_entry: Optional[Job] = session.query(Job).filter(Job.id == kwargs["job_id"]).one_or_none()
+            if job_entry:
+                job_entry.finish_abort(message)
 
     return check_ok
 
 
-def main_loop():
+def main_loop() -> None:
     try:
         import uwsgi
     except Exception as e:
@@ -76,7 +78,7 @@ def main_loop():
     pmh.load_plugins()
 
     try:
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             Joblock.clear_locks(session)
     except Exception as e:
         logger.exception("Unable to clear old locks from database at startup: {}".format(str(e)))

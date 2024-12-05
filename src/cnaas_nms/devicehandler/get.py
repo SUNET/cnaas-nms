@@ -9,7 +9,6 @@ from netutils.lib_mapper import NAPALM_LIB_MAPPER
 from nornir.core.filter import F
 from nornir.core.task import AggregatedResult
 from nornir_napalm.plugins.tasks import napalm_get
-from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceType
@@ -109,7 +108,6 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None) -
         nr_filtered = nr
 
     result = nr_filtered.run(task=napalm_get, getters=["lldp_neighbors"])
-    print_result(result)
 
     return result
 

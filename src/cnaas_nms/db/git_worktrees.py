@@ -3,6 +3,8 @@ import shutil
 from typing import Optional, Set
 
 import git.exc
+from git import Repo
+
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.groups import get_groups_using_branch
@@ -10,7 +12,6 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.tools.githelpers import parse_git_changed_files
 from cnaas_nms.tools.log import get_logger
-from git import Repo
 
 
 class WorktreeError(Exception):

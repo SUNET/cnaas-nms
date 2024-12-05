@@ -1,6 +1,7 @@
 from os.path import abspath, dirname
 
 from flask_restx import Namespace, Resource
+from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 
 import cnaas_nms.version
 from cnaas_nms.api import app
@@ -8,7 +9,6 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.security import login_required
 from cnaas_nms.version import __api_version__
-from git import InvalidGitRepositoryError, NoSuchPathError, Repo
 
 api = Namespace(
     "system", description="API for managing the CNaaS NMS API system", prefix="/api/{}".format(__api_version__)

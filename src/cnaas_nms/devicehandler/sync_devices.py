@@ -327,12 +327,16 @@ def populate_device_vars(
                     if "interfaces" in peer_settings and peer_settings["interfaces"]:
                         for peer_intf in peer_settings["interfaces"]:
                             if peer_intf["name"] == intf["name"]:
-                                for extra_key_name, value in peer_intf.items():
-                                    if_dict[extra_key_name] = value
+                                if peer_intf["ifclass"] in ["fabric", "downlink"]:
+                                    raise Exception(f"Cannot mirror {peer_intf['ifclass']} interface")
+                                for copied_key_name, value in peer_intf.items():
+                                    if_dict[copied_key_name] = value
                                 break
-                    # Description can be set separately from mirrored interface
+                    # Description and enabled can be set separately from mirrored interface
                     if "description" in intf:
                         if_dict["description"] = intf["description"]
+                    if "enabled" in intf:
+                        if_dict["enabled"] = intf["enabled"]
                     fabric_device_variables["interfaces"].append(if_dict)
                 else:
                     if_dict = {"indexnum": ifindexnum}

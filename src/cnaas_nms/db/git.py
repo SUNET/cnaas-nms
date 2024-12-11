@@ -262,6 +262,7 @@ def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
                 add_sync_event(hostname, "refresh_settings", ret, job_id)
                 peer_device = get_peer_with_mirror_interfaces(session, dev)
                 if peer_device:
+                    peer_device.synchronized = False
                     add_sync_event(peer_device.hostname, "refresh_settings", ret, job_id)
             else:
                 logger.warn("Settings updated for unknown device: {}".format(hostname))

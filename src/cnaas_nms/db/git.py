@@ -13,8 +13,10 @@ from git.exc import GitCommandError, NoSuchPathError
 
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.device_vars import expand_interface_settings
 from cnaas_nms.db.exceptions import ConfigException, RepoStructureException
 from cnaas_nms.db.git_worktrees import WorktreeError, find_templates_worktree_path, refresh_existing_templates_worktrees
+from cnaas_nms.db.helper import MgmtdomainNotFoundError, find_mgmtdomain_peer
 from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
@@ -26,6 +28,7 @@ from cnaas_nms.db.settings import (
     get_group_settings_asdict,
     get_group_templates_branch,
     get_groups,
+    get_settings,
     rebuild_settings_cache,
 )
 from cnaas_nms.devicehandler.sync_history import add_sync_event
@@ -186,6 +189,30 @@ def reset_repo(local_repo: Repo, remote_repo_path: str):
     local_repo.head.reset(index=True, working_tree=True)
 
 
+def get_peer_with_mirror_interfaces(session, dev: Device) -> Optional[Device]:
+    """Returns peer device of management domain if it has any ifclass mirror interfaces"""
+    logger = get_logger()
+    if dev.device_type == DeviceType.ACCESS:
+        return None
+    try:
+        peer_device = find_mgmtdomain_peer(session, dev)
+    except MgmtdomainNotFoundError:
+        return None
+    except Exception:
+        logger.exception("Error while finding peer device for mirrored interfaces")
+        return None
+
+    peer_settings, _ = get_settings(peer_device.hostname, peer_device.device_type, peer_device.model)
+
+    try:
+        for intf in expand_interface_settings(peer_settings["interfaces"]):
+            if intf["ifclass"] == "mirror":
+                return peer_device
+    except KeyError:
+        pass
+    return None
+
+
 def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
     logger = get_logger()
     local_repo_path = app_settings.SETTINGS_LOCAL
@@ -233,6 +260,9 @@ def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
             if dev:
                 dev.synchronized = False
                 add_sync_event(hostname, "refresh_settings", ret, job_id)
+                peer_device = get_peer_with_mirror_interfaces(session, dev)
+                if peer_device:
+                    add_sync_event(peer_device.hostname, "refresh_settings", ret, job_id)
             else:
                 logger.warn("Settings updated for unknown device: {}".format(hostname))
 
@@ -395,8 +425,13 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
         elif basedir.startswith("devices"):
             try:
                 hostname = filename.split(os.path.sep)[1]
-                if Device.valid_hostname(hostname):
-                    unsynced_hostnames.add(hostname)
+                if not Device.valid_hostname(hostname):
+                    continue
+                unsynced_hostnames.add(hostname)
+                # determine mirror device syncstatus
+                mirror_device: Optional[Device] = None
+                if mirror_device:
+                    unsynced_hostnames.add(mirror_device.hostname)
             except Exception as e:
                 logger.exception("Error in settings devices directory: {}".format(str(e)))
         elif basedir.startswith("groups"):

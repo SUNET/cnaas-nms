@@ -10,6 +10,10 @@ from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 
 
+class MgmtdomainNotFoundError(Exception):
+    pass
+
+
 def canonical_mac(mac):
     """Return a standardized format of MAC-addresses for CNaaS to
     store in databases etc."""
@@ -18,7 +22,16 @@ def canonical_mac(mac):
     return str(na_mac)
 
 
-def find_mgmtdomain_one_device(session, device0: Device) -> Optional[Mgmtdomain]:
+def find_mgmtdomain_peer(session, device0: Device) -> Device:
+    """Find the peer device in a mgmtdomain for a given device"""
+    mgmtdomain: Mgmtdomain = find_mgmtdomain_one_device(session, device0)
+    if mgmtdomain.device_a == device0:
+        return mgmtdomain.device_b
+    else:
+        return mgmtdomain.device_a
+
+
+def find_mgmtdomain_one_device(session, device0: Device) -> Mgmtdomain:
     if device0.device_type == DeviceType.DIST:
         mgmtdomain = (
             session.query(Mgmtdomain)
@@ -27,18 +40,18 @@ def find_mgmtdomain_one_device(session, device0: Device) -> Optional[Mgmtdomain]
             .one_or_none()
         )
         if not mgmtdomain:
-            raise Exception("No mgmtdomain found for uplink device: {}".format(device0.hostname))
+            raise MgmtdomainNotFoundError("No mgmtdomain found for uplink device: {}".format(device0.hostname))
     elif device0.device_type == DeviceType.ACCESS:
         if device0.management_ip:
             mgmtdomain = find_mgmtdomain_by_ip(session, IPv4Address(device0.management_ip))
         else:
-            raise Exception("No mgmtdomain found for uplink device: {}".format(device0.hostname))
+            raise MgmtdomainNotFoundError("No mgmtdomain found for uplink device: {}".format(device0.hostname))
     else:
         raise Exception("Unexpected uplink device type: {}".format(device0.device_type))
     return mgmtdomain
 
 
-def find_mgmtdomain_two_devices(session, device0: Device, device1: Device) -> Optional[Mgmtdomain]:
+def find_mgmtdomain_two_devices(session, device0: Device, device1: Device) -> Mgmtdomain:
     if device0.device_type != device1.device_type:
         raise ValueError(
             "Both uplink devices must be of same device type: {}, {}".format(device0.hostname, device1.hostname)
@@ -89,7 +102,7 @@ def find_mgmtdomain_two_devices(session, device0: Device, device1: Device) -> Op
     return mgmtdomain
 
 
-def find_mgmtdomain(session, hostnames: List[str]) -> Optional[Mgmtdomain]:
+def find_mgmtdomain(session, hostnames: List[str]) -> Mgmtdomain:
     """Find the corresponding management domain for a pair of
     distribution switches.
 

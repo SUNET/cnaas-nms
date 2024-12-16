@@ -71,6 +71,13 @@ class MgmtdomainTests(unittest.TestCase):
             self.assertRaises(ValueError, cnaas_nms.db.helper.find_mgmtdomain, session, [])
             self.assertRaises(ValueError, cnaas_nms.db.helper.find_mgmtdomain, session, [1, 2, 3])
 
+    def test_find_mgmtdomain_peer_device(self):
+        with sqla_session() as session:  # type: ignore
+            d_a = session.query(Device).filter(Device.hostname == "mgmtdomaintest1").one()
+            d_b = session.query(Device).filter(Device.hostname == "mgmtdomaintest2").one()
+            found_peer: Device = cnaas_nms.db.helper.find_mgmtdomain_peer(session, d_a)
+            self.assertEqual(d_b, found_peer, "Peer device not found")
+
     def test_find_mgmtdomain_twodist(self):
         with sqla_session() as session:  # type: ignore
             mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, ["eosdist1", "eosdist2"])

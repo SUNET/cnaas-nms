@@ -55,7 +55,7 @@ IFNAME_RANGE_REGEX = r"([a-zA-Z0-9\/\.:\-\[\]])+"
 ifname_range_schema = Field(
     None, pattern=f"^{IFNAME_RANGE_REGEX}$", description="Interface range pattern or interface name"
 )
-IFCLASS_REGEX = r"(custom|downlink|fabric|port_template_[a-zA-Z0-9_]+)"
+IFCLASS_REGEX = r"(custom|downlink|fabric|mirror|port_template_[a-zA-Z0-9_]+)"
 ifclass_schema = Field(None, pattern=f"^{IFCLASS_REGEX}$", description="Interface class: custom, downlink or uplink")
 ifdescr_schema = Field(None, max_length=64, description="Interface description, 0-64 characters")
 tcpudp_port_schema = Field(None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")

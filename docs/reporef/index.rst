@@ -397,7 +397,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
 * interfaces: List of dicctionaries with keys:
 
   * name: Interface name, like "Ethernet1". Can also be an interface range like "Ethernet[1-4]".
-  * ifclass: Interface class, one of: downlink, fabric, custom, port_template_*
+  * ifclass: Interface class, one of: downlink, fabric, custom, mirror, port_template_*
   * config: Optional. Raw CLI config used in case "custom" ifclass was selected
 
 * Additional interface options for port_template type:
@@ -420,6 +420,21 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * metric: Optional integer specifying metric for this interface.
   * cli_append_str: Optional. Custom configuration to append to this interface.
 
+* For downlink and fabric type ports these options are available with same function as above:
+
+  * aggregate_id
+  * enabled
+  * cli_append_str
+  * metric
+  * mtu
+  * tags
+
+*  For mirror type ports these options are available with same function as above:
+
+  * description
+  * enabled
+
+
 The "downlink" ifclass is used on DIST devices to specify that this interface
 is used to connect access devices. The "fabric" ifclass is used to specify that
 this interface is used to connect DIST or CORE devices with each other to form
@@ -431,6 +446,13 @@ providing DHCP (relay) access.
 be used to apply some site-specific configuration via Jinja templates. For
 example specify "port_template_hypervisor" and build a corresponding Jinja
 template by matching on that ifclass.
+"mirror" ifclass can be used on DIST devices that are part of the same management
+domain to copy interface settings from one device to the other, this way you
+don't have to maintain the list of allowed vlans on both devices for example.
+On one device you configure ports normally with port_template or custom ifclass,
+and on the other device in the same management domain you can use ifclass mirror
+without any other settings (but you can optionally override description and enabled
+status).
 
 base_system.yml:
 

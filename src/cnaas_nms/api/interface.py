@@ -98,6 +98,7 @@ class InterfaceApi(Resource):
         json_data = request.get_json()
         data = {}
         errors = []
+        patch_positions = []
         device_settings = None
         with sqla_session() as session:  # type: ignore
             dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
@@ -276,7 +277,13 @@ class InterfaceApi(Resource):
                                 )
                         if "patch_postion" in if_dict["data"]:
                             if isinstance(if_dict["data"]["patch_postion"], str):
-                                intfdata["patch_postion"] = if_dict["data"]["patch_postion"]
+                                if if_dict["data"]["patch_postion"] not in patch_positions:
+                                    intfdata["patch_postion"] = if_dict["data"]["patch_postion"]
+                                    patch_positions.append(if_dict["data"]["patch_postion"])
+                                else:
+                                    errors.append(
+                                        "patch_postion must be unique: {}".format(if_dict["data"]["patch_postion"])
+                                    )
                             else:
                                 errors.append(
                                     "patch_postion must be a string, got: {}".format(if_dict["data"]["patch_postion"])

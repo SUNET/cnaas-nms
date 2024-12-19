@@ -49,8 +49,7 @@ class InterfaceTests(unittest.TestCase):
         device_id, hostname = self.add_device()
         self.device_id = device_id
         self.device_hostname = hostname
-        interface_name = self.add_interface(device_id)
-        self.interface_name = interface_name
+        self.add_interfaces(device_id)
 
     def tearDown(self):
         self.cleandb()
@@ -68,19 +67,18 @@ class InterfaceTests(unittest.TestCase):
             session.commit()
             return device.id, device.hostname
 
-    def add_interface(self, device_id):
+    def add_interfaces(self, device_id):
         with sqla_session() as session:  # type: ignore
             interface = Interface(
-                name="123",
+                name="testinterface1",
                 configtype=InterfaceConfigType.ACCESS_AUTO,
                 data={
-                    "description": "test2",
-                    "patch_position": "test",
+                    "patch_position": "3E-H12",
                 },
                 device_id=device_id,
             )
             interface2 = Interface(
-                name="567",
+                name="testinterface2",
                 configtype=InterfaceConfigType.ACCESS_AUTO,
                 data={},
                 device_id=device_id,
@@ -88,26 +86,26 @@ class InterfaceTests(unittest.TestCase):
             session.add(interface)
             session.add(interface2)
             session.commit()
-            return interface.name
 
     def test_get_interface(self):
         result = self.client.get(f"/api/v1.0/device/{self.device_hostname}/interfaces")
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
-        self.assertEqual(["123", "567"], [interface["name"] for interface in json_data["data"]["interfaces"]])
+        self.assertEqual(
+            ["testinterface1", "testinterface2"], [interface["name"] for interface in json_data["data"]["interfaces"]]
+        )
 
     def test_update_interface_not_unique(self):
         modify_data = {
             "interfaces": {
-                "123": {
+                "testinterface1": {
                     "data": {
-                        "description": "test",
+                        "description": "new description",
                     }
                 },
-                "567": {
+                "testinterface2": {
                     "data": {
-                        "description": "test",
-                        "patch_position": "test",
+                        "patch_position": "3E-H12",
                     }
                 },
             }
@@ -120,15 +118,15 @@ class InterfaceTests(unittest.TestCase):
     def test_update_interface(self):
         modify_data = {
             "interfaces": {
-                "123": {
+                "testinterface1": {
                     "data": {
                         "description": "test",
                     }
                 },
-                "567": {
+                "testinterface2": {
                     "data": {
                         "description": "test",
-                        "patch_position": "patch_position2",
+                        "patch_position": "XW.H4.23",
                     }
                 },
             }
@@ -136,7 +134,7 @@ class InterfaceTests(unittest.TestCase):
         result = self.client.put(f"/api/v1.0/device/{self.device_hostname}/interfaces", json=modify_data)
         json_data = json.loads(result.data.decode())
         self.assertEqual(result.status_code, 200)
-        self.assertEqual(["123", "567"], list(json_data["data"]["updated"].keys()))
+        self.assertEqual(["testinterface1", "testinterface2"], list(json_data["data"]["updated"].keys()))
 
 
 if __name__ == "__main__":

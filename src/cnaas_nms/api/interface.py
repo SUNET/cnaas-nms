@@ -98,14 +98,16 @@ class InterfaceApi(Resource):
         json_data = request.get_json()
         data = {}
         errors = []
-        patch_positions = []
+
         device_settings = None
         with sqla_session() as session:  # type: ignore
             dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
             if not dev:
                 return empty_result("error", "Device not found"), 404
-
             updated = False
+            intfs = session.query(Interface).filter(Interface.device == dev).all()
+            patch_positions = [intf.data["patch_position"] for intf in intfs if "patch_position" in intf.data]
+            print(patch_positions)
             if "interfaces" in json_data and isinstance(json_data["interfaces"], dict):
                 for if_name, if_dict in json_data["interfaces"].items():
                     if not isinstance(if_dict, dict):
@@ -275,18 +277,20 @@ class InterfaceApi(Resource):
                                 errors.append(
                                     "cli_append_str must be a string, got: {}".format(if_dict["data"]["cli_append_str"])
                                 )
-                        if "patch_postion" in if_dict["data"]:
-                            if isinstance(if_dict["data"]["patch_postion"], str):
-                                if if_dict["data"]["patch_postion"] not in patch_positions:
-                                    intfdata["patch_postion"] = if_dict["data"]["patch_postion"]
-                                    patch_positions.append(if_dict["data"]["patch_postion"])
+                        if "patch_position" in if_dict["data"]:
+                            if isinstance(if_dict["data"]["patch_position"], str):
+                                if if_dict["data"]["patch_position"] not in patch_positions:
+                                    intfdata["patch_position"] = if_dict["data"]["patch_position"]
+                                    patch_positions.append(if_dict["data"]["patch_position"])
                                 else:
                                     errors.append(
-                                        "patch_postion must be unique: {}".format(if_dict["data"]["patch_postion"])
+                                        "patch_position must be unique for the interfaces: {}".format(
+                                            if_dict["data"]["patch_position"]
+                                        )
                                     )
                             else:
                                 errors.append(
-                                    "patch_postion must be a string, got: {}".format(if_dict["data"]["patch_postion"])
+                                    "patch_position must be a string, got: {}".format(if_dict["data"]["patch_position"])
                                 )
                     elif "data" in if_dict and not if_dict["data"]:
                         intfdata: None = None  # type: ignore [no-redef]

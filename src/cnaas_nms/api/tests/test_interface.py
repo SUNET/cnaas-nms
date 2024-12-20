@@ -12,7 +12,6 @@ from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.stackmember import Stackmember
 
 
 @pytest.mark.integration
@@ -24,10 +23,10 @@ class InterfaceTests(unittest.TestCase):
 
     def cleandb(self):
         with sqla_session() as session:  # type: ignore
-            for hardware_id in ["AB1234", "CD5555", "GF43534"]:
-                stack = session.query(Stackmember).filter(Stackmember.hardware_id == hardware_id).one_or_none()
-                if stack:
-                    session.delete(stack)
+            for interface_name in ["testinterface1", "testinterface2"]:
+                interface = session.query(Interface).filter(Interface.name == interface_name).one_or_none()
+                if interface:
+                    session.delete(interface)
                     session.commit()
             for hostname in ["testdevice", "testdevice2"]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()

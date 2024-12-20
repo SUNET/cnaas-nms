@@ -23,7 +23,7 @@ class InterfaceTests(unittest.TestCase):
 
     def cleandb(self):
         with sqla_session() as session:  # type: ignore
-            for interface_name in ["testinterface1", "testinterface2"]:
+            for interface_name in ["custom_testinterface1", "custom_testinterface2"]:
                 interface = session.query(Interface).filter(Interface.name == interface_name).one_or_none()
                 if interface:
                     session.delete(interface)
@@ -69,7 +69,7 @@ class InterfaceTests(unittest.TestCase):
     def add_interfaces(self, device_id):
         with sqla_session() as session:  # type: ignore
             interface = Interface(
-                name="testinterface1",
+                name="custom_testinterface1",
                 configtype=InterfaceConfigType.ACCESS_AUTO,
                 data={
                     "patch_position": "3E-H12",
@@ -77,7 +77,7 @@ class InterfaceTests(unittest.TestCase):
                 device_id=device_id,
             )
             interface2 = Interface(
-                name="testinterface2",
+                name="custom_testinterface2",
                 configtype=InterfaceConfigType.ACCESS_AUTO,
                 data={},
                 device_id=device_id,
@@ -91,18 +91,19 @@ class InterfaceTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         json_data = json.loads(result.data.decode())
         self.assertEqual(
-            ["testinterface1", "testinterface2"], [interface["name"] for interface in json_data["data"]["interfaces"]]
+            ["custom_testinterface1", "custom_testinterface2"],
+            [interface["name"] for interface in json_data["data"]["interfaces"]],
         )
 
-    def test_update_interface_not_unique(self):
+    def test_update_interface_invalid_patch_position_not_unique(self):
         modify_data = {
             "interfaces": {
-                "testinterface1": {
+                "custom_testinterface1": {
                     "data": {
                         "description": "new description",
                     }
                 },
-                "testinterface2": {
+                "custom_testinterface2": {
                     "data": {
                         "patch_position": "3E-H12",
                     }
@@ -117,12 +118,12 @@ class InterfaceTests(unittest.TestCase):
     def test_update_interface(self):
         modify_data = {
             "interfaces": {
-                "testinterface1": {
+                "custom_testinterface1": {
                     "data": {
                         "description": "test",
                     }
                 },
-                "testinterface2": {
+                "custom_testinterface2": {
                     "data": {
                         "description": "test",
                         "patch_position": "XW.H4.23",
@@ -133,7 +134,7 @@ class InterfaceTests(unittest.TestCase):
         result = self.client.put(f"/api/v1.0/device/{self.device_hostname}/interfaces", json=modify_data)
         json_data = json.loads(result.data.decode())
         self.assertEqual(result.status_code, 200)
-        self.assertEqual(["testinterface1", "testinterface2"], list(json_data["data"]["updated"].keys()))
+        self.assertEqual(["custom_testinterface1", "custom_testinterface2"], list(json_data["data"]["updated"].keys()))
 
 
 if __name__ == "__main__":

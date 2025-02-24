@@ -272,6 +272,7 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
     maximum_routes: Optional[int] = maximum_routes_schema
     auth_type: Optional[str] = None
     auth_string: Optional[str] = None
+    remove_private_as: Optional[RemovePrivateASEnum] = None
     cli_append_str: str = ""
 
 

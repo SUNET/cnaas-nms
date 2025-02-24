@@ -319,6 +319,7 @@ def check_settings_collisions(unique_vlans: bool = True):
 
     check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
     check_group_priority_collisions()
+    check_routing_policies(devices_dict)
 
 
 def get_internal_vlan_range(settings) -> range:
@@ -336,6 +337,34 @@ def get_internal_vlan_range(settings) -> range:
         )
     else:
         return range(0)
+
+
+def check_bgp_neighbor_routemaps(hostname: str, vrfs: List, defined_policies: set[str]):
+    for vrf in vrfs:
+        for v4_neighbor in vrf["neighbor_v4"]:
+            if v4_neighbor["route_map_in"] and v4_neighbor["route_map_in"] not in defined_policies:
+                raise ValueError(f"{hostname}: BGP neighbor route map {v4_neighbor['route_map_in']} is not defined")
+            if v4_neighbor["route_map_out"] and v4_neighbor["route_map_out"] not in defined_policies:
+                raise ValueError(f"{hostname}: BGP neighbor route map {v4_neighbor['route_map_out']} is not defined")
+        for v6_neighbor in vrf["neighbor_v6"]:
+            if v6_neighbor["route_map_in"] and v6_neighbor["route_map_in"] not in defined_policies:
+                raise ValueError(f"{hostname}: BGP neighbor route map {v6_neighbor['route_map_in']} is not defined")
+            if v6_neighbor["route_map_out"] and v6_neighbor["route_map_out"] not in defined_policies:
+                raise ValueError(f"{hostname}: BGP neighbor route map {v6_neighbor['route_map_out']} is not defined")
+
+
+def check_routing_policies(devices_dict: Dict[str, dict]):
+    # save global VLAN IDs and their unique vxlan name
+    defined_policies = set()
+
+    for hostname, settings in devices_dict.items():
+        if "external_routing_policies" in settings:
+            defined_policies.update(settings["external_routing_policies"])
+        try:
+            defined_policies.update(settings["routing_policies"].keys())
+            check_bgp_neighbor_routemaps(hostname, settings["extroute_bgp"]["vrfs"], defined_policies)
+        except (KeyError, TypeError):
+            pass
 
 
 def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], unique_vlans: bool = True):
@@ -359,6 +388,15 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
             if "vni" not in vxlan_data or not isinstance(vxlan_data["vni"], int):
                 logger.error("VXLAN {} is missing vni".format(vxlan_name))
                 continue
+            if settings["vxlan_vni_range"] and "-" in settings["vxlan_vni_range"]:
+                vni_range = settings["vxlan_vni_range"].split("-")
+                if not int(vni_range[0]) < vxlan_data["vni"] < int(vni_range[1]):
+                    raise VlanConflictError(
+                        "VXLAN VNI {} is outside of the allowed range {}".format(
+                            vxlan_data["vni"], settings["vxlan_vni_range"]
+                        )
+                    )
+
             if vxlan_data["vni"] in global_vnis and global_vnis[vxlan_data["vni"]] != vxlan_name:
                 raise VlanConflictError(
                     "VXLAN VNI {} used in VXLAN {} is already used elsewhere".format(vxlan_data["vni"], vxlan_name)
@@ -423,7 +461,8 @@ def check_group_priority_collisions(settings: Optional[dict] = None):
             continue
         if group["group"]["group_priority"] in priorities.keys():
             raise ValueError(
-                "Groups must have unique group_priority values, " "but group {} and {} both have priority {}".format(
+                "Groups must have unique group_priority values, "
+                "but group {} and {} both have priority {}".format(
                     priorities[group["group"]["group_priority"]],
                     group["group"]["name"],
                     group["group"]["group_priority"],

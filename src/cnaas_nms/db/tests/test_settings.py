@@ -11,6 +11,7 @@ from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
     VerifyPathException,
     VlanConflictError,
+    check_bgp_neighbor_routemaps,
     check_group_priority_collisions,
     check_vlan_collisions,
     get_device_primary_groups,
@@ -170,6 +171,21 @@ class SettingsTests(unittest.TestCase):
             },
         }
         self.assertIsNone(check_vlan_collisions(devices_dict, mgmt_vlans))
+
+    def test_routing_policy(self):
+        test_device_name = "policytest"
+        test_vrfs = [
+            {
+                "name": "testvrf",
+                "neighbor_v4": [{"route_map_in": "routemap1", "route_map_out": "routemap1"}],
+                "neighbor_v6": [{"route_map_in": "routemap2", "route_map_out": "routemap2"}],
+            }
+        ]
+        with self.assertRaises(ValueError, msg="Undefined route map routemap1 should raise error"):
+            check_bgp_neighbor_routemaps(test_device_name, test_vrfs, {})
+        check_bgp_neighbor_routemaps(test_device_name, test_vrfs, {"routemap1", "routemap2"})
+        with self.assertRaises(KeyError):
+            check_bgp_neighbor_routemaps(test_device_name, [{"name": "emptyvrf"}], {})
 
     def test_groups_priorities_sorted(self):
         group_settings_dict = {

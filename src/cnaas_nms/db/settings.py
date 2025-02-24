@@ -388,7 +388,7 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
             if "vni" not in vxlan_data or not isinstance(vxlan_data["vni"], int):
                 logger.error("VXLAN {} is missing vni".format(vxlan_name))
                 continue
-            if settings["vxlan_vni_range"] and "-" in settings["vxlan_vni_range"]:
+            if "vxlan_vni_range" in settings and settings["vxlan_vni_range"]:
                 vni_range = settings["vxlan_vni_range"].split("-")
                 if not int(vni_range[0]) < vxlan_data["vni"] < int(vni_range[1]):
                     raise VlanConflictError(

@@ -1,3 +1,4 @@
+from enum import StrEnum, auto
 from ipaddress import AddressValueError, IPv4Interface
 from typing import Annotated, Dict, List, Optional, Union
 
@@ -71,6 +72,11 @@ group_name = Field(..., pattern=GROUP_NAME, max_length=253)
 group_priority_schema = Field(
     0, ge=0, le=100, description="Group priority 0-100, default 0, higher value means higher priority"
 )
+
+
+class RemovePrivateASEnum(StrEnum):
+    ALL = auto()
+    REPLACE = auto()
 
 
 def validate_ipv4_if(ipv4if: str):
@@ -248,6 +254,7 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
     maximum_routes: Optional[int] = maximum_routes_schema
     auth_type: Optional[str] = None
     auth_string: Optional[str] = None
+    remove_private_as: Optional[RemovePrivateASEnum] = None
     cli_append_str: str = ""
 
 

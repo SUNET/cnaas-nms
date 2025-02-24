@@ -274,6 +274,8 @@ Can contain the following dictionaries with specified keys:
       * update_source: Specify local source interface for the BGP session
       * auth_string: String used to calculate MD5 hash for authentication (password)
       * description: Description of remote peer (optional, defaults to "undefined")
+      * remove_private_as: Optional, if set must be either "all" or "replace".
+        Remove all private AS numbers from AS_PATH, or replace private AS numbers with local AS.
       * cli_append_str: Custom configuration to append to this peer (optional)
     * neighbor_v6:
 

@@ -182,10 +182,10 @@ class SettingsTests(unittest.TestCase):
             }
         ]
         with self.assertRaises(ValueError, msg="Undefined route map routemap1 should raise error"):
-            check_bgp_neighbor_routemaps(test_device_name, test_vrfs, {})
+            check_bgp_neighbor_routemaps(test_device_name, test_vrfs, set())
         check_bgp_neighbor_routemaps(test_device_name, test_vrfs, {"routemap1", "routemap2"})
         with self.assertRaises(KeyError):
-            check_bgp_neighbor_routemaps(test_device_name, [{"name": "emptyvrf"}], {})
+            check_bgp_neighbor_routemaps(test_device_name, [{"name": "emptyvrf"}], set())
 
     def test_groups_priorities_sorted(self):
         group_settings_dict = {

@@ -1,3 +1,4 @@
+from enum import StrEnum, auto
 from ipaddress import AddressValueError, IPv4Interface
 from typing import Annotated, Dict, List, Optional, Union
 
@@ -73,6 +74,11 @@ group_priority_schema = Field(
 )
 
 
+class RemovePrivateASEnum(StrEnum):
+    ALL = auto()
+    REPLACE = auto()
+
+
 def validate_ipv4_if(ipv4if: str):
     try:
         assert "/" in ipv4if, "Not a CIDR notation/no netmask"
@@ -132,13 +138,24 @@ class f_evpn_peer(BaseModel):
     hostname: str = hostname_schema
 
 
-def vlan_range_check(v: str):
+def vlan_range_check(v: str) -> str:
     if "-" in v:
         start, end = v.split("-")
         assert int(start) < int(end), "Start of range must be less than end of range"
         assert int(start) >= 1 and int(end) <= 4095, "VLAN IDs in range must be between 1-4095"
     else:
         assert 1 <= int(v) <= 4095, "VLAN IDs in range must be between 1-4095"
+    return v
+
+
+def vni_range_required_check(v: str) -> str:
+    if "-" in v:
+        start, end = v.split("-")
+        assert int(start) < int(end), "Start of range must be less than end of range"
+        assert int(start) >= 1 and int(end) <= 16777215, "VNI IDs in range must be between 1-16777215"
+    else:
+        raise ValueError("Range must be specified, ex '10000-99999'")
+    return v
 
 
 class f_interface(BaseModel):
@@ -237,6 +254,7 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
     maximum_routes: Optional[int] = maximum_routes_schema
     auth_type: Optional[str] = None
     auth_string: Optional[str] = None
+    remove_private_as: Optional[RemovePrivateASEnum] = None
     cli_append_str: str = ""
 
 
@@ -254,6 +272,7 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
     maximum_routes: Optional[int] = maximum_routes_schema
     auth_type: Optional[str] = None
     auth_string: Optional[str] = None
+    remove_private_as: Optional[RemovePrivateASEnum] = None
     cli_append_str: str = ""
 
 
@@ -366,6 +385,11 @@ class f_routingpolicy(BaseModel):
     statements: List[f_rpolicy_statement]
 
 
+class f_interface_tag(BaseModel):
+    description: str = ""
+    groups: Optional[List[str]] = None
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -393,6 +417,9 @@ class f_root(BaseModel):
     poe_reboot_maintain: bool = False
     prefix_sets: Dict[str, f_prefixset] = {}
     routing_policies: Dict[str, f_routingpolicy] = {}
+    external_routing_policies: List[str] = []
+    interface_tag_options: Dict[str, f_interface_tag] = {}
+    vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
 
 
 class f_group_item(BaseModel):

@@ -274,6 +274,8 @@ Can contain the following dictionaries with specified keys:
       * update_source: Specify local source interface for the BGP session
       * auth_string: String used to calculate MD5 hash for authentication (password)
       * description: Description of remote peer (optional, defaults to "undefined")
+      * remove_private_as: Optional, if set must be either "all" or "replace".
+        Remove all private AS numbers from AS_PATH, or replace private AS numbers with local AS.
       * cli_append_str: Custom configuration to append to this peer (optional)
     * neighbor_v6:
 
@@ -297,6 +299,10 @@ Can contain the following dictionaries with specified keys:
 
       * match_type: String, ex "ipv4 prefix-set"
       * match_target: String, referring to prefix-set for example: "default-route"
+
+- external_routing_policies: List of strings, referring to routing policies defined in external
+  sources such as templates repository. BGP neighbor route maps must refer to a policy defined in
+  either this list or the routing_policies setting described above.
 
 
 routing.yml examples:
@@ -514,6 +520,13 @@ Contains base system settings like:
 - poe_reboot_maintain: Maintain POE supply during reboot of the switch. Default false
 - organization_name: Free format string describing organization name
 - domain_name: DNS domain (suffix)
+- interface_tag_options: Dictionary of {<name>, <description>}:
+
+  * name: Name of the tag, as defined in templates
+  * description: Description of the tag to be displayed in WebUI etc.
+
+- vxlan_vni_range: Define a range of VNIs to be used for VXLANs, ex "10000-99999". If any VXLANs are
+  configured with VNIs outside of this range an error will be raised when refreshing settings.
 
 Example of base_system.yml:
 

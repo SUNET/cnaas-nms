@@ -245,7 +245,13 @@ def arista_device_reboot(task, job_id: Optional[int] = None) -> str:  # type: ig
 
         task.run(netmiko_send_command, command_string="write", expect_string=".*#")
 
-        task.run(netmiko_send_command, command_string="reload force", max_loops=2, expect_string=".*")
+        res = task.run(netmiko_send_command, command_string="reload force", max_loops=2, expect_string=".*")
+
+        if not isinstance(res, MultiResult):
+            raise Exception("Could not reboot device {}".format(task.host.name))
+
+        if res.result:
+            logger.debug("Error when rebooting device {}: {}".format(task.host.name, res.result))
     except Exception as e:  # noqa: S110
         logger.exception("Failed to reboot switch {}: {}".format(task.host.name, str(e)))
         raise e

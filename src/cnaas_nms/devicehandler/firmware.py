@@ -130,6 +130,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
             if not dev:
                 raise Exception("Could not find a device with hostname {}".format(task.host.name))
             device_type = dev.device_type
+            device_model = dev.model
 
         if filename.startswith("detect_arch-"):
             dev_settings, _ = get_settings(task.host.name, device_type)
@@ -142,14 +143,14 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
             else:
                 models_32bit = arista_models.models_32bit
             filename = filename.removeprefix("detect_arch-")
-            if dev.model in models_32bit and filename.startswith("EOS64-"):
+            if device_model in models_32bit and filename.startswith("EOS64-"):
                 filename = "EOS-" + filename.removeprefix("EOS64-")
                 logger.info(
                     "Detected 32-bit device {}, changing filename to 32-bit version: {}".format(
                         task.host.name, filename
                     )
                 )
-            elif dev.model not in models_32bit and filename.startswith("EOS-"):
+            elif device_model not in models_32bit and filename.startswith("EOS-"):
                 filename = "EOS64-" + filename.removeprefix("EOS-")
                 logger.info(
                     "Detected 64-bit device {}, changing filename to 64-bit version: {}".format(

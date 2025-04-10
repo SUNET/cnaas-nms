@@ -1,6 +1,6 @@
 import datetime
 import time
-from typing import Optional
+from typing import List, Optional
 
 from nornir.core.exceptions import NornirSubTaskError
 from nornir.core.task import MultiResult
@@ -10,7 +10,9 @@ from nornir_netmiko.tasks import netmiko_send_command
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import redis_session, sqla_session
+from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
+from cnaas_nms.devicehandler.os_specifics import arista_models
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.scheduler.wrapper import job_wrapper
@@ -122,14 +124,40 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
         if Job.check_job_abort_status(session, job_id):
             return "Firmware download aborted"
 
-    url = httpd_url + "/" + filename
-
     try:
         with sqla_session() as session:  # type: ignore
             dev: Optional[Device] = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
             if not dev:
                 raise Exception("Could not find a device with hostname {}".format(task.host.name))
             device_type = dev.device_type
+
+        if filename.startswith("detect_arch-"):
+            dev_settings, _ = get_settings(dev.hostname, dev.device_type)
+            if (
+                dev_settings
+                and "arista_32bit_models" in dev_settings
+                and dev_settings["arista_32bit_models"] is not None
+            ):
+                models_32bit: List[str] = dev_settings["arista_models_32bit"]
+            else:
+                models_32bit = arista_models.models_32bit
+            filename = filename.removeprefix("detect_arch-")
+            if dev.model in models_32bit and filename.startswith("EOS64-"):
+                filename = "EOS-" + filename.removeprefix("EOS64-")
+                logger.info(
+                    "Detected 32-bit device {}, changing filename to 32-bit version: {}".format(
+                        task.host.name, filename
+                    )
+                )
+            elif dev.model not in models_32bit and filename.startswith("EOS-"):
+                filename = "EOS64-" + filename.removeprefix("EOS-")
+                logger.info(
+                    "Detected 64-bit device {}, changing filename to 64-bit version: {}".format(
+                        task.host.name, filename
+                    )
+                )
+
+        url = httpd_url + "/" + filename
 
         if device_type == DeviceType.ACCESS:
             firmware_download_cmd = "copy {} flash:".format(url)

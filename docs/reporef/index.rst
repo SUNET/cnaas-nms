@@ -527,6 +527,10 @@ Contains base system settings like:
 
 - vxlan_vni_range: Define a range of VNIs to be used for VXLANs, ex "10000-99999". If any VXLANs are
   configured with VNIs outside of this range an error will be raised when refreshing settings.
+- arista_models_32bit: Optional list of strings of Arista models that should be upgraded with 32-bit
+  firmware instead of the default 64-bit firmware when using "detect_arch-" keyword in the filename
+  parameter to /firmware/upgrade API endpoint. If not specified use list of models provided by NMS.
+  If set to empty list always use 64-bit firmware.
 
 Example of base_system.yml:
 

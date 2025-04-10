@@ -132,7 +132,7 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
             device_type = dev.device_type
 
         if filename.startswith("detect_arch-"):
-            dev_settings, _ = get_settings(dev.hostname, dev.device_type)
+            dev_settings, _ = get_settings(task.host.name, device_type)
             if (
                 dev_settings
                 and "arista_32bit_models" in dev_settings

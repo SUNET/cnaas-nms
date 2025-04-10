@@ -263,7 +263,7 @@ def device_upgrade_task(
     task,  # type: ignore
     job_id: int,
     scheduled_by: str,
-    filename: str,
+    filename: Optional[str],
     url: str,
     reboot: Optional[bool] = False,
     download: Optional[bool] = False,
@@ -283,7 +283,7 @@ def device_upgrade_task(
         device_type = dev.device_type
         device_model = dev.model
 
-    if filename.startswith("detect_arch-"):
+    if filename and filename.startswith("detect_arch-"):
         dev_settings, _ = get_settings(task.host.name, device_type)
         if dev_settings and "arista_models_32bit" in dev_settings and dev_settings["arista_models_32bit"] is not None:
             models_32bit: List[str] = dev_settings["arista_models_32bit"]
@@ -315,6 +315,8 @@ def device_upgrade_task(
 
     # If download is true, go ahead and download the firmware
     if download:
+        if not filename:
+            raise Exception("No filename specified for download")
         # Download the firmware from the HTTP container.
         logger.info("Downloading firmware {} on {}".format(filename, task.host.name))
         try:
@@ -329,6 +331,8 @@ def device_upgrade_task(
     # firmware and verify that it if present in the boot-config.
     already_active = False
     if activate:
+        if not filename:
+            raise Exception("No filename specified for activate")
         logger.info("Activating firmware {} on {}".format(filename, task.host.name))
         try:
             res = task.run(task=arista_firmware_activate, filename=filename, job_id=job_id)

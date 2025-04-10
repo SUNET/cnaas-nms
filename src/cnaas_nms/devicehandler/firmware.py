@@ -279,7 +279,7 @@ def device_upgrade_task(
 
     if filename.startswith("detect_arch-"):
         dev_settings, _ = get_settings(task.host.name, device_type)
-        if dev_settings and "arista_32bit_models" in dev_settings and dev_settings["arista_32bit_models"] is not None:
+        if dev_settings and "arista_models_32bit" in dev_settings and dev_settings["arista_models_32bit"] is not None:
             models_32bit: List[str] = dev_settings["arista_models_32bit"]
         else:
             models_32bit = arista_models.models_32bit

@@ -976,6 +976,42 @@ class DeviceRunningConfigApi(Resource):
         return result
 
 
+class DeviceLldpNeighborsApi(Resource):
+    @login_required
+    def get(self, hostname: str):
+        result = empty_result()
+        result["data"] = {"lldp_neighbors": None}
+        if not Device.valid_hostname(hostname):
+            return empty_result(status="error", data="Invalid hostname specified"), 400
+        try:
+            lldp_result = cnaas_nms.devicehandler.get.get_neighbors(hostname)[hostname][0]
+            if lldp_result.failed:
+                return empty_result(status="error", data="Failed to get LLDP neighbors"), 500
+            lldp_data = lldp_result.result["lldp_neighbors"]
+        except Exception as e:
+            return empty_result(status="error", data="Exception: {}".format(str(e))), 500
+        result["data"]["lldp_neighbors"] = lldp_data
+        return result
+
+
+class DeviceLldpNeighborsDetailApi(Resource):
+    @login_required
+    def get(self, hostname: str):
+        result = empty_result()
+        result["data"] = {"lldp_neighbors_detail": None}
+        if not Device.valid_hostname(hostname):
+            return empty_result(status="error", data="Invalid hostname specified"), 400
+        try:
+            lldp_result = cnaas_nms.devicehandler.get.get_neighbors(hostname, details=True)[hostname][0]
+            if lldp_result.failed:
+                return empty_result(status="error", data="Failed to get LLDP neighbors"), 500
+            lldp_data = lldp_result.result["lldp_neighbors_detail"]
+        except Exception as e:
+            return empty_result(status="error", data="Exception: {}".format(str(e))), 500
+        result["data"]["lldp_neighbors_detail"] = lldp_data
+        return result
+
+
 class DevicePreviousConfigApi(Resource):
     @login_required
     @device_api.param("job_id")
@@ -1272,6 +1308,8 @@ device_api.add_resource(DeviceGenerateConfigApi, "/<string:hostname>/generate_co
 device_api.add_resource(DeviceRunningConfigApi, "/<string:hostname>/running_config")
 device_api.add_resource(DevicePreviousConfigApi, "/<string:hostname>/previous_config")
 device_api.add_resource(DeviceApplyConfigApi, "/<string:hostname>/apply_config")
+device_api.add_resource(DeviceLldpNeighborsApi, "/<string:hostname>/lldp_neighbors")
+device_api.add_resource(DeviceLldpNeighborsDetailApi, "/<string:hostname>/lldp_neighbors_detail")
 device_api.add_resource(DeviceApi, "")
 devices_api.add_resource(DevicesApi, "")
 device_init_api.add_resource(DeviceInitApi, "/<int:device_id>")

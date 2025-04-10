@@ -215,7 +215,7 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) 
     try:
         boot_file_cmd = "boot system flash:{}".format(filename)
 
-        res = task.run(netmiko_send_command, command_string="enable", expect_string=".*#")
+        task.run(netmiko_send_command, command_string="enable", expect_string=".*#")
 
         res = task.run(netmiko_send_command, command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
         if res.result == filename:
@@ -223,11 +223,17 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) 
                 "Firmware already activated in boot-config on {}".format(task.host.name)
             )
 
-        res = task.run(netmiko_send_command, command_string="conf t", expect_string=".*config.*#")
+        task.run(netmiko_send_command, command_string="conf t", expect_string=".*config.*#")
 
-        res = task.run(netmiko_send_command, command_string=boot_file_cmd, read_timeout=120)
+        res = task.run(netmiko_send_command, command_string=boot_file_cmd, read_timeout=300)
 
-        res = task.run(netmiko_send_command, command_string="end", expect_string=".*#")
+        if not isinstance(res, MultiResult):
+            raise Exception("Could not activate firmware on {}".format(task.host.name))
+
+        if res.result:
+            logger.error("Error when activating firmware on {}: {}".format(task.host.name, res.result))
+
+        task.run(netmiko_send_command, command_string="end", expect_string=".*#")
 
         res = task.run(netmiko_send_command, command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
 

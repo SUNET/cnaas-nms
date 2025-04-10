@@ -89,7 +89,9 @@ def calc_config_hash(hostname: str, config: str, platform: str, devtype: DeviceT
     return hash_object.hexdigest()
 
 
-def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None) -> AggregatedResult:
+def get_neighbors(
+    hostname: Optional[str] = None, group: Optional[str] = None, details: bool = False
+) -> AggregatedResult:
     """Get neighbor information from device
 
     Args:
@@ -107,7 +109,10 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None) -
     else:
         nr_filtered = nr
 
-    result = nr_filtered.run(task=napalm_get, getters=["lldp_neighbors"])
+    if details:
+        result = nr_filtered.run(task=napalm_get, getters=["lldp_neighbors_detail"])
+    else:
+        result = nr_filtered.run(task=napalm_get, getters=["lldp_neighbors"])
 
     return result
 

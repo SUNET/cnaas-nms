@@ -275,6 +275,18 @@ class DeviceTests(unittest.TestCase):
         result = self.client.get(f"/api/v1.0/device/{hostname}/running_config", query_string={"interface": "Ethernet1"})
         self.assertEqual(result.status_code, 200, "Get running config interface failed")
 
+    @pytest.mark.equipment
+    def test_get_lldp_neighbors(self):
+        hostname = self.testdata["managed_dist"]
+        result = self.client.get(f"/api/v1.0/device/{hostname}/lldp_neighbors")
+        self.assertEqual(result.status_code, 200, "Get LLDP neighbors failed")
+
+    @pytest.mark.equipment
+    def test_get_lldp_neighbors_detail(self):
+        hostname = self.testdata["managed_dist"]
+        result = self.client.get(f"/api/v1.0/device/{hostname}/lldp_neighbors_detail")
+        self.assertEqual(result.status_code, 200, "Get LLDP neighbors detail failed")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -104,7 +104,9 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
     return "Post-flight, OS version updated from {} to {}.".format(prev_os_version, os_version)
 
 
-def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Optional[int] = None) -> str:
+def arista_firmware_download(
+    task, filename: str, httpd_url: str, device_type: DeviceType, job_id: Optional[int] = None
+) -> str:
     """
     NorNir task to download firmware image from the HTTP server.
 
@@ -112,6 +114,8 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
         task: NorNir task
         filename: Name of the file to download
         httpd_url: Base URL to the HTTP server
+        device_type: Device type
+        job_id: Job ID
         job_id: Job ID
 
     Returns:
@@ -125,39 +129,6 @@ def arista_firmware_download(task, filename: str, httpd_url: str, job_id: Option
             return "Firmware download aborted"
 
     try:
-        with sqla_session() as session:  # type: ignore
-            dev: Optional[Device] = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
-            if not dev:
-                raise Exception("Could not find a device with hostname {}".format(task.host.name))
-            device_type = dev.device_type
-            device_model = dev.model
-
-        if filename.startswith("detect_arch-"):
-            dev_settings, _ = get_settings(task.host.name, device_type)
-            if (
-                dev_settings
-                and "arista_32bit_models" in dev_settings
-                and dev_settings["arista_32bit_models"] is not None
-            ):
-                models_32bit: List[str] = dev_settings["arista_models_32bit"]
-            else:
-                models_32bit = arista_models.models_32bit
-            filename = filename.removeprefix("detect_arch-")
-            if device_model in models_32bit and filename.startswith("EOS64-"):
-                filename = "EOS-" + filename.removeprefix("EOS64-")
-                logger.info(
-                    "Detected 32-bit device {}, changing filename to 32-bit version: {}".format(
-                        task.host.name, filename
-                    )
-                )
-            elif device_model not in models_32bit and filename.startswith("EOS-"):
-                filename = "EOS64-" + filename.removeprefix("EOS-")
-                logger.info(
-                    "Detected 64-bit device {}, changing filename to 64-bit version: {}".format(
-                        task.host.name, filename
-                    )
-                )
-
         url = httpd_url + "/" + filename
 
         if device_type == DeviceType.ACCESS:
@@ -299,6 +270,31 @@ def device_upgrade_task(
     # will verify the amount of disk space and so on.
     set_thread_data(job_id)
     logger = get_logger()
+    with sqla_session() as session:  # type: ignore
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
+        if not dev:
+            raise Exception("Could not find a device with hostname {}".format(task.host.name))
+        device_type = dev.device_type
+        device_model = dev.model
+
+    if filename.startswith("detect_arch-"):
+        dev_settings, _ = get_settings(task.host.name, device_type)
+        if dev_settings and "arista_32bit_models" in dev_settings and dev_settings["arista_32bit_models"] is not None:
+            models_32bit: List[str] = dev_settings["arista_models_32bit"]
+        else:
+            models_32bit = arista_models.models_32bit
+        filename = filename.removeprefix("detect_arch-")
+        if device_model in models_32bit and filename.startswith("EOS64-"):
+            filename = "EOS-" + filename.removeprefix("EOS64-")
+            logger.info(
+                "Detected 32-bit device {}, changing filename to 32-bit version: {}".format(task.host.name, filename)
+            )
+        elif device_model not in models_32bit and filename.startswith("EOS-"):
+            filename = "EOS64-" + filename.removeprefix("EOS-")
+            logger.info(
+                "Detected 64-bit device {}, changing filename to 64-bit version: {}".format(task.host.name, filename)
+            )
+
     if pre_flight:
         logger.info("Running pre-flight check on {}".format(task.host.name))
         try:
@@ -316,7 +312,9 @@ def device_upgrade_task(
         # Download the firmware from the HTTP container.
         logger.info("Downloading firmware {} on {}".format(filename, task.host.name))
         try:
-            res = task.run(task=arista_firmware_download, filename=filename, httpd_url=url, job_id=job_id)
+            res = task.run(
+                task=arista_firmware_download, filename=filename, httpd_url=url, device_type=device_type, job_id=job_id
+            )
         except Exception as e:
             logger.exception("Exception while downloading firmware: {}".format(str(e)))
             raise e

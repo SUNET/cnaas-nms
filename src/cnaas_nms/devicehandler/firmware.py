@@ -85,7 +85,7 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
 
     try:
         # retry once per minute for post_waittime / 2 or 30 retries, whichever is lower
-        max_attempts = min(int((post_waittime / 2) / 60), 30)
+        max_attempts = min(round((post_waittime / 2) / 60), 30) + 1
         os_version: Optional[str] = None
         for i in range(0, max_attempts):
             start_time = time.time()

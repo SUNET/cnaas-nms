@@ -93,11 +93,14 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
             try:
                 res = task.run(napalm_get, getters=["facts"])
             except NornirSubTaskError:
-                pass
-            if isinstance(res, MultiResult) and not res.failed:
-                logger.debug("Device {} responsive on check attempt {}".format(task.host.name, i + 1))
-                os_version = res[0].result["facts"]["os_version"]
-                break
+                # We don't want to fail the parent task if one connection attempt fails
+                if task.results[-1].name == "napalm_get":
+                    task.results[-1].failed = False
+            else:
+                if isinstance(res, MultiResult) and not res.failed:
+                    logger.debug("Device {} responsive on check attempt {}".format(task.host.name, i + 1))
+                    os_version = res[0].result["facts"]["os_version"]
+                    break
             time.sleep(max(60 - (time.time() - start_time), 0))
 
         if not os_version:

@@ -93,7 +93,7 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
             try:
                 res = task.run(napalm_get, getters=["facts"])
             except NornirSubTaskError:
-                continue
+                pass
             if isinstance(res, MultiResult) and not res.failed:
                 logger.debug("Device {} responsive on check attempt {}".format(task.host.name, i + 1))
                 os_version = res[0].result["facts"]["os_version"]

@@ -89,7 +89,11 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
         os_version: Optional[str] = None
         for i in range(0, max_attempts):
             start_time = time.time()
-            res = task.run(napalm_get, getters=["facts"])
+            res: Optional[MultiResult] = None
+            try:
+                res = task.run(napalm_get, getters=["facts"])
+            except NornirSubTaskError:
+                continue
             if isinstance(res, MultiResult) and not res.failed:
                 logger.debug("Device {} responsive on check attempt {}".format(task.host.name, i + 1))
                 os_version = res[0].result["facts"]["os_version"]
@@ -233,7 +237,7 @@ def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) 
         logger.exception("Failed to activate firmware on {}: {}".format(task.host.name, str(e)))
         raise Exception("Failed to activate firmware")
 
-    return "Firmware activate done."
+    return "Firmware {} activation done.".format(filename)
 
 
 def arista_device_reboot(task, job_id: Optional[int] = None) -> str:  # type: ignore

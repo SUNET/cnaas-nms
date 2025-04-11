@@ -76,14 +76,28 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
     set_thread_data(job_id)
     logger = get_logger()
     time.sleep(int(post_waittime))
-    logger.info("Post-flight check wait ({}s) complete, starting check for {}".format(post_waittime, task.host.name))
     with sqla_session() as session:  # type: ignore
         if Job.check_job_abort_status(session, job_id):
             return "Post-flight aborted"
+    logger.info(
+        "post_waittime has passed ({}s), beginning post-flight check for {}".format(post_waittime, task.host.name)
+    )
 
     try:
-        res = task.run(napalm_get, getters=["facts"])
-        os_version = res[0].result["facts"]["os_version"]
+        # retry once per minute for post_waittime / 2 or 30 retries, whichever is lower
+        max_attempts = min(int((post_waittime / 2) / 60), 30)
+        os_version: Optional[str] = None
+        for i in range(0, max_attempts):
+            start_time = time.time()
+            res = task.run(napalm_get, getters=["facts"])
+            if isinstance(res, MultiResult) and not res.failed:
+                logger.debug("Device {} responsive on check attempt {}".format(task.host.name, i + 1))
+                os_version = res[0].result["facts"]["os_version"]
+                break
+            time.sleep(max(60 - (time.time() - start_time), 0))
+
+        if not os_version:
+            raise Exception("Device {} did not respond to check".format(task.host.name))
 
         with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()

@@ -1,6 +1,6 @@
 import datetime
 import time
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from nornir.core.exceptions import NornirSubTaskError
 from nornir.core.task import MultiResult
@@ -59,13 +59,22 @@ def arista_pre_flight_check(task, job_id: Optional[int] = None) -> str:  # type:
     return "Pre-flight check done."
 
 
-def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id: Optional[int] = None) -> str:
+def arista_post_flight_check(
+    task,
+    post_waittime: Optional[int],
+    dev_settings: Dict,
+    device_model: str,
+    scheduled_by: str,
+    job_id: Optional[int] = None,
+) -> str:
     """
     NorNir task to update device facts after a switch have been upgraded
 
     Args:
         task: NorNir task
         post_waittime: Time to wait before trying to gather facts
+        dev_settings: Device settings from get_settings()
+        device_model: Device model string
         scheduled_by: Who scheduled the job
         job_id: Job ID
 
@@ -75,6 +84,31 @@ def arista_post_flight_check(task, post_waittime: int, scheduled_by: str, job_id
     """
     set_thread_data(job_id)
     logger = get_logger()
+    post_waittime_source: str = "API call"
+    if post_waittime is None:
+        waittime_dict: Dict[str, int] = dev_settings["upgrade_post_waittime"]
+        post_waittime_model = waittime_dict.get(device_model, None)
+        if post_waittime_model is not None:
+            post_waittime = post_waittime_model
+            post_waittime_source = "Settings -> Device model"
+
+    if post_waittime is None:
+        post_waittime_platform = waittime_dict.get(task.host.platform, None)
+        if post_waittime_platform is not None:
+            post_waittime = post_waittime_platform
+            post_waittime_source = "Settings -> Device platform"
+
+    if post_waittime is None:
+        post_waittime = waittime_dict.get("default", 600)
+        post_waittime_source = "Settings -> Default"
+
+    # make sure post_waittime is longer than 0 seconds and shorter than 24 hours
+    post_waittime = max(min(post_waittime, 86400), 0)
+    logger.info(
+        "Running post-flight check on {}, delay start by {}s (delay time from {})".format(
+            task.host.name, post_waittime, post_waittime_source
+        )
+    )
     time.sleep(int(post_waittime))
     with sqla_session() as session:  # type: ignore
         if Job.check_job_abort_status(session, job_id):
@@ -290,7 +324,7 @@ def device_upgrade_task(
     download: Optional[bool] = False,
     pre_flight: Optional[bool] = False,
     post_flight: Optional[bool] = False,
-    post_waittime: Optional[int] = 0,
+    post_waittime: Optional[int] = None,
     activate: Optional[bool] = False,
 ) -> str:
     # If pre-flight is selected, execute the pre-flight task which
@@ -391,10 +425,15 @@ def device_upgrade_task(
     # If post-flight is selected, execute the post-flight task which
     # will update device facts for the selected devices
     if post_flight and not already_active:
-        logger.info("Running post-flight check on {}, delay start by {}s".format(task.host.name, post_waittime))
         try:
+            dev_settings, _ = get_settings(task.host.name, device_type)
             res = task.run(
-                task=arista_post_flight_check, post_waittime=post_waittime, scheduled_by=scheduled_by, job_id=job_id
+                task=arista_post_flight_check,
+                post_waittime=post_waittime,
+                scheduled_by=scheduled_by,
+                job_id=job_id,
+                dev_settings=dev_settings,
+                device_model=device_model,
             )
         except Exception as e:
             logger.exception("Failed to run post-flight check: {}".format(str(e)))
@@ -420,7 +459,7 @@ def device_upgrade(
     job_id: Optional[int] = None,
     pre_flight: Optional[bool] = False,
     post_flight: Optional[bool] = False,
-    post_waittime: Optional[int] = 600,
+    post_waittime: Optional[int] = None,
     reboot: Optional[bool] = False,
     scheduled_by: str = "",
 ) -> NornirJobResult:

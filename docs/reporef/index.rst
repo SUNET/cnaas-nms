@@ -531,6 +531,11 @@ Contains base system settings like:
   firmware instead of the default 64-bit firmware when using "detect_arch-" keyword in the filename
   parameter to /firmware/upgrade API endpoint. If not specified use list of models provided by NMS.
   If set to empty list always use 64-bit firmware.
+- upgrade_post_waittime: Optional dictionary of {<string>, <waittime>} to specify a how long to wait
+  after upgrade before testing if the upgrade was successful, waittime is specified in seconds.
+  String can be a model number, a platform or "default". If matching model is found, that wait time
+  will be used, otherwise if matching platform is found that wait time will be used, otherwise
+  default wait time will be used.
 
 Example of base_system.yml:
 

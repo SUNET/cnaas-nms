@@ -86,7 +86,7 @@ def arista_post_flight_check(
     logger = get_logger()
     post_waittime_source: str = "API call"
     if post_waittime is None:
-        waittime_dict: Dict[str, int] = dev_settings["upgrade_post_waittime"]
+        waittime_dict: Dict[str, int] = dev_settings.get("upgrade_post_waittime", {})
         post_waittime_model = waittime_dict.get(device_model, None)
         if post_waittime_model is not None:
             post_waittime = post_waittime_model

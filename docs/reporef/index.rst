@@ -520,10 +520,21 @@ Contains base system settings like:
 - poe_reboot_maintain: Maintain POE supply during reboot of the switch. Default false
 - organization_name: Free format string describing organization name
 - domain_name: DNS domain (suffix)
-- interface_tag_options: Dictionary of {<name>, <description>}:
+- interface_tag_options: Dictionary of {<name>, {description: <description>, groups: <list of groups>}:
 
   * name: Name of the tag, as defined in templates
   * description: Description of the tag to be displayed in WebUI etc.
+  * groups: Optional list of groups where tag should be limited to
+
+- port_template_options: Dictionary of {<name>, {description: <description>, groups: <list of groups>,
+  vlan_option: <vlan_option>}:
+
+  * name: Name of the port_template, as defined in templates but without "port_template_" prefix
+  * description: Description of the port template to be displayed in WebUI etc.
+  * vlan_option: VLAN option to be used for this port template, default "tagged" but can be "untagged"
+  or "none". This describes if untagged_vlan or tagged_vlan_list settings should be used for this
+  port template.
+  * groups: Optional list of groups where port template should be limited to
 
 - vxlan_vni_range: Define a range of VNIs to be used for VXLANs, ex "10000-99999". If any VXLANs are
   configured with VNIs outside of this range an error will be raised when refreshing settings.

@@ -420,6 +420,8 @@ class f_root(BaseModel):
     external_routing_policies: List[str] = []
     interface_tag_options: Dict[str, f_interface_tag] = {}
     vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
+    arista_models_32bit: Optional[List[str]] = None
+    upgrade_post_waittime: Dict[str, int] = {"default": 600}
 
 
 class f_group_item(BaseModel):

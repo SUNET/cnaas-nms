@@ -79,6 +79,12 @@ class RemovePrivateASEnum(StrEnum):
     REPLACE = auto()
 
 
+class VlanOptionEnum(StrEnum):
+    NONE = auto()
+    TAGGED = auto()
+    UNTAGGED = auto()
+
+
 def validate_ipv4_if(ipv4if: str):
     try:
         assert "/" in ipv4if, "Not a CIDR notation/no netmask"
@@ -390,6 +396,12 @@ class f_interface_tag(BaseModel):
     groups: Optional[List[str]] = None
 
 
+class f_port_template(BaseModel):
+    description: str = ""
+    vlan_config: VlanOptionEnum = VlanOptionEnum.TAGGED
+    groups: Optional[List[str]] = None
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -419,6 +431,7 @@ class f_root(BaseModel):
     routing_policies: Dict[str, f_routingpolicy] = {}
     external_routing_policies: List[str] = []
     interface_tag_options: Dict[str, f_interface_tag] = {}
+    port_template_options: Dict[str, f_port_template] = {}
     vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
     arista_models_32bit: Optional[List[str]] = None
     upgrade_post_waittime: Dict[str, int] = {"default": 600}

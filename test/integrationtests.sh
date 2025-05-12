@@ -34,7 +34,7 @@ then
 else
 	echo "detected docker compose v2"
 	COMPOSE_COMMAND="docker compose"
-	COMPOSE_COMPATIBILITY=1
+	export COMPOSE_COMPATIBILITY=1
 fi
 
 $COMPOSE_COMMAND down -t 3

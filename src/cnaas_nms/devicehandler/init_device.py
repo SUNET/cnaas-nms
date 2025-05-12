@@ -1,7 +1,7 @@
 import datetime
 import os
 from ipaddress import IPv4Address, IPv4Interface, ip_interface
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 
 import napalm.base.exceptions
 import yaml
@@ -389,8 +389,8 @@ def init_mlag_peer_only(
         schedule_mlag_peer_init(mlag_peer_id, mlag_peer_new_hostname, uplink_hostnames, scheduled_by)
 
 
-def cleanup_init_step1_result(nrresult: List[Union[Result, MultiResult]]) -> List[Union[Result, MultiResult]]:
-    res: Union[Result, MultiResult]
+def cleanup_init_step1_result(nrresult: MultiResult) -> MultiResult:
+    res: Result
     for res in nrresult:
         # These tasks are supposed to get connection timeouts etc, setting them
         # to failed=False will keep job history clean and cause less confusion

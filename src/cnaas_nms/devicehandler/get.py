@@ -30,7 +30,10 @@ def get_running_config(hostname: str) -> str:
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     nr_result = nr_filtered.run(task=napalm_get, getters=["config"])
     if nr_result[hostname].failed:
-        raise nr_result[hostname][0].exception
+        if issubclass(type(nr_result[hostname][0].exception), BaseException) and nr_result[hostname][0].exception:
+            raise nr_result[hostname][0].exception  # type: ignore
+        else:
+            raise Exception("Failed to get running config")
     else:
         return nr_result[hostname].result["config"]["running"]
 

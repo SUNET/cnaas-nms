@@ -19,7 +19,7 @@ from cnaas_nms.tools import jinja_filters
 
 @dataclass
 class NornirJobResult(JobResult):
-    nrresult: Optional[MultiResult] = None
+    nrresult: Optional[Union[MultiResult, AggregatedResult]] = None
     change_score: Optional[float] = None
 
 

@@ -29,11 +29,17 @@ if is_coverage_enabled():
 
     def save_coverage() -> None:
         cov.stop()
-        cov.save()
+        try:
+            cov.save()
+        except Exception as e:
+            print("Failed to save coverage: {}".format(e))
 
     def save_coverage_signal(signum, frame) -> None:
         cov.stop()
-        cov.save()
+        try:
+            cov.save()
+        except Exception as e:
+            print("Failed to save coverage: {}".format(e))
 
     atexit.register(save_coverage)
     signal.signal(signal.SIGTERM, save_coverage_signal)  # type: ignore

@@ -31,7 +31,7 @@ if is_coverage_enabled():
         cov.stop()
         cov.save()
 
-    def save_coverage_signal() -> None:
+    def save_coverage_signal(signum, frame) -> None:
         cov.stop()
         cov.save()
 

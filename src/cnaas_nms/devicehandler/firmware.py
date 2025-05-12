@@ -489,7 +489,9 @@ def device_upgrade(
                 raise Exception('Invalid device platform "{}" for device: {}'.format(dev.platform, device))
 
     # Start tasks to take care of the upgrade
+    old_num_workers = nr_filtered.config.runner.options["num_workers"]
     try:
+        nr_filtered.config.runner.options["num_workers"] = 10
         nrresult = nr_filtered.run(
             task=device_upgrade_task,
             job_id=job_id,
@@ -506,6 +508,8 @@ def device_upgrade(
     except Exception as e:
         logger.exception("Exception while upgrading devices: {}".format(str(e)))
         return NornirJobResult(nrresult=nrresult)
+    finally:
+        nr_filtered.config.runner.options["num_workers"] = old_num_workers
 
     failed_hosts = list(nrresult.failed_hosts.keys())
     for hostname in failed_hosts:

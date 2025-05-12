@@ -670,8 +670,11 @@ def generate_only(hostname: str) -> Tuple[str, dict]:
             raise Exception(
                 "Could not generate config for device {}: {}".format(hostname, nrresult[hostname][0].result)
             )
-        if "template_vars" in nrresult[hostname][1].host:
-            template_vars = nrresult[hostname][1].host["template_vars"]
+        hostvar = nrresult[hostname][1].host
+        if hostvar is None:
+            raise Exception("Could not generate config for device {}".format(hostname))
+        if "template_vars" in hostvar:
+            template_vars = hostvar["template_vars"]
         if nrresult.failed:
             print_result(nrresult)
             raise Exception("Failed to generate config for {}".format(hostname))
@@ -972,9 +975,12 @@ def sync_devices(
             logger.debug("Unable to calculate change score for failed device {}".format(host))
         elif results[2].diff:
             changed_hosts.append(host)
-            if "change_score" in results[0].host:
-                change_scores.append(results[0].host["change_score"])
-                logger.debug("Change score for host {}: {:.1f}".format(host, results[0].host["change_score"]))
+            hostvar = results[0].host
+            if hostvar is None:
+                raise ValueError("Host not found")
+            if "change_score" in hostvar:
+                change_scores.append(hostvar["change_score"])
+                logger.debug("Change score for host {}: {:.1f}".format(host, hostvar["change_score"]))
         else:
             unchanged_hosts.append(host)
             change_scores.append(0)

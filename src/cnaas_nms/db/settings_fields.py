@@ -56,6 +56,12 @@ mtu_schema = Field(default=None, ge=68, le=9214, description="MTU (Maximum trans
 as_num_schema = Field(
     gt=0, lt=4294967296, description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)"
 )
+as_num_schema_optional = Field(
+    default=None,
+    gt=0,
+    lt=4294967296,
+    description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)",
+)
 IFNAME_REGEX = r"([a-zA-Z0-9\/\.:-])+"
 ifname_schema = Field(default=None, pattern=f"^{IFNAME_REGEX}$", description="Interface name")
 IFNAME_RANGE_REGEX = r"([a-zA-Z0-9\/\.:\-\[\]])+"
@@ -355,7 +361,7 @@ class f_underlay(BaseModel):
     infra_lo_net: str = ipv4_if_schema
     infra_link_net: str = ipv4_if_schema
     mgmt_lo_net: str = ipv4_if_schema
-    bgp_asn: Optional[int] = as_num_schema
+    bgp_asn: Optional[int] = as_num_schema_optional
 
 
 class f_user(BaseModel):

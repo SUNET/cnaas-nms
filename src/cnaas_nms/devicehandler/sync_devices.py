@@ -387,7 +387,8 @@ def populate_device_vars(
     with open(mapfile, "r") as f:
         mapping = yaml.safe_load(f)
         if (
-            "unmanaged_config_sections" in mapping[devtype.name]
+            devtype.name in mapping
+            and "unmanaged_config_sections" in mapping[devtype.name]
             and type(mapping[devtype.name]["unmanaged_config_sections"]) is list
             and task
         ):

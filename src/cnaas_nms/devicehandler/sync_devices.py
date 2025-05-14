@@ -218,7 +218,7 @@ def populate_device_vars(
             )
         mlag_vars = get_mlag_vars(session, dev)
         device_variables = {**device_variables, **access_device_variables, **mlag_vars}
-    elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
+    elif devtype in [DeviceType.DIST, DeviceType.CORE, DeviceType.FIREWALL]:
         infra_ip = dev.infra_ip
         asn = generate_asn(IPv4Address(infra_ip))
         fabric_device_variables: dict[str, Any] = {

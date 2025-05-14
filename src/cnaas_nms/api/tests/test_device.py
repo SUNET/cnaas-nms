@@ -28,7 +28,7 @@ class DeviceTests(unittest.TestCase):
                 if stack:
                     session.delete(stack)
                     session.commit()
-            for hostname in ["testdevice", "testdevice2"]:
+            for hostname in ["testdevice", "testdevice2", "testfwdevice"]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
                     session.delete(device)
@@ -87,6 +87,19 @@ class DeviceTests(unittest.TestCase):
             "platform": "eos",
             "state": "MANAGED",
             "device_type": "DIST",
+        }
+        result = self.client.post("/api/v1.0/device", json=device_data)
+        self.assertEqual(result.status_code, 200)
+
+    def test_add_new_fw_device(self):
+        device_data = {
+            "hostname": "testfwdevice",
+            "management_ip": "10.1.3.4",
+            "dhcp_ip": "11.1.3.4",
+            "ztp_mac": "0800275C0999",
+            "platform": "junos",
+            "state": "MANAGED",
+            "device_type": "FIREWALL",
         }
         result = self.client.post("/api/v1.0/device", json=device_data)
         self.assertEqual(result.status_code, 200)

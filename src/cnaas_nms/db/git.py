@@ -414,7 +414,7 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
         if basedir not in DIR_STRUCTURE:
             continue
         if basedir.startswith("global"):
-            return {DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE}, set()
+            return {DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE, DeviceType.FIREWALL}, set()
         elif basedir.startswith("fabric"):
             unsynced_devtypes.update({DeviceType.DIST, DeviceType.CORE})
         elif basedir.startswith("access"):
@@ -423,6 +423,8 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
             unsynced_devtypes.add(DeviceType.DIST)
         elif basedir.startswith("core"):
             unsynced_devtypes.add(DeviceType.CORE)
+        elif basedir.startswith("firewall"):
+            unsynced_devtypes.add(DeviceType.FIREWALL)
         elif basedir.startswith("devices"):
             try:
                 hostname = filename.split(os.path.sep)[1]

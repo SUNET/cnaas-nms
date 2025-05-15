@@ -73,6 +73,7 @@ DIR_STRUCTURE: dict[str, Any] = {
         "vxlans.yml": "file",
     },
     "fabric": {"base_system.yml": "file"},
+    "firewall": {"base_system.yml": "file"},
     "core": {"base_system.yml": "file"},
     "dist": {"base_system.yml": "file"},
     "access": {"base_system.yml": "file"},
@@ -1017,7 +1018,7 @@ def rebuild_settings_cache() -> None:
     logger.debug("Rebuilding settings cache for global settings and primary groups")
     update_device_primary_groups()
     get_settings()
-    test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE]
+    test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE, DeviceType.FIREWALL]
     logger.debug("Rebuilding settings cache for devicetypes")
     for devtype in test_devtypes:
         get_settings(device_type=devtype)

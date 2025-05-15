@@ -78,7 +78,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
         )
     except NornirSubTaskError as e:
         copy_res: Optional[MultiResult] = next(iter([res for res in e.result if res.name == "arista_copy_cert"]), None)
-        if copy_res:
+        if copy_res and isinstance(copy_res, MultiResult):
             nm_res: Optional[Result] = next(
                 iter([sres for sres in copy_res if sres.name == "netmiko_file_transfer"]),
                 None,

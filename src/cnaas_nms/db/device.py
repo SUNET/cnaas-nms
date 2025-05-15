@@ -58,6 +58,7 @@ class DeviceType(enum.Enum):
     ACCESS = 1
     DIST = 2
     CORE = 3
+    FIREWALL = 4
 
     @classmethod
     def has_value(cls, value):

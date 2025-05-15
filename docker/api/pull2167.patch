@@ -19,7 +19,7 @@ index 827bee3f1..f64909158 100644
          # Arista reports the commitBy time relative to uptime of the box... :-(
          uptime = self._run_commands(["show version"])
          uptime = uptime[0].get("uptime", -1)
-
+ 
          pending_commits = {}
 -        for session_name, session_dict in config_sessions.items():
 -            if "pendingCommitTimer" in session_dict["state"]:
@@ -57,5 +57,6 @@ index 827bee3f1..f64909158 100644
 +                    else:
 +                        confirm_by_seconds = commit_by - uptime
 +                        pending_commits[session_name] = round(confirm_by_seconds)
-
+ 
          return pending_commits
+ 

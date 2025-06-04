@@ -165,63 +165,63 @@ def get_interface(
 
 
 @template_filter()
-def b64encode(s: str) -> str:
+def b64encode(s: str, encoding="utf-8") -> str:
     """Returns base64 encoded string.
 
     Args:
         s: String to encode"""
-    return base64.b64encode(s.encode()).decode()
+    return base64.b64encode(s.encode(encoding=encoding)).decode(encoding=encoding)
 
 
 @template_filter()
-def b64decode(s: str) -> str:
+def b64decode(s: str, encoding="utf-8") -> str:
     """Returns base64 decoded string.
 
     Args:
         s: String to decode"""
-    return base64.b64decode(s.encode()).decode()
+    return base64.b64decode(s.encode(encoding=encoding)).decode(encoding=encoding)
 
 
 @template_filter()
-def b16encode(s: str) -> str:
+def b16encode(s: str, encoding="utf-8") -> str:
     """Returns base16 encoded string.
 
     Args:
         s: String to encode"""
-    return base64.b16encode(s.encode()).decode()
+    return base64.b16encode(s.encode(encoding=encoding)).decode(encoding=encoding)
 
 
 @template_filter()
-def b16decode(s: str) -> str:
+def b16decode(s: str, encoding="utf-8") -> str:
     """Returns base16 decoded string.
 
     Args:
         s: String to decode"""
-    return base64.b16decode(s.encode()).decode()
+    return base64.b16decode(s.encode(encoding=encoding)).decode(encoding=encoding)
 
 
 @template_filter()
-def sha1(s: str) -> str:
+def sha1(s: str, encoding="utf-8") -> str:
     """Return SHA1 hexdigest of string s."""
-    return hashlib.sha1(s.encode()).hexdigest()
+    return hashlib.sha1(s.encode(encoding=encoding)).hexdigest()
 
 
 @template_filter()
-def sha256(s: str) -> str:
+def sha256(s: str, encoding="utf-8") -> str:
     """Return SHA256 hexdigest of string s."""
-    return hashlib.sha256(s.encode()).hexdigest()
+    return hashlib.sha256(s.encode(encoding=encoding)).hexdigest()
 
 
 @template_filter()
-def sha512(s: str) -> str:
+def sha512(s: str, encoding="utf-8") -> str:
     """Return SHA256 hexdigest of string s."""
-    return hashlib.sha512(s.encode()).hexdigest()
+    return hashlib.sha512(s.encode(encoding=encoding)).hexdigest()
 
 
 @template_filter()
-def md5(s: str) -> str:
+def md5(s: str, encoding: str = "utf-8") -> str:
     """Return SHA256 hexdigest of string s."""
-    return hashlib.md5(s.encode()).hexdigest()
+    return hashlib.md5(s.encode(encoding=encoding)).hexdigest()
 
 
 @template_filter()

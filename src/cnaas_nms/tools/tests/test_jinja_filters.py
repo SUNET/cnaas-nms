@@ -167,7 +167,7 @@ class HashTests(unittest.TestCase):
 
     def test_sha512(self):
         self.assertEqual(
-            sha512("Zij3NjTWHt9W4Ljuez7QpJTo5O/Fg+z8bKzWMev+n3lXcEhTv9dnL1ZsfJBocAR19QBjLz747LhqkDiQBOuOuw=="),
+            sha512("Zij3NjTWHt9W4Ljuez7QpJTo5O/Fg+z8bKzWMev+n3lXcEhTv9dnL1Zs" "fJBocAR19QBjLz747LhqkDiQBOuOuw=="),
             "6f7affc55e52d24b6da48182ceae1007a3f7fcdee6ad7e3eae0858e02d98786"
             "cc04e9a329126d31cdf427214ea07428dd61e67b56b9f568e221c4553f391d02e",
         )

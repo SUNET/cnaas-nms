@@ -165,7 +165,7 @@ def get_interface(
 
 
 @template_filter()
-def b64encode(s: str, encoding="utf-8") -> str:
+def b64encode(s: str, encoding: str = "utf-8") -> str:
     """Returns base64 encoded string.
 
     Args:
@@ -174,7 +174,7 @@ def b64encode(s: str, encoding="utf-8") -> str:
 
 
 @template_filter()
-def b64decode(s: str, encoding="utf-8") -> str:
+def b64decode(s: str, encoding: str = "utf-8") -> str:
     """Returns base64 decoded string.
 
     Args:
@@ -183,7 +183,7 @@ def b64decode(s: str, encoding="utf-8") -> str:
 
 
 @template_filter()
-def b16encode(s: str, encoding="utf-8") -> str:
+def b16encode(s: str, encoding: str = "utf-8") -> str:
     """Returns base16 encoded string.
 
     Args:
@@ -192,7 +192,7 @@ def b16encode(s: str, encoding="utf-8") -> str:
 
 
 @template_filter()
-def b16decode(s: str, encoding="utf-8") -> str:
+def b16decode(s: str, encoding: str = "utf-8") -> str:
     """Returns base16 decoded string.
 
     Args:
@@ -201,19 +201,19 @@ def b16decode(s: str, encoding="utf-8") -> str:
 
 
 @template_filter()
-def sha1(s: str, encoding="utf-8") -> str:
+def sha1(s: str, encoding: str = "utf-8") -> str:
     """Return SHA1 hexdigest of string s."""
     return hashlib.sha1(s.encode(encoding=encoding)).hexdigest()
 
 
 @template_filter()
-def sha256(s: str, encoding="utf-8") -> str:
+def sha256(s: str, encoding: str = "utf-8") -> str:
     """Return SHA256 hexdigest of string s."""
     return hashlib.sha256(s.encode(encoding=encoding)).hexdigest()
 
 
 @template_filter()
-def sha512(s: str, encoding="utf-8") -> str:
+def sha512(s: str, encoding: str = "utf-8") -> str:
     """Return SHA256 hexdigest of string s."""
     return hashlib.sha512(s.encode(encoding=encoding)).hexdigest()
 

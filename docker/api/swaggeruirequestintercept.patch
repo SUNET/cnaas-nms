@@ -1,0 +1,12 @@
+diff --git a/flask_restx/templates/swagger-ui.html b/flask_restx/templates/swagger-ui.html
+index b233e01..0ee2e9e 100644
+--- a/flask_restx/templates/swagger-ui.html
++++ b/flask_restx/templates/swagger-ui.html
+@@ -56,6 +56,7 @@
+                 {%- endif %}
+                 validatorUrl: "{{ config.SWAGGER_VALIDATOR_URL }}" || null,
+                 dom_id: "#swagger-ui",
++               requestInterceptor: (req) => { if (!('Authorization' in req.headers)) { req.headers['Authorization'] = `Bearer ${localStorage.getItem("token")}`; } return req; },
+                 presets: [
+                     SwaggerUIBundle.presets.apis,
+                     SwaggerUIStandalonePreset.slice(1) // No Topbar

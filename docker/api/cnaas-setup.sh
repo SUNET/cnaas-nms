@@ -30,3 +30,4 @@ python3 -m pip install --no-cache-dir -r requirements.txt
 # Temp bugfix for napalm issue #2166
 cd /opt/cnaas/venv/lib/python3.11/site-packages
 git apply pull2167.patch
+git apply swaggeruirequestintercept.patch

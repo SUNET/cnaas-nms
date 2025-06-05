@@ -51,7 +51,7 @@ authorizations = {
         "type": "apiKey",
         "in": "header",
         "name": "Authorization",
-        "description": "Type in 'Bearer <your JWT token here' to authenticate.",
+        "description": "Type 'Bearer <your JWT token here>' to authenticate, or leave empty to use token from WebUI login.",
     }
 }
 

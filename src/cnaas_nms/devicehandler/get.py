@@ -255,10 +255,18 @@ def filter_interfaces(iflist: List[str], platform=None, include=None) -> List[st
     # TODO: include pattern matching from external configurable file
     ret = []
     junos_phy_r = r"^(ge|xe|et|mge)-([0-9]+\/)+[0-9]+$"
+    ios_phy_r = r"^[a-zA-Z]+Ethernet.*"
+    iosxr_phy_r = r"^[a-zA-Z]*E(thernet)?[0-9].*"
     for intf in iflist:
         if include == "physical":
             if platform == "junos":
                 if re.match(junos_phy_r, intf):
+                    ret.append(intf)
+            elif platform == "ios":
+                if re.match(ios_phy_r, intf):
+                    ret.append(intf)
+            elif platform == "iosxr":
+                if re.match(iosxr_phy_r, intf):
                     ret.append(intf)
             else:
                 if intf.startswith("Ethernet"):

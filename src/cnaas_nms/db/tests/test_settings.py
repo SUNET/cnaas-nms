@@ -6,13 +6,12 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from cnaas_nms.db.device import DeviceType
+from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
     VerifyPathException,
     VlanConflictError,
     check_bgp_neighbor_routemaps,
-    check_group_priority_collisions,
     check_vlan_collisions,
     get_device_primary_groups,
     get_groups_priorities_sorted,
@@ -48,7 +47,7 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     def test_get_settings_device(self):
-        settings, settings_origin = get_settings(hostname=self.testdata["testdevice"], device_type=DeviceType.DIST)
+        settings, settings_origin = get_settings(device=Device(**self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
@@ -190,11 +189,9 @@ class SettingsTests(unittest.TestCase):
     def test_groups_priorities_sorted(self):
         group_settings_dict = {
             "groups": [
-                {
-                    "group": {"name": "DEFAULT", "group_priority": 1},
-                },
-                {"group": {"name": "HIGH", "group_priority": 100}},
-                {"group": {"name": "NONE", "group_priority": 0}},
+                {"name": "DEFAULT", "group_priority": 1},
+                {"name": "HIGH", "group_priority": 100},
+                {"name": "NONE", "group_priority": 0},
             ]
         }
         result = get_groups_priorities_sorted(settings=group_settings_dict)
@@ -213,34 +210,59 @@ class SettingsTests(unittest.TestCase):
     def test_groups_priorities_collission(self):
         group_settings_dict = {
             "groups": [
-                {
-                    "group": {"name": "DEFAULT", "group_priority": 1},
-                },
-                {"group": {"name": "HIGH", "group_priority": 100}},
-                {"group": {"name": "DUPLICATE", "group_priority": 100}},
+                {"name": "DEFAULT", "group_priority": 1},
+                {"name": "HIGH", "group_priority": 100},
+                {"name": "DUPLICATE", "group_priority": 100},
             ]
         }
+
         with self.assertRaises(ValueError, msg="Groups with same priority should raise ValueError"):
-            check_group_priority_collisions(group_settings_dict)
+            f_groups(**group_settings_dict)
         # Remove duplicate entry
         del group_settings_dict["groups"][2]
-        self.assertIsNone(check_group_priority_collisions(group_settings_dict))
+        f_groups(**group_settings_dict)
 
-    def test_groups_templates_braches(self):
+    def test_groups_names_collission(self):
         group_settings_dict = {
             "groups": [
+                {"name": "DEFAULT", "group_priority": 1},
+                {"name": "OTHER_GROUP"},
+                {"name": "DEFAULT"},
+            ]
+        }
+
+        with self.assertRaises(ValueError, msg="Groups with same name should raise ValueError"):
+            f_groups(**group_settings_dict)
+        # Remove duplicate entry
+        del group_settings_dict["groups"][2]
+        f_groups(**group_settings_dict)
+
+    def test_groups_device_filter(self):
+        group_settings_dict = {
+            "groups": [
+                {"name": "DEFAULT", "group_priority": 1},
+                {"name": "GROUP1", "device_filter": {"hostname": "eosdist1$"}},
+                {"name": "ERROR_GROUP", "device_filter": {"hostname": "eosdist1$("}},
+            ]
+        }
+
+        with self.assertRaises(ValueError, msg="Groups with bad regex should raise ValueError"):
+            f_groups(**group_settings_dict)
+        # Remove bad entry
+        del group_settings_dict["groups"][2]
+        f_groups(**group_settings_dict)
+
+    def test_groups_templates_branches(self):
+        group_settings_dict = {
+            "groups": [
+                {"name": "DEFAULT", "group_priority": 1},
                 {
-                    "group": {"name": "DEFAULT", "group_priority": 1},
+                    "name": "TEMPLATE1",
+                    "device_filter": {"hostname": "eosdist1$"},
+                    "group_priority": 100,
+                    "templates_branch": "test1",
                 },
-                {
-                    "group": {
-                        "name": "TEMPLATE1",
-                        "regex": "eosdist1$",
-                        "group_priority": 100,
-                        "templates_branch": "test1",
-                    }
-                },
-                {"group": {"name": "NOT_PRIMARY_GROUP", "templates_branch": "test2"}},
+                {"name": "NOT_PRIMARY_GROUP", "templates_branch": "test2"},
             ]
         }
         with self.assertRaises(

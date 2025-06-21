@@ -482,7 +482,6 @@ class f_group_device_filter(BaseModel):
         Is a cached property to avoid re-compiling regex patterns
         """
         fields = set(self.__annotations__.keys())
-        # Compile all field regex into a single regex pattern with AND logic
         compiled_patterns = {}
         for field in fields:
             pattern = getattr(self, field, None)
@@ -495,9 +494,9 @@ class f_group_device_filter(BaseModel):
         A function that matches a device based on the regex patterns.
         """
         compiled_patterns = self.compiled_patterns
-        # No patterns defined, match everything
+        # No patterns defined, match nothing
         if not compiled_patterns:
-            True
+            return False
 
         for field, pattern in compiled_patterns.items():
             value = getattr(device, field, None)

@@ -1,4 +1,3 @@
-import re
 from typing import List, Optional
 
 from flask_restx import Namespace, Resource
@@ -6,7 +5,7 @@ from flask_restx import Namespace, Resource
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.device import Device, DeviceState
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import get_group_regex, get_group_settings, get_groups
+from cnaas_nms.db.settings import get_group, get_group_settings, get_groups
 from cnaas_nms.tools.security import login_required
 from cnaas_nms.version import __api_version__
 
@@ -21,7 +20,7 @@ def groups_populate(group_name: Optional[str] = None) -> dict:
     with sqla_session() as session:  # type: ignore
         devices: List[Device] = session.query(Device).all()
         for dev in devices:
-            groups = get_groups(dev.hostname)
+            groups = get_groups(dev)
             for group in groups:
                 if group in tmpgroups:
                     tmpgroups[group].append(dev.hostname)
@@ -32,24 +31,23 @@ def groups_settings_populate(group_name: Optional[str] = None) -> dict:
     settings, _ = get_group_settings()
 
     if group_name:
-        group_list = [item["group"] for item in settings["groups"] if item["group"]["name"] == group_name]
+        group_list = [group for group in settings["groups"] if group["name"] == group_name]
     else:
-        group_list = [item["group"] for item in settings["groups"]]
+        group_list = settings["groups"]
 
     ret = {}
-    for item in group_list:
-        name = item.pop("name")
-        ret[name] = item
+    for group in group_list:
+        name = group.pop("name")
+        ret[name] = group
 
     return ret
 
 
 def groups_osversion_populate(group_name: str):
     os_versions: dict = {}
-    group_regex = get_group_regex(group_name)
-    if group_regex:
-        group_regex_p = re.compile(group_regex)
-    else:
+
+    group = get_group(group_name)
+    if not group:
         raise ValueError("Could not find group {}".format(group_name))
 
     with sqla_session() as session:  # type: ignore
@@ -59,7 +57,7 @@ def groups_osversion_populate(group_name: str):
         for dev in devices:
             if not dev.os_version:
                 continue
-            if re.match(group_regex_p, dev.hostname):
+            if group.matches(dev):
                 if dev.os_version in os_versions:
                     os_versions[dev.os_version].append(dev.hostname)
                 else:

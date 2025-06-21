@@ -15,7 +15,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.git_worktrees import refresh_templates_worktree
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings_fields import f_groups
+from cnaas_nms.db.settings_fields import f_group, f_groups
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
 
@@ -319,7 +319,6 @@ def check_settings_collisions(unique_vlans: bool = True):
     logger.debug("Memory size of all device settings: {}".format(sizeof_fmt(json.dumps(devices_dict).__sizeof__())))
 
     check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
-    check_group_priority_collisions()
     check_routing_policies(devices_dict)
 
 
@@ -445,31 +444,6 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
                 device_vlan_names[hostname].add(vxlan_data["vlan_name"])
             else:
                 device_vlan_names[hostname] = {vxlan_data["vlan_name"]}
-
-
-def check_group_priority_collisions(settings: Optional[dict] = None):
-    priorities: Dict[int, str] = {}
-    if not settings:
-        settings, _ = get_group_settings()
-    if not settings:
-        return
-    if not settings.get("groups", None):
-        return
-    for group in settings["groups"]:
-        if "name" not in group["group"]:
-            continue
-        if "group_priority" not in group["group"] or group["group"]["group_priority"] == 0:
-            continue
-        if group["group"]["group_priority"] in priorities.keys():
-            raise ValueError(
-                "Groups must have unique group_priority values, "
-                "but group {} and {} both have priority {}".format(
-                    priorities[group["group"]["group_priority"]],
-                    group["group"]["name"],
-                    group["group"]["group_priority"],
-                )
-            )
-        priorities[group["group"]["group_priority"]] = group["group"]["name"]
 
 
 @redis_lru_cache
@@ -627,7 +601,7 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
 
 @redis_lru_cache
 def get_settings(
-    hostname: Optional[str] = None,
+    device: Optional[Device] = None,
     device_type: Optional[DeviceType] = None,
     device_model: Optional[str] = None,
 ) -> Tuple[dict, dict]:
@@ -653,9 +627,9 @@ def get_settings(
         settings_origin[k] = "default"
 
     # 2. Get settings repo global settings
-    if hostname:
+    if device:
         # Some settings parsing require knowledge of group memberships
-        groups = get_groups(hostname)
+        groups = get_groups(device)
         settings, settings_origin = read_settings(
             local_repo_path,
             ["global", "base_system.yml"],
@@ -686,10 +660,10 @@ def get_settings(
     if device_type:
         get_type = "devicetype {}".format(device_type.name)
         if device_type == DeviceType.UNKNOWN:
-            if hostname is None:
+            if device is None:
                 raise ValueError("It's not possible to get settings for devices with type UNKNOWN")
             else:
-                logger.warning("Device type is UNKNOWN, trying to get settings for hostname {}".format(hostname))
+                logger.warning("Device type is UNKNOWN, trying to get settings for hostname {}".format(device.hostname))
         else:
             settings, settings_origin = read_settings(
                 local_repo_path,
@@ -698,8 +672,8 @@ def get_settings(
                 settings,
                 settings_origin,
             )
-    if hostname:
-        get_type = "hostname {}".format(hostname)
+    if device:
+        get_type = "hostname {}".format(device.hostname)
         settings, settings_origin = read_settings(
             local_repo_path,
             ["global", "routing.yml"],
@@ -715,11 +689,11 @@ def get_settings(
             settings,
             settings_origin,
             groups,
-            hostname,
+            device.hostname,
         )
-        settings = get_downstream_dependencies(hostname, settings)
+        settings = get_downstream_dependencies(device.hostname, settings)
         # 5. Get settings repo group specific settings
-        primary_group = get_device_primary_groups().get(hostname)
+        primary_group = get_device_primary_groups().get(device.hostname)
         if primary_group:
             # add templates worktree
             templates_branch = get_group_templates_branch(primary_group)
@@ -748,25 +722,25 @@ def get_settings(
                     settings_origin,
                 )
         # 6. Get settings repo device specific settings
-        if os.path.isdir(os.path.join(local_repo_path, "devices", hostname)):
+        if os.path.isdir(os.path.join(local_repo_path, "devices", device.hostname)):
             settings, settings_origin = read_settings(
                 local_repo_path,
-                ["devices", hostname, "base_system.yml"],
-                "device->{}->base_system.yml".format(hostname),
+                ["devices", device.hostname, "base_system.yml"],
+                "device->{}->base_system.yml".format(device.hostname),
                 settings,
                 settings_origin,
             )
             settings, settings_origin = read_settings(
                 local_repo_path,
-                ["devices", hostname, "interfaces.yml"],
-                "device->{}->interfaces.yml".format(hostname),
+                ["devices", device.hostname, "interfaces.yml"],
+                "device->{}->interfaces.yml".format(device.hostname),
                 settings,
                 settings_origin,
             )
             settings, settings_origin = read_settings(
                 local_repo_path,
-                ["devices", hostname, "routing.yml"],
-                "device->{}->routing.yml".format(hostname),
+                ["devices", device.hostname, "routing.yml"],
+                "device->{}->routing.yml".format(device.hostname),
                 settings,
                 settings_origin,
                 groups,
@@ -813,7 +787,6 @@ def get_settings(
             settings,
             settings_origin,
             groups,
-            hostname,
         )
     # Verify syntax
     verified_settings = check_settings_syntax(settings, settings_origin)
@@ -853,7 +826,7 @@ def get_group_settings() -> Tuple[dict, dict]:
 
 
 @redis_lru_cache
-def get_groups(hostname: Optional[str] = None) -> List[str]:
+def get_groups(device: Optional[Device] = None) -> List[str]:
     """Return list of names for valid groups."""
     groups: list[str] = []
     settings, origin = get_group_settings()
@@ -862,22 +835,19 @@ def get_groups(hostname: Optional[str] = None) -> List[str]:
     if not settings.get("groups", None):
         return groups
     for group in settings["groups"]:
-        if "name" not in group["group"]:
+        # Group must always have a name
+        if "name" not in group:
             continue
-        if hostname:
-            if "regex" not in group["group"]:
+        if device:
+            if not group.matches(device):
                 continue
-            # TODO: try and catch, report what regex failed
-            if not re.match(group["group"]["regex"], hostname):
-                continue
-        groups.append(group["group"]["name"])
+        groups.append(group["name"])
     return groups
 
 
-def get_group_regex(group_name: str) -> Optional[str]:
-    """Returns a string containing the regex defining the specified
-    group name if it's found."""
-    return get_group_settings_asdict().get(group_name, {}).get("regex")
+def get_group(group_name: str) -> Optional[f_group]:
+    """Returns the group object if it's found."""
+    return get_group_settings_asdict().get(group_name, {})
 
 
 def get_group_templates_branch(group_name: str) -> Optional[str]:
@@ -896,14 +866,14 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
         return {}
     group_dict: Dict[str, Dict[str, Any]] = {}
     for group in settings["groups"]:
-        if "name" not in group["group"]:
+        if "name" not in group:
             continue
-        group_dict[group["group"]["name"]] = group["group"]
-        del group_dict[group["group"]["name"]]["name"]
+        group_dict[group["name"]] = group
+        del group_dict[group["name"]]["name"]
     return group_dict
 
 
-def get_groups_priorities(hostname: Optional[str] = None, settings: Optional[dict] = None) -> Dict[str, int]:
+def get_groups_priorities(device: Optional[Device] = None, settings: Optional[dict] = None) -> Dict[str, int]:
     """Return dicts with {name: priority} for groups"""
     groups_priorities: dict[str, Any] = {}
 
@@ -914,25 +884,24 @@ def get_groups_priorities(hostname: Optional[str] = None, settings: Optional[dic
     if not settings.get("groups", None):
         return groups_priorities
     for group in settings["groups"]:
-        if "name" not in group["group"]:
+        # Group must always have a name
+        if "name" not in group:
             continue
-        if "group_priority" not in group["group"] or group["group"]["group_priority"] == 0:
+        if "group_priority" not in group or group["group_priority"] == 0:
             continue
-        if hostname:
-            if "regex" not in group["group"]:
+        if device:
+            if not group.matches(device):
                 continue
-            # TODO: try and catch, report what regex failed
-            if not re.match(group["group"]["regex"], hostname):
-                continue
-        groups_priorities[group["group"]["name"]] = group["group"]["group_priority"]
+        groups_priorities[group["name"]] = group["group_priority"]
+
     return groups_priorities
 
 
-def get_groups_priorities_sorted(hostname: Optional[str] = None, settings: Optional[dict] = None) -> Dict[str, int]:
+def get_groups_priorities_sorted(device: Optional[Device] = None, settings: Optional[dict] = None) -> Dict[str, int]:
     return {
         k: v
         for k, v in sorted(
-            get_groups_priorities(hostname, settings).items(),
+            get_groups_priorities(device, settings).items(),
             key=lambda item: item[1],  # sort on value(priority)
             reverse=True,
         )
@@ -954,7 +923,7 @@ def parse_device_primary_groups() -> Dict[str, str]:
     with sqla_session() as session:  # type: ignore
         devices: List[Device] = session.query(Device).all()
         for dev in devices:
-            groups = get_groups(dev.hostname)
+            groups = get_groups(dev)
             primary_group: str = find_primary_group(groups, groups_priorities_sorted)
             device_primary_group[dev.hostname] = primary_group
     return device_primary_group
@@ -1034,11 +1003,11 @@ def rebuild_settings_cache() -> None:
             if dev is None or dev.device_type == DeviceType.UNKNOWN:
                 logger.warning(f"Device {hostname} specified in settings/devices but it was not found in database")
                 continue
-            get_settings(hostname, dev.device_type)
+            get_settings(dev, dev.device_type)
     logger.debug("Rebuilding settings cache for device models")
     for devtype_str, device_models in get_model_specific_configfiles(True).items():
         devtype = DeviceType[devtype_str]
         for device_model in device_models:
-            get_settings("nonexisting", devtype, device_model)
+            get_settings(None, devtype, device_model)
     logger.debug("Rechecking settings collisions")
     check_settings_collisions(api_settings.GLOBAL_UNIQUE_VLANS)

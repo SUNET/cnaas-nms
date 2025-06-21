@@ -145,7 +145,7 @@ def populate_device_vars(
     if not isinstance(dev.platform, str):
         raise ValueError("Unknown platform: {}".format(dev.platform))
 
-    settings, settings_origin = get_settings(hostname, devtype, dev.model)
+    settings, settings_origin = get_settings(dev, devtype, dev.model)
 
     if devtype == DeviceType.ACCESS:
         if ztp_hostname:

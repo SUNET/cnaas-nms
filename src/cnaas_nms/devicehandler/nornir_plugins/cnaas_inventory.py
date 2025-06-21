@@ -83,7 +83,7 @@ class CnaasInventory:
                 if instance.port and isinstance(instance.port, int):
                     port = instance.port
                 host_groups = ["T_" + instance.device_type.name, "S_" + instance.state.name]
-                for member_group in get_groups(instance.hostname):
+                for member_group in get_groups(instance):
                     host_groups.append(member_group)
 
                 if instance.state in insecure_device_states:

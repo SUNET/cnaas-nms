@@ -529,9 +529,12 @@ class f_group(BaseModel):
             )
             legacy_data = data.pop("group")
             # Convert legacy group data to new format
-            data["hostname"] = legacy_data.pop("regex")
-            data["group_priority"] = data.pop("group_priority")
-            data["templates_branch"] = data.pop("templates_branch")
+            data["name"] = legacy_data.pop("name")
+            regex = legacy_data.pop("regex")
+            if regex:
+                data["device_filter"] = {"hostname": regex}
+            data["group_priority"] = legacy_data.pop("group_priority", 0)
+            data["templates_branch"] = legacy_data.pop("templates_branch", None)
         super().__init__(**data)
 
     @field_validator("group_priority")

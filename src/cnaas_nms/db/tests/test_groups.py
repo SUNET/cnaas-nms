@@ -13,6 +13,12 @@ class GroupsTest(unittest.TestCase):
         self.eosdist_device = Device(hostname="dist1", platform="eos", device_type=DeviceType.DIST)
         self.iosdist_device = Device(hostname="dist2", platform="ios", device_type=DeviceType.DIST)
 
+    def test_groups_deprecated(self):
+        # Test that the old group format is converted to the new format
+        old_group = f_group(**{"group": {"name": "GROUP", "regex": ".*"}}).model_dump_json()
+        new_group = f_group(name="GROUP", device_filter={"hostname": ".*"}).model_dump_json()
+        self.assertEqual(old_group, new_group)
+
     def test_groups(self):
         # error when device_filter and devices are both set
         with self.assertRaises(ValueError):

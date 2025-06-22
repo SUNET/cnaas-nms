@@ -313,7 +313,7 @@ def check_settings_collisions(unique_vlans: bool = True):
                 mgmt_vlans.add(mgmtdom.vlan)
         managed_devices: List[Device] = session.query(Device).filter(Device.state == DeviceState.MANAGED).all()
         for dev in managed_devices:
-            dev_settings, _ = get_settings(dev.hostname, dev.device_type)
+            dev_settings, _ = get_settings(dev, dev.device_type)
             devices_dict[dev.hostname] = dev_settings
 
     logger.debug("Memory size of all device settings: {}".format(sizeof_fmt(json.dumps(devices_dict).__sizeof__())))
@@ -587,12 +587,10 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
             return settings
         neighbor_devices = dev.get_neighbors(session)
         # Downstream device hostnames
-        ds_hostnames = []
         for neighbor_dev in neighbor_devices:
-            if neighbor_dev.device_type == DeviceType.ACCESS:
-                ds_hostnames.append(neighbor_dev.hostname)
-        for ds_hostname in ds_hostnames:
-            ds_settings, _ = get_settings(ds_hostname, DeviceType.ACCESS)
+            if neighbor_dev.device_type != DeviceType.ACCESS:
+                continue
+            ds_settings, _ = get_settings(neighbor_dev, DeviceType.ACCESS)
             for vxlan_name, vxlan_data in ds_settings["vxlans"].items():
                 if vxlan_name not in settings["vxlans"].keys():
                     settings["vxlans"][vxlan_name] = vxlan_data
@@ -835,16 +833,20 @@ def get_groups(device: Optional[Device] = None) -> List[str]:
     if settings.groups is None:
         return groups
     for group in settings.groups:
-        if device:
-            if not group.matches(device):
-                continue
+        if device and not group.matches(device):
+            continue
         groups.append(group.name)
     return groups
 
 
 def get_group(group_name: str) -> Optional[f_group]:
     """Returns the group object if it's found."""
-    return get_group_settings_asdict().get(group_name, {})
+    settings, _ = get_group_settings()
+    if not settings:
+        return None
+    if settings.groups is None:
+        return None
+    return next((group for group in settings.groups if group.name == group_name), None)
 
 
 def get_group_templates_branch(group_name: str) -> Optional[str]:
@@ -859,7 +861,7 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     settings, _ = get_group_settings()
     if not settings:
         return {}
-    if not settings.get("groups"):
+    if not settings.groups:
         return {}
     group_dict: Dict[str, Dict[str, Any]] = {}
     for group in settings.groups:

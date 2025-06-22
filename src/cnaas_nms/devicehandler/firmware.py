@@ -338,114 +338,114 @@ def device_upgrade_task(
         device_type = dev.device_type
         device_model = dev.model
 
-    if filename and filename.startswith("detect_arch-"):
-        dev_settings, _ = get_settings(task.host.name, device_type)
-        if dev_settings and "arista_models_32bit" in dev_settings and dev_settings["arista_models_32bit"] is not None:
-            models_32bit: List[str] = dev_settings["arista_models_32bit"]
-        else:
-            models_32bit = arista_models.models_32bit
-        filename = filename.removeprefix("detect_arch-")
-        if device_model in models_32bit and filename.startswith("EOS64-"):
-            filename = "EOS-" + filename.removeprefix("EOS64-")
-            logger.info(
-                "Detected 32-bit device {}, changing filename to 32-bit version: {}".format(task.host.name, filename)
-            )
-        elif device_model not in models_32bit and filename.startswith("EOS-"):
-            filename = "EOS64-" + filename.removeprefix("EOS-")
-            logger.info(
-                "Detected 64-bit device {}, changing filename to 64-bit version: {}".format(task.host.name, filename)
-            )
-
-    if pre_flight:
-        logger.info("Running pre-flight check on {}".format(task.host.name))
-        try:
-            res = task.run(task=arista_pre_flight_check, job_id=job_id)
-        except Exception as e:
-            logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
-            raise Exception("Pre-flight check failed")
-        else:
-            if res.failed:
-                logger.exception("Pre-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
-                raise
-
-    # If download is true, go ahead and download the firmware
-    if download:
-        if not filename:
-            raise Exception("No filename specified for download")
-        # Download the firmware from the HTTP container.
-        logger.info("Downloading firmware {} on {}".format(filename, task.host.name))
-        try:
-            res = task.run(
-                task=arista_firmware_download, filename=filename, httpd_url=url, device_type=device_type, job_id=job_id
-            )
-        except Exception as e:
-            logger.exception("Exception while downloading firmware: {}".format(str(e)))
-            raise e
-
-    # If download_only is false, continue to activate the newly downloaded
-    # firmware and verify that it if present in the boot-config.
-    already_active = False
-    if activate:
-        if not filename:
-            raise Exception("No filename specified for activate")
-        logger.info("Activating firmware {} on {}".format(filename, task.host.name))
-        try:
-            res = task.run(task=arista_firmware_activate, filename=filename, job_id=job_id)
-        except NornirSubTaskError as e:
-            subtask_result = e.result[0]
-            logger.debug("Exception while activating firmware for {}: {}".format(task.host.name, subtask_result))
-            if subtask_result.exception:
-                if isinstance(subtask_result.exception, FirmwareAlreadyActiveException):
-                    already_active = True
-                    logger.info(
-                        "Firmware already active, skipping reboot and post_flight: {}".format(subtask_result.exception)
-                    )
-                else:
-                    logger.exception(
-                        "Firmware activate subtask exception for {}: {}".format(
-                            task.host.name, str(subtask_result.exception)
-                        )
-                    )
-                    raise e
+        if filename and filename.startswith("detect_arch-"):
+            dev_settings, _ = get_settings(dev, device_type)
+            if dev_settings and "arista_models_32bit" in dev_settings and dev_settings["arista_models_32bit"] is not None:
+                models_32bit: List[str] = dev_settings["arista_models_32bit"]
             else:
-                logger.error("Activate subtask result for {}: {}".format(task.host.name, subtask_result.result))
+                models_32bit = arista_models.models_32bit
+            filename = filename.removeprefix("detect_arch-")
+            if device_model in models_32bit and filename.startswith("EOS64-"):
+                filename = "EOS-" + filename.removeprefix("EOS64-")
+                logger.info(
+                    "Detected 32-bit device {}, changing filename to 32-bit version: {}".format(task.host.name, filename)
+                )
+            elif device_model not in models_32bit and filename.startswith("EOS-"):
+                filename = "EOS64-" + filename.removeprefix("EOS-")
+                logger.info(
+                    "Detected 64-bit device {}, changing filename to 64-bit version: {}".format(task.host.name, filename)
+                )
+
+        if pre_flight:
+            logger.info("Running pre-flight check on {}".format(task.host.name))
+            try:
+                res = task.run(task=arista_pre_flight_check, job_id=job_id)
+            except Exception as e:
+                logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
+                raise Exception("Pre-flight check failed")
+            else:
+                if res.failed:
+                    logger.exception("Pre-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
+                    raise
+
+        # If download is true, go ahead and download the firmware
+        if download:
+            if not filename:
+                raise Exception("No filename specified for download")
+            # Download the firmware from the HTTP container.
+            logger.info("Downloading firmware {} on {}".format(filename, task.host.name))
+            try:
+                res = task.run(
+                    task=arista_firmware_download, filename=filename, httpd_url=url, device_type=device_type, job_id=job_id
+                )
+            except Exception as e:
+                logger.exception("Exception while downloading firmware: {}".format(str(e)))
                 raise e
-        except Exception as e:
-            logger.exception("Exception while activating firmware for {}: {}".format(task.host.name, str(e)))
-            raise e
 
-    # Reboot the device if needed, we will then lose the connection.
-    if reboot and not already_active:
-        logger.info("Rebooting {}".format(task.host.name))
-        try:
-            res = task.run(task=arista_device_reboot, job_id=job_id)
-        except Exception:  # noqa: S110
-            pass
+        # If download_only is false, continue to activate the newly downloaded
+        # firmware and verify that it if present in the boot-config.
+        already_active = False
+        if activate:
+            if not filename:
+                raise Exception("No filename specified for activate")
+            logger.info("Activating firmware {} on {}".format(filename, task.host.name))
+            try:
+                res = task.run(task=arista_firmware_activate, filename=filename, job_id=job_id)
+            except NornirSubTaskError as e:
+                subtask_result = e.result[0]
+                logger.debug("Exception while activating firmware for {}: {}".format(task.host.name, subtask_result))
+                if subtask_result.exception:
+                    if isinstance(subtask_result.exception, FirmwareAlreadyActiveException):
+                        already_active = True
+                        logger.info(
+                            "Firmware already active, skipping reboot and post_flight: {}".format(subtask_result.exception)
+                        )
+                    else:
+                        logger.exception(
+                            "Firmware activate subtask exception for {}: {}".format(
+                                task.host.name, str(subtask_result.exception)
+                            )
+                        )
+                        raise e
+                else:
+                    logger.error("Activate subtask result for {}: {}".format(task.host.name, subtask_result.result))
+                    raise e
+            except Exception as e:
+                logger.exception("Exception while activating firmware for {}: {}".format(task.host.name, str(e)))
+                raise e
 
-    # If post-flight is selected, execute the post-flight task which
-    # will update device facts for the selected devices
-    if post_flight and not already_active:
-        try:
-            dev_settings, _ = get_settings(task.host.name, device_type)
-            res = task.run(
-                task=arista_post_flight_check,
-                post_waittime=post_waittime,
-                scheduled_by=scheduled_by,
-                job_id=job_id,
-                dev_settings=dev_settings,
-                device_model=device_model,
-            )
-        except Exception as e:
-            logger.exception("Failed to run post-flight check: {}".format(str(e)))
-        else:
-            if res.failed:
-                logger.error("Post-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
+        # Reboot the device if needed, we will then lose the connection.
+        if reboot and not already_active:
+            logger.info("Rebooting {}".format(task.host.name))
+            try:
+                res = task.run(task=arista_device_reboot, job_id=job_id)
+            except Exception:  # noqa: S110
+                pass
 
-    if job_id:
-        with redis_session() as db:  # type: ignore
-            db.lpush("finished_devices_" + str(job_id), task.host.name)
+        # If post-flight is selected, execute the post-flight task which
+        # will update device facts for the selected devices
+        if post_flight and not already_active:
+            try:
+                dev_settings, _ = get_settings(dev, device_type)
+                res = task.run(
+                    task=arista_post_flight_check,
+                    post_waittime=post_waittime,
+                    scheduled_by=scheduled_by,
+                    job_id=job_id,
+                    dev_settings=dev_settings,
+                    device_model=device_model,
+                )
+            except Exception as e:
+                logger.exception("Failed to run post-flight check: {}".format(str(e)))
+            else:
+                if res.failed:
+                    logger.error("Post-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
 
-    return "Devices upgraded"
+        if job_id:
+            with redis_session() as db:  # type: ignore
+                db.lpush("finished_devices_" + str(job_id), task.host.name)
+
+        return "Devices upgraded"
 
 
 @job_wrapper

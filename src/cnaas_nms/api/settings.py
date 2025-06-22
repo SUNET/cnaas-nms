@@ -49,7 +49,7 @@ class SettingsApi(Resource):
                 return empty_result("error", "Invalid device type specified"), 400
 
         try:
-            settings, settings_origin = get_settings(hostname, device_type, model)
+            settings, settings_origin = get_settings(dev, device_type, model)
         except Exception as e:
             return empty_result("error", "Error getting settings: {}".format(str(e))), 400
 

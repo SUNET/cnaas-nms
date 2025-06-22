@@ -37,8 +37,8 @@ def groups_settings_populate(group_name: Optional[str] = None) -> dict:
 
     ret = {}
     for group in group_list:
-        name = group.pop("name")
-        ret[name] = group
+        ret[group.name] = group.model_dump()
+        del ret[group.name]["name"]
 
     return ret
 

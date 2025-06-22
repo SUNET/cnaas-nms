@@ -63,13 +63,18 @@ jobs:
 
       - name: Get repo URL
         shell: bash
-        run: echo "CNAAS_REPO=$(echo ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY})" >> $GITHUB_ENV
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "CNAAS_REPO=${{ github.event.pull_request.head.repo.clone_url }}" >> $GITHUB_ENV
+          else
+            echo "CNAAS_REPO=${{ github.server_url }}/${{ github.repository }}" >> $GITHUB_ENV
+          fi
 
       - name: Print branch name
         run: echo ${{ env.BRANCH_NAME }} at ${{ env.CNAAS_REPO }}
 
       - name: Build docker
-        run: docker compose -f docker/docker-compose_test.yaml build --build-arg GITREPO_BASE=${{ env.CNAAS_REPO }} --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }}
+        run: docker compose -f docker/docker-compose_test.yaml build --build-arg GITREPO_BASE=${{ env.CNAAS_REPO }} --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} --build-arg GIT_COMMIT=${{ github.sha }}
 
       - name: Start docker
         run: docker compose -f docker/docker-compose_test.yaml up -d

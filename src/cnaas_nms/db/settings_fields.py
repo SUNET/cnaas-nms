@@ -501,13 +501,11 @@ class f_group_device_filter(BaseModel):
         for field, pattern in compiled_patterns.items():
             value = getattr(device, field, None)
             if value is None:
-                return False
+                return False  # field missing → no match
             if isinstance(value, Enum):
                 match_value = value.name
             else:
                 match_value = value
-            if match_value is None:
-                return False  # field missing → no match
             if not pattern.match(str(match_value)):  # convert to str to be safe
                 return False  # pattern did not match
         return True  # all matched
@@ -596,4 +594,4 @@ def validate_groups(groups: List[f_group]):
 
 
 class f_groups(BaseModel):
-    groups: Annotated[Optional[List[f_group]], Field(default_factory=list), AfterValidator(validate_groups)] = None
+    groups: Annotated[Optional[List[f_group]], AfterValidator(validate_groups)] = None

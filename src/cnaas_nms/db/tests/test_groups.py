@@ -24,6 +24,10 @@ class GroupsTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             f_group(name="INVALID_GROUP", device_filter={"device_type": "ACCESS"}, devices=["access1"])
 
+    def test_groups_empty_name(self):
+        with self.assertRaises(ValueError):
+            f_group(name=None)
+
     def test_groups_empty_device_filter(self):
         group = f_group(name="EMPTY_DEVICE_FILTER", device_filter={})
         # Match on empty device filter

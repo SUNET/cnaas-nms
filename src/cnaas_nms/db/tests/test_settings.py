@@ -14,11 +14,12 @@ from cnaas_nms.db.settings import (
     check_bgp_neighbor_routemaps,
     check_vlan_collisions,
     get_device_primary_groups,
+    get_group_settings,
     get_groups_priorities_sorted,
     get_settings,
     verify_dir_structure,
 )
-from cnaas_nms.db.settings_fields import f_groups
+from cnaas_nms.db.settings_fields import f_group, f_groups
 
 
 class SettingsTests(unittest.TestCase):
@@ -47,7 +48,7 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     def test_get_settings_device(self):
-        settings, settings_origin = get_settings(device=Device(**self.testdata["testdevice"]), device_type=DeviceType.DIST)
+        settings, settings_origin = get_settings(device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
@@ -194,7 +195,7 @@ class SettingsTests(unittest.TestCase):
                 {"name": "NONE", "group_priority": 0},
             ]
         }
-        result = get_groups_priorities_sorted(settings=group_settings_dict)
+        result = get_groups_priorities_sorted(settings=f_groups(**group_settings_dict))
         # Groups with priority 0 is not evaluated in selecting primary group
         self.assertEqual(list(result.keys()), ["HIGH", "DEFAULT"], "Unexpected ordering of groups sorted by priority")
         self.assertNotEqual(
@@ -275,6 +276,11 @@ class SettingsTests(unittest.TestCase):
         del group_settings_dict["groups"][2]
         f_groups(**group_settings_dict).model_dump()
 
+    def test_group_settings(self):
+        settings, _ = get_group_settings()
+        for group in settings.groups:
+            self.assertEqual(type(group), f_group)
+            assert callable(group.matches)
 
 if __name__ == "__main__":
     unittest.main()

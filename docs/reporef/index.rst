@@ -13,7 +13,7 @@ In each of these directories there needs to be a file called "mapping.yml", this
 what template files should be used for each device type. For example, in mapping.yml there
 might be a definition of templates for an access switch specified like this:
 
-::
+.. code-block:: yaml
 
     ACCESS:
         entrypoint: access.j2
@@ -144,12 +144,15 @@ configure settings per group. Secondary groups can be used to assign VXLAN
 memberships, select devices for synchronization or firmware upgrade etc.
 
 groups.yml contains a dictionary named "groups", that contains a list of groups.
-Each group is defined as a dictionary with a single key named "group",
-and that key contains a dictionary with two keys:
+Each group is defined as a dictionary with the following keys:
 
-- name: A string representing a name. No spaces.
-- regex: A Python style regex that matches on device hostnames.
-- group_priority: Optional integer value 0-100. Specifies which group should
+- name: A unique string representing a name. No spaces.
+- device_filter: A dictionary of match conditions on the following fields: hostname, device_type, model, os_version and platform.
+  If multiple match criteria are set all must match for a device to be included in the group.
+  This field cannot be used together with devices list.
+- devices: A list of device hostnames for direct matching.
+  This field cannot be used together with device_filter.
+- group_priority: Optional unique integer value 0-100. Specifies which group should
   have the highest priority when determining the primary group for a device.
   Higher value means higher priority. Defaults to 0, value of 1 is reserved
   for builtin group DEFAULT.
@@ -161,33 +164,73 @@ and that key contains a dictionary with two keys:
 There will always exist a group called DEFAULT with group_priority 1 even
 if it's not specified in groups.yml.
 
-All devices that matches the regex will be included in the group.
+Migrate to new group format
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To migrate to the new group-format you can run the following command.
+Prerequisites: install `yq <https://github.com/mikefarah/yq>`_.
 
-::
+.. code-block:: bash
 
-   ---
-   groups:
-     - group:
-         name: 'ALL'
-         regex: '.*'
-     - group:
-         name: 'BORDER_DIST'
-         regex: '(south-dist0[1-2]|north-dist0[1-2])'
-     - group:
-         name: 'DIST_EVEN'
-         regex: '.*-dist[0-9][02468]'
-     - group:
-         name: 'DIST_ODD'
-         regex: '.*-dist[0-9][13579]'
-     - group:
-         name: 'E1'
-         regex: 'eosdist1$'
-         group_priority: 100
-         templates_branch: "new_dist_features"
-     - group:
-         name: 'E'
-         regex: 'eosdist.*'
-         group_priority: 99
+  # cd to your settings-repo
+  # view what changes the command will do
+  yq '.groups |= map(
+    .group | {
+      "name": .name,
+      "device_filter":
+        {"hostname": .regex},
+      "group_priority": .group_priority,
+      "templates_branch": .templates_branch
+    } | with_entries(select(.value != null))
+  )' global/groups.yml
+
+  # modify file inplace
+  yq -i '.groups |= map(
+    .group | {
+      "name": .name,
+      "device_filter":
+        {"hostname": .regex},
+      "group_priority": .group_priority,
+      "templates_branch": .templates_branch
+    } | with_entries(select(.value != null))
+  )' global/groups.yml
+
+Group examples
+^^^^^^^^^^^^^^
+.. code-block:: yaml
+
+  ---
+  groups:
+    - name: 'ALL'
+      device_filter:
+        hostname: '.*'
+    - name: 'BORDER_DIST'
+      devices:
+        - south-dist01
+        - south-dist02
+        - north-dist01
+        - north-dist02
+    - name: 'DIST_EVEN'
+      device_filter:
+        hostname: '[0-9][02468]'
+        device_type: 'DIST'
+    - name: 'DIST_ODD'
+      device_filter:
+        hostname: '[0-9][13579]'
+        device_type: 'DIST'
+    - name: 'ACCESS_EOS_POE'
+      device_filter:
+        model: '.*DP.*'
+        platform: 'eos'
+        device_type: 'ACCESS'
+    - name: 'E1'
+      device_filter:
+        hostname: 'eosdist1$'
+      group_priority: 100
+      templates_branch: "new_dist_features"
+    - name: 'E'
+      device_filter:
+        hostname: 'eosdist.*'
+      group_priority: 99
 
 
 routing.yml:
@@ -307,7 +350,7 @@ Can contain the following dictionaries with specified keys:
 
 routing.yml examples:
 
-::
+.. code-block:: yaml
 
    ---
    extroute_bgp:
@@ -550,7 +593,7 @@ Contains base system settings like:
 
 Example of base_system.yml:
 
-::
+.. code-block:: yaml
 
    ---
    ntp_servers:

@@ -801,7 +801,7 @@ def get_settings(
 
 
 @redis_lru_cache
-def get_group_settings() -> Tuple[dict, dict]:
+def get_group_settings() -> Tuple[f_groups, dict]:
     logger = get_logger()
     settings: dict = {}
     settings_origin: dict = {}
@@ -822,7 +822,7 @@ def get_group_settings() -> Tuple[dict, dict]:
     )
     settings["groups"] += default_settings["groups"]
     check_settings_syntax(settings, settings_origin)
-    return f_groups(**settings).model_dump(), settings_origin
+    return f_groups(**settings), settings_origin
 
 
 @redis_lru_cache
@@ -832,16 +832,13 @@ def get_groups(device: Optional[Device] = None) -> List[str]:
     settings, origin = get_group_settings()
     if not settings:
         return groups
-    if not settings.get("groups", None):
+    if settings.groups is None:
         return groups
-    for group in settings["groups"]:
-        # Group must always have a name
-        if "name" not in group:
-            continue
+    for group in settings.groups:
         if device:
             if not group.matches(device):
                 continue
-        groups.append(group["name"])
+        groups.append(group.name)
     return groups
 
 
@@ -865,15 +862,13 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     if not settings.get("groups"):
         return {}
     group_dict: Dict[str, Dict[str, Any]] = {}
-    for group in settings["groups"]:
-        if "name" not in group:
-            continue
-        group_dict[group["name"]] = group
-        del group_dict[group["name"]]["name"]
+    for group in settings.groups:
+        group_dict[group.name] = group.model_dump()
+        del group_dict[group.name]["name"]
     return group_dict
 
 
-def get_groups_priorities(device: Optional[Device] = None, settings: Optional[dict] = None) -> Dict[str, int]:
+def get_groups_priorities(device: Optional[Device] = None, settings: Optional[f_groups] = None) -> Dict[str, int]:
     """Return dicts with {name: priority} for groups"""
     groups_priorities: dict[str, Any] = {}
 
@@ -881,23 +876,22 @@ def get_groups_priorities(device: Optional[Device] = None, settings: Optional[di
         settings, _ = get_group_settings()
     if not settings:
         return groups_priorities
-    if not settings.get("groups", None):
+    if settings.groups is None:
         return groups_priorities
-    for group in settings["groups"]:
-        # Group must always have a name
-        if "name" not in group:
-            continue
-        if "group_priority" not in group or group["group_priority"] == 0:
+    for group in settings.groups:
+        if not group.group_priority or group.group_priority == 0:
             continue
         if device:
             if not group.matches(device):
                 continue
-        groups_priorities[group["name"]] = group["group_priority"]
+        groups_priorities[group.name] = group.group_priority
 
     return groups_priorities
 
 
-def get_groups_priorities_sorted(device: Optional[Device] = None, settings: Optional[dict] = None) -> Dict[str, int]:
+def get_groups_priorities_sorted(
+    device: Optional[Device] = None, settings: Optional[f_groups] = None
+) -> Dict[str, int]:
     return {
         k: v
         for k, v in sorted(

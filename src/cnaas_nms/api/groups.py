@@ -31,9 +31,9 @@ def groups_settings_populate(group_name: Optional[str] = None) -> dict:
     settings, _ = get_group_settings()
 
     if group_name:
-        group_list = [group for group in settings["groups"] if group["name"] == group_name]
+        group_list = [group for group in settings.groups if group.name == group_name]
     else:
-        group_list = settings["groups"]
+        group_list = settings.groups
 
     ret = {}
     for group in group_list:

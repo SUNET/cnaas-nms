@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
@@ -27,8 +27,8 @@ def get_interface_states(hostname) -> dict:
 
 def pre_bounce_check(hostname: str, interfaces: List[str]):
     # Check1: Database state
-    with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+    with sqla_session() as session:  # type: ignore
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise ValueError(f"Hostname {hostname} not found in database")
         if dev.device_type != DeviceType.ACCESS or dev.state != DeviceState.MANAGED:

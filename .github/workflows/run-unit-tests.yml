@@ -59,14 +59,8 @@ jobs:
         continue-on-error: true
 
       - name: Get branch name (merge)
-        if: github.event_name != 'pull_request'
         shell: bash
-        run: echo "BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/} | tr / -)" >> $GITHUB_ENV
-
-      - name: Get branch name (pull request)
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: echo "BRANCH_NAME=pr/$(echo ${GITHUB_REF#refs/pull/} | cut -d '/' -f1)" >> $GITHUB_ENV
+        run: echo "BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
 
       - name: Get repo URL
         shell: bash

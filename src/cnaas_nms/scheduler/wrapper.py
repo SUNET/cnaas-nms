@@ -25,13 +25,13 @@ def insert_job_id(result: JobResult, job_id: int) -> JobResult:
 
 def update_device_progress(job_id: int):
     new_finished_devices = []
-    with redis_session() as db:
-        while db.llen("finished_devices_" + str(job_id)) != 0:
-            last_finished = db.lpop("finished_devices_" + str(job_id))
+    with redis_session() as redis:  # type: ignore
+        while redis.llen("finished_devices_" + str(job_id)) != 0:
+            last_finished = redis.lpop("finished_devices_" + str(job_id))
             new_finished_devices.append(last_finished)
 
     if new_finished_devices:
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             if not job:
                 raise ValueError("Could not find Job with ID {}".format(job_id))
@@ -54,7 +54,7 @@ def job_wrapper(func):
             logger.error(errmsg)
             raise ValueError(errmsg)
         progress_funcitons = ["sync_devices", "device_upgrade", "confirm_devices"]
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             if not job:
                 errmsg = "Could not find job_id {} in database".format(job_id)
@@ -80,7 +80,7 @@ def job_wrapper(func):
         except Exception as e:
             tb = traceback.format_exc()
             logger.debug("Exception traceback in job_wrapper: {}".format(tb))
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 job = session.query(Job).filter(Job.id == job_id).one_or_none()
                 if not job:
                     errmsg = "Could not find job_id {} in database".format(job_id)
@@ -95,7 +95,7 @@ def job_wrapper(func):
             if func.__name__ in progress_funcitons:
                 stop_event.set()
                 device_thread.join()
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 job = session.query(Job).filter(Job.id == job_id).one_or_none()
                 if not job:
                     errmsg = "Could not find job_id {} in database".format(job_id)

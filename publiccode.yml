@@ -1,0 +1,42 @@
+publiccodeYmlVersion: "0.4"
+name: CNaaS-NMS
+url: https://github.com/SUNET/cnaas-nms
+platforms:
+  - linux
+categories:
+  - network-management
+developmentStatus: stable
+softwareType: standalone/backend
+description:
+  en:
+    localisedName: CNaaS-NMS
+    shortDescription: Multi-vendor network management system for campus, datacenters etc
+    longDescription: A multi-vendor network management system to handle
+      configuration management lifecycle of network devices like switches,
+      routers and firewalls in  campus or datacenter environments for example.
+      Supports zero-touch provisioning of switches via DHCP and firmware
+      upgrades. Configuration settings and templates are stored in git
+      repositories, while configuration synchronization, zero-touch provisioning
+      and access interface configuration can be done via web interface or REST
+      API.
+    documentation: https://cnaas-nms.readthedocs.io/en/latest/
+    features:
+      - Infra-as-code
+      - Configuration management
+      - Firmware upgrades
+      - Zero-touch provisioning
+      - Network management system
+      - Network automation
+legal:
+  license: BSD-2-Clause
+maintenance:
+  type: community
+  contacts:
+    - name: Johan Marcusson
+      email: johan.marcusson@sunet.se
+      phone: ""
+      affiliation: ""
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - en

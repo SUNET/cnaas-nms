@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 from flask import make_response, request
@@ -60,18 +60,18 @@ def get_firmware(**kwargs: dict) -> str:
         return "Could not download firmware: " + str(e)
     if json_data["status"] == "error":
         return json_data["message"]
-    return "File downloaded from: " + kwargs["url"]
+    return "File downloaded from: " + str(kwargs["url"])
 
 
 @job_wrapper
 def get_firmware_chksum(**kwargs: dict) -> str:
     try:
-        url = api_settings.HTTPD_URL + "/" + kwargs["filename"]
+        url = api_settings.HTTPD_URL + "/" + str(kwargs["filename"])
         res = requests.get(url, verify=api_settings.VERIFY_TLS)
         json_data = json.loads(res.content)
     except Exception as e:
         logger.exception(f"Exceptionb while getting checksum: {e}")
-        return "Failed to get checksum for " + kwargs["filename"]
+        return "Failed to get checksum for " + str(kwargs["filename"])
     if json_data["status"] == "error":
         return json_data["message"]
     return json_data["data"]["file"]["sha1"]
@@ -80,21 +80,21 @@ def get_firmware_chksum(**kwargs: dict) -> str:
 @job_wrapper
 def remove_file(**kwargs: dict) -> str:
     try:
-        url = api_settings.HTTPD_URL + "/" + kwargs["filename"]
+        url = api_settings.HTTPD_URL + "/" + str(kwargs["filename"])
         res = requests.delete(url, verify=api_settings.VERIFY_TLS)
         json_data = json.loads(res.content)
     except Exception as e:
         logger.exception(f"Exception when removing firmware: {e}")
         return "Failed to remove file"
     if json_data["status"] == "error":
-        return "Failed to remove file " + kwargs["filename"]
-    return "File " + kwargs["filename"] + " removed"
+        return "Failed to remove file " + str(kwargs["filename"])
+    return "File " + str(kwargs["filename"]) + " removed"
 
 
 class FirmwareApi(Resource):
     @login_required
     @api.expect(firmware_model)
-    def post(self) -> tuple:
+    def post(self) -> dict[str, Any]:
         """Download new firmware"""
         json_data = request.get_json()
 
@@ -113,7 +113,7 @@ class FirmwareApi(Resource):
         kwargs["sha1"] = json_data["sha1"]
         kwargs["verify_tls"] = json_data["verify_tls"]
 
-        scheduler = Scheduler()
+        scheduler: Scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             "cnaas_nms.api.firmware:get_firmware", when=1, scheduled_by=get_identity(), kwargs=kwargs
         )
@@ -123,7 +123,7 @@ class FirmwareApi(Resource):
         return res
 
     @login_required
-    def get(self) -> tuple:
+    def get(self) -> dict[str, Any] | tuple[dict[str, Any], int]:
         """Get firmwares"""
         try:
             res = requests.get(api_settings.HTTPD_URL, verify=api_settings.VERIFY_TLS)
@@ -138,7 +138,7 @@ class FirmwareImageApi(Resource):
     @login_required
     def get(self, filename: str) -> dict:
         """Get information about a single firmware"""
-        scheduler = Scheduler()
+        scheduler: Scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             "cnaas_nms.api.firmware:get_firmware_chksum",
             when=1,
@@ -153,7 +153,7 @@ class FirmwareImageApi(Resource):
     @login_required
     def delete(self, filename: str) -> dict:
         """Remove firmware"""
-        scheduler = Scheduler()
+        scheduler: Scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             "cnaas_nms.api.firmware:remove_file", when=1, scheduled_by=get_identity(), kwargs={"filename": filename}
         )
@@ -170,7 +170,7 @@ class FirmwareUpgradeApi(Resource):
         """Upgrade firmware on device"""
         json_data = request.get_json()
 
-        kwargs = dict()
+        kwargs: dict[str, Any] = dict()
         seconds = 1
         date_format = "%Y-%m-%d %H:%M:%S"
         url = api_settings.FIRMWARE_URL
@@ -272,7 +272,7 @@ class FirmwareUpgradeApi(Resource):
                 logger.exception(f"Exception when scheduling job: {e}")
                 return empty_result(status="error", data=f"Invalid date format, should be: {date_format}")
 
-        scheduler = Scheduler()
+        scheduler: Scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
             "cnaas_nms.devicehandler.firmware:device_upgrade",
             when=seconds,
@@ -284,7 +284,7 @@ class FirmwareUpgradeApi(Resource):
 
         resp = make_response(json.dumps(res), 200)
         if total_count:
-            resp.headers["X-Total-Count"] = total_count
+            resp.headers["X-Total-Count"] = str(total_count)
         resp.headers["Content-Type"] = "application/json"
         return resp
 

@@ -39,6 +39,8 @@ class ReservedIP(cnaas_nms.db.base.Base):
     ):
         rip: Optional[ReservedIP] = None
         for rip in session.query(ReservedIP):
+            if not rip:
+                continue
             if device and rip.device == device:
                 logger.debug("Clearing reservation of ip {} for device {}".format(rip.ip, device.hostname))
                 session.delete(rip)

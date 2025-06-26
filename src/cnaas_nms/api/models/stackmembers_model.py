@@ -1,12 +1,12 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, conint, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class StackmemberModel(BaseModel):
-    member_no: Optional[conint(gt=-1)] = None
+    member_no: Optional[int] = Field(None, gt=-1)
     hardware_id: str
-    priority: Optional[conint(gt=-1)] = None
+    priority: Optional[int] = Field(None, gt=-1)
 
     @field_validator("hardware_id")
     @classmethod

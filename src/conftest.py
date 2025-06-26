@@ -5,9 +5,9 @@ import time
 from contextlib import closing
 
 import pytest
+from git import Repo
 
 from cnaas_nms.scheduler.scheduler import Scheduler
-from git import Repo
 
 
 def pytest_configure(config):

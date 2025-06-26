@@ -24,4 +24,4 @@ if ans.lower() != "yes":
     sys.exit(0)
 
 
-print(Base.metadata.drop_all(engine))
+Base.metadata.drop_all(engine)

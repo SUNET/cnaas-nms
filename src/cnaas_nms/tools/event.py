@@ -22,16 +22,16 @@ def add_event(
     Returns:
 
     """
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         try:
             send_data = {"type": event_type, "level": level}
             if event_type == "log":
-                send_data["message"] = message
+                send_data["message"] = str(message)
             elif event_type == "update":
-                send_data["update_type"] = update_type
-                send_data["json"] = json_data
+                send_data["update_type"] = str(update_type)
+                send_data["json"] = str(json_data)
             elif event_type == "sync":
-                send_data["json"] = json_data
+                send_data["json"] = str(json_data)
             redis.xadd("events", send_data, maxlen=100)
         except Exception as e:
             print("Error in add_event: {}".format(e))

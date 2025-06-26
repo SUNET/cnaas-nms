@@ -55,7 +55,7 @@ def add_sync_event(
         if not timestamp:
             timestamp = time.time()
         sync_event = SyncEvent(cause, timestamp, by, job_id)
-        with redis_session() as redis:
+        with redis_session() as redis:  # type: ignore
             if not redis.exists(REDIS_SYNC_HISTORY_KEYNAME):
                 new_history = SyncHistory(history={hostname: [sync_event]})
                 redis.hset(REDIS_SYNC_HISTORY_KEYNAME, mapping=new_history.redis_dump())
@@ -83,7 +83,7 @@ def add_sync_event(
 def get_sync_events(hostnames: Optional[List[str]] = None) -> SyncHistory:
     ret = SyncHistory(history={})
     sync_history = SyncHistory(history={})
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         sync_history.redis_load(redis.hgetall(REDIS_SYNC_HISTORY_KEYNAME))
     if hostnames:
         for hostname, events in sync_history.history.items():
@@ -96,5 +96,5 @@ def get_sync_events(hostnames: Optional[List[str]] = None) -> SyncHistory:
 
 
 def remove_sync_events(hostname: str):
-    with redis_session() as redis:
+    with redis_session() as redis:  # type: ignore
         redis.hdel(REDIS_SYNC_HISTORY_KEYNAME, hostname)

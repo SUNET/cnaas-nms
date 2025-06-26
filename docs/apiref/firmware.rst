@@ -149,7 +149,7 @@ The API method will accept a few parameters:
 
 * group: Optional. The name of a group, all devices in that group will be upgraded.
 * hostname: Optional. If a hostname is specified, this single device will be upgraded.
-* filename: Mandatory. Name of the new firmware, for example "test.swi".
+* filename: Mandatory. Name of the new firmware, for example "test.swi". For Arista switches you can specify filename beginning with string "detect_arch-" to let NMS detect the correct firmware architecture to use for the device. Also see settings repository documentation for arista_models_32bit.
 * url: Optional, can also be configured as an environment variable, FIRMQRE_URL. URL to the firmware storage, for example "http://hostname/firmware/". This should typically point to the CNaaS NMS server and files will be downloaded from the CNaaS HTTP server.
 * download: Optional, default is false. Only download the firmware.
 * pre_flight: Optional, default is false. If true, check disk-space etc before downloading the firmware.

@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 from jinja2 import Environment as JinjaEnvironment
 from jinja2 import FileSystemLoader
@@ -19,7 +19,7 @@ from cnaas_nms.tools import jinja_filters
 
 @dataclass
 class NornirJobResult(JobResult):
-    nrresult: Optional[MultiResult] = None
+    nrresult: Optional[Union[MultiResult, AggregatedResult]] = None
     change_score: Optional[float] = None
 
 
@@ -58,7 +58,7 @@ def nr_result_serialize(result: AggregatedResult):
     if not isinstance(result, AggregatedResult):
         raise ValueError("result must be of type AggregatedResult")
 
-    hosts = {}
+    hosts: dict[str, Any] = {}
     for host, multires in result.items():
         hosts[host] = {"failed": False, "job_tasks": []}
         for res in multires:
@@ -90,7 +90,7 @@ def inventory_selector(
         Tuple with: filtered Nornir inventory, total device count selected,
                     list of hostnames that was skipped because of resync=False
     """
-    skipped_devices = []
+    skipped_devices: List[str] = []
     if hostname:
         if isinstance(hostname, str):
             nr_filtered = nr.filter(name=hostname).filter(managed=True)

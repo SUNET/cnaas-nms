@@ -5,8 +5,8 @@ from ipaddress import IPv4Address, IPv6Address, ip_interface
 from itertools import dropwhile, islice
 from typing import Optional, Set, Union
 
-from sqlalchemy import Column, ForeignKey, Integer, String, Unicode, UniqueConstraint
-from sqlalchemy.orm import load_only, relationship
+from sqlalchemy import ForeignKey, Integer, String, Unicode, UniqueConstraint
+from sqlalchemy.orm import load_only, mapped_column, relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
@@ -25,20 +25,20 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
         None,
         UniqueConstraint("device_a_id", "device_b_id"),
     )
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    ipv4_gw = Column(Unicode(18))  # 255.255.255.255/32
-    ipv6_gw = Column(Unicode(43))  # fe80:0000:0000:0000:0000:0000:0000:0000/128
-    device_a_id = Column(Integer, ForeignKey("device.id"))
+    id = mapped_column(Integer, autoincrement=True, primary_key=True)
+    ipv4_gw = mapped_column(Unicode(18))  # 255.255.255.255/32
+    ipv6_gw = mapped_column(Unicode(43))  # fe80:0000:0000:0000:0000:0000:0000:0000/128
+    device_a_id = mapped_column(Integer, ForeignKey("device.id"))
     device_a = relationship("Device", foreign_keys=[device_a_id])
-    device_a_ip = Column(IPAddressType)
-    device_b_id = Column(Integer, ForeignKey("device.id"))
+    device_a_ip = mapped_column(IPAddressType)
+    device_b_id = mapped_column(Integer, ForeignKey("device.id"))
     device_b = relationship("Device", foreign_keys=[device_b_id])
-    device_b_ip = Column(IPAddressType)
-    site_id = Column(Integer, ForeignKey("site.id"))
+    device_b_ip = mapped_column(IPAddressType)
+    site_id = mapped_column(Integer, ForeignKey("site.id"))
     site = relationship("Site")
-    vlan = Column(Integer)
-    description = Column(Unicode(255))
-    esi_mac = Column(String(12))
+    vlan = mapped_column(Integer)
+    description = mapped_column(Unicode(255))
+    esi_mac = mapped_column(String(12))
 
     def as_dict(self):
         """Return JSON serializable dict."""
@@ -67,13 +67,13 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
         return bool(self.ipv4_gw) and bool(self.ipv6_gw)
 
     @property
-    def primary_gw(self) -> Optional[str]:
+    def primary_gw(self) -> str:
         """Returns the primary gateway interface for this Mgmtdomain, depending on the configured preference"""
         primary_version = api_settings.MGMTDOMAIN_PRIMARY_IP_VERSION
         return self.ipv4_gw if primary_version == 4 else self.ipv6_gw
 
     @property
-    def secondary_gw(self) -> Optional[str]:
+    def secondary_gw(self) -> str:
         """Returns the secondary gateway interface for this Mgmtdomain, depending on the configured preference"""
         primary_version = api_settings.MGMTDOMAIN_PRIMARY_IP_VERSION
         return self.ipv6_gw if primary_version == 4 else self.ipv4_gw
@@ -116,8 +116,8 @@ class Mgmtdomain(cnaas_nms.db.base.Base):
         else:
             mgmt_net = ip_interface(intf_addr).network
         candidates = islice(mgmt_net.hosts(), api_settings.MGMTDOMAIN_RESERVED_COUNT, None)
-        free_ips = dropwhile(is_taken, candidates)
-        return next(free_ips, None)
+        free_ips = dropwhile(is_taken, candidates)  # type: ignore
+        return next(free_ips, None)  # type: ignore
 
     @staticmethod
     def _get_taken_ips(session) -> Set[IPAddress]:

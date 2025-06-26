@@ -45,6 +45,17 @@ python3 -m cnaas_nms.api.tests.test_api
 python3 -m cnaas_nms.confpush.tests.test_get
 ```
 
+### Unit Tests
+
+Environment variable `DOCKER_COMPOSE_FILE` can be set to names of docker-compose files under docker/ folder.
+If `DOCKER_COMPOSE_FILE` is not set, pytest will instead look for redis and postgres instances running locally.
+
+To run unit tests
+
+```
+DOCKER_COMPOSE_FILE="docker-compose_pytest.yaml" pytest -m "not integration and not equipment"
+```
+
 ## Authorization
 
 Currently we can use two styles for the authorization. We can use the original style or use OIDC style. For OIDC we need to define some env variables or add a auth_config.yaml in the config. The needed variables are: OIDC_CONF_WELL_KNOWN_URL, OIDC_CLIENT_SECRET, OIDC_CLIENT_ID, FRONTEND_CALLBACK_URL and OIDC_ENABLED. To use the OIDC style the last variable needs to be set to true.

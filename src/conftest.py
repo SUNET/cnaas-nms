@@ -22,8 +22,17 @@ def pytest_configure(config):
 
 @pytest.fixture(scope="session")
 def docker_compose_file(pytestconfig):
-    """Point pytest-docker to the custom docker compose file."""
-    return os.path.abspath(os.path.join(pytestconfig.rootpath, "docker", "docker-compose_pytest.yaml"))
+    """
+    Set target docker-compose file based on env variable DOCKER_COMPOSE_FILE.
+
+    Defaults to None.
+    """
+    docker_compose_file_env = os.getenv("DOCKER_COMPOSE_FILE")
+    if docker_compose_file_env is not None:
+        return os.path.join(str(pytestconfig.rootdir), "docker", docker_compose_file_env)
+    else:
+        os.environ.setdefault("PYTEST_REDIS_EXTERNAL", "1")
+        os.environ.setdefault("PYTEST_POSTGRES_EXTERNAL", "1")
 
 
 @pytest.fixture(scope="session")

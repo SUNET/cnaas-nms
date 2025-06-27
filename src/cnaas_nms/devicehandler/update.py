@@ -31,14 +31,14 @@ def update_interfacedb_worker(
     replace: bool,
     delete_all: bool,
     mlag_peer_hostname: Optional[str] = None,
-    linknets: Optional[List[dict]] = None,
+    linknets: List[dict] = [],
 ) -> List[dict]:
     """Perform actual work of updating database for update_interfacedb.
     If replace is set to true, configtype and data will get overwritten.
     If delete_all is set to true, delete all interfaces from database.
     Return list of new/updated interfaces, or empty if delete_all was set."""
     logger = get_logger()
-    ret = []
+    ret: List[dict] = []
 
     current_iflist = session.query(Interface).filter(Interface.device == dev).all()
     unmatched_iflist = []
@@ -73,7 +73,7 @@ def update_interfacedb_worker(
             new_intf = False
         else:
             new_intf = True
-            intf: Interface = Interface()
+            intf = Interface()
         if not new_intf and not replace:
             continue
         logger.debug("New/updated physical interface found on device {}: {}".format(dev.hostname, intf_name))
@@ -115,8 +115,8 @@ def update_interfacedb(
     replace: bool = False,
     delete_all: bool = False,
     mlag_peer_hostname: Optional[str] = None,
-    job_id: Optional[str] = None,
-    scheduled_by: Optional[str] = None,
+    job_id: Optional[int] = None,
+    scheduled_by: str = "",
 ) -> DictJobResult:
     """Update interface DB with any new physical interfaces for specified device.
     If replace is set, any existing records in the database will get overwritten.
@@ -125,8 +125,8 @@ def update_interfacedb(
     Returns:
         List of interfaces that was added to DB
     """
-    with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+    with sqla_session() as session:  # type: ignore
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise ValueError(f"Hostname {hostname} not found in database")
         if dev.state != DeviceState.MANAGED:
@@ -143,8 +143,8 @@ def update_interfacedb(
 
 
 def reset_interfacedb(hostname: str):
-    with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+    with sqla_session() as session:  # type: ignore
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise ValueError(f"Hostname {hostname} not found in database")
 
@@ -173,10 +173,10 @@ def set_facts(dev: Device, facts: dict) -> dict:
 
 
 @job_wrapper
-def update_facts(hostname: str, job_id: Optional[str] = None, scheduled_by: Optional[str] = None):
+def update_facts(hostname: str, job_id: Optional[int] = None, scheduled_by: str = ""):
     logger = get_logger()
-    with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+    with sqla_session() as session:  # type: ignore
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise ValueError("Device with hostname {} not found".format(hostname))
         if not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
@@ -193,10 +193,10 @@ def update_facts(hostname: str, job_id: Optional[str] = None, scheduled_by: Opti
         return NornirJobResult(nrresult=nrresult)
     try:
         facts = nrresult[hostname][0].result["facts"]
-        with sqla_session() as session:
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+        with sqla_session() as session:  # type: ignore
+            dev = session.query(Device).filter(Device.hostname == hostname).one()
             diff = set_facts(dev, facts)
-            dev.last_seen = datetime.datetime.utcnow()
+            dev.last_seen = datetime.datetime.utcnow()  # type: ignore
 
         logger.debug(
             "Updating facts for device {}, new values: {}, {}, {}, {}".format(

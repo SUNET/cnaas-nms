@@ -1,19 +1,22 @@
 import hashlib
+import os
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
+import yaml
 from netutils.config import compliance
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 from nornir.core.filter import F
 from nornir.core.task import AggregatedResult
 from nornir_napalm.plugins.tasks import napalm_get
-from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.devicehandler.nornir_helper
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
+from cnaas_nms.db.exceptions import RepoStructureException
+from cnaas_nms.db.git import get_template_repo_path
 from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
-from cnaas_nms.db.session import sqla_session
+from cnaas_nms.tools.jinja_filters import get_config_section
 from cnaas_nms.tools.log import get_logger
 
 
@@ -22,20 +25,23 @@ def get_inventory():
     return nr.dict()["inventory"]
 
 
-def get_running_config(hostname: str) -> Optional[str]:
+def get_running_config(hostname: str) -> str:
     nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     nr_result = nr_filtered.run(task=napalm_get, getters=["config"])
     if nr_result[hostname].failed:
-        raise nr_result[hostname][0].exception
+        if issubclass(type(nr_result[hostname][0].exception), BaseException) and nr_result[hostname][0].exception:
+            raise nr_result[hostname][0].exception  # type: ignore
+        else:
+            raise Exception("Failed to get running config")
     else:
         return nr_result[hostname].result["config"]["running"]
 
 
-def get_running_config_interface(session: sqla_session, hostname: str, interface: str) -> str:
+def get_running_config_interface(session, hostname: str, interface: str) -> str:
     running_config = get_running_config(hostname)
     dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-    os_parser = compliance.parser_map[NAPALM_LIB_MAPPER.get(dev.platform)]
+    os_parser = compliance.parser_map[str(NAPALM_LIB_MAPPER.get(str(dev.platform)))]
     config_parsed = os_parser(running_config)
     ret = []
     leading_whitespace: Optional[int] = None
@@ -53,7 +59,32 @@ def get_running_config_interface(session: sqla_session, hostname: str, interface
     return "\n".join(ret)
 
 
-def calc_config_hash(hostname, config):
+def get_unmanaged_config_sections(hostname: str, platform: str, devtype: DeviceType) -> List[str]:
+    local_repo_path = get_template_repo_path(hostname)
+
+    mapfile = os.path.join(local_repo_path, platform, "mapping.yml")
+    if not os.path.isfile(mapfile):
+        raise RepoStructureException("File {} not found in template repo".format(mapfile))
+    with open(mapfile, "r") as f:
+        mapping = yaml.safe_load(f)
+        if (
+            "unmanaged_config_sections" in mapping[devtype.name]
+            and type(mapping[devtype.name]["unmanaged_config_sections"]) is list
+        ):
+            return mapping[devtype.name]["unmanaged_config_sections"]
+    return []
+
+
+def calc_config_hash(hostname: str, config: str, platform: str, devtype: DeviceType):
+    ignore_config_sections: List[str] = get_unmanaged_config_sections(hostname, platform, devtype)
+    for section in ignore_config_sections:
+        skip_section = get_config_section(config, section, platform)
+        if skip_section:
+            config = config.replace(skip_section, "")
+    if platform == "junos":
+        # remove line starting with "## Last commit" from config string so we don't get config hash mismatch
+        config = re.sub(r"^#{2}.*\n", "", config, flags=re.MULTILINE)
+    config = config.replace("\n", "")
     try:
         hash_object = hashlib.sha256(config.encode())
     except Exception:
@@ -61,7 +92,9 @@ def calc_config_hash(hostname, config):
     return hash_object.hexdigest()
 
 
-def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None) -> AggregatedResult:
+def get_neighbors(
+    hostname: Optional[str] = None, group: Optional[str] = None, details: bool = False
+) -> AggregatedResult:
     """Get neighbor information from device
 
     Args:
@@ -79,8 +112,10 @@ def get_neighbors(hostname: Optional[str] = None, group: Optional[str] = None) -
     else:
         nr_filtered = nr
 
-    result = nr_filtered.run(task=napalm_get, getters=["lldp_neighbors"])
-    print_result(result)
+    if details:
+        result = nr_filtered.run(task=napalm_get, getters=["lldp_neighbors_detail"])
+    else:
+        result = nr_filtered.run(task=napalm_get, getters=["lldp_neighbors"])
 
     return result
 
@@ -89,7 +124,7 @@ def get_uplinks(
     session,
     hostname: str,
     recheck: bool = False,
-    neighbors: Optional[List[Device]] = None,
+    neighbors: Optional[Set[Device]] = None,
     linknets: Optional[List[dict]] = None,
 ) -> Dict[str, str]:
     """Returns dict with mapping of interface -> neighbor hostname"""
@@ -122,7 +157,7 @@ def get_uplinks(
     if not neighbors:
         neighbors = dev.get_neighbors(session, linknets)
 
-    for neighbor_d in neighbors:
+    for neighbor_d in neighbors:  # type: ignore
         if neighbor_d.device_type == DeviceType.DIST:
             local_ifs = dev.get_neighbor_ifnames(session, neighbor_d, linknets)
             # Neighbor interface ifclass is already verified in
@@ -162,7 +197,7 @@ def get_uplinks(
 
 
 def get_local_ifnames(local_devid: int, peer_devid: int, linknets: List[dict]) -> List[str]:
-    ifnames = []
+    ifnames: List[str] = []
     if not linknets:
         return ifnames
     for linknet in linknets:
@@ -173,9 +208,7 @@ def get_local_ifnames(local_devid: int, peer_devid: int, linknets: List[dict]) -
     return ifnames
 
 
-def get_mlag_ifs(
-    session, dev: Device, mlag_peer_hostname: str, linknets: Optional[List[dict]] = None
-) -> Dict[str, int]:
+def get_mlag_ifs(session, dev: Device, mlag_peer_hostname: str, linknets: List[dict] = []) -> Dict[str, int]:
     """Returns dict with mapping of interface -> neighbor id
     Return id instead of hostname since mlag peer will change hostname during init"""
     logger = get_logger()
@@ -218,14 +251,22 @@ def get_interfaces_names(hostname: str) -> List[str]:
         return list(getfacts_task.result["interfaces"].keys())
 
 
-def filter_interfaces(iflist, platform=None, include=None):
+def filter_interfaces(iflist: List[str], platform=None, include=None) -> List[str]:
     # TODO: include pattern matching from external configurable file
     ret = []
-    junos_phy_r = r"^[gx]e-([0-9]+\/)+[0-9]+$"
+    junos_phy_r = r"^(ge|xe|et|mge)-([0-9]+\/)+[0-9]+$"
+    ios_phy_r = r"^[a-zA-Z]+Ethernet.*"
+    iosxr_phy_r = r"^[a-zA-Z]*E(thernet)?[0-9].*"
     for intf in iflist:
         if include == "physical":
             if platform == "junos":
                 if re.match(junos_phy_r, intf):
+                    ret.append(intf)
+            elif platform == "ios":
+                if re.match(ios_phy_r, intf):
+                    ret.append(intf)
+            elif platform == "iosxr":
+                if re.match(iosxr_phy_r, intf):
                     ret.append(intf)
             else:
                 if intf.startswith("Ethernet"):

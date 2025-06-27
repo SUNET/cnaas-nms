@@ -3,8 +3,8 @@ import enum
 import ipaddress
 from typing import List, Optional
 
-from sqlalchemy import Column, ForeignKey, Integer, Unicode, UniqueConstraint
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy import ForeignKey, Integer, Unicode, UniqueConstraint
+from sqlalchemy.orm import backref, mapped_column, relationship
 from sqlalchemy_utils import IPAddressType
 
 import cnaas_nms.db.base
@@ -20,23 +20,23 @@ class Linknet(cnaas_nms.db.base.Base):
         UniqueConstraint("device_a_id", "device_a_port"),
         UniqueConstraint("device_b_id", "device_b_port"),
     )
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    ipv4_network = Column(Unicode(18))
-    device_a_id = Column(Integer, ForeignKey("device.id"))
+    id = mapped_column(Integer, autoincrement=True, primary_key=True)
+    ipv4_network = mapped_column(Unicode(18))
+    device_a_id = mapped_column(Integer, ForeignKey("device.id"))
     device_a = relationship(
         "Device", foreign_keys=[device_a_id], backref=backref("linknets_a", cascade="all, delete-orphan")
     )
-    device_a_ip = Column(IPAddressType)
-    device_a_port = Column(Unicode(64))
-    device_b_id = Column(Integer, ForeignKey("device.id"))
+    device_a_ip = mapped_column(IPAddressType)
+    device_a_port = mapped_column(Unicode(64))
+    device_b_id = mapped_column(Integer, ForeignKey("device.id"))
     device_b = relationship(
         "Device", foreign_keys=[device_b_id], backref=backref("linknets_b", cascade="all, delete-orphan")
     )
-    device_b_ip = Column(IPAddressType)
-    device_b_port = Column(Unicode(64))
-    site_id = Column(Integer, ForeignKey("site.id"))
+    device_b_ip = mapped_column(IPAddressType)
+    device_b_port = mapped_column(Unicode(64))
+    site_id = mapped_column(Integer, ForeignKey("site.id"))
     site = relationship("Site")
-    description = Column(Unicode(255))
+    description = mapped_column(Unicode(255))
 
     def as_dict(self):
         """Return JSON serializable dict."""

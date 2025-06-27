@@ -1,9 +1,7 @@
-import datetime
 import os
 import time
-from hashlib import sha256
 from ipaddress import IPv4Address, IPv4Interface, ip_interface
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import yaml
 from napalm.eos import EOSDriver as NapalmEOSDriver
@@ -15,10 +13,10 @@ from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
 from nornir_utils.plugins.functions import print_result
 
 import cnaas_nms.db.helper
-from cnaas_nms.app_settings import api_settings, app_settings
+from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.device_vars import expand_interface_settings
-from cnaas_nms.db.git import RepoStructureException
+from cnaas_nms.db.git import RepoStructureException, get_template_repo_path
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
@@ -78,6 +76,7 @@ def resolve_vlanid(vlan_name: str, vxlans: dict) -> Optional[int]:
         except (KeyError, ValueError) as e:
             logger.error("Could not resolve VLAN ID for VLAN name {}: {}".format(vlan_name, str(e)))
             return None
+    return None
 
 
 def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
@@ -92,8 +91,8 @@ def resolve_vlanid_list(vlan_name_list: List[str], vxlans: dict) -> List[int]:
 
 
 def get_mlag_vars(session, dev: Device) -> dict:
-    ret = {"mlag_peer": False, "mlag_peer_hostname": None, "mlag_peer_low": None}
-    mlag_peer: Device = dev.get_mlag_peer(session)
+    ret: dict[str, Any] = {"mlag_peer": False, "mlag_peer_hostname": None, "mlag_peer_low": None}
+    mlag_peer: Optional[Device] = dev.get_mlag_peer(session)
     if not mlag_peer:
         return ret
     ret["mlag_peer"] = True
@@ -106,15 +105,15 @@ def get_mlag_vars(session, dev: Device) -> dict:
 
 
 def populate_device_vars(
-    session, dev: Device, ztp_hostname: Optional[str] = None, ztp_devtype: Optional[DeviceType] = None
+    task, session, dev: Device, ztp_hostname: Optional[str] = None, ztp_devtype: Optional[DeviceType] = None
 ):
     logger = get_logger()
-    device_variables = {
+    device_variables: dict[str, Any] = {
         "device_model": dev.model,
         "device_os_version": dev.os_version,
         "device_id": dev.id,
         "hostname": dev.hostname,
-        "stack_members": []
+        "stack_members": [],
         # 'host' variable is also implicitly added by nornir-jinja2
     }
 
@@ -127,12 +126,12 @@ def populate_device_vars(
     if ztp_hostname:
         hostname: str = ztp_hostname
     else:
-        hostname: str = dev.hostname
+        hostname = dev.hostname
 
     if ztp_devtype:
         devtype: DeviceType = ztp_devtype
     elif dev.device_type != DeviceType.UNKNOWN:
-        devtype: DeviceType = dev.device_type
+        devtype = dev.device_type
     else:
         raise Exception("Can't populate device vars for device type UNKNOWN")
 
@@ -150,10 +149,10 @@ def populate_device_vars(
 
     if devtype == DeviceType.ACCESS:
         if ztp_hostname:
-            access_device_variables = {"interfaces": []}
+            access_device_variables: dict[str, Any] = {"interfaces": []}
         else:
-            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, dev.management_ip)
-            if not mgmtdomain:
+            mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain_by_ip(session, IPv4Address(dev.management_ip))
+            if not mgmtdomain or not mgmtdomain.primary_gw:
                 raise Exception(
                     "Could not find appropriate management domain for management_ip: {}".format(dev.management_ip)
                 )
@@ -167,7 +166,7 @@ def populate_device_vars(
                 "mgmt_prefixlen": int(mgmt_gw_ipif.network.prefixlen),
                 "interfaces": [],
             }
-            if dev.secondary_management_ip:
+            if dev.secondary_management_ip and mgmtdomain.secondary_gw:
                 secondary_mgmt_gw_ipif = ip_interface(mgmtdomain.secondary_gw)
                 access_device_variables.update(
                     {
@@ -186,31 +185,31 @@ def populate_device_vars(
         ifname_peer_map = dev.get_linknet_localif_mapping(session)
 
         intfs = session.query(Interface).filter(Interface.device == dev).all()
-        intf: Interface
-        for intf in intfs:
+        interface: Interface
+        for interface in intfs:
             untagged_vlan: Optional[int] = None
             tagged_vlan_list: List = []
             intfdata: Optional[dict] = None
             try:
-                ifindexnum: int = Interface.interface_index_num(intf.name)
+                ifindexnum: int = Interface.interface_index_num(interface.name)
             except ValueError:
-                ifindexnum: int = 0
-            if intf.data:
-                if "untagged_vlan" in intf.data:
-                    untagged_vlan = resolve_vlanid(intf.data["untagged_vlan"], settings["vxlans"])
-                if "tagged_vlan_list" in intf.data:
-                    tagged_vlan_list = resolve_vlanid_list(intf.data["tagged_vlan_list"], settings["vxlans"])
-                intfdata = dict(intf.data)
-            if intf.name in ifname_peer_map:
+                ifindexnum = 0
+            if interface.data:
+                if "untagged_vlan" in interface.data:
+                    untagged_vlan = resolve_vlanid(interface.data["untagged_vlan"], settings["vxlans"])
+                if "tagged_vlan_list" in interface.data:
+                    tagged_vlan_list = resolve_vlanid_list(interface.data["tagged_vlan_list"], settings["vxlans"])
+                intfdata = dict(interface.data)
+            if interface.name in ifname_peer_map:
                 if isinstance(intfdata, dict):
-                    intfdata["description"] = ifname_peer_map[intf.name]
+                    intfdata["description"] = ifname_peer_map[interface.name]
                 else:
-                    intfdata = {"description": ifname_peer_map[intf.name]}
+                    intfdata = {"description": ifname_peer_map[interface.name]}
 
             access_device_variables["interfaces"].append(
                 {
-                    "name": intf.name,
-                    "ifclass": intf.configtype.name,
+                    "name": interface.name,
+                    "ifclass": interface.configtype.name,
                     "untagged_vlan": untagged_vlan,
                     "tagged_vlan_list": tagged_vlan_list,
                     "data": intfdata,
@@ -219,10 +218,10 @@ def populate_device_vars(
             )
         mlag_vars = get_mlag_vars(session, dev)
         device_variables = {**device_variables, **access_device_variables, **mlag_vars}
-    elif devtype == DeviceType.DIST or devtype == DeviceType.CORE:
+    elif devtype in [DeviceType.DIST, DeviceType.CORE, DeviceType.FIREWALL]:
         infra_ip = dev.infra_ip
-        asn = generate_asn(infra_ip)
-        fabric_device_variables = {
+        asn = generate_asn(IPv4Address(infra_ip))
+        fabric_device_variables: dict[str, Any] = {
             "interfaces": [],
             "bgp_ipv4_peers": [],
             "bgp_evpn_peers": [],
@@ -253,23 +252,23 @@ def populate_device_vars(
                             "peer_hostname": neighbor_d.hostname,
                             "peer_infra_lo": str(neighbor_d.infra_ip),
                             "peer_ip": str(neighbor_ip),
-                            "peer_asn": generate_asn(neighbor_d.infra_ip),
+                            "peer_asn": generate_asn(IPv4Address(neighbor_d.infra_ip)),
                         }
                         fabric_device_variables["bgp_ipv4_peers"].append(
                             {
                                 "peer_hostname": neighbor_d.hostname,
                                 "peer_infra_lo": str(neighbor_d.infra_ip),
                                 "peer_ip": str(neighbor_ip),
-                                "peer_asn": generate_asn(neighbor_d.infra_ip),
+                                "peer_asn": generate_asn(IPv4Address(neighbor_d.infra_ip)),
                             }
                         )
         ifname_peer_map = dev.get_linknet_localif_mapping(session)
         if "interfaces" in settings and settings["interfaces"]:
             for intf in expand_interface_settings(settings["interfaces"]):
                 try:
-                    ifindexnum: int = Interface.interface_index_num(intf["name"])
+                    ifindexnum = Interface.interface_index_num(intf["name"])
                 except ValueError:
-                    ifindexnum: int = 0
+                    ifindexnum = 0
                 if "ifclass" not in intf:
                     continue
                 extra_keys = ["aggregate_id", "enabled", "cli_append_str", "metric", "mtu", "tags"]
@@ -320,6 +319,25 @@ def populate_device_vars(
                                 "peer_asn": None,
                             }
                         )
+                elif intf["ifclass"] == "mirror":
+                    # Copy interface settings from mgmtdomain peer device
+                    if_dict = {"indexnum": ifindexnum}
+                    peer_device = cnaas_nms.db.helper.find_mgmtdomain_peer(session, dev)
+                    peer_settings, _ = get_settings(peer_device.hostname, devtype, peer_device.model)
+                    if "interfaces" in peer_settings and peer_settings["interfaces"]:
+                        for peer_intf in peer_settings["interfaces"]:
+                            if peer_intf["name"] == intf["name"]:
+                                if peer_intf["ifclass"] in ["fabric", "downlink"]:
+                                    raise Exception(f"Cannot mirror {peer_intf['ifclass']} interface")
+                                for copied_key_name, value in peer_intf.items():
+                                    if_dict[copied_key_name] = value
+                                break
+                    # Description and enabled can be set separately from mirrored interface
+                    if "description" in intf:
+                        if_dict["description"] = intf["description"]
+                    if "enabled" in intf:
+                        if_dict["enabled"] = intf["enabled"]
+                    fabric_device_variables["interfaces"].append(if_dict)
                 else:
                     if_dict = {"indexnum": ifindexnum}
                     for extra_key_name, value in intf.items():
@@ -341,9 +359,11 @@ def populate_device_vars(
                         "vlan": mgmtdom.vlan,
                         "description": mgmtdom.description,
                         "esi_mac": mgmtdom.esi_mac,
-                        "ipv4_ip": str(mgmtdom.device_a_ip)
-                        if hostname == mgmtdom.device_a.hostname
-                        else str(mgmtdom.device_b_ip),
+                        "ipv4_ip": (
+                            str(mgmtdom.device_a_ip)
+                            if hostname == mgmtdom.device_a.hostname
+                            else str(mgmtdom.device_b_ip)
+                        ),
                     }
                 )
         # populate evpn peers data
@@ -354,10 +374,35 @@ def populate_device_vars(
                 {
                     "peer_hostname": neighbor_d.hostname,
                     "peer_infra_lo": str(neighbor_d.infra_ip),
-                    "peer_asn": generate_asn(neighbor_d.infra_ip),
+                    "peer_asn": generate_asn(IPv4Address(neighbor_d.infra_ip)),
                 }
             )
         device_variables = {**device_variables, **fabric_device_variables}
+
+    # if platform/devtype has unmanaged config sections, get running_config and add to device_variables
+    local_repo_path = get_template_repo_path(hostname)
+    mapfile = os.path.join(local_repo_path, dev.platform, "mapping.yml")
+    if not os.path.isfile(mapfile):
+        raise RepoStructureException("File {} not found in template repo".format(mapfile))
+    with open(mapfile, "r") as f:
+        mapping = yaml.safe_load(f)
+        if (
+            devtype.name in mapping
+            and "unmanaged_config_sections" in mapping[devtype.name]
+            and type(mapping[devtype.name]["unmanaged_config_sections"]) is list
+            and task
+        ):
+            task.host.open_connection("napalm", configuration=task.nornir.config)
+            res = task.run(task=napalm_get, getters=["config"])
+            task.host.close_connection("napalm")
+
+            running_config = dict(res.result)["config"]["running"]
+            # Remove the first task result, which is the napalm_get result, since it's not needed for final job result
+            del task.results[0]
+            if running_config is None:
+                raise Exception(f"Failed to get running configuration for {dev.hostname}")
+
+            device_variables["running_config"] = running_config
 
     # Add all environment variables starting with TEMPLATE_SECRET_ to
     # the list of configuration variables. The idea is to store secret
@@ -481,7 +526,7 @@ def napalm_confirm_commit(task, job_id: int, prev_job_id: int):
         n_device.confirm_commit()
     logger.debug("Commit for job {} confirmed on device {}".format(prev_job_id, task.host.name))
     if job_id:
-        with redis_session() as db:
+        with redis_session() as db:  # type: ignore
             db.lpush("finished_devices_" + str(job_id), task.host.name)
 
 
@@ -490,8 +535,8 @@ def push_sync_device(
     confirm_mode: int,
     dry_run: bool = True,
     generate_only: bool = False,
-    job_id: Optional[str] = None,
-    scheduled_by: Optional[str] = None,
+    job_id: Optional[int] = None,
+    scheduled_by: str = "",
 ):
     """
     Nornir task to generate config and push to device
@@ -510,15 +555,15 @@ def push_sync_device(
     set_thread_data(job_id)
     logger = get_logger()
     hostname = task.host.name
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
-        template_vars = populate_device_vars(session, dev)
+        template_vars = populate_device_vars(task, session, dev)
         platform = dev.platform
         devtype = dev.device_type
 
-    local_repo_path = app_settings.TEMPLATES_LOCAL
+    local_repo_path = get_template_repo_path(hostname)
 
-    mapfile = os.path.join(local_repo_path, platform, "mapping.yml")
+    mapfile = os.path.join(local_repo_path, str(platform), "mapping.yml")
     if not os.path.isfile(mapfile):
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, "r") as f:
@@ -600,11 +645,11 @@ def push_sync_device(
         else:
             task.host["change_score"] = 0
     if job_id:
-        with redis_session() as db:
+        with redis_session() as db:  # type: ignore
             db.lpush("finished_devices_" + str(job_id), task.host.name)
 
 
-def generate_only(hostname: str) -> (str, dict):
+def generate_only(hostname: str) -> Tuple[str, dict]:
     """
     Generate configuration for a device and return it as a text string.
 
@@ -626,8 +671,11 @@ def generate_only(hostname: str) -> (str, dict):
             raise Exception(
                 "Could not generate config for device {}: {}".format(hostname, nrresult[hostname][0].result)
             )
-        if "template_vars" in nrresult[hostname][1].host:
-            template_vars = nrresult[hostname][1].host["template_vars"]
+        hostvar = nrresult[hostname][1].host
+        if hostvar is None:
+            raise Exception("Could not generate config for device {}".format(hostname))
+        if "template_vars" in hostvar:
+            template_vars = hostvar["template_vars"]
         if nrresult.failed:
             print_result(nrresult)
             raise Exception("Failed to generate config for {}".format(hostname))
@@ -649,10 +697,11 @@ def sync_check_hash(task, force=False, job_id=None):
         task: Nornir task
         force: Ignore device hash
     """
+    logger = get_logger()
     set_thread_data(job_id)
     if force is True:
         return
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         stored_hash = Device.get_config_hash(session, task.host.name)
     if stored_hash is None:
         return
@@ -661,11 +710,12 @@ def sync_check_hash(task, force=False, job_id=None):
     res = task.run(task=napalm_get, getters=["config"])
     task.host.close_connection("napalm")
 
-    running_config = dict(res.result)["config"]["running"].encode()
-    if running_config is None:
-        raise Exception("Failed to get running configuration")
-    hash_obj = sha256(running_config)
-    running_hash = hash_obj.hexdigest()
+    try:
+        devtype = Device.nornir_groups_to_devicetype(task.host.groups)
+    except Exception as e:
+        logger.error("Unable to determine device type")
+        logger.exception(e)
+    running_hash = calc_config_hash(task.host.name, dict(res.result)["config"]["running"], task.host.platform, devtype)
     if stored_hash != running_hash:
         raise Exception("Device {} configuration is altered outside of CNaaS!".format(task.host.name))
 
@@ -681,14 +731,23 @@ def update_config_hash(task):
             or "config" not in res[0].result
         ):
             raise Exception("Unable to get config from device")
-        new_config_hash = calc_config_hash(task.host.name, res[0].result["config"]["running"])
+
+        try:
+            devtype = Device.nornir_groups_to_devicetype(task.host.groups)
+        except Exception as e:
+            logger.error("Unable to determine device type")
+            logger.exception(e)
+
+        new_config_hash = calc_config_hash(
+            task.host.name, res[0].result["config"]["running"], task.host.platform, devtype
+        )
         if not new_config_hash:
             raise ValueError("Empty config hash")
     except Exception as e:
         logger.exception("Unable to get config hash: {}".format(str(e)))
         raise e
     else:
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             Device.set_config_hash(session, task.host.name, new_config_hash)
             logger.debug("Config hash for {} updated to {}".format(task.host.name, new_config_hash))
 
@@ -755,13 +814,13 @@ def confirm_devices(
     prev_job_id: int,
     hostnames: List[str],
     job_id: Optional[int] = None,
-    scheduled_by: Optional[str] = None,
+    scheduled_by: str = "",
     resync: bool = False,
 ) -> NornirJobResult:
     logger = get_logger()
     nr = cnaas_init()
 
-    nr_filtered, dev_count, skipped_hostnames = select_devices(nr, hostnames, resync)
+    nr_filtered, dev_count, _ = select_devices(nr, hostnames, resync=resync)
 
     device_list = list(nr_filtered.inventory.hosts.keys())
     logger.info("Device(s) selected for commit-confirm ({}): {}".format(dev_count, ", ".join(device_list)))
@@ -771,7 +830,7 @@ def confirm_devices(
     except Exception as e:
         logger.exception("Exception while confirm-commit devices: {}".format(str(e)))
         try:
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 logger.info(
                     "Releasing lock for devices from syncto job: {} (in commit-job {})".format(prev_job_id, job_id)
                 )
@@ -792,7 +851,7 @@ def confirm_devices(
         dry_run=False, force=False, nr_filtered=nr_filtered, unchanged_hosts=[], failed_hosts=failed_hosts
     )
 
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         for host, results in nrresult.items():
             if host in failed_hosts or len(results) != 1:
                 logger.debug("Setting device as unsync for failed commit-confirm on device {}".format(host))
@@ -801,10 +860,9 @@ def confirm_devices(
                 add_sync_event(host, "commit_confirm_failed", scheduled_by, job_id)
                 dev.confhash = None
             else:
-                dev: Device = session.query(Device).filter(Device.hostname == host).one()
+                dev = session.query(Device).filter(Device.hostname == host).one()
                 dev.synchronized = True
                 remove_sync_events(host)
-                dev.last_seen = datetime.datetime.utcnow()
 
         logger.info("Releasing lock for devices from syncto job: {} (in commit-job {})".format(prev_job_id, job_id))
         Joblock.release_lock(session, job_id=prev_job_id)
@@ -821,7 +879,7 @@ def sync_devices(
     force: bool = False,
     auto_push: bool = False,
     job_id: Optional[int] = None,
-    scheduled_by: Optional[str] = None,
+    scheduled_by: str = "",
     resync: bool = False,
     confirm_mode_override: Optional[int] = None,
 ) -> NornirJobResult:
@@ -862,14 +920,14 @@ def sync_devices(
     else:
         if nrresult.failed:
             # Mark devices as unsynchronized if config hash check failed
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 session.query(Device).filter(Device.hostname.in_(nrresult.failed_hosts.keys())).update(
                     {Device.synchronized: False}, synchronize_session=False
                 )
             raise Exception("Configuration hash check failed for {}".format(" ".join(nrresult.failed_hosts.keys())))
 
-    if not dry_run:
-        with sqla_session() as session:
+    if not dry_run and job_id:
+        with sqla_session() as session:  # type: ignore
             logger.info("Trying to acquire lock for devices to run syncto job: {}".format(job_id))
             max_attempts = 5
             lock_ok: bool = False
@@ -894,7 +952,7 @@ def sync_devices(
         logger.exception("Exception while synchronizing devices: {}".format(str(e)))
         try:
             if not dry_run:
-                with sqla_session() as session:
+                with sqla_session() as session:  # type: ignore
                     logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
                     Joblock.release_lock(session, job_id=job_id)
         except Exception:
@@ -918,9 +976,12 @@ def sync_devices(
             logger.debug("Unable to calculate change score for failed device {}".format(host))
         elif results[2].diff:
             changed_hosts.append(host)
-            if "change_score" in results[0].host:
-                change_scores.append(results[0].host["change_score"])
-                logger.debug("Change score for host {}: {:.1f}".format(host, results[0].host["change_score"]))
+            hostvar = results[0].host
+            if hostvar is None:
+                raise ValueError("Host not found")
+            if "change_score" in hostvar:
+                change_scores.append(hostvar["change_score"])
+                logger.debug("Change score for host {}: {:.1f}".format(host, hostvar["change_score"]))
         else:
             unchanged_hosts.append(host)
             change_scores.append(0)
@@ -936,25 +997,22 @@ def sync_devices(
         )
 
     # set devices as synchronized if needed
-    with sqla_session() as session:
+    with sqla_session() as session:  # type: ignore
         for hostname in changed_hosts:
             if dry_run:
                 dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
                 if dev.synchronized:
                     dev.synchronized = False
                     add_sync_event(hostname, "syncto_dryrun", scheduled_by, job_id)
-                dev.last_seen = datetime.datetime.utcnow()
             # if next job will commit, that job will mark synchronized on success
             elif get_confirm_mode(confirm_mode_override) != 2:
-                dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+                dev = session.query(Device).filter(Device.hostname == hostname).one()
                 dev.synchronized = True
                 remove_sync_events(hostname)
-                dev.last_seen = datetime.datetime.utcnow()
         for hostname in unchanged_hosts:
-            dev: Device = session.query(Device).filter(Device.hostname == hostname).one()
+            dev = session.query(Device).filter(Device.hostname == hostname).one()
             dev.synchronized = True
             remove_sync_events(hostname)
-            dev.last_seen = datetime.datetime.utcnow()
         if not dry_run and get_confirm_mode(confirm_mode_override) != 2:
             if failed_hosts and get_confirm_mode(confirm_mode_override) == 1:
                 logger.error(
@@ -1020,15 +1078,13 @@ def sync_devices(
             logger.info(f"Commit-confirm for job id {job_id} scheduled as job id {next_job_id}")
             # keep this thread running until next_job has finished so the device session is not closed,
             # causing cancellation of pending commits
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 Job.wait_for_job_completion(session, next_job_id)
 
     return NornirJobResult(nrresult=nrresult, next_job_id=next_job_id, change_score=total_change_score)
 
 
-def push_static_config(
-    task, config: str, dry_run: bool = True, job_id: Optional[str] = None, scheduled_by: Optional[str] = None
-):
+def push_static_config(task, config: str, dry_run: bool = True, job_id: Optional[int] = None, scheduled_by: str = ""):
     """
     Nornir task to push static config to device
 
@@ -1050,7 +1106,7 @@ def push_static_config(
 
 @job_wrapper
 def apply_config(
-    hostname: str, config: str, dry_run: bool, job_id: Optional[int] = None, scheduled_by: Optional[str] = None
+    hostname: str, config: str, dry_run: bool, job_id: Optional[int] = None, scheduled_by: str = ""
 ) -> NornirJobResult:
     """Apply a static configuration (from backup etc) to a device.
 
@@ -1066,8 +1122,8 @@ def apply_config(
     """
     logger = get_logger()
 
-    with sqla_session() as session:
-        dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+    with sqla_session() as session:  # type: ignore
+        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
         if not dev:
             raise Exception("Device {} not found".format(hostname))
         elif not (dev.state == DeviceState.MANAGED or dev.state == DeviceState.UNMANAGED):
@@ -1082,8 +1138,10 @@ def apply_config(
         logger.exception("Exception in apply_config: {}".format(e))
     else:
         if not dry_run:
-            with sqla_session() as session:
-                dev: Device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            with sqla_session() as session:  # type: ignore
+                dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+                if not dev:
+                    raise Exception("Device {} not found".format(hostname))
                 dev.state = DeviceState.UNMANAGED
                 dev.synchronized = False
                 add_sync_event(hostname, "apply_config", scheduled_by, job_id)

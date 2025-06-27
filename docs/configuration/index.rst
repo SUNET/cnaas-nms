@@ -47,6 +47,8 @@ Defines parameters for the API:
   specified in seconds. Defaults to 300.
 - commit_confirmed_wait: Time to wait between comitting configuration and checking
   that the device is still reachable, specified in seconds. Defaults to 1.
+- napalm_timeout: Timeout for NAPALM operations, specified in seconds. Defaults to 60.
+  Increase if you get errors like "jnpr.junos.exception.RpcTimeoutError: RpcTimeoutError" on jobs.
 
 /etc/cnaas-nms/auth_config.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

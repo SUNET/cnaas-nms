@@ -44,7 +44,7 @@ class GetTests(unittest.TestCase):
         self.assertLessEqual(1, len(result["hosts"].items()))
 
     def test_get_mlag_ifs(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             try:
                 dev_a: Device = self.create_test_device(self.testdata["mlag_dev_a"])
                 dev_b: Device = self.create_test_device(self.testdata["mlag_dev_b"])
@@ -83,7 +83,7 @@ class GetTests(unittest.TestCase):
 
     @pytest.mark.equipment
     def test_update_links(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             new_links = cnaas_nms.devicehandler.update.update_linknets(
                 session, self.testdata["init_access_new_hostname"], DeviceType.ACCESS
             )
@@ -91,7 +91,7 @@ class GetTests(unittest.TestCase):
 
     @pytest.mark.equipment
     def test_get_running_config_interface(self):
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             if_config: str = cnaas_nms.devicehandler.get.get_running_config_interface(session, "eosdist1", "Ethernet1")
             assert if_config.strip(), "no config found"
 

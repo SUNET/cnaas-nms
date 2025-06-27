@@ -179,5 +179,12 @@ class HashTests(unittest.TestCase):
         )
 
 
+class DecodeHashTests(unittest.TestCase):
+    def test_ssh_key_to_md5(self):
+        ssh_key = "AAAAB3NzaC1yc2EAAAADAQABAAABAQC/SIee+JR7J87Uty3a6Uv/sdXFq9lMuJ5zCQ1nI94VVMwmDJIfRuvdOOUTwnqxCkrOXyDsNur7rXSzHw8NBeRrPAlk8e7qIIhDhZWYRQWyGW27s7sl0wehJ0e57PeeE9NdZ2O4pRGtuuom5y/N7ed0Ll/z/EDgOqYJpD5r39yoc02efWn+G81Ahl8twi+uS+3Y/hXLvkT9AB0XKPYt8DI2yAygt+3E+BWL53a+UICLP6pUvnwY9TUXqk3S27gD/gJZ/DSC8WtBfrHVuYk3QMA4kASKqu1Bt/FGYegsD7qv16hum4if+8bPioTccd1V7Qx3jtQ3s6pW8AWVxnpWydzl"
+        ssh_key_md5 = "79ed70709499afede0f6b865bd641b68"
+        self.assertEqual(ssh_key_md5, md5(b64decode(ssh_key, encoding="latin-1"), encoding="latin-1"))
+
+
 if __name__ == "__main__":
     unittest.main()

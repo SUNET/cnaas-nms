@@ -37,13 +37,13 @@ def get_ssl_context():
 
 def generate_device_cert(hostname: str, ipv4_address: IPv4Address):
     try:
-        if not os.path.isfile(api_settings.CAFILE):
+        if not os.path.isfile(str(api_settings.CAFILE)):
             raise Exception("Specified cafile is not a file: {}".format(api_settings.CAFILE))
     except KeyError:
         raise Exception("No cafile specified in api.yml")
 
     try:
-        if not os.path.isfile(api_settings.CAKEYFILE):
+        if not os.path.isfile(str(api_settings.CAKEYFILE)):
             raise Exception("Specified cakeyfile is not a file: {}".format(api_settings.CAKEYFILE))
     except KeyError:
         raise Exception("No cakeyfile specified in api.yml")
@@ -54,13 +54,13 @@ def generate_device_cert(hostname: str, ipv4_address: IPv4Address):
     except KeyError:
         raise Exception("No certpath found in API settings")
 
-    with open(api_settings.CAKEYFILE, "rb") as cakeyfile:
+    with open(str(api_settings.CAKEYFILE), "rb") as cakeyfile:
         root_key = serialization.load_pem_private_key(
             cakeyfile.read(),
             password=None,
         )
 
-    with open(api_settings.CAFILE, "rb") as cafile:
+    with open(str(api_settings.CAFILE), "rb") as cafile:
         root_cert = x509.load_pem_x509_certificate(cafile.read())
 
     cert_key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
@@ -81,7 +81,7 @@ def generate_device_cert(hostname: str, ipv4_address: IPv4Address):
             x509.SubjectAlternativeName([x509.IPAddress(ipv4_address)]),
             critical=False,
         )
-        .sign(root_key, hashes.SHA256(), default_backend())
+        .sign(root_key, hashes.SHA256(), default_backend())  # type: ignore
     )
 
     with open(os.path.join(api_settings.CERTPATH, "{}.crt".format(hostname)), "wb") as f:

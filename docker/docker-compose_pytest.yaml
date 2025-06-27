@@ -1,7 +1,9 @@
 services:
+
   #
   # CNaaS service dependencies
   #
+
   test_postgres:
     build:
       context: ./postgres/

@@ -73,7 +73,7 @@ ARG BUILDBRANCH=develop
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
 # Branch specific, don't cache
 ARG GIT_COMMIT=unknown
-RUN echo $GIT_COMMIT
+RUN echo "$GIT_COMMIT"
 # Cnaas setup script
 RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 # Freeze source

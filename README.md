@@ -41,19 +41,27 @@ Edit db_config.yml to point to your SQL and redis database.
 
 ```
 cd src/
-python3 -m cnaas_nms.api.tests.test_api
-python3 -m cnaas_nms.confpush.tests.test_get
+pytest
 ```
 
-### Unit Tests
-
-Environment variable `DOCKER_COMPOSE_FILE` can be set to names of docker-compose files under docker/ folder.
-If `DOCKER_COMPOSE_FILE` is not set, pytest will instead look for redis and postgres instances running locally.
-
-To run unit tests
+two marks can be used for pytest `integration` and `equipment`, so tests a subset of all tests can be run with eg
 
 ```
-DOCKER_COMPOSE_FILE="docker-compose_pytest.yaml" pytest -m "not integration and not equipment"
+pytest -m "not integration" -m "not equipment"
+```
+
+By default, **pytest-docker** will use *docker/docker-compose_pytest.yaml* to spin up PostgreSQL and Redis. To use another docker compose file, use the environment variable `DOCKER_COMPOSE_FILE` can be set to names of docker-compose files under docker/ folder.
+
+To run some tests with another container, eg
+
+```
+DOCKER_COMPOSE_FILE="docker-compose_test.yaml" pytest -m "not equipment"
+```
+
+If the tests should not spin up any containers at all, set the environment variable `EXTERNAL_TEST_CONTAINERS`, eg
+
+```
+EXTERNAL_TEST_CONTAINERS=1 pytest -m "not equipment"
 ```
 
 ## Authorization

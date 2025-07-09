@@ -20,6 +20,36 @@ def pytest_configure(config):
     app_settings.SETTINGS_REMOTE = "git://gitops.sunet.se/cnaas-lab-settings"
 
 
+def pytest_addoption(parser):
+    """Add custom options to pytest.
+
+    Add options
+        --dockerfile
+    """
+    parser.addoption(
+        "--dockerfile",
+        action="store",
+        default=None,
+        help="Use target docker compose file.",
+    )
+
+
+@pytest.fixture(scope="session")
+def docker_compose_file(pytestconfig, request):
+    """
+    pytest-docker fixture
+
+    Set target docker-compose file based on flag '--dockerfile'.
+    Defaults to docker/docker-compose_pytest.yaml.
+    """
+    docker_compose_file = request.config.getoption("--dockerfile")
+
+    if docker_compose_file is not None:
+        return os.path.join(str(pytestconfig.rootdir), "docker", docker_compose_file.strip().lower())
+    else:
+        return os.path.join(str(pytestconfig.rootdir), "docker", "docker-compose_pytest.yaml")
+
+
 @pytest.fixture(scope="session")
 def settings_directory(tmp_path_factory):
     from cnaas_nms.app_settings import app_settings
@@ -49,71 +79,47 @@ def templates_directory(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
-def docker_compose_file(pytestconfig):
-    """Set target docker-compose file based on env variable DOCKER_COMPOSE_FILE."""
-    docker_compose_file_env = os.getenv("DOCKER_COMPOSE_FILE")
-
-    if docker_compose_file_env is not None:
-        return os.path.join(str(pytestconfig.rootdir), "docker", docker_compose_file_env.strip().lower())
-    else:
-        os.environ.setdefault("PYTEST_REDIS_EXTERNAL", "1")
-        os.environ.setdefault("PYTEST_POSTGRES_EXTERNAL", "1")
-        return os.path.join(str(pytestconfig.rootdir), "docker", "docker-compose_pytest.yaml")
-
-
-@pytest.fixture(scope="session")
-def docker_services(docker_ip, docker_services):
-    """
-    Override pytest-docker's docker_services.
-    Wait for Redis and PostgreSQL to be available, whether external or internal.
-    """
-    use_external_redis = os.getenv("PYTEST_REDIS_EXTERNAL", "0").strip().lower() in ("1", "on", "yes", "true")
-    use_external_postgres = os.getenv("PYTEST_POSTGRES_EXTERNAL", "0").strip().lower() in ("1", "on", "yes", "true")
-
-    redis_host = "127.0.0.1" if use_external_redis else docker_ip
-    redis_port = 6379 if use_external_redis else docker_services.port_for("test_redis", 6379)
-
-    postgres_host = "127.0.0.1" if use_external_postgres else docker_ip
-    postgres_port = 5432 if use_external_postgres else docker_services.port_for("test_postgres", 5432)
-
-    assert wait_for_port(redis_host, redis_port), f"Redis not ready at {redis_host}:{redis_port}"
-    assert wait_for_port(postgres_host, postgres_port), f"Postgres not ready at {postgres_host}:{postgres_port}"
-
-    return docker_services
-
-
-@pytest.fixture(scope="session")
-def redis(docker_ip, docker_services):
-    """Ensure Redis is running and available."""
-    use_external = os.getenv("PYTEST_REDIS_EXTERNAL", "0").strip().lower() in ("1", "on", "yes", "true")
+def redis(docker_ip, request):
+    """Start internal or wait for external Redis."""
+    use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in ("1", "on", "yes", "true")
 
     if use_external:
-        host, port = "127.0.0.1", 6379
+        host = "127.0.0.1"
+        port = 6379
+        print(f"Using external Redis at {host}:{port}")
     else:
+        print("Using internal Redis (pytest-docker)")
+        docker_services = request.getfixturevalue("docker_services")
         host = docker_ip
-        port = docker_services.port_for("test_redis", 6379)
+        port = docker_services.port_for("cnaas_redis", 6379)
 
     assert wait_for_port(host, port), f"Could not connect to Redis at {host}:{port}"
     time.sleep(1)
-    yield True
+
+    yield
 
 
 @pytest.fixture(scope="session")
-def postgresql(docker_ip, docker_services, request):
-    """Ensure PostgreSQL is running and available."""
-    use_external = os.getenv("PYTEST_POSTGRES_EXTERNAL", "0").strip().lower() in ("1", "on", "yes", "true")
+def postgresql(docker_ip, request):
+    """Start internal or wait for external PostgreSQL."""
+    use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in ("1", "on", "yes", "true")
 
     if use_external:
-        host, port = "127.0.0.1", 5432
+        host = "127.0.0.1"
+        port = 5432
+        print(f"Using external PostgreSQL at {host}:{port}")
     else:
+        print("Using internal PostgreSQL (pytest-docker)")
+        docker_services = request.getfixturevalue("docker_services")
         host = docker_ip
-        port = docker_services.port_for("test_postgres", 5432)
+        port = docker_services.port_for("cnaas_postgres", 5432)
 
     assert wait_for_port(host, port), f"Could not connect to PostgreSQL at {host}:{port}"
-    time.sleep(5)
 
-    request.getfixturevalue("alembic_upgrade")
-    yield True
+    if not use_external:
+        request.getfixturevalue("alembic_upgrade")
+
+    yield
 
 
 @pytest.fixture(scope="session")

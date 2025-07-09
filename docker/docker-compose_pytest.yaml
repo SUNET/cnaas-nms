@@ -4,7 +4,7 @@ services:
   # CNaaS service dependencies
   #
 
-  test_postgres:
+  cnaas_postgres:
     build:
       context: ./postgres/
       args:
@@ -16,7 +16,7 @@ services:
       - POSTGRES_PASSWORD=cnaas
       - POSTGRES_DB=cnaas
 
-  test_redis:
+  cnaas_redis:
     build: ./redis/
     ports:
       - 6379:6379

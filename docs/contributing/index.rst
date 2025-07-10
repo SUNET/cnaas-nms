@@ -7,7 +7,7 @@ to the public on Github. Please send pull requests using Github for any contribu
 Coding style
 ------------
 
-CNaaS-NMS is developed for python 3.7 and uses type hinting and dataclasses.
+CNaaS-NMS is developed for python 3.11 and uses type hinting and dataclasses.
 
 PEP8 is used for style guidelines and black for formatting, we try to follow it as long as it
 makes things more readable, and we use a locally defined maximum line length of 120 characters.

@@ -106,12 +106,12 @@ Environment variables
 ---------------------
 
 Besides config files, cnaas-nms uses environment variables for configuration.
-The environment variables are typically set using docker-compose.
+The environment variables are typically set using docker compose.
 
-Docker-compose will spin up a multi container environment including the
+Docker compose will spin up a multi container environment including the
 CNaaS NMS API, httpd and dhcp server, postgresql, redis and the JWT auth server.
 
-There are various ways to set environment variables in docker-compose.
+There are various ways to set environment variables in docker compose.
 The most common one is the ``docker-compose.yml`` file.
 
 A list of the environment variables used by each Docker container:

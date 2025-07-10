@@ -18,15 +18,15 @@ Planned features:
 
 ## Requirements
 
-Docker and docker-compose or:
+Docker with docker compose or:
 
-1. python3.7 or later
+1. python3.11 or later
 1. install requirements.txt
 1. SQL database, Redis
 
 ## Installation
 
-Install docker and docker-compose and run: docker-compose build -f docker/docker-compose.yaml
+Install docker  and run: `docker compose build -f docker/docker-compose.yaml`.
 
 Or install locally by creating a virtualenv and activate the environment, then:
 

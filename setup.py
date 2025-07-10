@@ -22,10 +22,11 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/sunet/cnaas-nms",
     classifiers=[
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.11",
         "License :: Copyright (c) 2019, SUNET (BSD 2-clause license)",
         "Operating System :: UNIX/Linux",
     ],
+    python_requires=">=3.11",
     package_dir={"": "src"},
     packages=setuptools.find_packages("src", exclude=["tests"]),
     include_package_data=True,

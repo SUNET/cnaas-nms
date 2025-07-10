@@ -15,29 +15,8 @@ def pytest_configure(config):
     from cnaas_nms.app_settings import api_settings, app_settings
 
     api_settings.JWT_ENABLED = False
-
     app_settings.TEMPLATES_REMOTE = "git://gitops.sunet.se/cnaas-lab-templates"
     app_settings.SETTINGS_REMOTE = "git://gitops.sunet.se/cnaas-lab-settings"
-
-
-@pytest.fixture(scope="session")
-def docker_compose_file(pytestconfig, request):
-    """
-    Set target docker-compose file based on env variable DOCKER_COMPOSE_FILE.
-    Defaults to docker/docker-compose_pytest.yaml.
-
-    pytest-docker fixture.
-    """
-    docker_compose_file = os.getenv("DOCKER_COMPOSE_FILE_NAME")
-
-    if docker_compose_file:
-        docker_compose_file = docker_compose_file.strip()
-        if os.path.isabs(docker_compose_file):
-            return docker_compose_file
-        else:
-            return os.path.join(str(pytestconfig.rootdir), "docker", docker_compose_file)
-    else:
-        return os.path.join(str(pytestconfig.rootdir), "docker", "docker-compose_pytest.yaml")
 
 
 @pytest.fixture(scope="session")
@@ -69,9 +48,25 @@ def templates_directory(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
+def docker_compose_file(pytestconfig, request):
+    """
+    Set target docker-compose file to docker/docker-compose_pytest.yaml.
+
+    A pytest-docker fixture.
+    """
+
+    return os.path.join(str(pytestconfig.rootdir), "docker", "docker-compose_pytest.yaml")
+
+
+@pytest.fixture(scope="session")
 def redis(docker_ip, request):
-    """If not use_external started with pytest-docker."""
-    use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in ("1", "on", "yes", "true")
+    """Start Redis with pytest-docker if not EXTERNAL_TEST_CONTAINERS is set."""
+    use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in (
+        "1",
+        "on",
+        "yes",
+        "true",
+    )
 
     if not use_external:
         print("Using internal Redis (pytest-docker)")
@@ -88,8 +83,13 @@ def redis(docker_ip, request):
 
 @pytest.fixture(scope="session")
 def postgresql(docker_ip, request):
-    """If not use_external started with pytest-docker."""
-    use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in ("1", "on", "yes", "true")
+    """Start PostgreSQL with pytest-docker if not EXTERNAL_TEST_CONTAINERS is set."""
+    use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in (
+        "1",
+        "on",
+        "yes",
+        "true",
+    )
 
     if not use_external:
         print("Using PostgreSQL with pytest-docker")

@@ -44,18 +44,10 @@ cd src/
 pytest
 ```
 
-two marks can be used for pytest `integration` and `equipment`, so tests a subset of all tests can be run with eg
+Two marks can be used for pytest: `integration` and `equipment`, that can be be used to do a subset of all tests. Eg
 
 ```
 pytest -m "not integration" -m "not equipment"
-```
-
-By default, **pytest-docker** will use *docker/docker-compose_pytest.yaml* to spin up PostgreSQL and Redis. To use another docker compose file, use the environment variable `DOCKER_COMPOSE_FILE` can be set to names of docker-compose files under docker/ folder.
-
-To run some tests with another container, eg
-
-```
-DOCKER_COMPOSE_FILE="docker-compose_test.yaml" pytest -m "not equipment"
 ```
 
 If the tests should not spin up any containers at all, set the environment variable `EXTERNAL_TEST_CONTAINERS`, eg

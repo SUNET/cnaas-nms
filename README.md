@@ -47,8 +47,10 @@ pytest
 Two marks can be used for pytest: `integration` and `equipment`, that can be be used to do a subset of all tests. Eg
 
 ```
-pytest -m "not integration" -m "not equipment"
+pytest -m "not integration and not equipment"
 ```
+
+Note that `and` must be used to apply filters at the same time.
 
 If the tests should not spin up any containers at all, set the environment variable `EXTERNAL_TEST_CONTAINERS`, eg
 

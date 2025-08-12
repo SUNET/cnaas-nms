@@ -3,7 +3,7 @@ import ipaddress
 from nornir.core.inventory import ConnectionOptions, Defaults, Group, Groups, Host, Hosts, Inventory, ParentGroups
 
 import cnaas_nms.db.session
-from cnaas_nms.app_settings import app_settings
+from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.tools.pki import ssl_context
@@ -41,11 +41,12 @@ class CnaasInventory:
             connection_options={
                 "napalm": ConnectionOptions(
                     extras={
+                        "timeout": api_settings.NAPALM_TIMEOUT,
                         "optional_args": {
                             # args to eAPI HttpsEapiConnection for EOS
                             "enforce_verification": True,
                             "context": ssl_context,
-                        }
+                        },
                     }
                 ),
                 "netmiko": ConnectionOptions(extras={}),
@@ -74,7 +75,7 @@ class CnaasInventory:
             groups[group_name] = Group(name=group_name, defaults=defaults)
 
         hosts = Hosts()
-        with cnaas_nms.db.session.sqla_session() as session:
+        with cnaas_nms.db.session.sqla_session() as session:  # typing: ignore[var-annotated]
             instance: Device
             for instance in session.query(Device):
                 hostname = self._get_management_ip(instance.management_ip, instance.dhcp_ip)

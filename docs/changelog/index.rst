@@ -1,6 +1,34 @@
 Changelog
 =========
 
+Version 1.7.0
+-------------
+
+New features:
+
+ - Primary groups can be set to use different branches of the templates repository (#365)
+ - Get configuration section from running config of device instead of replacing to handle cases
+   where some part of the configuration should not be managed by NMS (#369)
+ - Support more interface types on junos (#372)
+ - Allow specifying a range of VLANs in tagged_vlan_list in settings (#373)
+ - New ifclass on DIST devices called "mirror" which will mirror configuration from mgmtdomain peer
+   device to use same list of VLANs etc on both devices while only having to specify them once (#379)
+ - New settings for:
+  * external_routing_policies: Specify names of routing policies not defined in settings, this allows
+    checking that all referenced routing policies are defined
+  * interface_tag_options: Specify available options for interface tags to display in WebUI
+  * port_template_options: Specify available port_templates to display in WebUI
+  * vxlan_vni_range: Specify allow range of VNIs and error if VNI is outside of range
+  * remove_private_as: On BGP peering specify that private AS numbers should be removed from path
+ - Add API to get LLDP neighbor information from devices (#387)
+ - Detect if Arista should download 32 or 64 bit images depending on model (#388)
+ - Add new device type FIREWALL (#393)
+
+Bug fixes:
+
+ - Copy files (certs for ZTP) to arista devices with EOS 4.32+ requires netmiko 4.5.0 or later
+ - Commit confirm mode 1 and 2 on Arista EOS 4.32+ devices (temp fix, needs newer napalm version later #395)
+
 Version 1.6.0
 -------------
 

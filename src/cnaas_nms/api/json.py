@@ -9,4 +9,4 @@ class CNaaSJSONEncoder(json.JSONEncoder):
         if isinstance(o, _IPAddressBase):
             return str(o)
         else:
-            return super().default(self, o)
+            return super().default(o)

@@ -12,7 +12,7 @@ from cnaas_nms.api.generic import empty_result
 from cnaas_nms.app_settings import auth_settings
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.rbac.rbac import get_permissions_user
-from cnaas_nms.tools.security import get_identity, get_oauth_token_info, login_required, login_required_all_permitted
+from cnaas_nms.tools.security import get_identity, get_oauth_token_info, login_required_all_permitted
 from cnaas_nms.version import __api_version__
 
 logger = get_logger()
@@ -88,7 +88,7 @@ class AuthApi(Resource):
 
         req = PreparedRequest()
         req.prepare_url(url, parameters)
-        resp = redirect(req.url, code=302)
+        resp = redirect(str(req.url), code=302)
         if "refresh_token" in token:
             resp.set_cookie(
                 "REFRESH_TOKEN",
@@ -106,7 +106,7 @@ class RefreshApi(Resource):
     def post(self):
         oauth_client = current_app.extensions["authlib.integrations.flask_client"]
         oauth_client_connext: FlaskOAuth2App = oauth_client.connext
-        token_string = request.headers.get("Authorization").split(" ")[-1]
+        token_string = str(request.headers.get("Authorization")).split(" ")[-1]
         oauth_client_connext.token = token_string
         oauth_client_connext.load_server_metadata()
         url = oauth_client_connext.server_metadata["token_endpoint"]
@@ -141,7 +141,7 @@ class RefreshApi(Resource):
 
 
 class IdentityApi(Resource):
-    @login_required
+    @login_required_all_permitted
     def get(self):
         identity = get_identity()
         return identity

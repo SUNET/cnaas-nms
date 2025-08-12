@@ -1,11 +1,11 @@
 import datetime
-import fcntl
 import inspect
 import json
 import os
 from types import FunctionType
 from typing import Optional, Union
 
+import portalocker
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
@@ -36,8 +36,8 @@ class Scheduler(object, metaclass=SingletonType):
         # If scheduler is already started, use uwsgi ipc to send job to mule process
         self.lock_f = open("/tmp/scheduler.lock", "w")
         try:
-            fcntl.lockf(self.lock_f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+            portalocker.lock(self.lock_f, flags=portalocker.LOCK_EX | portalocker.LOCK_NB)
+        except portalocker.exceptions.LockException:
             try:
                 import uwsgi  # noqa: F401
             except Exception:
@@ -80,7 +80,7 @@ class Scheduler(object, metaclass=SingletonType):
 
     def __del__(self):
         if self.lock_f:
-            fcntl.lockf(self.lock_f, fcntl.LOCK_UN)
+            portalocker.unlock(self.lock_f)
             self.lock_f.close()
             os.unlink("/tmp/scheduler.lock")
 
@@ -143,12 +143,13 @@ class Scheduler(object, metaclass=SingletonType):
         else:
             self.remove_local_job(job_id)
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
-            job.finish_abort(message=abort_message)
+            if job:
+                job.finish_abort(message=abort_message)
 
     def add_onetime_job(
-        self, func: Union[str, FunctionType], when: Optional[int] = None, scheduled_by: Optional[str] = None, **kwargs
+        self, func: Union[str, FunctionType], when: Optional[int] = None, scheduled_by: str = "", **kwargs
     ) -> int:
         """Schedule a job to run at a later time on the mule worker or
         local scheduler depending on setup.
@@ -191,10 +192,10 @@ class Scheduler(object, metaclass=SingletonType):
         except Exception:
             pass
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             job = Job()
             if run_date:
-                job.scheduled_time = run_date
+                job.scheduled_time = run_date  # type: ignore
             job.function_name = func_name
             if scheduled_by is None:
                 scheduled_by = "unknown"

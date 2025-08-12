@@ -4,12 +4,14 @@ import unittest
 import pkg_resources
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from cnaas_nms.db.device import DeviceType
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
     VerifyPathException,
     VlanConflictError,
+    check_bgp_neighbor_routemaps,
     check_group_priority_collisions,
     check_vlan_collisions,
     get_device_primary_groups,
@@ -17,6 +19,7 @@ from cnaas_nms.db.settings import (
     get_settings,
     verify_dir_structure,
 )
+from cnaas_nms.db.settings_fields import f_groups
 
 
 class SettingsTests(unittest.TestCase):
@@ -169,6 +172,21 @@ class SettingsTests(unittest.TestCase):
         }
         self.assertIsNone(check_vlan_collisions(devices_dict, mgmt_vlans))
 
+    def test_routing_policy(self):
+        test_device_name = "policytest"
+        test_vrfs = [
+            {
+                "name": "testvrf",
+                "neighbor_v4": [{"route_map_in": "routemap1", "route_map_out": "routemap1"}],
+                "neighbor_v6": [{"route_map_in": "routemap2", "route_map_out": "routemap2"}],
+            }
+        ]
+        with self.assertRaises(ValueError, msg="Undefined route map routemap1 should raise error"):
+            check_bgp_neighbor_routemaps(test_device_name, test_vrfs, set())
+        check_bgp_neighbor_routemaps(test_device_name, test_vrfs, {"routemap1", "routemap2"})
+        with self.assertRaises(KeyError):
+            check_bgp_neighbor_routemaps(test_device_name, [{"name": "emptyvrf"}], set())
+
     def test_groups_priorities_sorted(self):
         group_settings_dict = {
             "groups": [
@@ -207,6 +225,33 @@ class SettingsTests(unittest.TestCase):
         # Remove duplicate entry
         del group_settings_dict["groups"][2]
         self.assertIsNone(check_group_priority_collisions(group_settings_dict))
+
+    def test_groups_templates_braches(self):
+        group_settings_dict = {
+            "groups": [
+                {
+                    "group": {"name": "DEFAULT", "group_priority": 1},
+                },
+                {
+                    "group": {
+                        "name": "TEMPLATE1",
+                        "regex": "eosdist1$",
+                        "group_priority": 100,
+                        "templates_branch": "test1",
+                    }
+                },
+                {"group": {"name": "NOT_PRIMARY_GROUP", "templates_branch": "test2"}},
+            ]
+        }
+        with self.assertRaises(
+            ValidationError,
+            msg="Group with template_branch set but no group_priority value should raise ValidationError",
+        ):
+            f_groups(**group_settings_dict).model_dump()
+
+        # Remove bad entry
+        del group_settings_dict["groups"][2]
+        f_groups(**group_settings_dict).model_dump()
 
 
 if __name__ == "__main__":

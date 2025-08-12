@@ -1,5 +1,5 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy.orm import mapped_column, relationship
 
 import cnaas_nms.db.base
 
@@ -10,12 +10,12 @@ class Stackmember(cnaas_nms.db.base.Base):
         UniqueConstraint("device_id", "member_no"),
         UniqueConstraint("device_id", "hardware_id"),
     )
-    id = Column(Integer, autoincrement=True, primary_key=True)
-    device_id = Column(Integer, ForeignKey("device.id"), nullable=False)
+    id = mapped_column(Integer, autoincrement=True, primary_key=True)
+    device_id = mapped_column(Integer, ForeignKey("device.id"), nullable=False)
     device = relationship("Device", back_populates="stack_members")
-    hardware_id = Column(String(64), nullable=False)
-    member_no = Column(Integer)
-    priority = Column(Integer)
+    hardware_id = mapped_column(String(64), nullable=False)
+    member_no = mapped_column(Integer)
+    priority = mapped_column(Integer)
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""

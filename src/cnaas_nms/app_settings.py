@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 from pydantic import field_validator
@@ -57,6 +57,7 @@ class ApiSettings(BaseSettings):
     COMMIT_CONFIRMED_TIMEOUT: int = 300
     COMMIT_CONFIRMED_WAIT: int = 1
     SETTINGS_OVERRIDE: Optional[dict] = None
+    NAPALM_TIMEOUT: int = 60
 
     @field_validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
     @classmethod
@@ -118,6 +119,7 @@ def construct_api_settings() -> ApiSettings:
             COMMIT_CONFIRMED_TIMEOUT=config.get("commit_confirmed_timeout", 300),
             COMMIT_CONFIRMED_WAIT=config.get("commit_confirmed_wait", 1),
             SETTINGS_OVERRIDE=config.get("settings_override", None),
+            NAPALM_TIMEOUT=config.get("napalm_timeout", 60),
         )
     else:
         return ApiSettings()
@@ -184,7 +186,7 @@ def construct_auth_settings() -> AuthSettings:
         auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID
 
     if auth_settings.PERMISSIONS_DISABLED:
-        permissions_rules = {
+        permissions_rules: dict[str, Any] = {
             "config": {"default_permissions": "default"},
             "roles": {
                 "default": {"permissions": [{"methods": ["*"], "endpoints": ["*"], "pages": ["*"], "rights": ["*"]}]}

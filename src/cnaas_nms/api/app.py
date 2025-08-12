@@ -51,7 +51,7 @@ authorizations = {
         "type": "apiKey",
         "in": "header",
         "name": "Authorization",
-        "description": "Type in 'Bearer <your JWT token here' to authenticate.",
+        "description": "Type 'Bearer <your JWT token here>' to authenticate, or leave empty to use token from WebUI login.",
     }
 }
 
@@ -105,7 +105,7 @@ client = oauth.register(
     server_metadata_url=auth_settings.OIDC_CONF_WELL_KNOWN_URL,
     client_id=auth_settings.OIDC_CLIENT_ID,
     client_secret=auth_settings.OIDC_CLIENT_SECRET,
-    client_kwargs={"scope": auth_settings.OIDC_CLIENT_SCOPE},
+    client_kwargs={"scope": auth_settings.OIDC_CLIENT_SCOPE, "code_challenge_method": "S256"},
     authorize_params={"audience": auth_settings.AUDIENCE},
     response_type="code",
     response_mode="query",
@@ -183,7 +183,8 @@ def socketio_on_connect():
     if auth_settings.OIDC_ENABLED:
         try:
             token = oauth_required.get_token_validator("bearer").authenticate_token(token_string)
-            user = get_oauth_token_info(token)[auth_settings.OIDC_USERNAME_ATTRIBUTE]
+            token_info = get_oauth_token_info(token)
+            user = token_info[auth_settings.OIDC_USERNAME_ATTRIBUTE]
         except InvalidTokenError as e:
             logger.debug("InvalidTokenError: " + format(e))
             return False
@@ -229,21 +230,21 @@ def log_request(response):
     elif request.method in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
         try:
             if auth_settings.OIDC_ENABLED:
-                token_string = request.headers.get("Authorization").split(" ")[-1]
+                token_string = str(request.headers.get("Authorization")).split(" ")[-1]
                 token = oauth_required.get_token_validator("bearer").authenticate_token(token_string)
                 token_info = get_oauth_token_info(token)
-                if auth_settings.OIDC_USERNAME_ATTRIBUTE in token_info:
+                if token_info is not None and auth_settings.OIDC_USERNAME_ATTRIBUTE in token_info:
                     user = "User: {} ({}), ".format(
                         get_oauth_token_info(token)[auth_settings.OIDC_USERNAME_ATTRIBUTE],
                         auth_settings.OIDC_USERNAME_ATTRIBUTE,
                     )
-                elif "client_id" in token_info:
+                elif token_info is not None and "client_id" in token_info:
                     user = "User: {} (client_id), ".format(get_oauth_token_info(token)["client_id"])
                 else:
                     logger.warning("Could not get user info from token")
                     raise ValueError
             else:
-                token_string = request.headers.get("Authorization").split(" ")[-1]
+                token_string = str(request.headers.get("Authorization")).split(" ")[-1]
                 user = "User: {}, ".format(decode_token(token_string).get("sub"))
         except Exception:
             user = "User: unknown, "

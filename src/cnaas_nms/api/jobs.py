@@ -1,5 +1,6 @@
 import json
 import time
+from typing import Any
 
 from flask import make_response, request
 from flask_restx import Namespace, Resource, fields
@@ -61,10 +62,10 @@ class JobsApi(Resource):
     @login_required
     def get(self):
         """Get one or more jobs"""
-        data = {"jobs": []}
+        data: dict[str, Any] = {"jobs": []}
         total_count = 0
         args = request.args
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             query = session.query(Job, func.count(Job.id).over().label("total"))
             try:
                 query = build_filter(Job, query)
@@ -78,7 +79,7 @@ class JobsApi(Resource):
 
         resp = make_response(json.dumps(empty_result(status="success", data=data)), 200)
         resp.headers["Content-Type"] = "application/json"
-        resp.headers = {**resp.headers, **pagination_headers(total_count)}
+        resp.headers = {**resp.headers, **pagination_headers(total_count)}  # type: ignore
         return resp
 
 
@@ -87,7 +88,7 @@ class JobByIdApi(Resource):
     def get(self, job_id):
         """Get job information by ID"""
         args = request.args
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             if job:
                 job_dict = job.as_dict()
@@ -102,7 +103,7 @@ class JobByIdApi(Resource):
         if "action" not in json_data:
             return empty_result(status="error", data="Action must be specified"), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             job = session.query(Job).filter(Job.id == job_id).one_or_none()
             if not job:
                 return empty_result(status="error", data="No job with id {} found".format(job_id)), 400
@@ -132,12 +133,16 @@ class JobByIdApi(Resource):
                 scheduler.remove_scheduled_job(job_id=job_id, abort_message=abort_reason)
                 time.sleep(2)
             elif job_status == JobStatus.RUNNING:
-                with sqla_session() as session:
+                with sqla_session() as session:  # type: ignore
                     job = session.query(Job).filter(Job.id == job_id).one_or_none()
+                    if not job:
+                        return empty_result(status="error", data="No job with id {} found".format(job_id)), 400
                     job.status = JobStatus.ABORTING
 
-            with sqla_session() as session:
+            with sqla_session() as session:  # type: ignore
                 job = session.query(Job).filter(Job.id == job_id).one_or_none()
+                if not job:
+                    return empty_result(status="error", data="No job with id {} found".format(job_id)), 400
                 return empty_result(data={"jobs": [job.as_dict()]})
         else:
             return empty_result(status="error", data="Unknown action: {}".format(action)), 400
@@ -148,7 +153,7 @@ class JobLockApi(Resource):
     def get(self):
         """Get job locks"""
         locks = []
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             for lock in session.query(Joblock).all():
                 locks.append(lock.as_dict())
         return empty_result("success", data={"locks": locks})
@@ -161,7 +166,7 @@ class JobLockApi(Resource):
         if "name" not in json_data or not json_data["name"]:
             return empty_result("error", "No lock name specified"), 400
 
-        with sqla_session() as session:
+        with sqla_session() as session:  # type: ignore
             lock = session.query(Joblock).filter(Joblock.name == json_data["name"]).one_or_none()
             if lock:
                 session.delete(lock)

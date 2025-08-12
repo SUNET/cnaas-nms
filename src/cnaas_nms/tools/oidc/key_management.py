@@ -1,4 +1,4 @@
-from typing import Any, Mapping, Optional
+from typing import Any, List, Mapping
 
 import requests
 from jwt.exceptions import InvalidKeyError
@@ -11,13 +11,10 @@ logger = get_logger()
 
 
 class JWKSStore(object, metaclass=SingletonType):
-    keys: Mapping[str, Any]
+    keys: List[Mapping[str, Any]]
 
-    def __init__(self, keys: Optional[Mapping[str, Any]] = None):
-        if keys:
-            self.keys = keys
-        else:
-            self.keys = {}
+    def __init__(self, keys: List[Mapping[str, Any]] = []):
+        self.keys = keys
 
 
 def get_keys():
@@ -35,7 +32,7 @@ def get_keys():
         raise ConnectionError("Can't retrieve keys")
 
 
-def get_key(kid):
+def get_key(kid: str):
     """Get the key based on the kid"""
     jwks_store = JWKSStore()
     key = [k for k in jwks_store.keys if k["kid"] == kid]

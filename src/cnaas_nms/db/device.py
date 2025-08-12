@@ -5,8 +5,9 @@ import enum
 import ipaddress
 import json
 import re
-from typing import List, Optional, Set
+from typing import List, Optional, Set, Tuple
 
+from nornir.core.inventory import Group as NornirGroup
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Unicode, UniqueConstraint, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy_utils import IPAddressType
@@ -57,6 +58,7 @@ class DeviceType(enum.Enum):
     ACCESS = 1
     DIST = 2
     CORE = 3
+    FIREWALL = 4
 
     @classmethod
     def has_value(cls, value):
@@ -115,12 +117,14 @@ class Device(cnaas_nms.db.base.Base):
             d[col.name] = value
         return d
 
-    def get_neighbors(self, session, linknets: Optional[List[dict]] = None) -> Set[Device]:
+    def get_neighbors(
+        self, session, linknets: Optional[List[dict]] | Optional[List[cnaas_nms.db.linknet.Linknet]] = None
+    ) -> Set[Device]:
         """Look up neighbors from cnaas_nms.db.linknet.Linknets and return them as a list of Device objects."""
         if not linknets:
             linknets = self.get_linknets(session)
         ret: Set = set()
-        for linknet in linknets:
+        for linknet in linknets:  # type: ignore
             if isinstance(linknet, cnaas_nms.db.linknet.Linknet):
                 device_a_id = linknet.device_a_id
                 device_b_id = linknet.device_b_id
@@ -188,8 +192,8 @@ class Device(cnaas_nms.db.base.Base):
         )
 
     def get_neighbor_ifnames(
-        self, session, peer_device: Device, linknets_arg: [Optional[List[dict]]] = None
-    ) -> List[(str, str)]:
+        self, session, peer_device: Device, linknets_arg: Optional[List[dict]] = None
+    ) -> List[Tuple[str, str]]:
         """Get the interface names connecting self device with peer device.
 
         Returns:
@@ -231,6 +235,7 @@ class Device(cnaas_nms.db.base.Base):
             return "{}/{}".format(linknet.device_a_ip, ipaddress.IPv4Network(linknet.ipv4_network).prefixlen)
         elif linknet.device_b_id == self.id:
             return "{}/{}".format(linknet.device_b_ip, ipaddress.IPv4Network(linknet.ipv4_network).prefixlen)
+        return None
 
     def get_neighbor_ip(self, session, peer_device: Device):
         """Get the remote peer IP address for the linknet going towards device."""
@@ -498,6 +503,16 @@ class Device(cnaas_nms.db.base.Base):
                 errors.append("Unknown attribute '{}' for device".format(k))
 
         return data, errors
+
+    @classmethod
+    def nornir_groups_to_devicetype(cls, groups: List[NornirGroup]) -> DeviceType:
+        """Parse list of groups from nornir (task.host.groups) and return DeviceType"""
+        devtype: DeviceType = DeviceType.UNKNOWN
+        # Get the first group that starts with T_ and use that name to determine DeviceType
+        # Eg group name T_DIST -> DeviceType.DIST
+        devtype_name = next(filter(lambda x: x.name.startswith("T_"), groups)).name[2:]
+        devtype = DeviceType[devtype_name]
+        return devtype
 
 
 @event.listens_for(Device, "after_update")

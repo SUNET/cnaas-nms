@@ -1,8 +1,9 @@
+from collections.abc import Generator
 from contextlib import contextmanager
 
 from redis import StrictRedis
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from cnaas_nms.app_settings import app_settings
 
@@ -20,7 +21,7 @@ def _get_session():
 
 
 @contextmanager
-def sqla_session(**kwargs) -> sessionmaker:
+def sqla_session(**kwargs) -> Generator[Session, None, None]:
     session = _get_session()
     try:
         yield session
@@ -42,7 +43,7 @@ def sqla_execute(**kwargs):
 
 
 @contextmanager
-def redis_session(**kwargs) -> StrictRedis:
+def redis_session(**kwargs):
     with StrictRedis(
         host=app_settings.REDIS_HOSTNAME, port=app_settings.REDIS_PORT, encoding="utf-8", decode_responses=True
     ) as conn:

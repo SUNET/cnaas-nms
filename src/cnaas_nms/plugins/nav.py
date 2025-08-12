@@ -7,7 +7,7 @@ logger = get_logger()
 
 
 class Plugin(CnaasBasePlugin):
-    def __init__(self):
+    def __init__(self) -> None:
         self.urlbase = None
         self.apitoken = None
         self.organizationid = "Undefined"
@@ -26,7 +26,7 @@ class Plugin(CnaasBasePlugin):
             self.snmp_community = pluginvars["snmp_community"]
 
     @hookimpl
-    def selftest(self):
+    def selftest(self) -> bool:
         if self.urlbase and self.apitoken:
             return True
         else:
@@ -34,7 +34,7 @@ class Plugin(CnaasBasePlugin):
 
     @hookimpl
     def new_managed_device(self, hostname, device_type, serial_number, vendor, model, os_version, management_ip):
-        headers = {"Authorization": "Token " + self.apitoken}
+        headers = {"Authorization": "Token " + str(self.apitoken)}
         data = {
             "ip": management_ip,
             "sysname": hostname,
@@ -44,7 +44,7 @@ class Plugin(CnaasBasePlugin):
             "snmp_version": 2,
             "read_only": self.snmp_community,
         }
-        r = requests.post(self.urlbase + "/api/1/netbox/", headers=headers, json=data)
+        r = requests.post(str(self.urlbase) + "/api/1/netbox/", headers=headers, json=data)
         if not r.status_code == 201:
             logger.warn("Failed to add device to NAV: code {}: {} (data: {})".format(r.status_code, r.text, data))
             return False

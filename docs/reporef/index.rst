@@ -153,6 +153,10 @@ and that key contains a dictionary with two keys:
   have the highest priority when determining the primary group for a device.
   Higher value means higher priority. Defaults to 0, value of 1 is reserved
   for builtin group DEFAULT.
+- templates_branch: Optional string that specifies an alternative git branch
+  in the templates repository to use for devices in this primary group. Make
+  sure the branch exists in the templates repository and that the templates
+  repository is refreshed before setting this value or you will get an error.
 
 There will always exist a group called DEFAULT with group_priority 1 even
 if it's not specified in groups.yml.
@@ -179,6 +183,7 @@ All devices that matches the regex will be included in the group.
          name: 'E1'
          regex: 'eosdist1$'
          group_priority: 100
+         templates_branch: "new_dist_features"
      - group:
          name: 'E'
          regex: 'eosdist.*'
@@ -269,6 +274,8 @@ Can contain the following dictionaries with specified keys:
       * update_source: Specify local source interface for the BGP session
       * auth_string: String used to calculate MD5 hash for authentication (password)
       * description: Description of remote peer (optional, defaults to "undefined")
+      * remove_private_as: Optional, if set must be either "all" or "replace".
+        Remove all private AS numbers from AS_PATH, or replace private AS numbers with local AS.
       * cli_append_str: Custom configuration to append to this peer (optional)
     * neighbor_v6:
 
@@ -292,6 +299,10 @@ Can contain the following dictionaries with specified keys:
 
       * match_type: String, ex "ipv4 prefix-set"
       * match_target: String, referring to prefix-set for example: "default-route"
+
+- external_routing_policies: List of strings, referring to routing policies defined in external
+  sources such as templates repository. BGP neighbor route maps must refer to a policy defined in
+  either this list or the routing_policies setting described above.
 
 
 routing.yml examples:
@@ -392,13 +403,13 @@ Keys for interfaces.yml or interfaces_<model>.yml:
 * interfaces: List of dicctionaries with keys:
 
   * name: Interface name, like "Ethernet1". Can also be an interface range like "Ethernet[1-4]".
-  * ifclass: Interface class, one of: downlink, fabric, custom, port_template_*
+  * ifclass: Interface class, one of: downlink, fabric, custom, mirror, port_template_*
   * config: Optional. Raw CLI config used in case "custom" ifclass was selected
 
 * Additional interface options for port_template type:
 
   * untagged_vlan: Optional. Numeric VLAN ID for untagged frames.
-  * tagged_vlan_list: Optional. List of allowed numeric VLAN IDs for tagged frames.
+  * tagged_vlan_list: Optional. List of allowed VLAN IDs, can be single values or ranges, ex: [1, 5, "10-15"]
   * description: Optional. Description for the interface, this should be a string 0-64 characters.
   * enabled: Optional. Set the administrative state of the interface. Defaults to true if not set.
   * aggregate_id: Optional. Identifier for configuring LACP etc. Integer value.
@@ -415,6 +426,21 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * metric: Optional integer specifying metric for this interface.
   * cli_append_str: Optional. Custom configuration to append to this interface.
 
+* For downlink and fabric type ports these options are available with same function as above:
+
+  * aggregate_id
+  * enabled
+  * cli_append_str
+  * metric
+  * mtu
+  * tags
+
+*  For mirror type ports these options are available with same function as above:
+
+  * description
+  * enabled
+
+
 The "downlink" ifclass is used on DIST devices to specify that this interface
 is used to connect access devices. The "fabric" ifclass is used to specify that
 this interface is used to connect DIST or CORE devices with each other to form
@@ -426,6 +452,13 @@ providing DHCP (relay) access.
 be used to apply some site-specific configuration via Jinja templates. For
 example specify "port_template_hypervisor" and build a corresponding Jinja
 template by matching on that ifclass.
+"mirror" ifclass can be used on DIST devices that are part of the same management
+domain to copy interface settings from one device to the other, this way you
+don't have to maintain the list of allowed vlans on both devices for example.
+On one device you configure ports normally with port_template or custom ifclass,
+and on the other device in the same management domain you can use ifclass mirror
+without any other settings (but you can optionally override description and enabled
+status).
 
 base_system.yml:
 
@@ -487,6 +520,33 @@ Contains base system settings like:
 - poe_reboot_maintain: Maintain POE supply during reboot of the switch. Default false
 - organization_name: Free format string describing organization name
 - domain_name: DNS domain (suffix)
+- interface_tag_options: Dictionary of {<name>, {description: <description>, groups: <list of groups>}:
+
+  * name: Name of the tag, as defined in templates
+  * description: Description of the tag to be displayed in WebUI etc.
+  * groups: Optional list of groups where tag should be limited to
+
+- port_template_options: Dictionary of {<name>, {description: <description>, groups: <list of groups>,
+  vlan_option: <vlan_option>}:
+
+  * name: Name of the port_template, as defined in templates but without "port_template_" prefix
+  * description: Description of the port template to be displayed in WebUI etc.
+  * vlan_option: VLAN option to be used for this port template, default "tagged" but can be "untagged"
+  or "none". This describes if untagged_vlan or tagged_vlan_list settings should be used for this
+  port template.
+  * groups: Optional list of groups where port template should be limited to
+
+- vxlan_vni_range: Define a range of VNIs to be used for VXLANs, ex "10000-99999". If any VXLANs are
+  configured with VNIs outside of this range an error will be raised when refreshing settings.
+- arista_models_32bit: Optional list of strings of Arista models that should be upgraded with 32-bit
+  firmware instead of the default 64-bit firmware when using "detect_arch-" keyword in the filename
+  parameter to /firmware/upgrade API endpoint. If not specified use list of models provided by NMS.
+  If set to empty list always use 64-bit firmware.
+- upgrade_post_waittime: Optional dictionary of {<string>, <waittime>} to specify a how long to wait
+  after upgrade before testing if the upgrade was successful, waittime is specified in seconds.
+  String can be a model number, a platform or "default". If matching model is found, that wait time
+  will be used, otherwise if matching platform is found that wait time will be used, otherwise
+  default wait time will be used.
 
 Example of base_system.yml:
 

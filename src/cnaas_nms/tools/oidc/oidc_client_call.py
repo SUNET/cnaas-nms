@@ -1,5 +1,4 @@
 import json
-from typing import Optional
 
 import requests
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
@@ -76,7 +75,7 @@ def get_token_info_from_introspect(session: requests.Session, token: Token, intr
         raise InvalidTokenError("Invalid JSON in introspection response: {}".format(str(e)))
 
 
-def get_oauth_token_info(token: Token) -> Optional[dict]:
+def get_oauth_token_info(token: Token) -> dict:
     """Give back the details about the token from userinfo or introspection
 
     If OIDC is disabled, we return None.
@@ -88,12 +87,7 @@ def get_oauth_token_info(token: Token) -> Optional[dict]:
         resp.json(): Object of the user info or introspection
 
     """
-    # For now unnecessary, useful when we only use one log in method
-    if not auth_settings.OIDC_ENABLED:
-        return None
-
     # Get the cached token info
-
     cached_token_info = get_token_info_from_cache(token)
     if cached_token_info:
         return cached_token_info

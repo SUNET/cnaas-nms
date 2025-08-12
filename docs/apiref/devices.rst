@@ -450,3 +450,73 @@ Example for defining two stackmembers:
    curl -H "Content-Type: application/json" -X PUT -d
    '{"stackmembers": [{"member_no": 1,"hardware_id": "4AE008A","priority": 55}, {"member_no": 2, "hardware_id": "B77C34F", "priority": 125}]}'
    https://hostname/api/v1.0/device/<device_hostname>/stackmember
+
+Get LLDP Neighbors
+------------------
+
+Get LLDP neighbor information for specified device.
+
+Example:
+
+::
+
+   curl https://hostname/api/v1.0/device/<device_hostname>/lldp_neighbors
+
+Return value in data is exactly as NAPALM function get_lldp_neighbors returns:
+
+::
+
+   {
+     "status": "success",
+     "data": {
+       "lldp_neighbors": {
+         "Ethernet5": [
+           {
+             "hostname": "d2",
+             "port": "Ethernet1"
+           }
+         ]
+       }
+     }
+   }
+
+Get LLDP Neighbors Detail
+-------------------------
+
+Get detailed LLDP neighbor information for specified device.
+
+Example:
+
+::
+
+   curl https://hostname/api/v1.0/device/<device_hostname>/lldp_neighbors_detail
+
+Return value in data is exactly as NAPALM function get_lldp_neighbors_detail returns:
+
+::
+
+   {
+     "status": "success",
+     "data": {
+       "lldp_neighbors_detail": {
+         "Ethernet17": [
+           {
+             "parent_interface": "Ethernet17",
+             "remote_port": "et-0/0/11:0",
+             "remote_port_description": "d1",
+             "remote_system_name": "router",
+             "remote_system_description": "Juniper Networks, Inc. ptx10001-36mr internet router, JUNOS 23.4R2-S1.6-EVO, Build date: 2024-08-01 07:11:39 UTC Copyright (c) 1996-2024 Juniper Networks, Inc.",
+             "remote_chassis_id": "20:ED:47:11:22:33",
+             "remote_system_capab": [
+               "bridge",
+               "router"
+             ],
+             "remote_system_enable_capab": [
+               "bridge",
+               "router"
+             ]
+           }
+         ],
+       }
+     }
+   }

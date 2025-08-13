@@ -41,8 +41,21 @@ Edit db_config.yml to point to your SQL and redis database.
 
 ```
 cd src/
-python3 -m cnaas_nms.api.tests.test_api
-python3 -m cnaas_nms.confpush.tests.test_get
+pytest
+```
+
+Two marks can be used for pytest: `integration` and `equipment`, that can be be used to do a subset of all tests. Eg
+
+```
+pytest -m "not integration and not equipment"
+```
+
+Note that `and` must be used to apply filters at the same time.
+
+If the tests should not spin up any containers at all, set the environment variable `EXTERNAL_TEST_CONTAINERS`, eg
+
+```
+EXTERNAL_TEST_CONTAINERS=1 pytest -m "not equipment"
 ```
 
 ## Authorization

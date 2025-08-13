@@ -15,7 +15,6 @@ def pytest_configure(config):
     from cnaas_nms.app_settings import api_settings, app_settings
 
     api_settings.JWT_ENABLED = False
-
     app_settings.TEMPLATES_REMOTE = "git://gitops.sunet.se/cnaas-lab-templates"
     app_settings.SETTINGS_REMOTE = "git://gitops.sunet.se/cnaas-lab-settings"
 
@@ -49,43 +48,71 @@ def templates_directory(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
-def redis(request):
-    """Ensures Redis server is running and available"""
-    # This uses pytest-docker-compose, but could also just use pytest-docker for fewer moving parts
-    if os.getenv("PYTEST_REDIS_EXTERNAL", "0").strip() in ("0", "off", "false", "no"):
-        request.getfixturevalue("session_scoped_container_getter")
-        assert wait_for_port("127.0.0.1", 6379), "Could not connect to Redis"
+def docker_compose_file(pytestconfig, request):
+    """
+    Set target docker-compose file to docker/docker-compose_pytest.yaml.
+
+    A pytest-docker fixture.
+    """
+
+    return os.path.join(str(pytestconfig.rootdir), "docker", "docker-compose_pytest.yaml")
+
+
+@pytest.fixture(scope="session")
+def redis(docker_ip, request):
+    """Start Redis with pytest-docker if not EXTERNAL_TEST_CONTAINERS is set."""
+    use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in (
+        "1",
+        "on",
+        "yes",
+        "true",
+    )
+
+    if not use_external:
+        print("Using internal Redis (pytest-docker)")
+        docker_services = request.getfixturevalue("docker_services")
+        host = docker_ip
+        port = docker_services.port_for("cnaas_redis", 6379)
+
+        assert wait_for_port(host, port), f"Could not connect to Redis at {host}:{port}"
+
+    time.sleep(1)
+
     yield True
 
 
 @pytest.fixture(scope="session")
-def postgresql(request):
-    """Ensures PostgreSQL server is running and available"""
-    # This uses pytest-docker-compose, but could also just use pytest-docker for fewer moving parts
-    # It could also just use pytest-postgresql (which has options to load specific SQL fixtures as
-    # well)
-    if os.getenv("PYTEST_POSTGRES_EXTERNAL", "0").strip() in ("0", "off", "false", "no"):
-        request.getfixturevalue("session_scoped_container_getter")
-        assert wait_for_port("127.0.0.1", 5432), "Could not connect to PostgreSQL"
-    # There is an apparent lag between the server responding to TCP port 5432 and actually being
-    # ready to serve database connections. Sleeping for 1 second is the naive solution here,
-    # but it's okay, since it only happens the first time the fixture is used in a test session.
-    # A more complete solution would check that we can actually establish a PostgreSQL client
-    # connection.
-    time.sleep(5)
+def postgresql(docker_ip, request):
+    """Start PostgreSQL with pytest-docker if not EXTERNAL_TEST_CONTAINERS is set."""
+    use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in (
+        "1",
+        "on",
+        "yes",
+        "true",
+    )
+
+    if not use_external:
+        print("Using PostgreSQL with pytest-docker")
+        docker_services = request.getfixturevalue("docker_services")
+        host, port = docker_ip, docker_services.port_for("cnaas_postgres", 5432)
+        assert wait_for_port(host, port), f"Could not connect to PostgreSQL at {host}:{port}"
+    else:
+        time.sleep(5)
+
     request.getfixturevalue("alembic_upgrade")
+
     yield True
 
 
 @pytest.fixture(scope="session")
 def alembic_upgrade(pytestconfig):
-    """Ensures the sql database schema is up-to-date at the start of a test run"""
+    """Ensure sql database schema is up-to-date at the start of a test run."""
     subprocess.check_call(["alembic", "upgrade", "head"], cwd=pytestconfig.rootpath)
 
 
 def wait_for_port(host: str, port: int, tries=10) -> bool:
-    """Waits for TCP port to receive connections"""
-    for retry in range(tries):
+    """Wait for TCP port to receive connections."""
+    for _retry in range(tries):
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
             if sock.connect_ex((host, port)) == 0:
                 print(f"{host}:{port} responded")

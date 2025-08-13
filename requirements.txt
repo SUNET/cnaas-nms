@@ -1,5 +1,6 @@
 alembic==1.15.2
 APScheduler==3.11.0
+async-timeout>=4.0.2
 coverage==7.8.0
 Flask-Cors==6.0.0
 Flask-JWT-Extended==4.7.1
@@ -23,7 +24,7 @@ pluggy==1.5.0
 psycopg2-binary==2.9.10
 pytest==8.3.5
 pytest-cov==6.1.1
-pytest-docker-compose-v2==0.1.2
+pytest-docker==3.2.2
 pytest-env==1.1.5
 redis==5.2.1
 redis-lru==0.1.0

@@ -3,6 +3,7 @@ import re
 
 from sqlalchemy import Enum, ForeignKey, Integer, Unicode
 from sqlalchemy.dialects.postgresql.json import JSONB
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import backref, mapped_column, relationship
 
 import cnaas_nms.db.base
@@ -44,7 +45,7 @@ class Interface(cnaas_nms.db.base.Base):
     )
     name = mapped_column(Unicode(255), primary_key=True)
     configtype = mapped_column(Enum(InterfaceConfigType), nullable=False)
-    data = mapped_column(JSONB)
+    data = mapped_column(MutableDict.as_mutable(JSONB))
 
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""

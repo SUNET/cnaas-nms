@@ -10,6 +10,7 @@ import yaml
 from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.stackmember import Stackmember
 
@@ -28,7 +29,12 @@ class DeviceTests(unittest.TestCase):
                 if stack:
                     session.delete(stack)
                     session.commit()
-            for hostname in ["testdevice", "testdevice2", "testfwdevice"]:
+            for hostname in [
+                "testdevice",
+                "testdevice2",
+                "testfwdevice",
+                "neighbor-device"
+            ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
                     session.delete(device)
@@ -126,6 +132,69 @@ class DeviceTests(unittest.TestCase):
         with sqla_session() as session:  # type: ignore
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertEqual(modify_data["description"], q_device.description)
+
+    def test_interface_data_mutabledict_works(self):
+        from cnaas_nms.db.interface import Interface, InterfaceConfigType
+
+        with sqla_session() as session:
+            intf = Interface(
+                device_id=self.device_id,
+                name="test-intf",
+                configtype=InterfaceConfigType.ACCESS_AUTO,
+                data={"neighbor": "should-change"},
+            )
+            session.add(intf)
+            session.commit()
+
+            # Mutate JSONB field
+            intf.data["neighbor"] = "changed"
+            session.commit()
+
+            # Verify mutation persisted
+            updated = session.query(Interface).filter_by(name="test-intf", device_id=self.device_id).one()
+            assert updated.data["neighbor"] == "changed"
+
+            if updated:
+                session.delete(updated)
+                session.commit()
+
+    def test_rename_device_updates_neighbors(self):
+        with sqla_session() as session:
+            neighbor_device = Device(
+                hostname="neighbor-device",
+                platform="eos",
+                management_ip=IPv4Address("10.2.2.2"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.DIST,
+            )
+            session.add(neighbor_device)
+            session.commit()
+            intf = Interface(
+                device=neighbor_device,
+                name="Ethernet1",
+                configtype=InterfaceConfigType.ACCESS_AUTO,
+                data={"neighbor": "testdevice"},
+            )
+            session.add(intf)
+            session.commit()
+
+        # Rename testdevice to renamed-device
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+        # Confirm that the neighbor field in interface has been updated
+        with sqla_session() as session:
+            neighbor = session.query(Device).filter_by(hostname="neighbor-device").one()
+            intf = session.query(Interface).filter_by(name="Ethernet1", device_id=neighbor.id).one()
+            assert intf.data["neighbor"] == "renamed-device"
+
+            # clean up
+            session.delete(intf)
+            session.delete(neighbor)
+            renamed_device = session.query(Device).filter_by(hostname="renamed-device").one()
+            session.delete(renamed_device)
+            session.commit()
 
     def test_delete_device(self):
         result = self.client.delete(f"/api/v1.0/device/{self.device_id}")

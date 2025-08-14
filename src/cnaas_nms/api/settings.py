@@ -40,6 +40,7 @@ class SettingsApi(Resource):
                 if dev:
                     device_type = dev.device_type
                     model = dev.model
+                    session.expunge(dev)
                 else:
                     return empty_result("error", "Hostname not found in database"), 400
         if "device_type" in args:

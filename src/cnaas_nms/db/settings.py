@@ -883,9 +883,8 @@ def get_groups_priorities(device: Optional[Device] = None, settings: Optional[f_
     for group in settings.groups:
         if not group.group_priority or group.group_priority == 0:
             continue
-        if device:
-            if not group.matches(device):
-                continue
+        if device and not group.matches(device):
+            continue
         groups_priorities[group.name] = group.group_priority
 
     return groups_priorities

@@ -176,6 +176,19 @@ def test_repository_get(client):
     assert re.match(r"[Cc]ommit", result.json["data"])
 
 
+def test_settings_hostname(client):
+    """
+    Test getting settings with query parameter
+    """
+    result = client.get("/api/v1.0/settings?hostname=eosaccess")
+    assert result.status_code == 200
+    assert result.content_type == "application/json"
+
+    # Not found hostname
+    result = client.get("/api/v1.0/settings?hostname=notfoundaccess")
+    assert result.status_code == 400
+
+
 def test_sync_devices_invalid_input(client):
     # Test invalid hostname
     data = {"hostname": "...", "dry_run": True}
@@ -372,9 +385,9 @@ def test_generate_only_vars(client, testdata, templates_directory):
     result = client.get("/api/v1.0/device/{}/generate_config".format(testdata["interface_device"]))
     assert result.status_code == 200
     assert result.json["status"] == "success"
-    assert (
-        result.json["data"]["config"]["available_variables"]["hostname"] == testdata["interface_device"]
-    ), "hostname variable not found in generate_only variables"
+    assert result.json["data"]["config"]["available_variables"]["hostname"] == testdata["interface_device"], (
+        "hostname variable not found in generate_only variables"
+    )
 
 
 def test_linknet(client):

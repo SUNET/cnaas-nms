@@ -47,12 +47,3 @@ def test_settings_server(testclient: FlaskClient):
     assert result.status_code == 200
     assert result.content_type == "application/json"
     assert "api" in result.json
-
-def test_settings_hostname(testclient: FlaskClient):
-    result = testclient.get("/api/v1.0/settings?hostname=eosaccess")
-    assert result.status_code == 200
-    assert result.content_type == "application/json"
-
-    # Not found hostname
-    result = testclient.get("/api/v1.0/settings?hostname=notfoundaccess")
-    assert result.status_code == 400

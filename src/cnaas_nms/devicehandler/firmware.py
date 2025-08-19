@@ -337,9 +337,10 @@ def device_upgrade_task(
             raise Exception("Could not find a device with hostname {}".format(task.host.name))
         device_type = dev.device_type
         device_model = dev.model
+        session.expunge(dev)
 
     if filename and filename.startswith("detect_arch-"):
-        dev_settings, _ = get_settings(task.host.name, device_type)
+        dev_settings, _ = get_settings(dev, device_type)
         if dev_settings and "arista_models_32bit" in dev_settings and dev_settings["arista_models_32bit"] is not None:
             models_32bit: List[str] = dev_settings["arista_models_32bit"]
         else:
@@ -426,7 +427,7 @@ def device_upgrade_task(
     # will update device facts for the selected devices
     if post_flight and not already_active:
         try:
-            dev_settings, _ = get_settings(task.host.name, device_type)
+            dev_settings, _ = get_settings(dev, device_type)
             res = task.run(
                 task=arista_post_flight_check,
                 post_waittime=post_waittime,

@@ -71,10 +71,10 @@ RUN mkdir /tmp/devicecerts \
 
 ARG BUILDBRANCH=develop
 ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
-# Branch specific, don't cache
-ADD "https://api.github.com/repos/SUNET/cnaas-nms/git/refs/heads/" latest_commit
-# Cnaas setup script
-RUN /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
+# Branch specific, don't cache and run cnaas setup script
+ARG GIT_COMMIT=unknown
+RUN echo "$GIT_COMMIT" \ 
+    &&  /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
 # Freeze source
 USER root
 RUN chown -R root:www-data /opt/cnaas/venv/cnaas-nms/ && chmod -R u=rwX,g=rX,o= /opt/cnaas/venv/cnaas-nms/

@@ -145,7 +145,7 @@ def populate_device_vars(
     if not isinstance(dev.platform, str):
         raise ValueError("Unknown platform: {}".format(dev.platform))
 
-    settings, settings_origin = get_settings(hostname, devtype, dev.model)
+    settings, settings_origin = get_settings(dev, devtype, dev.model)
 
     if devtype == DeviceType.ACCESS:
         if ztp_hostname:
@@ -323,7 +323,7 @@ def populate_device_vars(
                     # Copy interface settings from mgmtdomain peer device
                     if_dict = {"indexnum": ifindexnum}
                     peer_device = cnaas_nms.db.helper.find_mgmtdomain_peer(session, dev)
-                    peer_settings, _ = get_settings(peer_device.hostname, devtype, peer_device.model)
+                    peer_settings, _ = get_settings(peer_device, devtype, peer_device.model)
                     if "interfaces" in peer_settings and peer_settings["interfaces"]:
                         for peer_intf in peer_settings["interfaces"]:
                             if peer_intf["name"] == intf["name"]:
@@ -345,9 +345,7 @@ def populate_device_vars(
                     fabric_device_variables["interfaces"].append(if_dict)
 
         for local_if, data in fabric_interfaces.items():
-            logger.warn(
-                f"Interface {local_if} on device {hostname} not " "configured as linknet because of wrong ifclass"
-            )
+            logger.warn(f"Interface {local_if} on device {hostname} not configured as linknet because of wrong ifclass")
 
         if not ztp_hostname:
             for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):

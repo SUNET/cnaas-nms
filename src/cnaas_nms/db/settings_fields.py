@@ -1,9 +1,20 @@
-from enum import StrEnum, auto
+import re
+import warnings
+from enum import Enum, StrEnum, auto
+from functools import cached_property
 from ipaddress import AddressValueError, IPv4Interface
-from typing import Annotated, Dict, List, Optional, Union
+from typing import Annotated, Dict, List, Optional, Self, Union
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 from pydantic.functional_validators import AfterValidator
+
+from cnaas_nms.db.device import Device
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
 IPV4_REGEX = r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}" r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
@@ -447,11 +458,82 @@ class f_root(BaseModel):
     upgrade_post_waittime: Dict[str, int] = {"default": 600}
 
 
-class f_group_item(BaseModel):
+class f_group_device_filter(BaseModel):
+    hostname: Optional[str] = None
+    device_type: Optional[str] = None
+    model: Optional[str] = None
+    os_version: Optional[str] = None
+    platform: Optional[str] = None
+
+    @field_validator("hostname", "device_type", "model", "os_version", "platform")
+    @classmethod
+    def validate_regex(cls, v):
+        """Validate that the value is a valid regex pattern."""
+        try:
+            # Try compiling regex
+            re.compile(v)
+        except re.error as exc:
+            raise ValueError(f"Invalid regex pattern: {v}") from exc
+        return v
+
+    @cached_property
+    def compiled_patterns(self) -> Dict[str, re.Pattern]:
+        """
+        Is a cached property to avoid re-compiling regex patterns
+        """
+        fields = set(self.__annotations__.keys())
+        compiled_patterns = {}
+        for field in fields:
+            pattern = getattr(self, field, None)
+            if pattern:
+                compiled_patterns.update({field: re.compile(pattern)})
+        return compiled_patterns
+
+    def matches(self, device: Device) -> bool:
+        """
+        A function that matches a device based on the regex patterns.
+        """
+        compiled_patterns = self.compiled_patterns
+        # No patterns defined, match nothing
+        if not compiled_patterns:
+            return False
+
+        for field, pattern in compiled_patterns.items():
+            value = getattr(device, field, None)
+            if value is None:
+                return False  # field missing → no match
+            if isinstance(value, Enum):
+                match_value = value.name
+            else:
+                match_value = value
+            if not pattern.match(str(match_value)):  # convert to str to be safe
+                return False  # pattern did not match
+        return True  # all matched
+
+
+class f_group(BaseModel):
     name: str = group_name
-    regex: str = ""
+    device_filter: Optional[f_group_device_filter] = None
+    devices: Optional[List[str]] = None
     group_priority: int = group_priority_schema
     templates_branch: Optional[str] = None
+
+    def __init__(self, **data):
+        if "group" in data:
+            warnings.warn(
+                "Old group config style is deprecated and will be removed in a future version.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            legacy_data = data.pop("group")
+            # Convert legacy group data to new format
+            data["name"] = legacy_data.pop("name")
+            regex = legacy_data.pop("regex")
+            if regex:
+                data["device_filter"] = {"hostname": regex}
+            data["group_priority"] = legacy_data.pop("group_priority", 0)
+            data["templates_branch"] = legacy_data.pop("templates_branch", None)
+        super().__init__(**data)
 
     @field_validator("group_priority")
     @classmethod
@@ -467,10 +549,49 @@ class f_group_item(BaseModel):
             raise ValueError("templates_branch can only be specified on primary groups")
         return v
 
+    @model_validator(mode="after")
+    def cannot_use_device_filter_with_devices(self: Self) -> Self:
+        device_filter = self.device_filter
+        devices = self.devices
+        if device_filter and devices:
+            raise ValueError("cannot use device_filter together with devices")
 
-class f_group(BaseModel):
-    group: Optional[f_group_item] = None
+        return self
+
+    def matches(self, device: Device) -> bool:
+        """A function to check if a device matches the group filters."""
+        if self.device_filter is not None:
+            # Use the device filter matcher to check if the device matches
+            return self.device_filter.matches(device)
+        elif self.devices is not None:
+            # If no device filter is defined, check if the device is in the devices list
+            return device.hostname in self.devices
+        return False
+
+
+def validate_groups(groups: List[f_group]):
+    """
+    Validate that the provided list of groups have unique names and group priorities.
+    """
+
+    # Validate uniqueness of group names and group priorities
+    unique_fields = ["name", "group_priority"]
+    for unique_field in unique_fields:
+        seen = set()
+        for group in groups:
+            value = getattr(group, unique_field)
+            # Skip validation for group_priority if it's 0
+            if unique_field == "group_priority" and value == 0:
+                continue
+            if value in seen:
+                raise ValueError(
+                    f"Groups must have unique {unique_field} values, "
+                    f"but group {group} has a duplicate {unique_field} value as another group."
+                )
+            seen.add(value)
+
+    return groups
 
 
 class f_groups(BaseModel):
-    groups: Optional[List[f_group]] = None
+    groups: Annotated[Optional[List[f_group]], AfterValidator(validate_groups)] = None

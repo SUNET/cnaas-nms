@@ -140,7 +140,7 @@ class InterfaceApi(Resource):
                         # TODO: maybe this validation should be done via
                         #  pydantic if it gets more complex
                         if not device_settings:
-                            device_settings, _ = get_settings(hostname, dev.device_type)
+                            device_settings, _ = get_settings(dev, dev.device_type)
                         if "vxlan" in if_dict["data"]:
                             if if_dict["data"]["vxlan"] in device_settings["vxlans"]:
                                 intfdata["vxlan"] = if_dict["data"]["vxlan"]

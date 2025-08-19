@@ -202,7 +202,7 @@ def get_peer_with_mirror_interfaces(session, dev: Device) -> Optional[Device]:
         logger.exception("Error while finding peer device for mirrored interfaces")
         return None
 
-    peer_settings, _ = get_settings(peer_device.hostname, peer_device.device_type, peer_device.model)
+    peer_settings, _ = get_settings(peer_device, peer_device.device_type, peer_device.model)
 
     try:
         for intf in expand_interface_settings(peer_settings["interfaces"]):

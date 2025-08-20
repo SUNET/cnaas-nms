@@ -598,6 +598,21 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
 
 
 @redis_lru_cache
+def has_hostname_specific_settings(hostname: str) -> bool:
+    """Show if hostname has specific device settings."""
+    logger = get_logger()
+
+    local_repo_path = app_settings.SETTINGS_LOCAL
+    try:
+        verify_dir_structure(local_repo_path, DIR_STRUCTURE)
+    except VerifyPathException as e:
+        logger.exception("Exception when verifying settings repository directory structure")
+        raise e
+
+    return os.path.isdir(os.path.join(local_repo_path, "devices", hostname))
+
+
+@redis_lru_cache
 def get_settings(
     device: Optional[Device] = None,
     device_type: Optional[DeviceType] = None,

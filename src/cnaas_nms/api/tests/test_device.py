@@ -16,11 +16,12 @@ from cnaas_nms.db.stackmember import Stackmember
 
 
 @pytest.mark.integration
+@pytest.mark.usefixtures("mock_has_hostname_specific_settings")
 class DeviceTests(unittest.TestCase):
     @pytest.fixture(autouse=True)
-    def requirements(self, postgresql, settings_directory):
+    def requirements(self, postgresql, settings_directory, mock_has_hostname_specific_settings):
         """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
-        pass
+        self.mock_has_hostname_specific_settings = mock_has_hostname_specific_settings
 
     def cleandb(self):
         with sqla_session() as session:  # type: ignore
@@ -33,7 +34,8 @@ class DeviceTests(unittest.TestCase):
                 "testdevice",
                 "testdevice2",
                 "testfwdevice",
-                "neighbor-device"
+                "neighbor-device",
+                "renamed-device",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
@@ -133,7 +135,7 @@ class DeviceTests(unittest.TestCase):
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertEqual(modify_data["description"], q_device.description)
 
-    def test_interface_data_mutabledict_works(self):
+    def test_interface_data_mutable(self):
         from cnaas_nms.db.interface import Interface, InterfaceConfigType
 
         with sqla_session() as session:
@@ -158,7 +160,7 @@ class DeviceTests(unittest.TestCase):
                 session.delete(updated)
                 session.commit()
 
-    def test_rename_device_updates_neighbors(self):
+    def test_rename_device_updates_neighbor(self):
         with sqla_session() as session:
             neighbor_device = Device(
                 hostname="neighbor-device",
@@ -166,6 +168,7 @@ class DeviceTests(unittest.TestCase):
                 management_ip=IPv4Address("10.2.2.2"),
                 state=DeviceState.MANAGED,
                 device_type=DeviceType.DIST,
+                synchronized=True,
             )
             session.add(neighbor_device)
             session.commit()
@@ -178,21 +181,24 @@ class DeviceTests(unittest.TestCase):
             session.add(intf)
             session.commit()
 
-        # Rename testdevice to renamed-device
+        # Rename 'testdevice' to 'renamed-device'
         rename_data = {"hostname": "renamed-device"}
         rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
         assert rename_response.status_code == 200
 
         # Confirm that the neighbor field in interface has been updated
         with sqla_session() as session:
+            renamed_device = session.query(Device).filter_by(hostname="renamed-device").one()
+            assert renamed_device
+            assert not renamed_device.synchronized
+            assert session.query(Device).filter_by(hostname="testdevice").one_or_none() is None
             neighbor = session.query(Device).filter_by(hostname="neighbor-device").one()
             intf = session.query(Interface).filter_by(name="Ethernet1", device_id=neighbor.id).one()
             assert intf.data["neighbor"] == "renamed-device"
+            assert not neighbor.synchronized
 
             # clean up
             session.delete(intf)
-            session.delete(neighbor)
-            renamed_device = session.query(Device).filter_by(hostname="renamed-device").one()
             session.delete(renamed_device)
             session.commit()
 
@@ -202,6 +208,19 @@ class DeviceTests(unittest.TestCase):
         with sqla_session() as session:  # type: ignore
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertIsNone(q_device)
+
+    def test_change_device_name(self):
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+    def test_change_device_name_abort(self):
+        self.mock_has_hostname_specific_settings("testdevice", True)
+        self.mock_has_hostname_specific_settings("renamed-device", False)
+
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 400
 
     @pytest.mark.equipment
     def test_initcheck_distdevice(self):

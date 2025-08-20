@@ -33,6 +33,29 @@ def settings_directory(tmp_path_factory):
         return app_settings.SETTINGS_LOCAL
 
 
+@pytest.fixture
+def mock_has_hostname_specific_settings(monkeypatch):
+    from cnaas_nms.db import settings
+
+    original_has_hostname_specific_settings = settings.has_hostname_specific_settings
+
+    mocks = {}
+
+    def _mock(hostname, mock_response=False):
+        """ Register a mock for a given hostname. """
+        mocks[hostname] = mock_response
+
+    def fake_has_hostname_specific_settings(hostname):
+        if hostname in mocks:
+            return mocks[hostname]
+
+        return original_has_hostname_specific_settings(hostname)
+
+    monkeypatch.setattr("cnaas_nms.api.device.has_hostname_specific_settings", fake_has_hostname_specific_settings)
+
+    return _mock
+
+
 @pytest.fixture(scope="session")
 def templates_directory(tmp_path_factory):
     from cnaas_nms.app_settings import app_settings

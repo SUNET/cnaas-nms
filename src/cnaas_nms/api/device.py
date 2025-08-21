@@ -313,18 +313,19 @@ class DeviceByIdApi(Resource):
                 return empty_result(status="error", data=f"No device with id {device_id}"), 404
 
             dev_prev_state: DeviceState = dev.state
-            current_hostname: str = dev.hostname
 
-            is_name_change_request = "hostname" in json_data
+            current_hostname: str = dev.hostname
+            new_hostname = json_data.get("hostname", current_hostname)
+            is_name_change_request = current_hostname != new_hostname
             name_change_ok = False
             if is_name_change_request:
-                new_hostname = json_data["hostname"]
                 old_has_device_settings = has_hostname_specific_settings(current_hostname)
                 new_has_device_settings = has_hostname_specific_settings(new_hostname)
                 name_change_ok = new_has_device_settings or not old_has_device_settings
 
             if is_name_change_request and not name_change_ok:
-                msg = f"Hostname change would result in loss of configuration {current_hostname}"
+                msg = f"Hostname change would result in loss of configuration {current_hostname}" \
+                    " because of device specific settings in git repository"
                 return empty_result(status="error", data=[msg]), 400
 
             errors = dev.device_update(**json_data)
@@ -338,14 +339,13 @@ class DeviceByIdApi(Resource):
                     rebuild_settings_cache()
 
                     # Update interfaces where this device was a neighbor and make the unsynched
-                    new_hostname = json_data["hostname"]
                     interfaces = session.query(Interface).filter(
                         Interface.data["neighbor"].astext == current_hostname
                     ).all()
                     for intf in interfaces:
-                        session.query(Device).get
                         intf.data["neighbor"] = new_hostname
                         neigh_dev = session.query(Device).filter(Device.id == intf.device_id).one()
+
                         neigh_dev.synchronized = False
                         add_sync_event(neigh_dev.hostname, "neighbor_name_change", by=get_identity())
 

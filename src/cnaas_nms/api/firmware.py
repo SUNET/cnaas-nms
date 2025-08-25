@@ -26,8 +26,8 @@ firmware_model = api.model(
     "firmware_download",
     {
         "url": fields.String(required=True),
-        "sha1": fields.String(description='sha1 checksum, cannot be used together with sha512', required=False),
-        "sha512": fields.String(description='sha512 checksum, cannot be used together with sha1',required=False),
+        "sha1": fields.String(description="sha1 checksum, cannot be used together with sha512", required=False),
+        "sha512": fields.String(description="sha512 checksum, cannot be used together with sha1", required=False),
         "verify_tls": fields.Boolean(required=False),
         "filename": fields.String(required=True),
     },
@@ -94,6 +94,20 @@ def remove_file(**kwargs: dict) -> str:
     if json_data["status"] == "error":
         return "Failed to remove file " + str(kwargs["filename"])
     return "File " + str(kwargs["filename"]) + " removed"
+
+
+@job_wrapper
+def set_default_file(**kwargs: dict) -> str:
+    try:
+        url = api_settings.HTTPD_URL + "/" + str(kwargs["filename"]) + "/set-default"
+        res = requests.post(url, verify=api_settings.VERIFY_TLS)
+        json_data = json.loads(res.content)
+    except Exception as e:
+        logger.exception(f"Exception when settings default image: {e}")
+        return "Failed to set default image"
+    if json_data["status"] == "error":
+        return "Failed to set default image: " + str(kwargs["filename"]) + ", " + json_data["message"]
+    return "File " + str(kwargs["filename"]) + " set as default image."
 
 
 class FirmwareApi(Resource):
@@ -166,6 +180,23 @@ class FirmwareImageApi(Resource):
             "cnaas_nms.api.firmware:remove_file", when=1, scheduled_by=get_identity(), kwargs={"filename": filename}
         )
         res = empty_result(data="Scheduled job to remove firmware")
+        res["job_id"] = job_id
+
+        return res
+
+
+class FirmwareSetDefaultApi(Resource):
+    @login_required
+    def post(self, filename: str) -> dict:
+        """Set a firmware as the default image"""
+        scheduler: Scheduler = Scheduler()
+        job_id = scheduler.add_onetime_job(
+            "cnaas_nms.api.firmware:set_default_file",
+            when=1,
+            scheduled_by=get_identity(),
+            kwargs={"filename": filename},
+        )
+        res = empty_result(data="Scheduled job to set default firmware")
         res["job_id"] = job_id
 
         return res
@@ -300,4 +331,5 @@ class FirmwareUpgradeApi(Resource):
 # Firmware
 api.add_resource(FirmwareApi, "")
 api.add_resource(FirmwareImageApi, "/<string:filename>")
+api.add_resource(FirmwareSetDefaultApi, "/<string:filename>/set-default")
 api.add_resource(FirmwareUpgradeApi, "/upgrade")

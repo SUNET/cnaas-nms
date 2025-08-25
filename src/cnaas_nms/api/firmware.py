@@ -125,6 +125,9 @@ class FirmwareApi(Resource):
         if "sha512" not in json_data and "sha1" not in json_data:
             return empty_result(status="error", data="Missing parameter sha1 or sha512")
 
+        if "sha512" in json_data and "sha1" in json_data:
+            return empty_result(status="error", data="Cannot supply both sha1 and sha512")
+
         if "verify_tls" not in json_data:
             return empty_result(status="error", data="Missing parameter verify_tls")
 

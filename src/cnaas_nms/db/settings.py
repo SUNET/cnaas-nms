@@ -2,6 +2,7 @@ import importlib
 import json
 import os
 import re
+import types
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 import pkg_resources
@@ -15,7 +16,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.git_worktrees import refresh_templates_worktree
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings_fields import f_group, f_groups
+from cnaas_nms.db.settings_fields import f_group, f_group_device_filter, f_groups
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
 
@@ -44,7 +45,47 @@ redis_client = StrictRedis(
     retry_on_timeout=True,
     socket_keepalive=True,
 )
-redis_lru_cache = RedisLRU(redis_client, default_ttl=24 * 3600)
+
+
+class NMSRedisLRU(RedisLRU):
+    def _decorator_key(self, func: types.FunctionType, *args, **kwargs):
+        """
+        Generate a hashable cache key for RedisLRU,
+        even when passing dicts, lists, sets, or custom objects.
+        """
+
+        def make_hashable(obj):
+            """Recursively convert objects into hashable objects."""
+            if isinstance(obj, dict):
+                # Sort keys to ensure consistent ordering
+                return tuple((k, make_hashable(v)) for k, v in sorted(obj.items()))
+            elif isinstance(obj, (list, tuple)):
+                return tuple(make_hashable(v) for v in obj)
+            elif isinstance(obj, set):
+                return frozenset(make_hashable(v) for v in obj)
+            elif isinstance(obj, Device):
+                # If device use only the fields that are relevant
+                device_filter_fields = f_group_device_filter.model_fields
+                return tuple(
+                    (k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()) if k in device_filter_fields
+                )
+            elif hasattr(obj, "as_dict"):
+                # Use the dictionary representation for caching
+                return tuple((k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()))
+            else:
+                return obj
+
+        # Convert args & kwargs into stable, hashable forms
+        hashed_args = tuple(make_hashable(arg) for arg in args)
+        hashed_kwargs = {k: make_hashable(v) for k, v in kwargs.items()}
+
+        # Call the parent class' key generator with transformed arguments
+        return super()._decorator_key(
+            func, *hashed_args, **hashed_kwargs
+        )
+
+
+redis_lru_cache = NMSRedisLRU(redis_client, default_ttl=24 * 3600)
 
 
 class VerifyPathException(Exception):

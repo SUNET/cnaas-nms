@@ -1,3 +1,4 @@
+from copy import deepcopy
 import datetime
 import json
 from typing import Any, List, Optional
@@ -26,7 +27,7 @@ from cnaas_nms.db.settings import (
     VlanConflictError,
     get_device_primary_groups,
     get_groups,
-    has_hostname_specific_settings,
+    get_settings,
     rebuild_settings_cache,
     update_device_primary_groups,
 )
@@ -319,13 +320,15 @@ class DeviceByIdApi(Resource):
             is_name_change_request = current_hostname != new_hostname
             name_change_ok = False
             if is_name_change_request:
-                old_has_device_settings = has_hostname_specific_settings(current_hostname)
-                new_has_device_settings = has_hostname_specific_settings(new_hostname)
-                name_change_ok = new_has_device_settings or not old_has_device_settings
+                new_dev = deepcopy(dev)
+                new_dev.hostname = new_hostname
+                old_settings, _ = get_settings(dev)
+                new_settings, _ = get_settings(new_dev)
+                name_change_ok = old_settings == new_settings
 
             if is_name_change_request and not name_change_ok:
-                msg = f"Hostname change would result in loss of configuration {current_hostname}" \
-                    " because of device specific settings in git repository"
+                msg = f"Configuration after name change for {current_hostname} would not be the same."\
+                    f" Please check device specific configuration for {current_hostname} and {new_hostname}"
                 return empty_result(status="error", data=[msg]), 400
 
             errors = dev.device_update(**json_data)

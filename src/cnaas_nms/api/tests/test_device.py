@@ -16,12 +16,12 @@ from cnaas_nms.db.stackmember import Stackmember
 
 
 @pytest.mark.integration
-@pytest.mark.usefixtures("mock_has_hostname_specific_settings")
+@pytest.mark.usefixtures("mock_get_settings")
 class DeviceTests(unittest.TestCase):
     @pytest.fixture(autouse=True)
-    def requirements(self, postgresql, settings_directory, mock_has_hostname_specific_settings):
+    def requirements(self, postgresql, settings_directory, mock_get_settings):
         """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
-        self.mock_has_hostname_specific_settings = mock_has_hostname_specific_settings
+        self.mock_get_settings = mock_get_settings
 
     def cleandb(self):
         with sqla_session() as session:  # type: ignore
@@ -215,8 +215,25 @@ class DeviceTests(unittest.TestCase):
         assert rename_response.status_code == 200
 
     def test_change_device_name_abort(self):
-        self.mock_has_hostname_specific_settings("testdevice", True)
-        self.mock_has_hostname_specific_settings("renamed-device", False)
+        mock_settings_old = {
+            "vxlans": {
+                "student1": {
+                    "vni": "100500",
+                    "ipv4_gw": "10.200.1.1/24",
+                }
+            },
+        }
+        mock_settings_new = {
+            "vxlans": {
+                "student1": {
+                    "vni": "100500",
+                    "ipv4_gw": "10.200.1.2/24",
+                }
+            },
+        }
+
+        self.mock_get_settings("testdevice", mock_settings_old)
+        self.mock_get_settings("renamed-device", mock_settings_new)
 
         rename_data = {"hostname": "renamed-device"}
         rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)

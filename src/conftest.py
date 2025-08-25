@@ -34,24 +34,24 @@ def settings_directory(tmp_path_factory):
 
 
 @pytest.fixture
-def mock_has_hostname_specific_settings(monkeypatch):
+def mock_get_settings(monkeypatch):
     from cnaas_nms.db import settings
 
-    original_has_hostname_specific_settings = settings.has_hostname_specific_settings
+    original_get_settings = settings.get_settings
 
     mocks = {}
 
-    def _mock(hostname, mock_response=False):
+    def _mock(hostname: str, mock_response={}):
         """ Register a mock for a given hostname. """
         mocks[hostname] = mock_response
 
-    def fake_has_hostname_specific_settings(hostname):
-        if hostname in mocks:
-            return mocks[hostname]
+    def fake_get_settings(dev=None, *args, **kwargs):
+        if dev and dev.hostname in mocks:
+            return mocks[dev.hostname], {}
 
-        return original_has_hostname_specific_settings(hostname)
+        return original_get_settings(dev)
 
-    monkeypatch.setattr("cnaas_nms.api.device.has_hostname_specific_settings", fake_has_hostname_specific_settings)
+    monkeypatch.setattr("cnaas_nms.api.device.get_settings", fake_get_settings)
 
     return _mock
 

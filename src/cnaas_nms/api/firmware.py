@@ -26,7 +26,8 @@ firmware_model = api.model(
     "firmware_download",
     {
         "url": fields.String(required=True),
-        "sha1": fields.String(required=True),
+        "sha1": fields.String(description='sha1 checksum, cannot be used together with sha512', required=False),
+        "sha512": fields.String(description='sha512 checksum, cannot be used together with sha1',required=False),
         "verify_tls": fields.Boolean(required=False),
         "filename": fields.String(required=True),
     },
@@ -70,11 +71,15 @@ def get_firmware_chksum(**kwargs: dict) -> str:
         res = requests.get(url, verify=api_settings.VERIFY_TLS)
         json_data = json.loads(res.content)
     except Exception as e:
-        logger.exception(f"Exceptionb while getting checksum: {e}")
+        logger.exception(f"Exception while getting checksum: {e}")
         return "Failed to get checksum for " + str(kwargs["filename"])
     if json_data["status"] == "error":
         return json_data["message"]
-    return json_data["data"]["file"]["sha1"]
+    file_data = json_data["data"]["file"]
+    if "sha512" in file_data:
+        return file_data["sha512"]
+    else:
+        return file_data["sha1"]
 
 
 @job_wrapper
@@ -103,14 +108,17 @@ class FirmwareApi(Resource):
         if "url" not in json_data:
             return empty_result(status="error", data="Missing parameter url")
 
-        if "sha1" not in json_data:
-            return empty_result(status="error", data="Missing parameter sha1")
+        if "sha512" not in json_data and "sha1" not in json_data:
+            return empty_result(status="error", data="Missing parameter sha1 or sha512")
 
         if "verify_tls" not in json_data:
             return empty_result(status="error", data="Missing parameter verify_tls")
 
         kwargs["url"] = json_data["url"]
-        kwargs["sha1"] = json_data["sha1"]
+        if "sha512" in json_data:
+            kwargs["sha512"] = json_data["sha512"]
+        else:
+            kwargs["sha1"] = json_data["sha1"]
         kwargs["verify_tls"] = json_data["verify_tls"]
 
         scheduler: Scheduler = Scheduler()

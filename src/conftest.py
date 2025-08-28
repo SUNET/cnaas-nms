@@ -15,8 +15,8 @@ def pytest_configure(config):
     from cnaas_nms.app_settings import api_settings, app_settings
 
     api_settings.JWT_ENABLED = False
-    app_settings.TEMPLATES_REMOTE = "git://gitops.sunet.se/cnaas-lab-templates"
-    app_settings.SETTINGS_REMOTE = "git://gitops.sunet.se/cnaas-lab-settings"
+    app_settings.TEMPLATES_REMOTE = "https://platform.sunet.se/CNaaS/cnaas-lab-templates.git"
+    app_settings.SETTINGS_REMOTE = "https://platform.sunet.se/CNaaS/cnaas-lab-settings.git"
 
 
 @pytest.fixture(scope="session")

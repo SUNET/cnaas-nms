@@ -3,8 +3,8 @@
 pushd .
 cd ../docker/
 
-export GITREPO_TEMPLATES="git://gitops.sunet.se/cnaas-lab-templates"
-export GITREPO_SETTINGS="git://gitops.sunet.se/cnaas-lab-settings"
+export GITREPO_TEMPLATES="https://platform.sunet.se/CNaaS/cnaas-lab-templates.git"
+export GITREPO_SETTINGS="https://platform.sunet.se/CNaaS/cnaas-lab-settings.git"
 export GITREPO_ETC="https://github.com/indy-independence/cnaas-nms-lab-etc.git"
 export USERNAME_DHCP_BOOT="admin"
 export PASSWORD_DHCP_BOOT="abc123abc123"

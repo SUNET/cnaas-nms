@@ -33,8 +33,8 @@ jobs:
 
       - name: "Set environment variables"
         run: |
-          echo "GITREPO_TEMPLATES=https://platform.sunet.se/CNaaS/cnaas-lab-templates.git" >> $GITHUB_ENV
-          echo "GITREPO_SETTINGS=https://platform.sunet.se/CNaaS/cnaas-lab-settings.git" >> $GITHUB_ENV
+          echo "GITREPO_TEMPLATES=https://github.com/SUNET/cnaas-integrationtest-templates.git" >> $GITHUB_ENV
+          echo "GITREPO_SETTINGS=https://github.com/SUNET/cnaas-integrationtest-settings.git" >> $GITHUB_ENV
           echo "GITREPO_ETC=https://github.com/indy-independence/cnaas-nms-lab-etc.git" >> $GITHUB_ENV
           echo "USERNAME_DHCP_BOOT=admin" >> $GITHUB_ENV
           echo "PASSWORD_DHCP_BOOT=abc123abc123" >> $GITHUB_ENV

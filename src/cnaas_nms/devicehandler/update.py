@@ -1,6 +1,7 @@
 import datetime
 from typing import Dict, List, Optional
 
+from netutils.interface import canonical_interface_name
 from nornir_napalm.plugins.tasks import napalm_get
 
 import cnaas_nms.devicehandler.nornir_helper
@@ -252,17 +253,19 @@ def update_linknets(
     )
 
     for idx, (local_if, data) in enumerate(neighbors.items()):
-        logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
-        remote_device_inst: Device = session.query(Device).filter(Device.hostname == data[0]["hostname"]).one_or_none()
+        remote_hostname = data[0]['hostname']
+        remote_if = canonical_interface_name(data[0]['port'])
+        logger.debug(f"Local: {local_if}, remote: {remote_hostname} {remote_if}")
+        remote_device_inst: Device = session.query(Device).filter(Device.hostname == remote_hostname).one_or_none()
         if not remote_device_inst:
-            logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
+            logger.debug(f"Unknown neighbor device, ignoring: {remote_hostname}")
             continue
         if mlag_peer_dev and remote_device_inst.id == mlag_peer_dev.id:
             # In case of MLAG init the peer does not have the correct devtype set yet,
             # use same devtype as local device instead
             remote_devtype = devtype
         elif remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
-            logger.debug("Neighbor device has invalid state, ignoring: {}".format(data[0]["hostname"]))
+            logger.debug("Neighbor device has invalid state, ignoring: {}".format(remote_hostname))
             continue
         else:
             remote_devtype = remote_device_inst.device_type
@@ -281,7 +284,7 @@ def update_linknets(
             local_if,
             remote_device_inst,
             remote_device_settings,
-            data[0]["port"],
+            remote_if,
         )
 
         # Check if linknet object already exists in database
@@ -291,8 +294,8 @@ def update_linknets(
             .filter(
                 ((Linknet.device_a_id == local_devid) & (Linknet.device_a_port == local_if))
                 | ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
-                | ((Linknet.device_a_id == remote_device_inst.id) & (Linknet.device_a_port == data[0]["port"]))
-                | ((Linknet.device_b_id == remote_device_inst.id) & (Linknet.device_b_port == data[0]["port"]))
+                | ((Linknet.device_a_id == remote_device_inst.id) & (Linknet.device_a_port == remote_if))
+                | ((Linknet.device_b_id == remote_device_inst.id) & (Linknet.device_b_port == remote_if))
             )
             .one_or_none()
         )
@@ -302,12 +305,12 @@ def update_linknets(
                 check_linknet.device_a_id == local_devid
                 and check_linknet.device_a_port == local_if
                 and check_linknet.device_b_id == remote_device_inst.id
-                and check_linknet.device_b_port == data[0]["port"]
+                and check_linknet.device_b_port == remote_if
             ) or (
                 check_linknet.device_a_id == local_devid
                 and check_linknet.device_a_port == local_if
                 and check_linknet.device_b_id == remote_device_inst.id
-                and check_linknet.device_b_port == data[0]["port"]
+                and check_linknet.device_b_port == remote_if
             ):
                 if not dry_run:
                     if check_linknet.device_a_id == local_devid:
@@ -351,7 +354,7 @@ def update_linknets(
             hostname_a=local_device_inst.hostname,
             interface_a=local_if,
             hostname_b=remote_device_inst.hostname,
-            interface_b=data[0]["port"],
+            interface_b=remote_if,
             ipv4_network=ipv4_network,
             strict_check=not dry_run,  # Don't do strict check if this is a dry_run
         )

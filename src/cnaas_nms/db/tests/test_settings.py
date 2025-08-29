@@ -5,8 +5,11 @@ import pkg_resources
 import pytest
 import yaml
 from pydantic import ValidationError
+from redis_lru import RedisLRU
 
+import cnaas_nms.db.settings as db_settings_module
 from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.db.session import redis_session
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
     VerifyPathException,
@@ -51,6 +54,46 @@ class SettingsTests(unittest.TestCase):
         settings, settings_origin = get_settings(device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
+
+    @pytest.mark.integration
+    def test_get_settings_redis_hit(self):
+        """
+        Run get_settings twice with the same device should execute get_settings only once
+        """
+        # Clear redis_cache
+        with redis_session() as redis:  # type: ignore
+            cache = RedisLRU(redis)
+            cache.clear_all_cache()
+
+        # Counter to track actual executions
+        call_count = {"count": 0}
+
+        # Save the original undecorated logic
+        original_func = db_settings_module.get_settings
+
+        # Define a spy wrapper
+        def spy_get_settings(*args, **kwargs):
+            call_count["count"] += 1
+            return original_func(*args, **kwargs)
+
+        # Reapply RedisLRU decorator to the spy
+        db_settings_module.get_settings = db_settings_module.redis_lru_cache(spy_get_settings)
+
+        # First call, executes get_settings
+        settings1, _ = db_settings_module.get_settings(
+            device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST
+        )
+
+        # Second call, should hit the cache
+        settings2, _ = db_settings_module.get_settings(
+            device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST
+        )
+
+        # Assert get_settings runs once
+        assert call_count["count"] == 1
+
+        # Assert results are identical
+        assert settings1 == settings2
 
     def test_settings_pathverification(self):
         # Assert that directory structure is actually verified by making sure an

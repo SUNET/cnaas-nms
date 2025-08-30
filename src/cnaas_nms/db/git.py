@@ -1,5 +1,6 @@
 import datetime
 import enum
+import fnmatch
 import json
 import os
 import shutil
@@ -347,6 +348,18 @@ def _refresh_repo_task(local_repo_path, remote_repo_path) -> Tuple[str, Set[str]
     return ret, changed_files
 
 
+def _is_device_type_update_required(updated_templates: set[str], dependencies: List[str], platform: str) -> bool:
+    """
+    Checks if any of the updated templates matches any of the platform dependencies.
+    Support for glob patterns in dependencies with fnmatch.
+    """
+    for updated_template in updated_templates:
+        for dependency in dependencies:
+            if fnmatch.fnmatch(updated_template, os.path.join(platform, dependency)):
+                return True
+    return False
+
+
 def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
     """Determine what device types have become unsynchronized because
     of updated template files."""
@@ -373,7 +386,6 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
         devtype: DeviceType
         for devtype in DeviceType:
             if devtype.name in mapping:
-                update_required = False
                 try:
                     dependencies = list([mapping[devtype.name]["entrypoint"]])
                     if "dependencies" in mapping[devtype.name] and isinstance(
@@ -391,11 +403,7 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
                             devtype.name, str(e)
                         )
                     )
-
-                for dependency in dependencies:
-                    if os.path.join(platform, dependency) in updated_templates:
-                        update_required = True
-                if update_required:
+                if _is_device_type_update_required(updated_templates, dependencies, platform):
                     logger.info("Template for device type {} has been updated".format(devtype.name))
                     unsynced_devtypes.add((devtype, platform))
 

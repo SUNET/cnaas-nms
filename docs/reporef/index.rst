@@ -18,12 +18,15 @@ might be a definition of templates for an access switch specified like this:
     ACCESS:
         entrypoint: access.j2
         dependencies:
+            - access*.j2
             - managed-full.j2
 
 
 This indicates that the starting point for the template of access switches for this platform
 is deffined in the Jinja2 template file called "access.j2". Additionally, this template file
-will depend on things defined in a file called "managed-full.j2".
+will depend on things defined in files "access*.j2" and "managed-full.j2".
+The dependencies can use glob patterns, so "access*.j2" will match any file starting with "access"
+and ending with ".j2".
 
 The template files themselves are written using the Jinja2 templating language. Variables
 that are exposed from CNaaS includes:

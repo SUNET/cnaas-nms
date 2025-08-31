@@ -139,9 +139,12 @@ class FirmwareApi(Resource):
 
         kwargs["url"] = json_data["url"]
 
-        # If sha1 is sent override checksum object and assume sha1 as algorithm.
+        # If sha1 is sent use backwards compatible sha1, otherwise use checksum object
+        # Will be transformed to a checksum object in HTTPD
         if "sha1" in json_data:
-            kwargs["checksum"] = {"algorithm": "sha1", "checksum": json_data["sha1"]}
+            kwargs["sha1"] = json_data["sha1"]
+        else:
+            kwargs["checksum"] = json_data["checksum"]
 
         kwargs["verify_tls"] = json_data["verify_tls"]
 

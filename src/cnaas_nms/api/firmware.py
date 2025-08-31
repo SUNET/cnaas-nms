@@ -26,8 +26,17 @@ firmware_model = api.model(
     "firmware_download",
     {
         "url": fields.String(required=True),
-        "sha1": fields.String(description="sha1 checksum, cannot be used together with sha512", required=False),
-        "sha512": fields.String(description="sha512 checksum, cannot be used together with sha1", required=False),
+        "checksum": fields.Nested(
+            api.model(
+                "firmware_checksum",
+                {
+                    "algorithm": fields.String(description="checksum algorithm", required=True),
+                    "checksum": fields.String(description="checksum value", required=True),
+                },
+            ),
+            required=True,
+            description="checksum object containing algorithm and checksum value, if sha1 field is sent instead of checksum object sha1 is assumed as algorithm.",
+        ),
         "verify_tls": fields.Boolean(required=False),
         "filename": fields.String(required=True),
     },
@@ -122,20 +131,18 @@ class FirmwareApi(Resource):
         if "url" not in json_data:
             return empty_result(status="error", data="Missing parameter url")
 
-        if "sha512" not in json_data and "sha1" not in json_data:
-            return empty_result(status="error", data="Missing parameter sha1 or sha512")
-
-        if "sha512" in json_data and "sha1" in json_data:
-            return empty_result(status="error", data="Cannot supply both sha1 and sha512")
+        if "checksum" not in json_data and "sha1" not in json_data:
+            return empty_result(status="error", data="Missing parameter checksum")
 
         if "verify_tls" not in json_data:
             return empty_result(status="error", data="Missing parameter verify_tls")
 
         kwargs["url"] = json_data["url"]
-        if "sha512" in json_data:
-            kwargs["sha512"] = json_data["sha512"]
-        else:
-            kwargs["sha1"] = json_data["sha1"]
+
+        # If sha1 is sent override checksum object and assume sha1 as algorithm.
+        if "sha1" in json_data:
+            kwargs["checksum"] = {"algorithm": "sha1", "checksum": json_data["sha1"]}
+
         kwargs["verify_tls"] = json_data["verify_tls"]
 
         scheduler: Scheduler = Scheduler()

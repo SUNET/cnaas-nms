@@ -535,6 +535,8 @@ def read_settings(
 def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str) -> dict:
     logger = get_logger()
     filtered_yaml_data = recursive_filter_yamldata(data, groups, hostname)
+    print(f"--> {groups=} -- {hostname=}")
+    print(f"--> {data=} -- {filtered_yaml_data=}")
     if not isinstance(filtered_yaml_data, dict):
         logger.info("Invalid yaml file ignored")
         return {}

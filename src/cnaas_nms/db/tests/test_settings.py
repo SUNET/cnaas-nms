@@ -17,6 +17,7 @@ from cnaas_nms.db.settings import (
     check_bgp_neighbor_routemaps,
     check_vlan_collisions,
     get_device_primary_groups,
+    get_groups,
     get_group_settings,
     get_groups_priorities_sorted,
     get_settings,
@@ -53,6 +54,53 @@ class SettingsTests(unittest.TestCase):
     def test_get_settings_device(self):
         settings, settings_origin = get_settings(device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
+        self.assertTrue(all(k in settings for k in self.required_setting_keys))
+
+    @pytest.mark.integration
+    def test_get_settings_wip(self):
+        # data_global_groups = {
+        #     "groups": [
+        #         {
+        #             "group": {
+        #                 "name": "TESTGROUP",
+        #                 "regex": 'testdevice',
+        #                 "group_priority": "100"
+        #             }
+        #         }
+        #     ]
+        # }
+        # self.mock_read_settings_file("global/groups.yml", data_global_groups)
+        # data_global_routing = {
+        #     "prefix_sets": {
+        #         "DEFAULT": {
+        #             "mode": "ipv4",
+        #             "prefixes": [
+        #                 {"prefix": "0.0.0.0/0", "masklength_range": "0"},
+        #             ],
+        #             "groups": ["TESTGROUP"]
+        #         }
+        #     }
+        # }
+        # self.mock_read_settings_file("global/routing.yml", data_global_routing)
+        # data_group_routing = {
+        #     "prefix_sets": {
+        #         "infra-cpe-loopbacks": {
+        #             "mode": "ipv4",
+        #             "prefixes": [
+        #                 {"prefix": "86.105.113.203/26", "masklength_range": "32-32"},
+        #             ],
+        #         }
+        #     }
+        # }
+        # self.mock_read_settings_file("groups/TESTGROUP/routing.yml", data_group_routing)
+
+        testgroup_dev1 = Device(hostname="testgroup_dev1")
+        settings, settings_origin = get_settings(device=testgroup_dev1)
+        # Assert that all required settings are set
+        print(f"--> {settings=}")
+        testgroup_dev1_groups = get_groups(testgroup_dev1)
+        #testgroup_dev1_groups = get_device_primary_groups(no_cache=True)
+        print(f"--> {testgroup_dev1_groups=}")
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
@@ -324,6 +372,7 @@ class SettingsTests(unittest.TestCase):
         for group in settings.groups:
             self.assertEqual(type(group), f_group)
             assert callable(group.matches)
+
 
 if __name__ == "__main__":
     unittest.main()

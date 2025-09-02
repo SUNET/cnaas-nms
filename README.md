@@ -6,9 +6,9 @@ Campus Network-as-a-Service - Network Management System. Software to automate ma
 
 Planned features:
 1. Zero-touch provisioning of switches
-1. Automation of common changes for campus LAN
-1. Automated procedure for firmware upgrades
-1. Multi-vendor support
+2. Automation of common changes for campus LAN
+3. Automated procedure for firmware upgrades
+4. Multi-vendor support
 
 [Documentation](https://cnaas-nms.readthedocs.io/)
 
@@ -21,8 +21,8 @@ Planned features:
 Docker and docker-compose or:
 
 1. python3.7 or later
-1. install requirements.txt
-1. SQL database, Redis
+2. install requirements.txt
+3. SQL database, Redis
 
 ## Installation
 
@@ -30,7 +30,7 @@ Install docker and docker-compose and run: docker-compose build -f docker/docker
 
 Or install locally by creating a virtualenv and activate the environment, then:
 
-```
+```bash
 python3 -m pip install -r requirements.txt
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
@@ -39,14 +39,14 @@ Edit db_config.yml to point to your SQL and redis database.
 
 ## Test
 
-```
+```bash
 cd src/
 pytest
 ```
 
 Two marks can be used for pytest: `integration` and `equipment`, that can be be used to do a subset of all tests. Eg
 
-```
+```bash
 pytest -m "not integration and not equipment"
 ```
 
@@ -54,7 +54,7 @@ Note that `and` must be used to apply filters at the same time.
 
 If the tests should not spin up any containers at all, set the environment variable `EXTERNAL_TEST_CONTAINERS`, eg
 
-```
+```bash
 EXTERNAL_TEST_CONTAINERS=1 pytest -m "not equipment"
 ```
 

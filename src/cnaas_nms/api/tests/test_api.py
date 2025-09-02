@@ -308,9 +308,13 @@ def test_add_new_device(client):
         "device_type": "ACCESS",
     }
     result = client.post("/api/v1.0/device", json=data)
-    print(result.json)
     assert result.status_code == 200
     assert result.json["status"] == "success"
+
+    # cleanup
+    device_id = result.json["data"]["added_device"]["id"]
+    response = client.delete(f"/api/v1.0/device/{device_id}", json=data)
+    assert response.json["status"] == "success"
 
 
 def test_get_joblocks(client):

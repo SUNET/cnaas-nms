@@ -10,16 +10,18 @@ import yaml
 from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.stackmember import Stackmember
 
 
 @pytest.mark.integration
+@pytest.mark.usefixtures("mock_get_settings")
 class DeviceTests(unittest.TestCase):
     @pytest.fixture(autouse=True)
-    def requirements(self, postgresql, settings_directory):
+    def requirements(self, postgresql, settings_directory, mock_get_settings):
         """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
-        pass
+        self.mock_get_settings = mock_get_settings
 
     def cleandb(self):
         with sqla_session() as session:  # type: ignore
@@ -28,7 +30,13 @@ class DeviceTests(unittest.TestCase):
                 if stack:
                     session.delete(stack)
                     session.commit()
-            for hostname in ["testdevice", "testdevice2", "testfwdevice"]:
+            for hostname in [
+                "testdevice",
+                "testdevice2",
+                "testfwdevice",
+                "neighbor-device",
+                "renamed-device",
+            ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
                     session.delete(device)
@@ -127,12 +135,109 @@ class DeviceTests(unittest.TestCase):
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertEqual(modify_data["description"], q_device.description)
 
+    def test_interface_data_mutable(self):
+        from cnaas_nms.db.interface import Interface, InterfaceConfigType
+
+        with sqla_session() as session:
+            intf = Interface(
+                device_id=self.device_id,
+                name="test-intf",
+                configtype=InterfaceConfigType.ACCESS_AUTO,
+                data={"neighbor": "should-change"},
+            )
+            session.add(intf)
+            session.commit()
+
+            # Mutate JSONB field
+            intf.data["neighbor"] = "changed"
+            session.commit()
+
+            # Verify mutation persisted
+            updated = session.query(Interface).filter_by(name="test-intf", device_id=self.device_id).one()
+            assert updated.data["neighbor"] == "changed"
+
+            if updated:
+                session.delete(updated)
+                session.commit()
+
+    def test_rename_device_updates_neighbor(self):
+        with sqla_session() as session:
+            neighbor_device = Device(
+                hostname="neighbor-device",
+                platform="eos",
+                management_ip=IPv4Address("10.2.2.2"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.DIST,
+                synchronized=True,
+            )
+            session.add(neighbor_device)
+            session.commit()
+            intf = Interface(
+                device=neighbor_device,
+                name="Ethernet1",
+                configtype=InterfaceConfigType.ACCESS_AUTO,
+                data={"neighbor": "testdevice"},
+            )
+            session.add(intf)
+            session.commit()
+
+        # Rename 'testdevice' to 'renamed-device'
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+        # Confirm that the neighbor field in interface has been updated
+        with sqla_session() as session:
+            renamed_device = session.query(Device).filter_by(hostname="renamed-device").one()
+            assert renamed_device
+            assert not renamed_device.synchronized
+            assert session.query(Device).filter_by(hostname="testdevice").one_or_none() is None
+            neighbor = session.query(Device).filter_by(hostname="neighbor-device").one()
+            intf = session.query(Interface).filter_by(name="Ethernet1", device_id=neighbor.id).one()
+            assert intf.data["neighbor"] == "renamed-device"
+            assert not neighbor.synchronized
+
+            # clean up
+            session.delete(intf)
+            session.delete(renamed_device)
+            session.commit()
+
     def test_delete_device(self):
         result = self.client.delete(f"/api/v1.0/device/{self.device_id}")
         self.assertEqual(result.status_code, 200)
         with sqla_session() as session:  # type: ignore
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertIsNone(q_device)
+
+    def test_change_device_name(self):
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+    def test_change_device_name_abort(self):
+        mock_settings_old = {
+            "vxlans": {
+                "student1": {
+                    "vni": "100500",
+                    "ipv4_gw": "10.200.1.1/24",
+                }
+            },
+        }
+        mock_settings_new = {
+            "vxlans": {
+                "student1": {
+                    "vni": "100500",
+                    "ipv4_gw": "10.200.1.2/24",
+                }
+            },
+        }
+
+        self.mock_get_settings("testdevice", mock_settings_old)
+        self.mock_get_settings("renamed-device", mock_settings_new)
+
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 400
 
     @pytest.mark.equipment
     def test_initcheck_distdevice(self):

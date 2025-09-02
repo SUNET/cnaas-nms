@@ -1,3 +1,4 @@
+from copy import deepcopy
 import datetime
 import json
 from typing import Any, List, Optional
@@ -17,6 +18,7 @@ from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
 from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
@@ -25,6 +27,7 @@ from cnaas_nms.db.settings import (
     VlanConflictError,
     get_device_primary_groups,
     get_groups,
+    get_settings,
     rebuild_settings_cache,
     update_device_primary_groups,
 )
@@ -302,24 +305,59 @@ class DeviceByIdApi(Resource):
 
     @login_required
     @device_api.expect(device_model)
-    def put(self, device_id):
+    def put(self, device_id: int):
         """Modify device from ID"""
         json_data = request.get_json()
         with sqla_session() as session:  # type: ignore
             dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
-
             if not dev:
                 return empty_result(status="error", data=f"No device with id {device_id}"), 404
 
             dev_prev_state: DeviceState = dev.state
+
+            current_hostname: str = dev.hostname
+            new_hostname = json_data.get("hostname", current_hostname)
+            is_name_change_request = current_hostname != new_hostname
+            name_change_ok = False
+            if is_name_change_request:
+                new_dev = deepcopy(dev)
+                new_dev.hostname = new_hostname
+                old_settings, _ = get_settings(dev)
+                new_settings, _ = get_settings(new_dev)
+                name_change_ok = old_settings == new_settings
+
+            if is_name_change_request and not name_change_ok:
+                msg = f"Configuration after name change for {current_hostname} would not be the same."\
+                    f" Please check device specific configuration for {current_hostname} and {new_hostname}"
+                return empty_result(status="error", data=[msg]), 400
+
             errors = dev.device_update(**json_data)
             if errors:
                 return empty_result(status="error", data=errors), 400
-            if "hostname" in json_data:
-                # Rebuild settings caches to make sure group memberships are updated after
-                # setting new hostname
+
+            if is_name_change_request:
                 try:
+                    # Rebuild settings caches to make sure group memberships are updated after
+                    # setting new hostname
                     rebuild_settings_cache()
+
+                    # Update interfaces where this device was a neighbor and make the unsynched
+                    interfaces = session.query(Interface).filter(
+                        Interface.data["neighbor"].astext == current_hostname
+                    ).all()
+                    for intf in interfaces:
+                        intf.data["neighbor"] = new_hostname
+                        neigh_dev = session.query(Device).filter(Device.id == intf.device_id).one()
+
+                        neigh_dev.synchronized = False
+                        add_sync_event(neigh_dev.hostname, "neighbor_name_change", by=get_identity())
+
+                    dev.synchronized = False
+                    add_sync_event(new_hostname, "device_name_change", by=get_identity())
+
+                    logger.info(
+                        f"Updated {len(interfaces)} interfaces from neighbor '{current_hostname}' to '{new_hostname}'")
+
                 except SettingsSyntaxError as e:
                     msg = "Error in settings repo configuration: {}".format(e)
                     logger.error(msg)
@@ -330,14 +368,17 @@ class DeviceByIdApi(Resource):
                     logger.error(msg)
                     session.rollback()
                     return empty_result(status="error", data=msg), 500
+
             if "synchronized" in json_data and json_data["synchronized"]:
                 remove_sync_events(dev.hostname)
+
             if (
                 "state" in json_data
                 and json_data["state"].upper() == "UNMANAGED"
                 and dev_prev_state == DeviceState.MANAGED
             ):
                 add_sync_event(dev.hostname, "was_unmanaged", by=get_identity())
+
             session.commit()
             update_device_primary_groups()
             dev_dict = device_data_postprocess([dev])[0]

@@ -120,14 +120,12 @@ class FirmwareApi(Resource):
         except Exception as e:
             logger.exception(f"Exception when getting files: {e}")
             return empty_result(status="error", data="Could not get files"), 404
-        # httpd returns the correct format so we can skip formatting here
-        # this will potentially return any error caught in httpd as well
-        return json_data
+        return empty_result(status="success", data=json_data)
 
 
 class FirmwareImageApi(Resource):
     @login_required
-    def get(self, filename: str) -> dict:
+    def get(self, filename: str) -> dict[str, Any] | tuple[dict[str, Any], int]:
         """Get information about a single firmware"""
         try:
             res = requests.get(f"{api_settings.HTTPD_URL}/{filename}", verify=api_settings.VERIFY_TLS)
@@ -135,12 +133,10 @@ class FirmwareImageApi(Resource):
         except Exception as e:
             logger.exception(f"Exception when getting file: {e}")
             return empty_result(status="error", data="Could not get file"), 404
-        # httpd returns the correct format so we can skip formatting here
-        # this will potentially return any error caught in httpd as well
-        return json_data
+        return empty_result(status="success", data=json_data)
 
     @login_required
-    def delete(self, filename: str) -> dict:
+    def delete(self, filename: str) -> dict[str, Any] | tuple[dict[str, Any], int]:
         """Remove firmware"""
         try:
             res = requests.delete(f"{api_settings.HTTPD_URL}/{filename}", verify=api_settings.VERIFY_TLS)
@@ -148,14 +144,12 @@ class FirmwareImageApi(Resource):
         except Exception as e:
             logger.exception(f"Exception when deleting file: {e}")
             return empty_result(status="error", data="Could not delete file"), 404
-        # httpd returns the correct format so we can skip formatting here
-        # this will potentially return any error caught in httpd as well
-        return json_data
+        return empty_result(status="success", data=json_data)
 
 
 class FirmwareSetDefaultApi(Resource):
     @login_required
-    def post(self, filename: str) -> dict:
+    def post(self, filename: str) -> dict[str, Any] | tuple[dict[str, Any], int]:
         """Set a firmware as the default image"""
         try:
             res = requests.post(f"{api_settings.HTTPD_URL}/{filename}/set-default", verify=api_settings.VERIFY_TLS)
@@ -163,9 +157,7 @@ class FirmwareSetDefaultApi(Resource):
         except Exception as e:
             logger.exception(f"Exception when setting file as default: {e}")
             return empty_result(status="error", data="Could not set file as default"), 404
-        # httpd returns the correct format so we can skip formatting here
-        # this will potentially return any error caught in httpd as well
-        return json_data
+        return empty_result(status="success", data=json_data)
 
 
 class FirmwareUpgradeApi(Resource):

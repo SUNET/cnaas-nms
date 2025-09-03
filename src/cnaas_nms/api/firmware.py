@@ -61,7 +61,7 @@ firmware_upgrade_model = api.model(
 
 
 @job_wrapper
-def get_firmware(**kwargs: dict) -> str:
+def download_firmware(**kwargs: dict) -> str:
     try:
         res = requests.post(api_settings.HTTPD_URL, json=kwargs, verify=api_settings.VERIFY_TLS)
         json_data = json.loads(res.content)
@@ -71,52 +71,6 @@ def get_firmware(**kwargs: dict) -> str:
     if json_data["status"] == "error":
         return json_data["message"]
     return "File downloaded from: " + str(kwargs["url"])
-
-
-@job_wrapper
-def get_firmware_chksum(**kwargs: dict) -> str:
-    try:
-        url = api_settings.HTTPD_URL + "/" + str(kwargs["filename"])
-        res = requests.get(url, verify=api_settings.VERIFY_TLS)
-        json_data = json.loads(res.content)
-    except Exception as e:
-        logger.exception(f"Exception while getting checksum: {e}")
-        return "Failed to get checksum for " + str(kwargs["filename"])
-    if json_data["status"] == "error":
-        return json_data["message"]
-    file_data = json_data["data"]["file"]
-    if "sha512" in file_data:
-        return file_data["sha512"]
-    else:
-        return file_data["sha1"]
-
-
-@job_wrapper
-def remove_file(**kwargs: dict) -> str:
-    try:
-        url = api_settings.HTTPD_URL + "/" + str(kwargs["filename"])
-        res = requests.delete(url, verify=api_settings.VERIFY_TLS)
-        json_data = json.loads(res.content)
-    except Exception as e:
-        logger.exception(f"Exception when removing firmware: {e}")
-        return "Failed to remove file"
-    if json_data["status"] == "error":
-        return "Failed to remove file " + str(kwargs["filename"])
-    return "File " + str(kwargs["filename"]) + " removed"
-
-
-@job_wrapper
-def set_default_file(**kwargs: dict) -> str:
-    try:
-        url = api_settings.HTTPD_URL + "/" + str(kwargs["filename"]) + "/set-default"
-        res = requests.post(url, verify=api_settings.VERIFY_TLS)
-        json_data = json.loads(res.content)
-    except Exception as e:
-        logger.exception(f"Exception when settings default image: {e}")
-        return "Failed to set default image"
-    if json_data["status"] == "error":
-        return "Failed to set default image: " + str(kwargs["filename"]) + ", " + json_data["message"]
-    return "File " + str(kwargs["filename"]) + " set as default image."
 
 
 class FirmwareApi(Resource):
@@ -150,7 +104,7 @@ class FirmwareApi(Resource):
 
         scheduler: Scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.api.firmware:get_firmware", when=1, scheduled_by=get_identity(), kwargs=kwargs
+            "cnaas_nms.api.firmware:download_firmware", when=1, scheduled_by=get_identity(), kwargs=kwargs
         )
         res = empty_result(data="Scheduled job to download firmware")
         res["job_id"] = job_id
@@ -164,55 +118,54 @@ class FirmwareApi(Resource):
             res = requests.get(api_settings.HTTPD_URL, verify=api_settings.VERIFY_TLS)
             json_data = json.loads(res.content)["data"]
         except Exception as e:
-            logger.exception(f"Exception when getting images: {e}")
+            logger.exception(f"Exception when getting files: {e}")
             return empty_result(status="error", data="Could not get files"), 404
-        return empty_result(status="success", data=json_data)
+        # httpd returns the correct format so we can skip formatting here
+        # this will potentially return any error caught in httpd as well
+        return json_data
 
 
 class FirmwareImageApi(Resource):
     @login_required
     def get(self, filename: str) -> dict:
         """Get information about a single firmware"""
-        scheduler: Scheduler = Scheduler()
-        job_id = scheduler.add_onetime_job(
-            "cnaas_nms.api.firmware:get_firmware_chksum",
-            when=1,
-            scheduled_by=get_identity(),
-            kwargs={"filename": filename},
-        )
-        res = empty_result(data="Scheduled job get firmware information")
-        res["job_id"] = job_id
-
-        return res
+        try:
+            res = requests.get(f"{api_settings.HTTPD_URL}/{filename}", verify=api_settings.VERIFY_TLS)
+            json_data = json.loads(res.content)["data"]
+        except Exception as e:
+            logger.exception(f"Exception when getting file: {e}")
+            return empty_result(status="error", data="Could not get file"), 404
+        # httpd returns the correct format so we can skip formatting here
+        # this will potentially return any error caught in httpd as well
+        return json_data
 
     @login_required
     def delete(self, filename: str) -> dict:
         """Remove firmware"""
-        scheduler: Scheduler = Scheduler()
-        job_id = scheduler.add_onetime_job(
-            "cnaas_nms.api.firmware:remove_file", when=1, scheduled_by=get_identity(), kwargs={"filename": filename}
-        )
-        res = empty_result(data="Scheduled job to remove firmware")
-        res["job_id"] = job_id
-
-        return res
+        try:
+            res = requests.delete(f"{api_settings.HTTPD_URL}/{filename}", verify=api_settings.VERIFY_TLS)
+            json_data = json.loads(res.content)["data"]
+        except Exception as e:
+            logger.exception(f"Exception when deleting file: {e}")
+            return empty_result(status="error", data="Could not delete file"), 404
+        # httpd returns the correct format so we can skip formatting here
+        # this will potentially return any error caught in httpd as well
+        return json_data
 
 
 class FirmwareSetDefaultApi(Resource):
     @login_required
     def post(self, filename: str) -> dict:
         """Set a firmware as the default image"""
-        scheduler: Scheduler = Scheduler()
-        job_id = scheduler.add_onetime_job(
-            "cnaas_nms.api.firmware:set_default_file",
-            when=1,
-            scheduled_by=get_identity(),
-            kwargs={"filename": filename},
-        )
-        res = empty_result(data="Scheduled job to set default firmware")
-        res["job_id"] = job_id
-
-        return res
+        try:
+            res = requests.post(f"{api_settings.HTTPD_URL}/{filename}/set-default", verify=api_settings.VERIFY_TLS)
+            json_data = json.loads(res.content)["data"]
+        except Exception as e:
+            logger.exception(f"Exception when setting file as default: {e}")
+            return empty_result(status="error", data="Could not set file as default"), 404
+        # httpd returns the correct format so we can skip formatting here
+        # this will potentially return any error caught in httpd as well
+        return json_data
 
 
 class FirmwareUpgradeApi(Resource):
@@ -229,7 +182,7 @@ class FirmwareUpgradeApi(Resource):
 
         if "url" not in json_data and url == "":
             return empty_result(
-                status="error", data="No external address configured for " 'HTTPD, please specify one with "url"'
+                status="error", data='No external address configured for HTTPD, please specify one with "url"'
             )
 
         if "url" not in json_data:

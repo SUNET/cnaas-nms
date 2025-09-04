@@ -9,7 +9,7 @@ from redis_lru import RedisLRU
 
 import cnaas_nms.db.settings as db_settings_module
 from cnaas_nms.db.device import Device, DeviceType
-from cnaas_nms.db.session import redis_session
+from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
     VerifyPathException,
@@ -37,6 +37,21 @@ class SettingsTests(unittest.TestCase):
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
         self.required_setting_keys = ["ntp_servers", "radius_servers"]
+        self.cleandb()
+
+    def tearDown(self):
+        self.cleandb()
+
+    def cleandb(self):
+        with redis_session() as redis:  # type: ignore
+            cache = RedisLRU(redis)
+            cache.clear_all_cache()
+        with sqla_session() as session:  # type: ignore
+            for hostname in ["testgroup_dev1"]:
+                device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+                if device:
+                    session.delete(device)
+                    session.commit()
 
     @pytest.mark.integration
     def test_get_settings_global(self):
@@ -52,56 +67,24 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     def test_get_settings_device(self):
-        settings, settings_origin = get_settings(device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
+        settings, settings_origin = get_settings(device=Device(
+            hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
-    def test_get_settings_wip(self):
-        # data_global_groups = {
-        #     "groups": [
-        #         {
-        #             "group": {
-        #                 "name": "TESTGROUP",
-        #                 "regex": 'testdevice',
-        #                 "group_priority": "100"
-        #             }
-        #         }
-        #     ]
-        # }
-        # self.mock_read_settings_file("global/groups.yml", data_global_groups)
-        # data_global_routing = {
-        #     "prefix_sets": {
-        #         "DEFAULT": {
-        #             "mode": "ipv4",
-        #             "prefixes": [
-        #                 {"prefix": "0.0.0.0/0", "masklength_range": "0"},
-        #             ],
-        #             "groups": ["TESTGROUP"]
-        #         }
-        #     }
-        # }
-        # self.mock_read_settings_file("global/routing.yml", data_global_routing)
-        # data_group_routing = {
-        #     "prefix_sets": {
-        #         "infra-cpe-loopbacks": {
-        #             "mode": "ipv4",
-        #             "prefixes": [
-        #                 {"prefix": "86.105.113.203/26", "masklength_range": "32-32"},
-        #             ],
-        #         }
-        #     }
-        # }
-        # self.mock_read_settings_file("groups/TESTGROUP/routing.yml", data_group_routing)
+    def test_get_settings_merge_keys(self):
+        testgroup_dev1 = Device(hostname="testgroup_dev1", state="MANAGED", device_type=DeviceType.DIST)
 
-        testgroup_dev1 = Device(hostname="testgroup_dev1")
-        settings, settings_origin = get_settings(device=testgroup_dev1)
-        # Assert that all required settings are set
-        print(f"--> {settings=}")
-        testgroup_dev1_groups = get_groups(testgroup_dev1)
-        #testgroup_dev1_groups = get_device_primary_groups(no_cache=True)
-        print(f"--> {testgroup_dev1_groups=}")
-        self.assertTrue(all(k in settings for k in self.required_setting_keys))
+        with sqla_session() as session:
+            session.add(testgroup_dev1)
+            session.flush()
+            session.expunge(testgroup_dev1)
+
+        settings, _ = get_settings(device=testgroup_dev1)
+
+        self.assertTrue(settings["prefix_sets"] is not None)
+        self.assertTrue(settings["routing_policies"] is not None)
 
     @pytest.mark.integration
     def test_get_settings_redis_hit(self):

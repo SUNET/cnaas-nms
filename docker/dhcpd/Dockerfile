@@ -1,4 +1,4 @@
-FROM debian:buster
+FROM debian:trixie
 
 RUN mkdir -p /opt/cnaas \
     && mkdir /etc/cnaas-nms

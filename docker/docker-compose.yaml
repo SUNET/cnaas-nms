@@ -86,7 +86,7 @@ services:
   #
 
   cnaas_postgres:
-    image: postgres:11
+    image: postgres:17
     volumes:
       - cnaas-postgres-data:/var/lib/postgresql/data
     ports:
@@ -95,6 +95,7 @@ services:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWORD=cnaas
       - POSTGRES_DB=cnaas
+      - POSTGRES_HOST_AUTH_METHOD=trust  # DEV ONLY
     networks:
       - cnaas
 

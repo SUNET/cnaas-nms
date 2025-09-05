@@ -1,4 +1,4 @@
-FROM postgres:11
+FROM postgres:17
 
 ARG SQLFILE=no-file[t]
 

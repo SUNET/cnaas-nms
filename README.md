@@ -2,7 +2,8 @@
 
 # CNaaS-NMS
 
-Campus Network-as-a-Service - Network Management System. Software to automate management of a campus network (LAN). This is an open source software developed as part of SUNETs managed service.
+Campus Network-as-a-Service - Network Management System. Software to automate management of a campus network (LAN). This
+is an open source software developed as part of SUNETs managed service.
 
 Planned features:
 1. Zero-touch provisioning of switches
@@ -26,12 +27,14 @@ Docker and docker-compose or:
 
 ## Installation
 
-Install docker and docker-compose and run: docker-compose build -f docker/docker-compose.yaml
+Install docker and docker-compose and run: `docker-compose build -f docker/docker-compose.yaml`
 
-Or install locally by creating a virtualenv and activate the environment, then:
+Or install a dev environment locally by creating a virtualenv and activate the environment, then:
+
+**Note:** a folder `/etc/cnaas-nms` should exist with write permissions for the user that runs the server. 
 
 ```bash
-python3 -m pip install -r requirements.txt
+python3 -m pip install -r requirements-dev.txt
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 JWT_ENABLED=0 PERMISSIONS_DISABLED=1 alembic upgrade heads
 cd src
@@ -63,7 +66,10 @@ EXTERNAL_TEST_CONTAINERS=1 pytest -m "not equipment"
 
 ## Authorization
 
-Currently we can use two styles for the authorization. We can use the original style or use OIDC style. For OIDC we need to define some env variables or add a auth_config.yaml in the config. The needed variables are: OIDC_CONF_WELL_KNOWN_URL, OIDC_CLIENT_SECRET, OIDC_CLIENT_ID, FRONTEND_CALLBACK_URL and OIDC_ENABLED. To use the OIDC style the last variable needs to be set to true.
+Currently we can use two styles for the authorization. We can use the original style or use OIDC style. For OIDC we need
+to define some env variables or add a auth_config.yaml in the config. The needed variables are:
+`OIDC_CONF_WELL_KNOWN_URL`, `OIDC_CLIENT_SECRET`, `OIDC_CLIENT_ID`, `FRONTEND_CALLBACK_URL` and `OIDC_ENABLED`. To use the OIDC
+style the last variable needs to be set to true.
 
 ## License
 

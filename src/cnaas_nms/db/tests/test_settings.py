@@ -17,7 +17,6 @@ from cnaas_nms.db.settings import (
     check_bgp_neighbor_routemaps,
     check_vlan_collisions,
     get_device_primary_groups,
-    get_groups,
     get_group_settings,
     get_groups_priorities_sorted,
     get_settings,
@@ -83,8 +82,10 @@ class SettingsTests(unittest.TestCase):
 
         settings, _ = get_settings(device=testgroup_dev1)
 
-        self.assertTrue(settings["prefix_sets"] is not None)
-        self.assertTrue(settings["routing_policies"] is not None)
+        self.assertTrue("DEFAULT" in settings["prefix_sets"])
+        self.assertTrue("infra-cpe-loopbacks" in settings["prefix_sets"])
+        self.assertTrue("allow_default" in settings["routing_policies"])
+        self.assertTrue("allow_infra_loopback" in settings["routing_policies"])
 
     @pytest.mark.integration
     def test_get_settings_redis_hit(self):

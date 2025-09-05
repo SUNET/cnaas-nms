@@ -114,7 +114,7 @@ def construct_api_settings() -> ApiSettings:
             FIRMWARE_URL=firmware_url,
             GLOBAL_UNIQUE_VLANS=config.get("global_unique_vlans", True),
             INIT_MGMT_TIMEOUT=config.get("init_mgmt_timeout", 30),
-            SETTINGS_KEYS_TO_MERGE=config.get("settings_keys_to_merge"),
+            SETTINGS_KEYS_TO_MERGE=config.get("settings_keys_to_merge", ApiSettings().SETTINGS_KEYS_TO_MERGE),
             MGMTDOMAIN_RESERVED_COUNT=config.get("mgmtdomain_reserved_count", 5),
             MGMTDOMAIN_PRIMARY_IP_VERSION=config.get("mgmtdomain_primary_ip_version", 4),
             COMMIT_CONFIRMED_MODE=config.get("commit_confirmed_mode", 1),

@@ -10,7 +10,7 @@ def merge_dict_origin(base: dict, override: dict, prev: dict, override_name: str
     from which dict, saving values already set by previous run."""
     data = {}
     metadata = {}
-    settings_to_merge = api_settings.SETTINGS_KEYS_TO_MERGE
+    settings_to_merge = api_settings.SETTINGS_KEYS_TO_MERGE or []
 
     for base_key, base_value in base.items():
         if base_key not in data:

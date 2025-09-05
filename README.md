@@ -33,6 +33,9 @@ Or install locally by creating a virtualenv and activate the environment, then:
 ```bash
 python3 -m pip install -r requirements.txt
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
+JWT_ENABLED=0 PERMISSIONS_DISABLED=1 alembic upgrade heads
+cd src
+JWT_ENABLED=0 PERMISSIONS_DISABLED=1 PYTHONPATH=. python cnaas_nms/run.py
 ```
 
 Edit db_config.yml to point to your SQL and redis database.

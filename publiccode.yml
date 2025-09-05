@@ -13,7 +13,7 @@ description:
     shortDescription: Multi-vendor network management system for campus, datacenters etc
     longDescription: A multi-vendor network management system to handle
       configuration management lifecycle of network devices like switches,
-      routers and firewalls in  campus or datacenter environments for example.
+      routers and firewalls in campus or datacenter environments for example.
       Supports zero-touch provisioning of switches via DHCP and firmware
       upgrades. Configuration settings and templates are stored in git
       repositories, while configuration synchronization, zero-touch provisioning

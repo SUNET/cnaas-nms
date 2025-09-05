@@ -22,5 +22,9 @@ jobs:
       - name: Install Ruff
         run: pip install ruff
 
-      - name: Run Ruff
+      - name: Run Ruff Linting
         run: ruff check src/
+
+      # enable when we have a formatted code base
+#      - name: Run Ruff Formatter
+#        run: ruff format --check .

@@ -30,6 +30,10 @@ interfacedata_model = api.model(
         "redundant_link": fields.Boolean(required=False, example=True),
         "tags": fields.List(fields.String(), required=False, description="List of tags", example=["tag1", "tag2"]),
         "cli_append_str": fields.String(required=False),
+        "patch_position": fields.String(
+            required=False,
+            description="Patch Position",
+        ),
     },
 )
 
@@ -101,6 +105,8 @@ class InterfaceApi(Resource):
                 return empty_result("error", "Device not found"), 404
 
             updated = False
+            interfaces = session.query(Interface).filter(Interface.device == dev).all()
+            patch_positions = [interface.data["patch_position"] for interface in interfaces if "patch_position" in interface.data]
             if "interfaces" in json_data and isinstance(json_data["interfaces"], dict):
                 for if_name, if_dict in json_data["interfaces"].items():
                     if not isinstance(if_dict, dict):
@@ -115,12 +121,13 @@ class InterfaceApi(Resource):
                     if not intf:
                         errors.append(f"Interface {if_name} not found")
                         continue
+
+                    # init interface data
+                    intfdata_original: dict[str, Any] = {}
+                    intfdata: dict[str, Any] = {}
                     if intf.data and isinstance(intf.data, dict):
-                        intfdata_original: dict[str, Any] = dict(intf.data)
-                        intfdata: dict[str, Any] = dict(intf.data)
-                    else:
-                        intfdata_original = {}
-                        intfdata = {}
+                        intfdata_original = dict(intf.data)
+                        intfdata = dict(intf.data)
 
                     if "configtype" in if_dict and if_dict["configtype"]:
                         try:
@@ -269,6 +276,21 @@ class InterfaceApi(Resource):
                             else:
                                 errors.append(
                                     "cli_append_str must be a string, got: {}".format(if_dict["data"]["cli_append_str"])
+                                )
+                        if "patch_position" in if_dict["data"]:
+                            if isinstance(if_dict["data"]["patch_position"], str):
+                                if if_dict["data"]["patch_position"] not in patch_positions:
+                                    intfdata["patch_position"] = if_dict["data"]["patch_position"]
+                                    patch_positions.append(if_dict["data"]["patch_position"])
+                                else:
+                                    errors.append(
+                                        "patch_position must be unique for the interfaces: {}".format(
+                                            if_dict["data"]["patch_position"]
+                                        )
+                                    )
+                            else:
+                                errors.append(
+                                    "patch_position must be a string, got: {}".format(if_dict["data"]["patch_position"])
                                 )
                     elif "data" in if_dict and not if_dict["data"]:
                         intfdata: None = None  # type: ignore [no-redef]

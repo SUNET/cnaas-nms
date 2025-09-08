@@ -734,7 +734,7 @@ def get_settings(
         settings = get_downstream_dependencies(device.hostname, settings)
 
         # 5. Get settings repo group specific settings
-        primary_group = get_device_primary_groups().get(device.hostname)
+        primary_group = get_device_primary_groups(no_cache=True).get(device.hostname)
         if primary_group:
             # add templates worktree
             templates_branch = get_group_templates_branch(primary_group)

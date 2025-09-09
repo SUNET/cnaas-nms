@@ -20,6 +20,7 @@ from cnaas_nms.db.settings import (
     get_group_settings,
     get_groups_priorities_sorted,
     get_settings,
+    rebuild_settings_cache,
     verify_dir_structure,
 )
 from cnaas_nms.db.settings_fields import f_group, f_groups
@@ -51,6 +52,7 @@ class SettingsTests(unittest.TestCase):
                 if device:
                     session.delete(device)
                     session.commit()
+                    rebuild_settings_cache()
 
     @pytest.mark.integration
     def test_get_settings_global(self):
@@ -74,11 +76,12 @@ class SettingsTests(unittest.TestCase):
     @pytest.mark.integration
     def test_get_settings_merge_keys(self):
         testgroup_dev1 = Device(hostname="testgroup_dev1", state="MANAGED", device_type=DeviceType.DIST)
-
         with sqla_session() as session:
             session.add(testgroup_dev1)
             session.flush()
             session.expunge(testgroup_dev1)
+
+        rebuild_settings_cache()
 
         settings, _ = get_settings(device=testgroup_dev1)
 

@@ -4,7 +4,13 @@ from typing import Set, Tuple
 import pytest
 
 from cnaas_nms.db.device import DeviceType
-from cnaas_nms.db.git import RepoType, repo_checkout_working, repo_save_working_commit, template_syncstatus
+from cnaas_nms.db.git import (
+    RepoType,
+    _is_device_type_update_required,
+    repo_checkout_working,
+    repo_save_working_commit,
+    template_syncstatus,
+)
 from cnaas_nms.db.session import redis_session
 
 
@@ -31,6 +37,15 @@ class GitTests(unittest.TestCase):
             self.assertEqual(type(devtype[0]), DeviceType)
             self.assertEqual(type(devtype[1]), str)
         self.assertTrue((DeviceType.ACCESS, "eos") in devtypes)
+
+    def test_is_device_type_update_required(self):
+        self.assertTrue(_is_device_type_update_required({"eos/base.j2"}, ["base.j2"], "eos"))
+        self.assertTrue(_is_device_type_update_required({"eos/access.j2"}, ["access*.j2"], "eos"))
+        self.assertFalse(_is_device_type_update_required({"ios/base.j2"}, ["**.j2"], "eos"))
+        self.assertTrue(_is_device_type_update_required({"eos/acls/some-acl.eacl"}, ["acls/*.eacl"], "eos"))
+        self.assertFalse(_is_device_type_update_required({"eos/dist-base.j2"}, ["access*.j2"], "eos"))
+        self.assertFalse(_is_device_type_update_required({"eos/core-base.j2"}, ["dist*.j2"], "eos"))
+        self.assertFalse(_is_device_type_update_required({"junos/access-base.j2"}, ["access-*.j2"], "eos"))
 
     def test_savecommit(self):
         self.assertFalse(

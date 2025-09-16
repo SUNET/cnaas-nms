@@ -327,9 +327,7 @@ Can contain the following dictionaries with specified keys:
       * peer_ipv6: IPv6 address of peer
       * other options are the same as neighbor_v4
 
-- prefix_sets: Dictionary of {<name>, <entry>}:
-
-  * By default merges global and group settings, see :ref:`configuration_environment_ref`.
+* prefix_sets: Dictionary of {<name>, <entry>}:
 
   * mode: String, either "ipv4", "ipv6" or "mixed"
   * prefixes: list of
@@ -337,9 +335,10 @@ Can contain the following dictionaries with specified keys:
     * prefix: String for ipv4 or ipv6 prefix, ex: 10.0.0.0/8
     * masklength_range: Optional string defining range of prefixes to match, ex: 24-32 or 32-32
 
-- routing_policies: Dictionary of {<name>, <entry>}:
+.. note::
+   By default merges global and group settings, see :ref:`configuration_environment_ref`.
 
-  * By default merges global and group settings, see :ref:`configuration_environment_ref`.
+* routing_policies: Dictionary of {<name>, <entry>}:
 
   * statements: List of:
 
@@ -348,6 +347,9 @@ Can contain the following dictionaries with specified keys:
 
       * match_type: String, ex "ipv4 prefix-set"
       * match_target: String, referring to prefix-set for example: "default-route"
+
+.. note::
+   By default merges global and group settings, see :ref:`configuration_environment_ref`.
 
 - external_routing_policies: List of strings, referring to routing policies defined in external
   sources such as templates repository. BGP neighbor route maps must refer to a policy defined in

@@ -336,7 +336,7 @@ Can contain the following dictionaries with specified keys:
     * masklength_range: Optional string defining range of prefixes to match, ex: 24-32 or 32-32
 
 .. note::
-   By default merges global and group settings, see :ref:`configuration_environment_ref`.
+   By default merges global and group settings, see `settings_keys_to_merge` in :ref:`configuration_api_ref`.
 
 * routing_policies: Dictionary of {<name>, <entry>}:
 
@@ -349,7 +349,7 @@ Can contain the following dictionaries with specified keys:
       * match_target: String, referring to prefix-set for example: "default-route"
 
 .. note::
-   By default merges global and group settings, see :ref:`configuration_environment_ref`.
+   By default merges global and group settings, see `settings_keys_to_merge` in :ref:`configuration_api_ref`.
 
 - external_routing_policies: List of strings, referring to routing policies defined in external
   sources such as templates repository. BGP neighbor route maps must refer to a policy defined in

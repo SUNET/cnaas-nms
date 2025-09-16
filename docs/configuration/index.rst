@@ -14,12 +14,12 @@ Config files are placed in /etc/cnaas-nms
 
 Defines how to connect to the SQL and redis databases.
 
+.. _configuration_api_ref:
+
 /etc/cnaas-nms/api.yml
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Defines parameters for the API:
-
-.. _configuration_api_ref:
 
 - host: Defines the listening host/IP, default 0.0.0.0
 - jwtcert: Defines the path to the public JWT certificate used to verify JWT tokens

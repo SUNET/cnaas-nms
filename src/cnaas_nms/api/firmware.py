@@ -61,7 +61,7 @@ firmware_upgrade_model = api.model(
 
 
 @job_wrapper
-def download_firmware(**kwargs: dict) -> str:
+def download_firmware_to_nms(**kwargs: dict) -> str:
     try:
         res = requests.post(api_settings.HTTPD_URL, json=kwargs, verify=api_settings.VERIFY_TLS)
         json_data = json.loads(res.content)
@@ -104,7 +104,7 @@ class FirmwareApi(Resource):
 
         scheduler: Scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(
-            "cnaas_nms.api.firmware:download_firmware", when=1, scheduled_by=get_identity(), kwargs=kwargs
+            "cnaas_nms.api.firmware:download_firmware_to_nms", when=1, scheduled_by=get_identity(), kwargs=kwargs
         )
         res = empty_result(data="Scheduled job to download firmware")
         res["job_id"] = job_id

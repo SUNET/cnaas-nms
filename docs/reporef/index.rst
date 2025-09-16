@@ -93,6 +93,8 @@ For example, NTP servers might be defined in the "global" settings to impact the
 managed network, but then overridden for a specific device type that needs custom NTP servers.
 The inheritence is defined in these steps:
 Global -> Fabric -> Core/Dist/Access -> Group -> Device specific.
+One modification to this rule are fields defined in `SETTINGS_KEYS_TO_MERGE`, which instead will merge global settings with group settings.
+It will prioritize group settings if the entries in the keys collide. The default settings to merge are `prefix_sets` and `routing_policies`.
 The directory structure looks like this:
 
 - global
@@ -327,6 +329,8 @@ Can contain the following dictionaries with specified keys:
 
 - prefix_sets: Dictionary of {<name>, <entry>}:
 
+  * By default merges global and group settings, see :ref:`configuration_environment_ref`.
+
   * mode: String, either "ipv4", "ipv6" or "mixed"
   * prefixes: list of
 
@@ -334,6 +338,8 @@ Can contain the following dictionaries with specified keys:
     * masklength_range: Optional string defining range of prefixes to match, ex: 24-32 or 32-32
 
 - routing_policies: Dictionary of {<name>, <entry>}:
+
+  * By default merges global and group settings, see :ref:`configuration_environment_ref`.
 
   * statements: List of:
 

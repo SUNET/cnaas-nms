@@ -9,7 +9,7 @@ from redis_lru import RedisLRU
 
 import cnaas_nms.db.settings as db_settings_module
 from cnaas_nms.db.device import Device, DeviceType
-from cnaas_nms.db.session import redis_session
+from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
     VerifyPathException,
@@ -20,6 +20,7 @@ from cnaas_nms.db.settings import (
     get_group_settings,
     get_groups_priorities_sorted,
     get_settings,
+    rebuild_settings_cache,
     verify_dir_structure,
 )
 from cnaas_nms.db.settings_fields import f_group, f_groups
@@ -36,6 +37,22 @@ class SettingsTests(unittest.TestCase):
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
         self.required_setting_keys = ["ntp_servers", "radius_servers"]
+        self.cleandb()
+
+    def tearDown(self):
+        self.cleandb()
+
+    def cleandb(self):
+        with redis_session() as redis:  # type: ignore
+            cache = RedisLRU(redis)
+            cache.clear_all_cache()
+        with sqla_session() as session:  # type: ignore
+            for hostname in ["testgroup_dev1"]:
+                device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+                if device:
+                    session.delete(device)
+                    session.commit()
+                    rebuild_settings_cache()
 
     @pytest.mark.integration
     def test_get_settings_global(self):
@@ -51,9 +68,27 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     def test_get_settings_device(self):
-        settings, settings_origin = get_settings(device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
+        settings, settings_origin = get_settings(device=Device(
+            hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
+
+    @pytest.mark.integration
+    def test_get_settings_merge_keys(self):
+        testgroup_dev1 = Device(hostname="testgroup_dev1", state="MANAGED", device_type=DeviceType.DIST)
+        with sqla_session() as session:
+            session.add(testgroup_dev1)
+            session.flush()
+            session.expunge(testgroup_dev1)
+
+        rebuild_settings_cache()
+
+        settings, _ = get_settings(device=testgroup_dev1)
+
+        self.assertTrue("DEFAULT" in settings["prefix_sets"])
+        self.assertTrue("infra-cpe-loopbacks" in settings["prefix_sets"])
+        self.assertTrue("allow_default" in settings["routing_policies"])
+        self.assertTrue("allow_infra_loopback" in settings["routing_policies"])
 
     @pytest.mark.integration
     def test_get_settings_redis_hit(self):
@@ -324,6 +359,7 @@ class SettingsTests(unittest.TestCase):
         for group in settings.groups:
             self.assertEqual(type(group), f_group)
             assert callable(group.matches)
+
 
 if __name__ == "__main__":
     unittest.main()

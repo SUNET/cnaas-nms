@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 import yaml
 from pydantic import field_validator
@@ -51,6 +51,7 @@ class ApiSettings(BaseSettings):
     PLUGIN_FILE: Path = Path("/etc/cnaas-nms/plugins.yml")
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
+    SETTINGS_KEYS_TO_MERGE: Optional[List[str]] = ["prefix_sets", "routing_policies"]
     MGMTDOMAIN_RESERVED_COUNT: int = 5
     MGMTDOMAIN_PRIMARY_IP_VERSION: int = 4
     COMMIT_CONFIRMED_MODE: int = 1
@@ -113,6 +114,7 @@ def construct_api_settings() -> ApiSettings:
             FIRMWARE_URL=firmware_url,
             GLOBAL_UNIQUE_VLANS=config.get("global_unique_vlans", True),
             INIT_MGMT_TIMEOUT=config.get("init_mgmt_timeout", 30),
+            SETTINGS_KEYS_TO_MERGE=config.get("settings_keys_to_merge", ApiSettings().SETTINGS_KEYS_TO_MERGE),
             MGMTDOMAIN_RESERVED_COUNT=config.get("mgmtdomain_reserved_count", 5),
             MGMTDOMAIN_PRIMARY_IP_VERSION=config.get("mgmtdomain_primary_ip_version", 4),
             COMMIT_CONFIRMED_MODE=config.get("commit_confirmed_mode", 1),

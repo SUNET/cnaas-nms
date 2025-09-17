@@ -524,12 +524,12 @@ def read_settings(
     elif not isinstance(yamldata, dict):
         logger.info("Invalid yaml file ignored: {}".format(filename))
         return merged_settings, merged_settings_origin
-    settings: dict = yamldata
+    settings_from_file: dict = yamldata
     if groups or hostname:
-        syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings, {}, origin)
+        syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings_from_file, {}, origin)
         check_settings_syntax(syntax_dict, syntax_dict_origin)
-        settings = filter_yamldata(settings, groups if groups else [], hostname if hostname else "")
-    return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
+        settings_from_file = filter_yamldata(settings_from_file, groups if groups else [], hostname if hostname else "")
+    return merge_dict_origin(merged_settings, settings_from_file, merged_settings_origin, origin)
 
 
 def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str) -> dict:
@@ -647,7 +647,6 @@ def get_settings(
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
     logger = get_logger()
-    get_type = "global"
 
     local_repo_path = app_settings.SETTINGS_LOCAL
     try:
@@ -666,6 +665,7 @@ def get_settings(
         settings_origin[k] = "default"
 
     # 2. Get settings repo global settings
+    get_type = "global"
     if device:
         # Some settings parsing require knowledge of group memberships
         groups = get_groups(device)
@@ -695,6 +695,7 @@ def get_settings(
             settings,
             settings_origin,
         )
+
     # 4. Get settings repo device type settings
     if device_type:
         get_type = "devicetype {}".format(device_type.name)
@@ -731,6 +732,7 @@ def get_settings(
             device.hostname,
         )
         settings = get_downstream_dependencies(device.hostname, settings)
+
         # 5. Get settings repo group specific settings
         primary_group = get_device_primary_groups().get(device.hostname)
         if primary_group:
@@ -760,6 +762,7 @@ def get_settings(
                     settings,
                     settings_origin,
                 )
+
         # 6. Get settings repo device specific settings
         if os.path.isdir(os.path.join(local_repo_path, "devices", device.hostname)):
             settings, settings_origin = read_settings(
@@ -827,6 +830,7 @@ def get_settings(
             settings_origin,
             groups,
         )
+
     # Verify syntax
     verified_settings = check_settings_syntax(settings, settings_origin)
     set_everything = set(settings)

@@ -96,6 +96,8 @@ For example, NTP servers might be defined in the "global" settings to impact the
 managed network, but then overridden for a specific device type that needs custom NTP servers.
 The inheritence is defined in these steps:
 Global -> Fabric -> Core/Dist/Access -> Group -> Device specific.
+One modification to this rule are fields defined in `SETTINGS_KEYS_TO_MERGE`, which instead will merge global settings with group settings.
+It will prioritize group settings if the entries in the keys collide. The default settings to merge are `prefix_sets` and `routing_policies`.
 The directory structure looks like this:
 
 - global
@@ -328,7 +330,7 @@ Can contain the following dictionaries with specified keys:
       * peer_ipv6: IPv6 address of peer
       * other options are the same as neighbor_v4
 
-- prefix_sets: Dictionary of {<name>, <entry>}:
+* prefix_sets: Dictionary of {<name>, <entry>}:
 
   * mode: String, either "ipv4", "ipv6" or "mixed"
   * prefixes: list of
@@ -336,7 +338,10 @@ Can contain the following dictionaries with specified keys:
     * prefix: String for ipv4 or ipv6 prefix, ex: 10.0.0.0/8
     * masklength_range: Optional string defining range of prefixes to match, ex: 24-32 or 32-32
 
-- routing_policies: Dictionary of {<name>, <entry>}:
+.. note::
+   By default merges global and group settings, see `settings_keys_to_merge` in :ref:`configuration_api_ref`.
+
+* routing_policies: Dictionary of {<name>, <entry>}:
 
   * statements: List of:
 
@@ -345,6 +350,9 @@ Can contain the following dictionaries with specified keys:
 
       * match_type: String, ex "ipv4 prefix-set"
       * match_target: String, referring to prefix-set for example: "default-route"
+
+.. note::
+   By default merges global and group settings, see `settings_keys_to_merge` in :ref:`configuration_api_ref`.
 
 - external_routing_policies: List of strings, referring to routing policies defined in external
   sources such as templates repository. BGP neighbor route maps must refer to a policy defined in

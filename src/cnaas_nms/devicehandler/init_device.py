@@ -544,20 +544,6 @@ def init_access_device_step1(
             session.rollback()
             raise e
 
-        try:
-            update_linknets(
-                session,
-                dev.hostname,
-                DeviceType.ACCESS,
-                mlag_peer_dev=mlag_peer_dev,
-                dry_run=False,
-            )
-            if mlag_peer_dev:
-                update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS, dry_run=False)
-        except Exception as e:
-            session.rollback()
-            raise e
-
         secondary_mgmt_ip = None
         # old hostname
         if replace_dev:
@@ -567,7 +553,7 @@ def init_access_device_step1(
             new_dhcp_ip = dev.dhcp_ip
             logger.info(
                 f"Replacing device {new_hostname}, "
-                + f"serial: {dev.serial} -> {new_serial}, model: {dev.model} -> {new_model}"
+                + f"serial: {replace_dev.serial} -> {new_serial}, model: {replace_dev.model} -> {new_model}"
             )
             logger.info(
                 f"Replacing device {new_hostname}, " + f"removing device ID {dev.id} and keeping {replace_dev.id}"
@@ -594,6 +580,20 @@ def init_access_device_step1(
                 reserved_ip = ReservedIP(device=dev, ip=secondary_mgmt_ip, ip_version=secondary_mgmt_ip.version)
                 session.add(reserved_ip)
             session.commit()
+
+        try:
+            update_linknets(
+                session,
+                dev.hostname,
+                DeviceType.ACCESS,
+                mlag_peer_dev=mlag_peer_dev,
+                dry_run=False,
+            )
+            if mlag_peer_dev:
+                update_linknets(session, mlag_peer_dev.hostname, DeviceType.ACCESS, dry_run=False)
+        except Exception as e:
+            session.rollback()
+            raise e
 
         # TODO: check compatability, same dist pair and same ports on dists
         mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, uplink_hostnames)

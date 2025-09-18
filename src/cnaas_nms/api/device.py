@@ -1,6 +1,6 @@
-from copy import deepcopy
 import datetime
 import json
+from copy import deepcopy
 from typing import Any, List, Optional
 
 from flask import make_response, request
@@ -100,7 +100,14 @@ device_model = device_api.model(
 )
 
 device_init_model = device_init_api.model(
-    "device_init", {"hostname": fields.String(required=False), "device_type": fields.String(required=False)}
+    "device_init",
+    {
+        "hostname": fields.String(required=False),
+        "device_type": fields.String(required=False),
+        "replace_hostname": fields.Boolean(
+            required=False, description="This device id should replace old device with specified hostname"
+        ),
+    },
 )
 
 device_initcheck_model = device_initcheck_api.model(
@@ -327,8 +334,10 @@ class DeviceByIdApi(Resource):
                 name_change_ok = old_settings == new_settings
 
             if is_name_change_request and not name_change_ok:
-                msg = f"Configuration after name change for {current_hostname} would not be the same."\
+                msg = (
+                    f"Configuration after name change for {current_hostname} would not be the same."
                     f" Please check device specific configuration for {current_hostname} and {new_hostname}"
+                )
                 return empty_result(status="error", data=[msg]), 400
 
             errors = dev.device_update(**json_data)
@@ -342,9 +351,9 @@ class DeviceByIdApi(Resource):
                     rebuild_settings_cache()
 
                     # Update interfaces where this device was a neighbor and make the unsynched
-                    interfaces = session.query(Interface).filter(
-                        Interface.data["neighbor"].astext == current_hostname
-                    ).all()
+                    interfaces = (
+                        session.query(Interface).filter(Interface.data["neighbor"].astext == current_hostname).all()
+                    )
                     for intf in interfaces:
                         intf.data["neighbor"] = new_hostname
                         neigh_dev = session.query(Device).filter(Device.id == intf.device_id).one()
@@ -356,7 +365,8 @@ class DeviceByIdApi(Resource):
                     add_sync_event(new_hostname, "device_name_change", by=get_identity())
 
                     logger.info(
-                        f"Updated {len(interfaces)} interfaces from neighbor '{current_hostname}' to '{new_hostname}'")
+                        f"Updated {len(interfaces)} interfaces from neighbor '{current_hostname}' to '{new_hostname}'"
+                    )
 
                 except SettingsSyntaxError as e:
                     msg = "Error in settings repo configuration: {}".format(e)
@@ -571,6 +581,9 @@ class DeviceInitApi(Resource):
                 )
         else:
             parsed_args["neighbors"] = None
+
+        if "replace_hostname" in json_data and json_data["replace_hostname"] is not None:
+            parsed_args["replace_hostname"] = json_data["replace_hostname"]
 
         return parsed_args
 

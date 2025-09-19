@@ -563,7 +563,6 @@ def init_access_device_step1(
             session.commit()
             del dev
             dev = replace_dev
-            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
             device_id = dev.id
             dev.ztp_mac = new_ztp_mac
             dev.serial = new_serial
@@ -581,6 +580,7 @@ def init_access_device_step1(
             if secondary_mgmt_ip:
                 reserved_ip = ReservedIP(device=dev, ip=secondary_mgmt_ip, ip_version=secondary_mgmt_ip.version)
                 session.add(reserved_ip)
+            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
             session.commit()
 
         try:

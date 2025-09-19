@@ -521,8 +521,7 @@ def init_access_device_step1(
             # update linknets using LLDP data
             linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS, dry_run=True)
             linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
-            if not replace_dev:
-                update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
+            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         try:
@@ -552,6 +551,8 @@ def init_access_device_step1(
             new_serial = dev.serial
             new_model = dev.model
             new_dhcp_ip = dev.dhcp_ip
+            ztp_hostname = dev.hostname
+            ztp_device_id = dev.id
             logger.info(
                 f"Replacing device {new_hostname}, "
                 + f"serial: {replace_dev.serial} -> {new_serial}, model: {replace_dev.model} -> {new_model}"
@@ -567,6 +568,7 @@ def init_access_device_step1(
             dev.ztp_mac = new_ztp_mac
             dev.serial = new_serial
             dev.model = new_model
+            dev.hostname = ztp_hostname
             dev.dhcp_ip = new_dhcp_ip
             dev.state = DeviceState.DISCOVERED
             mgmt_ip = dev.management_ip
@@ -580,8 +582,14 @@ def init_access_device_step1(
             if secondary_mgmt_ip:
                 reserved_ip = ReservedIP(device=dev, ip=secondary_mgmt_ip, ip_version=secondary_mgmt_ip.version)
                 session.add(reserved_ip)
-            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
             session.commit()
+            # go through linknets and update neighbor id from ztp device_id to old device_id
+            for linknet in linknets:  # type: ignore
+                if linknet["device_a_id"] == ztp_device_id:
+                    linknet["device_a_id"] = dev.id
+                if linknet["device_b_id"] == ztp_device_id:
+                    linknet["device_b_id"] = dev.id
+            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
 
         try:
             update_linknets(

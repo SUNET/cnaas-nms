@@ -521,7 +521,8 @@ def init_access_device_step1(
             # update linknets using LLDP data
             linknets_all += update_linknets(session, dev.hostname, DeviceType.ACCESS, dry_run=True)
             linknets = Linknet.deduplicate_linknet_dicts(linknets_all)
-            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
+            if not replace_dev:
+                update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
             uplink_hostnames = dev.get_uplink_peer_hostnames(session)
 
         try:
@@ -562,6 +563,7 @@ def init_access_device_step1(
             session.commit()
             del dev
             dev = replace_dev
+            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
             device_id = dev.id
             dev.ztp_mac = new_ztp_mac
             dev.serial = new_serial

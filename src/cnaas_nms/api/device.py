@@ -105,7 +105,9 @@ device_init_model = device_init_api.model(
         "hostname": fields.String(required=False),
         "device_type": fields.String(required=False),
         "replace_hostname": fields.Boolean(
-            required=False, description="This device id should replace old device with specified hostname"
+            required=False,
+            description="This device id should replace old device with specified hostname",
+            default=False,
         ),
     },
 )

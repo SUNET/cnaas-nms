@@ -643,6 +643,7 @@ def get_settings(
     device: Optional[Device] = None,
     device_type: Optional[DeviceType] = None,
     device_model: Optional[str] = None,
+    is_device_in_db: bool = True,
 ) -> Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
@@ -734,7 +735,11 @@ def get_settings(
         settings = get_downstream_dependencies(device.hostname, settings)
 
         # 5. Get settings repo group specific settings
-        primary_group = get_device_primary_groups().get(device.hostname)
+        primary_group = None
+        if is_device_in_db:
+            primary_group = get_device_primary_groups().get(device.hostname)
+        else:
+            primary_group = get_primary_group_for_device(device)
         if primary_group:
             # add templates worktree
             templates_branch = get_group_templates_branch(primary_group)
@@ -873,9 +878,7 @@ def get_groups(device: Optional[Device] = None) -> List[str]:
     """Return list of names for valid groups."""
     groups: list[str] = []
     settings, origin = get_group_settings()
-    if not settings:
-        return groups
-    if settings.groups is None:
+    if not settings or settings.groups is None:
         return groups
     for group in settings.groups:
         if device and not group.matches(device):
@@ -887,9 +890,7 @@ def get_groups(device: Optional[Device] = None) -> List[str]:
 def get_group(group_name: str) -> Optional[f_group]:
     """Returns the group object if it's found."""
     settings, _ = get_group_settings()
-    if not settings:
-        return None
-    if settings.groups is None:
+    if not settings or settings.groups is None:
         return None
     return next((group for group in settings.groups if group.name == group_name), None)
 
@@ -904,9 +905,7 @@ def get_group_templates_branch(group_name: str) -> Optional[str]:
 def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     """Returns a dict with group name as key and other parameters as values"""
     settings, _ = get_group_settings()
-    if not settings:
-        return {}
-    if not settings.groups:
+    if not settings or not settings.groups:
         return {}
     group_dict: Dict[str, Dict[str, Any]] = {}
     for group in settings.groups:
@@ -967,6 +966,11 @@ def parse_device_primary_groups() -> Dict[str, str]:
             primary_group: str = find_primary_group(groups, groups_priorities_sorted)
             device_primary_group[dev.hostname] = primary_group
     return device_primary_group
+
+
+def get_primary_group_for_device(dev: Device) -> str:
+    """Matches device against groups. Does not require a session."""
+    return find_primary_group(get_groups(dev), get_groups_priorities_sorted())
 
 
 def update_device_primary_groups():

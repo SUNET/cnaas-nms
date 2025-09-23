@@ -33,9 +33,11 @@ class DeviceTests(unittest.TestCase):
             for hostname in [
                 "testdevice",
                 "testdevice2",
+                "testgroup-device1",
                 "testfwdevice",
                 "neighbor-device",
                 "renamed-device",
+                "hostname-device2",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
@@ -212,6 +214,30 @@ class DeviceTests(unittest.TestCase):
     def test_change_device_name(self):
         rename_data = {"hostname": "renamed-device"}
         rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+    def test_change_device_name_groups_changed_abort(self):
+        rename_data = {"hostname": "testgroup-device1"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 400
+
+    def test_change_device_name_groups_changed_allow(self):
+        device_id = 0
+        # Device that is NOT in MANAGED state
+        with sqla_session() as session:  # type: ignore
+            device = Device(
+                hostname="hostname-device2",
+                platform="eos",
+                management_ip=IPv4Address("10.0.1.22"),
+                state=DeviceState.UNMANAGED,
+                device_type=DeviceType.DIST,
+            )
+            session.add(device)
+            session.commit()
+            device_id = device.id
+        # Change to hostname in TEST_GROUP
+        rename_data = {"hostname": "testgroup-device1"}
+        rename_response = self.client.put(f"/api/v1.0/device/{device_id}", json=rename_data)
         assert rename_response.status_code == 200
 
     def test_change_device_name_abort(self):

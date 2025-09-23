@@ -251,9 +251,16 @@ def get_interfaces_names(hostname: str) -> List[str]:
         return list(getfacts_task.result["interfaces"].keys())
 
 
+def sort_interfaces(name):
+    def toint(text):
+        return int(text) if text.isdigit() else text
+
+    return [toint(c) for c in re.split(r"(\d+)", name)]
+
+
 def filter_interfaces(iflist: List[str], platform=None, include=None) -> List[str]:
     # TODO: include pattern matching from external configurable file
-    ret = []
+    ret: List[str] = []
     junos_phy_r = r"^(ge|xe|et|mge)-([0-9]+\/)+[0-9]+$"
     ios_phy_r = r"^[a-zA-Z]+Ethernet.*"
     iosxr_phy_r = r"^[a-zA-Z]*E(thernet)?[0-9].*"
@@ -271,7 +278,7 @@ def filter_interfaces(iflist: List[str], platform=None, include=None) -> List[st
             else:
                 if intf.startswith("Ethernet"):
                     ret.append(intf)
-    return ret
+    return sorted(ret, key=sort_interfaces)
 
 
 def get_interfacedb_ifs(session, hostname: str) -> List[str]:

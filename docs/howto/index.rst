@@ -159,3 +159,22 @@ neighbors and in this case init will continue even if no LLDP neighbors were
 detected. This is also very risky since you can't verify that interfaces
 are connected correctly before sending configuration and possibly losing
 connectivity to the device.
+
+.. _switch_replacement:
+
+Replacement of access switch
+----------------------------
+
+To replace a broken switch with a new one, first disconnect the old switch from
+the network and connect the new switch using the same interfaces. Wait for the
+new switch to boot up and reach the DISCOVERED state in NMS device list.
+Change the old switch to state UNMANAGED, and then perform a device_init on the
+new switch and specify the existing hostname and add argument replace_hostname
+with value true.
+
+It's also possible to replace with a switch of another model, as long as the new
+model has the same interface name scheme and at least as many interfaces as the
+old one. Eg replacing a switch with interfaces Ethernet1-24 with a switch with
+interfaces Ethernet1-48 should work, but going From Ethernet1-48 to Ethernet1-24
+or Ethernet1-24 to GigabitEthernet1/0/1-24 you will loose interface
+configurations.

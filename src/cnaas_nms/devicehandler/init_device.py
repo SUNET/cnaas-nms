@@ -418,6 +418,7 @@ def init_access_device_step1(
     mlag_peer_id: Optional[int] = None,
     mlag_peer_new_hostname: Optional[str] = None,
     uplink_hostnames_arg: Optional[List[str]] = [],
+    replace_hostname: Optional[bool] = None,
     job_id: Optional[int] = None,
     scheduled_by: str = "",
 ) -> NornirJobResult:
@@ -457,6 +458,14 @@ def init_access_device_step1(
                 )
             else:
                 raise e
+        # Pre checks for device being replaced
+        if replace_hostname:
+            replace_dev: Optional[Device] = session.query(Device).filter(Device.hostname == new_hostname).one_or_none()
+            if not replace_dev:
+                raise DeviceStateError(f"Device {new_hostname} not found")
+            if replace_dev.state != DeviceState.UNMANAGED:
+                raise DeviceStateError(f"Device {new_hostname} not in UNMANAGED state")
+
         linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None
 
@@ -535,6 +544,53 @@ def init_access_device_step1(
             session.rollback()
             raise e
 
+        secondary_mgmt_ip = None
+        # old hostname
+        if replace_dev:
+            new_ztp_mac = dev.ztp_mac
+            new_serial = dev.serial
+            new_model = dev.model
+            new_dhcp_ip = dev.dhcp_ip
+            ztp_hostname = dev.hostname
+            ztp_device_id = dev.id
+            logger.info(
+                f"Replacing device {new_hostname}, "
+                + f"serial: {replace_dev.serial} -> {new_serial}, model: {replace_dev.model} -> {new_model}"
+            )
+            logger.info(
+                f"Replacing device {new_hostname}, " + f"removing device ID {dev.id} and keeping {replace_dev.id}"
+            )
+            session.delete(dev)
+            session.commit()
+            del dev
+            dev = replace_dev
+            device_id = dev.id
+            dev.ztp_mac = new_ztp_mac
+            dev.serial = new_serial
+            dev.model = new_model
+            dev.hostname = ztp_hostname
+            dev.dhcp_ip = new_dhcp_ip
+            dev.state = DeviceState.DISCOVERED
+            mgmt_ip = dev.management_ip
+            secondary_mgmt_ip = dev.secondary_management_ip
+            dev.management_ip = None
+            dev.secondary_management_ip = None
+            dev.confhash = None
+            if mgmt_ip:
+                reserved_ip = ReservedIP(device=dev, ip=mgmt_ip, ip_version=mgmt_ip.version)
+                session.add(reserved_ip)
+            if secondary_mgmt_ip:
+                reserved_ip = ReservedIP(device=dev, ip=secondary_mgmt_ip, ip_version=secondary_mgmt_ip.version)
+                session.add(reserved_ip)
+            session.commit()
+            # go through linknets and update neighbor id from ztp device_id to old device_id
+            for linknet in linknets:  # type: ignore
+                if linknet["device_a_id"] == ztp_device_id:
+                    linknet["device_a_id"] = dev.id
+                if linknet["device_b_id"] == ztp_device_id:
+                    linknet["device_b_id"] = dev.id
+            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
+
         try:
             update_linknets(
                 session,
@@ -555,21 +611,21 @@ def init_access_device_step1(
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(uplink_hostnames)
             )
-        # Select a new management IP for the device
-        ReservedIP.clean_reservations(session, device=dev)
-        session.commit()
-        mgmt_ip = mgmtdomain.find_free_primary_mgmt_ip(session)
         if not mgmt_ip:
-            raise Exception(
-                "Could not find free primary management IP for management domain {}/{}".format(
-                    mgmtdomain.id, mgmtdomain.description
+            # Select a new management IP for the device
+            ReservedIP.clean_reservations(session, device=dev)
+            session.commit()
+            mgmt_ip = mgmtdomain.find_free_primary_mgmt_ip(session)
+            if not mgmt_ip:
+                raise Exception(
+                    "Could not find free primary management IP for management domain {}/{}".format(
+                        mgmtdomain.id, mgmtdomain.description
+                    )
                 )
-            )
-        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip, ip_version=mgmt_ip.version)
-        session.add(reserved_ip)
+            reserved_ip = ReservedIP(device=dev, ip=mgmt_ip, ip_version=mgmt_ip.version)
+            session.add(reserved_ip)
 
-        secondary_mgmt_ip = None
-        if mgmtdomain.is_dual_stack:
+        if mgmtdomain.is_dual_stack and not secondary_mgmt_ip:
             secondary_mgmt_ip = mgmtdomain.find_free_secondary_mgmt_ip(session)
             if not secondary_mgmt_ip:
                 raise Exception(
@@ -671,13 +727,20 @@ def init_access_device_step1(
 
     # Plugin hook, allocated IP
     try:
-        pmh = PluginManagerHandler()
-        pmh.pm.hook.allocated_ipv4(
-            vrf="mgmt",
-            ipv4_address=str(mgmt_ip),
-            ipv4_network=str(mgmt_gw_ipif.network),
-            hostname=hostname,
-        )
+        if mgmt_ip.version == 4:
+            ipv4_addr = mgmt_ip
+            ipv4_net = mgmt_gw_ipif.network
+        elif secondary_mgmt_ip and secondary_mgmt_ip.version == 4:
+            ipv4_addr = secondary_mgmt_ip
+            ipv4_net = secondary_mgmt_gw_ipif.network
+        if ipv4_addr and ipv4_net:
+            pmh = PluginManagerHandler()
+            pmh.pm.hook.allocated_ipv4(
+                vrf="mgmt",
+                ipv4_address=str(ipv4_addr),
+                ipv4_network=str(ipv4_net),
+                hostname=hostname,
+            )
     except Exception as e:
         logger.exception("Error while running plugin hooks for allocated_ipv4: {}".format(str(e)))
 

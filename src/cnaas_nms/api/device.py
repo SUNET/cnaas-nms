@@ -247,7 +247,7 @@ def device_data_postprocess(device_list: List[Device]) -> List[dict]:
     return ret
 
 
-def _is_name_change_allowed(device: Device, new_hostname: str):
+def _is_name_change_allowed(device: Device, new_hostname: str) -> bool:
     if device.state != DeviceState.MANAGED:
         return True
 

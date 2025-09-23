@@ -64,6 +64,8 @@ def update_interfacedb_worker(
     if not phy_interfaces:
         raise Exception("Could not find any physical interfaces for device {}".format(dev.hostname))
 
+    log_new_interfaces = []
+    log_updated_interfaces = []
     for intf_name in phy_interfaces:
         intf: Interface = (
             session.query(Interface).filter(Interface.device == dev).filter(Interface.name == intf_name).one_or_none()
@@ -77,7 +79,6 @@ def update_interfacedb_worker(
             intf = Interface()
         if not new_intf and not replace:
             continue
-        logger.debug("New/updated physical interface found on device {}: {}".format(dev.hostname, intf_name))
         if intf_name in uplinks.keys():
             intf.configtype = InterfaceConfigType.ACCESS_UPLINK
             intf.data = {"neighbor": uplinks[intf_name]}
@@ -90,7 +91,18 @@ def update_interfacedb_worker(
         intf.device = dev
         if new_intf:
             session.add(intf)
+            log_new_interfaces.append(intf_name)
+        else:
+            log_updated_interfaces.append(intf_name)
         ret.append(intf.as_dict())
+    if log_new_interfaces:
+        logger.debug(
+            "New physical interfaces found on device {}: {}".format(dev.hostname, ", ".join(log_new_interfaces))
+        )
+    if log_updated_interfaces:
+        logger.debug(
+            "Updated physical interfaces on device {}: {}".format(dev.hostname, ", ".join(log_updated_interfaces))
+        )
 
     # Remove interfaces that no longer exist on device
     for unmatched_intf in unmatched_iflist:
@@ -253,8 +265,8 @@ def update_linknets(
     )
 
     for idx, (local_if, data) in enumerate(neighbors.items()):
-        remote_hostname = data[0]['hostname']
-        remote_if = canonical_interface_name(data[0]['port'])
+        remote_hostname = data[0]["hostname"]
+        remote_if = canonical_interface_name(data[0]["port"])
         logger.debug(f"Local: {local_if}, remote: {remote_hostname} {remote_if}")
         remote_device_inst: Device = session.query(Device).filter(Device.hostname == remote_hostname).one_or_none()
         if not remote_device_inst:

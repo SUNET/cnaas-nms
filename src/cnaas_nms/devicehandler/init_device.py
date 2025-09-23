@@ -728,11 +728,17 @@ def init_access_device_step1(
     # Plugin hook, allocated IP
     try:
         if mgmt_ip.version == 4:
+            ipv4_addr = mgmt_ip
+            ipv4_net = mgmt_gw_ipif.network
+        elif secondary_mgmt_ip and secondary_mgmt_ip.version == 4:
+            ipv4_addr = secondary_mgmt_ip
+            ipv4_net = secondary_mgmt_gw_ipif.network
+        if ipv4_addr and ipv4_net:
             pmh = PluginManagerHandler()
             pmh.pm.hook.allocated_ipv4(
                 vrf="mgmt",
-                ipv4_address=str(mgmt_ip),
-                ipv4_network=str(mgmt_gw_ipif.network),
+                ipv4_address=str(ipv4_addr),
+                ipv4_network=str(ipv4_net),
                 hostname=hostname,
             )
     except Exception as e:

@@ -162,6 +162,59 @@ class DeviceTests(unittest.TestCase):
                 session.delete(updated)
                 session.commit()
 
+    def test_interface_export(self):
+        from cnaas_nms.db.interface import Interface, InterfaceConfigType
+
+        with sqla_session() as session:
+            intf1 = Interface(
+                device_id=self.device_id,
+                name="Ethernet1",
+                configtype=InterfaceConfigType.ACCESS_AUTO,
+                data={"description": "testdesc"},
+            )
+            session.add(intf1)
+            intf2 = Interface(
+                device_id=self.device_id,
+                name="Ethernet2",
+                configtype=InterfaceConfigType.ACCESS_UPLINK,
+                data={"neighbor": "testneigh"},
+            )
+            session.add(intf2)
+            intf3 = Interface(
+                device_id=self.device_id,
+                name="Ethernet3",
+                configtype=InterfaceConfigType.ACCESS_DOWNLINK,
+            )
+            session.add(intf3)
+            session.commit()
+
+            # Make a query with most things excluded
+            response = self.client.get(
+                f"/api/v1.0/device/{self.hostname}/interfaces_export",
+                query_string={"include_downlinks": False, "include_descriptions": False},
+            )
+            # example output: {'interfaces': {'Ethernet1': {'configtype': 'ACCESS_AUTO', 'data': {'description': 'testdesc'}}}}
+            for interface in response.json["interfaces"]:
+                self.assertNotEqual(response.json["interfaces"][interface]["configtype"], "ACCESS_UPLINK")
+            for interface in response.json["interfaces"]:
+                self.assertNotEqual(response.json["interfaces"][interface]["configtype"], "ACCESS_DOWNLINK")
+            for interface in response.json["interfaces"]:
+                self.assertNotIn("description", response.json["interfaces"][interface]["data"])
+
+            # Make a query with everything included
+            response = self.client.get(
+                f"/api/v1.0/device/{self.hostname}/interfaces_export",
+                query_string={"include_uplinks": True},
+            )
+            for interface in response.json["interfaces"]:
+                self.assertIn(interface, ["Ethernet1", "Ethernet2", "Ethernet3"])
+            self.assertIn("description", response.json["interfaces"]["Ethernet1"]["data"])
+
+            session.delete(intf1)
+            session.delete(intf2)
+            session.delete(intf3)
+            session.commit()
+
     def test_rename_device_updates_neighbor(self):
         with sqla_session() as session:
             neighbor_device = Device(

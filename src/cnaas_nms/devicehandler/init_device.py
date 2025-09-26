@@ -231,7 +231,9 @@ def pre_init_check_neighbors(
             )
         elif len(uplinks) % 2 == 0 and redundant_uplinks == len(uplinks):
             logger.debug(
-                "{} redundant uplink neighbors found for device id {} ({}): {}".format(len(uplinks), dev.id, dev.hostname, uplinks)
+                "{} redundant uplink neighbors found for device id {} ({}): {}".format(
+                    len(uplinks), dev.id, dev.hostname, uplinks
+                )
             )
         else:
             raise InitVerificationError(
@@ -243,7 +245,7 @@ def pre_init_check_neighbors(
 
         if mlag_peer_dev and len(mlag_peers) < 2:
             raise InitVerificationError(
-                ("MLAG requires at least two MLAG peer links, {} found for " "device id {} ({})").format(
+                ("MLAG requires at least two MLAG peer links, {} found for device id {} ({})").format(
                     len(mlag_peers), dev.id, dev.hostname
                 )
             )
@@ -544,9 +546,10 @@ def init_access_device_step1(
             session.rollback()
             raise e
 
+        mgmt_ip = None
         secondary_mgmt_ip = None
         # old hostname
-        if replace_dev:
+        if replace_hostname:
             new_ztp_mac = dev.ztp_mac
             new_serial = dev.serial
             new_model = dev.model

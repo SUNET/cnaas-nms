@@ -249,7 +249,7 @@ def pre_init_check_neighbors(
             )
 
         try:
-            cnaas_nms.db.helper.find_mgmtdomain(session, uplinks)
+            cnaas_nms.db.helper.find_mgmtdomain(session, list(set(uplinks)))
         except Exception as e:
             raise InitVerificationError(str(e))
         else:
@@ -606,7 +606,7 @@ def init_access_device_step1(
             raise e
 
         # TODO: check compatability, same dist pair and same ports on dists
-        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, uplink_hostnames)
+        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, list(set(uplink_hostnames)))
         if not mgmtdomain:
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(uplink_hostnames)

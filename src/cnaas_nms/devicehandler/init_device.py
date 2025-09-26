@@ -229,9 +229,9 @@ def pre_init_check_neighbors(
                     dev.id, dev.hostname, uplinks
                 )
             )
-        elif len(uplinks) == 2 and redundant_uplinks == 2:
+        elif len(uplinks) % 2 == 0 and redundant_uplinks == len(uplinks):
             logger.debug(
-                "Two redundant uplink neighbors found for device id {} ({}): {}".format(dev.id, dev.hostname, uplinks)
+                "{} redundant uplink neighbors found for device id {} ({}): {}".format(len(uplinks), dev.id, dev.hostname, uplinks)
             )
         else:
             raise InitVerificationError(

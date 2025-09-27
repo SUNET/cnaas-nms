@@ -145,6 +145,9 @@ def populate_device_vars(
     if not isinstance(dev.platform, str):
         raise ValueError("Unknown platform: {}".format(dev.platform))
 
+    # Add ztp_hostname and ztp_devtype to the device so get_settings and get_groups can filter the device on those attributes
+    dev.device_type = devtype
+    dev.hostname = hostname
     settings, settings_origin = get_settings(dev, devtype, dev.model)
 
     if devtype == DeviceType.ACCESS:

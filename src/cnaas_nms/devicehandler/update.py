@@ -1,4 +1,5 @@
 import datetime
+from copy import deepcopy
 from typing import Dict, List, Optional
 
 from netutils.interface import canonical_interface_name
@@ -284,11 +285,13 @@ def update_linknets(
 
         logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
-        local_device_settings, _ = get_settings(local_device_inst, devtype, local_device_inst.model)
+        local_device_inst_copy = deepcopy(local_device_inst)
+        local_device_inst_copy.device_type = devtype
+        local_device_inst_copy.hostname = settings_hostname
+
+        local_device_settings, _ = get_settings(local_device_inst_copy, devtype, local_device_inst.model)
         remote_device_settings, _ = get_settings(remote_device_inst, remote_devtype, remote_device_inst.model)
 
-        local_device_inst_copy = Device(hostname=local_device_inst.hostname, device_type=local_device_inst.device_type)
-        local_device_inst_copy.device_type = devtype
         redundant_link = verify_peer_iftype(
             session,
             local_device_inst_copy,

@@ -10,6 +10,8 @@ import yaml
 from pydantic import ValidationError
 from redis import StrictRedis
 from redis_lru import RedisLRU
+from sqlalchemy import inspect
+from sqlalchemy.exc import NoInspectionAvailable
 
 from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
@@ -643,7 +645,6 @@ def get_settings(
     device: Optional[Device] = None,
     device_type: Optional[DeviceType] = None,
     device_model: Optional[str] = None,
-    is_device_in_db: bool = True,
 ) -> Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
@@ -736,8 +737,15 @@ def get_settings(
 
         # 5. Get settings repo group specific settings
         primary_group = None
-        if is_device_in_db:
+        # Check if the device is in the db
+        try:
+            device_state = inspect(device)
+        except NoInspectionAvailable:
+            device_state = None
+        # Device is in the db
+        if device_state is not None and device_state.persistent:
             primary_group = get_device_primary_groups().get(device.hostname)
+        # Device is not in the db
         else:
             primary_group = get_primary_group_for_device(device)
         if primary_group:

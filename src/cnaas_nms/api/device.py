@@ -254,7 +254,7 @@ def _is_name_change_allowed(device: Device, new_hostname: str) -> bool:
     new_dev = deepcopy(device)
     new_dev.hostname = new_hostname
     old_settings, _ = get_settings(device)
-    new_settings, _ = get_settings(new_dev, is_device_in_db=False)
+    new_settings, _ = get_settings(new_dev)
 
     return old_settings == new_settings
 

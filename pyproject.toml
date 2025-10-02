@@ -1,21 +1,152 @@
-[tool.ruff]
-# Exclude a variety of commonly ignored directories.
-exclude = [
-    ".eggs",
-    ".git",
-    ".hg",
-    ".mypy_cache",
-    ".tox",
-    ".venv",
-    "venv",
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=77.0.3" ]
+
+[project]
+name = "cnaas_nms"
+description = "Campus Network as-a-Service - Network Management System (Campus network automation software)"
+license = { text = "BSD-2-Clause" }
+authors = [
+  { name = "SUNET" },
+]
+requires-python = ">=3.11"
+classifiers = [
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+]
+dynamic = [ "version" ]
+dependencies = [
+  "alembic==1.15.2",
+  "apscheduler==3.11",
+  "async-timeout==4.0",
+  "authlib==1.6.4",
+  "coverage==7.8",
+  "flask==3.1",
+  "flask-cors==6.0.0",
+  "flask-jwt-extended==4.7.1",
+  "flask-restx==1.3",
+  "flask-socketio==5.5.1",
+  "gevent==25.4.2",
+  "gitpython==3.1.44",
+  "greenlet==3.2.1",
+  "markupsafe==3.0.2",
+  "mypy==1.15",
+  "mypy-extensions==1.1",
+  "napalm==5.0",
+  "netmiko==4.5",
+  "nornir==3.5",
+  "nornir-jinja2==0.2",
+  "nornir-napalm==0.5",
+  "nornir-netmiko==1.0.1",
+  "nornir-utils==0.2",
+  "nose==1.3.7",
+  "pluggy==1.5",
+  "portalocker==3.1.1",
+  "psycopg2-binary==2.9.10",
+  "pydantic==2.11.3",
+  "pydantic-settings==2.9.1",
+  "pytest==8.3.5",
+  "pytest-cov==6.1.1",
+  "pytest-docker==3.2.2",
+  "pytest-env==1.1.5",
+  "python-jose==3.4",
+  "pytz==2025.2",
+  "pyyaml==6.0.2",
+  "redis==5.2.1",
+  "redis-lru==0.1",
+  "requests==2.32.3",
+  "sphinx==8.2.3",
+  "sqlalchemy==2.0.40",
+  "sqlalchemy-utils==0.41.2",
+  "types-pytz==2025.2.0.20250326",
+  "types-requests==2.32.0.20250328",
+  "werkzeug==3.1.3",
 ]
 
-line-length = 120
-target-version = "py311"
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
 
-[tool.ruff.lint]
+[tool.distutils.easy_install]
+index-url = "https://pypi.sunet.se/simple/"
+
+[tool.nosetests]
+match = "^test"
+where = "src/cnaas_nms"
+nocapture = "1"
+
+[tool.flake8]
+ignore = "B902,D100,D101,D102,D103,D104,D105,D106,D107,D202,E203,E501,RST203,RST301,RST303,RST304,S101,W503,G001,G004"
+exclude = ".git,.cache,.eggs,__pycache__,dist,venv,.venv,alembic/*py"
+enable-extensions = "G"
+select = "B,C,D,E,F,G,I,N,S,T,W,B902,B903,R"
+max-line-length = "120"
+ban-relative-imports = "true"
+per-file-ignores = """
+test/*: S101"""
+
+[tool.mypy]
+ignore_missing_imports = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+# check_untyped_defs = True
+disallow_untyped_decorators = true
+no_implicit_optional = true
+strict_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+# warn_return_any = True
+warn_no_return = true
+warn_unreachable = true
+implicit_reexport = false
+strict_equality = true
+show_error_codes = true
+show_column_numbers = true
+exclude = "(src/*|bin/*)"
+mypy_path = "mypy_stubs"
+# lineprecision_report = mypy-coverage
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = "True"
+init_typed = "True"
+warn_required_dynamic_aliases = "True"
+warn_untyped_fields = "True"
+
+[project.urls]
+Documentation = "https://cnaas-nms.readthedocs.io/en/latest/"
+Issues = "https://github.com/SUNET/cnaas-nms/issues"
+Repository = "https://github.com/sunet/cnaas-nms"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "cnaas_nms.version.__version__" }
+
+[tool.setuptools.packages.find]
+where = [ "src" ]
+exclude = [ "tests" ]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+# Exclude a variety of commonly ignored directories.
+exclude = [
+  ".eggs",
+  ".git",
+  ".hg",
+  ".mypy_cache",
+  ".tox",
+  ".venv",
+  "venv",
+]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
-select = ["E4", "E7", "E9", "F", "W", "I001"]
-ignore = []
+lint.select = [ "E4", "E7", "E9", "F", "I001", "W" ]
+lint.ignore = [  ]

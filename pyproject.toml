@@ -17,6 +17,9 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
 ]
 dynamic = [ "version" ]
+
+[dependency-groups]
+# dependencies are listed as a dependency-group since cnaas-nms itself is NOT a package
 dependencies = [
   "alembic==1.15.2",
   "apscheduler==3.11",
@@ -63,6 +66,17 @@ dependencies = [
   "types-pytz==2025.2.0.20250326",
   "types-requests==2.32.0.20250328",
   "werkzeug==3.1.3",
+]
+dev = [
+  "pytest >=8.1.1,<9",
+  "ruff",
+  "pre-commit",
+  "mypy",
+  "mypy-extensions",
+]
+docs = [
+  "Sphinx==3.3.1",
+  "docutils<0.18",
 ]
 
 [project.readme]
@@ -135,7 +149,6 @@ exclude = [ "tests" ]
 [tool.ruff]
 target-version = "py311"
 line-length = 120
-# Exclude a variety of commonly ignored directories.
 exclude = [
   ".eggs",
   ".git",
@@ -145,8 +158,12 @@ exclude = [
   ".venv",
   "venv",
 ]
-# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`)  codes by default.
-# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
-# McCabe complexity (`C901`) by default.
-lint.select = [ "E4", "E7", "E9", "F", "I001", "W" ]
+lint.select = [
+    "E4",     # pycodestyle errors
+    "E7",     # pycodestyle errors
+    "E9",     # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I001",   # isort: Import block is un-sorted or un-formatted
+]
 lint.ignore = [  ]

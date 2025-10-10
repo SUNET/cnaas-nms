@@ -6,9 +6,9 @@ Campus Network-as-a-Service - Network Management System. Software to automate ma
 
 Planned features:
 1. Zero-touch provisioning of switches
-1. Automation of common changes for campus LAN
-1. Automated procedure for firmware upgrades
-1. Multi-vendor support
+2. Automation of common changes for campus LAN
+3. Automated procedure for firmware upgrades
+4. Multi-vendor support
 
 [Documentation](https://cnaas-nms.readthedocs.io/)
 
@@ -16,22 +16,42 @@ Planned features:
 
 ![CNaaS component architecture](cnaas-components-20190408.png?raw=true)
 
+## Dependencies
+
+Dependencies are specified in `[dependency-groups]` in _pyproject.toml_. The are curently three groups
+
+- `dependencies`
+- `dev`
+- `docs`
+
+dependencies from each group can be installed with
+
+```sh
+pip install --group <group>
+```
+
+**Note**: requires pip 25.1 or later.
+
 ## Requirements
 
-Docker and docker-compose or:
+Docker and docker compose or:
 
-1. python3.7 or later
-1. install requirements.txt
-1. SQL database, Redis
+1. python3.11 or later
+2. `pip install --group dependencies` (requires pip 25.1 or later)
+3. SQL database, Redis
 
 ## Installation
 
-Install docker and docker-compose and run: docker-compose build -f docker/docker-compose.yaml
+### Docker
 
-Or install locally by creating a virtualenv and activate the environment, then:
+Install docker with docker compose and run: `docker compose build -f docker/docker-compose.yaml`
+
+### Venv
+
+Install locally by creating a virtualenv and activate the environment, then:
 
 ```
-python3 -m pip install -r requirements.txt
+python3 -m pip install --groups dependencies
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
 

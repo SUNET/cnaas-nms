@@ -23,7 +23,7 @@ dynamic = [ "version" ]
 dependencies = [
   "alembic==1.15.2",
   "apscheduler==3.11",
-  "async-timeout==4.0",
+  "async-timeout>=4.0.2",
   "authlib==1.6.4",
   "coverage==7.8",
   "flask==3.1",

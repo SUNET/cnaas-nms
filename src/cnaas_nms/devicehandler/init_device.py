@@ -558,15 +558,14 @@ def init_access_device_step1(
             ztp_device_id = dev.id
             logger.info(
                 f"Replacing device {new_hostname}, "
-                + f"serial: {replace_dev.serial} -> {new_serial}, model: {replace_dev.model} -> {new_model}"
+                + f"serial: {replace_dev.serial} -> {new_serial}, model: {replace_dev.model} -> {new_model}"  # type: ignore
             )
             logger.info(
-                f"Replacing device {new_hostname}, " + f"removing device ID {dev.id} and keeping {replace_dev.id}"
+                f"Replacing device {new_hostname}, " + f"removing device ID {dev.id} and keeping {replace_dev.id}"  # type: ignore
             )
             session.delete(dev)
             session.commit()
-            del dev
-            dev = replace_dev
+            dev = replace_dev  # type: ignore
             device_id = dev.id
             dev.ztp_mac = new_ztp_mac
             dev.serial = new_serial

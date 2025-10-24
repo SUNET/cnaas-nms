@@ -157,7 +157,7 @@ def arista_post_flight_check(
                 dev.last_seen = datetime.datetime.utcnow()  # type: ignore
     except Exception as e:
         logger.exception("Could not update OS version on device {}: {}".format(task.host.name, str(e)))
-        return "Post-flight failed, could not update OS version: {}".format(str(e))
+        raise e
 
     return "Post-flight, OS version updated from {} to {}.".format(prev_os_version, os_version)
 
@@ -515,6 +515,7 @@ def device_upgrade(
             upgrade_device_groups: list[list[Device]] = determine_upgrade_order(session, device_list)
             upgrade_groups = [[device.hostname for device in group] for group in upgrade_device_groups]
         else:
+            staggered_upgrade = False
             upgrade_groups = [device_hostname_list]
 
     if staggered_upgrade:
@@ -559,11 +560,19 @@ def device_upgrade(
                 )
             )
             break
+        with sqla_session() as session:  # type: ignore
+            if Job.check_job_abort_status(session, job_id):
+                logger.info("Firmware upgrade aborted by user")
+                break
+        if staggered_upgrade:
+            logger.info(f"Upgrade group {i + 1} completed")
 
     for hostname in failed_hosts:
         logger.error("Firmware upgrade of device '{}' failed".format(hostname))
 
     if aggregated_result.failed:
         logger.error("Not all devices were successfully upgraded")
+    else:
+        logger.info("All devices successfully upgraded")
 
     return NornirJobResult(nrresult=aggregated_result)

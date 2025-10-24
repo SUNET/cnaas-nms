@@ -9,8 +9,10 @@ from flask_restx import Namespace, Resource, fields
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_groups
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
+from cnaas_nms.devicehandler.upgradeorder import determine_upgrade_order
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
@@ -56,7 +58,13 @@ firmware_upgrade_model = api.model(
         "post_flight": fields.Boolean(required=False),
         "post_wattime": fields.Integer(required=False),
         "reboot": fields.Boolean(required=False),
+        "staggered_upgrade": fields.Boolean(required=False),
     },
+)
+
+firmware_upgradecheck_model = api.model(
+    "firmware_upgradecheck",
+    {"group": fields.String(required=True)},
 )
 
 
@@ -256,6 +264,12 @@ class FirmwareUpgradeApi(Resource):
         if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
             kwargs["job_ticket_ref"] = json_data["ticket_ref"]
 
+        if "staggered_upgrade" in json_data:
+            if isinstance(json_data["staggered_upgrade"], bool):
+                kwargs["staggered_upgrade"] = json_data["staggered_upgrade"]
+            else:
+                return empty_result(status="error", data="staggered_upgrade should be a boolean")
+
         if "start_at" in json_data:
             try:
                 time_start = datetime.strptime(json_data["start_at"], date_format)
@@ -286,8 +300,56 @@ class FirmwareUpgradeApi(Resource):
         return resp
 
 
+class FirmwareUpgradecheckApi(Resource):
+    @login_required
+    @api.expect(firmware_upgradecheck_model)
+    def post(self):
+        """Perform upgrade check on device group"""
+        json_data = request.get_json()
+
+        nr = cnaas_init()
+        nr_filtered_group, dev_count, _ = inventory_selector(nr, group=json_data["group"])
+
+        device_hostname_list = list(nr_filtered_group.inventory.hosts.keys())
+
+        with sqla_session() as session:  # type: ignore
+            upgrade_groups: list[list[str]] = []
+            device_list: list[Device] = []
+
+            for device in device_hostname_list:
+                dev: Optional[Device] = session.query(Device).filter(Device.hostname == device).one_or_none()
+                if not dev:
+                    raise Exception("Could not find device: {}".format(device))
+                device_list.append(dev)
+
+            try:
+                upgrade_device_groups: list[list[Device]] = determine_upgrade_order(session, device_list)
+            except NotImplementedError as e:
+                return empty_result(status="error", data=str(e)), 400
+            except Exception as e:
+                return empty_result(status="error", data=f"Could not determine upgrade order: {str(e)}"), 500
+            if not upgrade_device_groups:
+                return (
+                    empty_result(
+                        status="error", data="Could not determine upgrade order for the specified device group"
+                    ),
+                    400,
+                )
+            upgrade_groups = [[device.hostname for device in group] for group in upgrade_device_groups]
+
+        ret = empty_result(
+            status="success",
+            data={"upgrade_groups": upgrade_groups, "device_count": dev_count, "steps": len(upgrade_groups)},
+        )
+        resp = make_response(json.dumps(ret), 200)
+        resp.headers["Content-Type"] = "application/json"
+        resp.headers["X-Total-Count"] = str(dev_count)
+        return resp
+
+
 # Firmware
 api.add_resource(FirmwareApi, "")
 api.add_resource(FirmwareImageApi, "/<string:filename>")
 api.add_resource(FirmwareSetDefaultApi, "/<string:filename>/set-default")
 api.add_resource(FirmwareUpgradeApi, "/upgrade")
+api.add_resource(FirmwareUpgradecheckApi, "/upgradecheck")

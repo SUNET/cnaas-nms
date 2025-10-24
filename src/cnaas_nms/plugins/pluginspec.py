@@ -13,11 +13,21 @@ class CnaasPluginSpec(object):
     def selftest(self):
         """Test that plugin can connect to it's API etc."""
 
+    @hookspec
     def allocated_ipv4(self, vrf, ipv4_address, ipv4_network, hostname):
         """A new IPv4 address has been allocated by CNaaS NMS"""
 
+    @hookspec
     def new_managed_device(self, hostname, device_type, serial_number, vendor, model, os_version, management_ip):
         """A new managed device has been added, or a device has become managed."""
+
+    @hookspec
+    def upgrade_reboot_starting(self, hostname):
+        """A device upgrade reboot is starting."""
+
+    @hookspec
+    def upgrade_reboot_completed(self, hostname):
+        """A device upgrade reboot has completed."""
 
 
 class CnaasBasePlugin(object):

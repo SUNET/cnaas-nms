@@ -555,7 +555,7 @@ def device_upgrade(
         failed_hosts.extend(list(nrresult.failed_hosts.keys()))
         if nrresult.failed and i + 1 < len(upgrade_groups):
             logger.error(
-                "Aborting staggered upgrade due to failures in step {}: {}".format(
+                "Aborting staggered upgrade due to failures in step {}, failed devices: {}".format(
                     i + 1, ", ".join(nrresult.failed_hosts.keys())
                 )
             )

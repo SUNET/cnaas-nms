@@ -48,17 +48,17 @@ firmware_upgrade_model = api.model(
     "firmware_upgrade",
     {
         "url": fields.String(required=True),
-        "start_at": fields.String(required=False),
+        "start_at": fields.String(required=False, default=None),
         "download": fields.Boolean(required=False),
         "activate": fields.Boolean(required=False),
         "filename": fields.String(required=False),
         "group": fields.String(required=False),
         "hostname": fields.String(required=False),
         "pre_flight": fields.Boolean(required=False),
-        "post_flight": fields.Boolean(required=False),
-        "post_wattime": fields.Integer(required=False),
-        "reboot": fields.Boolean(required=False),
-        "staggered_upgrade": fields.Boolean(required=False),
+        "post_flight": fields.Boolean(required=False, default=False),
+        "post_waittime": fields.Integer(required=False, default=600),
+        "reboot": fields.Boolean(required=False, default=False),
+        "staggered_upgrade": fields.Boolean(required=False, default=False),
     },
 )
 

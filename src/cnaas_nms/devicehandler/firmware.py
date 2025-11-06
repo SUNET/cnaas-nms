@@ -2,6 +2,7 @@ import datetime
 import time
 from typing import Dict, List, Optional
 
+from nornir.core import AggregatedResult
 from nornir.core.exceptions import NornirSubTaskError
 from nornir.core.task import MultiResult
 from nornir_napalm.plugins.tasks import napalm_cli, napalm_get
@@ -14,6 +15,8 @@ from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
 from cnaas_nms.devicehandler.os_specifics import arista_models
 from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.devicehandler.upgradeorder import determine_upgrade_order
+from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
@@ -154,7 +157,7 @@ def arista_post_flight_check(
                 dev.last_seen = datetime.datetime.utcnow()  # type: ignore
     except Exception as e:
         logger.exception("Could not update OS version on device {}: {}".format(task.host.name, str(e)))
-        return "Post-flight failed, could not update OS version: {}".format(str(e))
+        raise e
 
     return "Post-flight, OS version updated from {} to {}.".format(prev_os_version, os_version)
 
@@ -419,6 +422,11 @@ def device_upgrade_task(
     if reboot and not already_active:
         logger.info("Rebooting {}".format(task.host.name))
         try:
+            pmh = PluginManagerHandler()
+            pmh.pm.hook.upgrade_reboot_starting(hostname=task.host.name)
+        except Exception as e:
+            logger.exception("Error while running plugin hooks for upgrade_reboot_starting: {}".format(str(e)))
+        try:
             res = task.run(task=arista_device_reboot, job_id=job_id)
         except Exception:  # noqa: S110
             pass
@@ -438,9 +446,19 @@ def device_upgrade_task(
             )
         except Exception as e:
             logger.exception("Failed to run post-flight check: {}".format(str(e)))
+            try:
+                pmh = PluginManagerHandler()
+                pmh.pm.hook.upgrade_reboot_completed(hostname=task.host.name, failed=True)
+            except Exception as e:
+                logger.exception("Error while running plugin hooks for upgrade_reboot_completed: {}".format(str(e)))
         else:
             if res.failed:
                 logger.error("Post-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
+            try:
+                pmh = PluginManagerHandler()
+                pmh.pm.hook.upgrade_reboot_completed(hostname=task.host.name, failed=res.failed)
+            except Exception as e:
+                logger.exception("Error while running plugin hooks for upgrade_reboot_completed: {}".format(str(e)))
 
     if job_id:
         with redis_session() as db:  # type: ignore
@@ -462,61 +480,99 @@ def device_upgrade(
     post_flight: Optional[bool] = False,
     post_waittime: Optional[int] = None,
     reboot: Optional[bool] = False,
+    staggered_upgrade: Optional[bool] = False,
     scheduled_by: str = "",
 ) -> NornirJobResult:
     logger = get_logger()
     nr = cnaas_init()
     if hostname:
-        nr_filtered, dev_count, _ = inventory_selector(nr, hostname=hostname)
+        nr_filtered_group, dev_count, _ = inventory_selector(nr, hostname=hostname)
     elif group:
-        nr_filtered, dev_count, _ = inventory_selector(nr, group=group)
+        nr_filtered_group, dev_count, _ = inventory_selector(nr, group=group)
     else:
         raise ValueError("Neither hostname nor group specified for device_upgrade")
 
-    device_list = list(nr_filtered.inventory.hosts.keys())
-    logger.info("Device(s) selected for firmware upgrade ({}): {}".format(dev_count, ", ".join(device_list)))
+    device_hostname_list = list(nr_filtered_group.inventory.hosts.keys())
+    logger.info("Device(s) selected for firmware upgrade ({}): {}".format(dev_count, ", ".join(device_hostname_list)))
     logger.info(
         f"Upgrade tasks selected: pre_flight = {pre_flight}, download = {download}, "
         + f"activate = {activate}, reboot = {reboot}, post_flight = {post_flight}"
     )
 
     # Make sure we only upgrade Arista access switches
-    for device in device_list:
-        with sqla_session() as session:  # type: ignore
+    with sqla_session() as session:  # type: ignore
+        upgrade_groups: list[list[str]] = []
+        device_list: list[Device] = []
+        for device in device_hostname_list:
             dev: Optional[Device] = session.query(Device).filter(Device.hostname == device).one_or_none()
             if not dev:
                 raise Exception("Could not find device: {}".format(device))
             if dev.platform != "eos":
                 raise Exception('Invalid device platform "{}" for device: {}'.format(dev.platform, device))
+            device_list.append(dev)
+
+        if reboot and len(device_list) > 1 and staggered_upgrade:
+            upgrade_device_groups: list[list[Device]] = determine_upgrade_order(session, device_list)
+            upgrade_groups = [[device.hostname for device in group] for group in upgrade_device_groups]
+        else:
+            staggered_upgrade = False
+            upgrade_groups = [device_hostname_list]
+
+    if staggered_upgrade:
+        logger.info("Upgrade will be performed in {} steps(s)".format(len(upgrade_groups)))
+        for i, upgrade_group in enumerate(upgrade_groups):
+            logger.info("  Step {}: {}".format(i + 1, ", ".join(upgrade_group)))
 
     # Start tasks to take care of the upgrade
-    old_num_workers = nr_filtered.config.runner.options["num_workers"]
-    try:
-        nr_filtered.config.runner.options["num_workers"] = 10
-        nrresult = nr_filtered.run(
-            task=device_upgrade_task,
-            job_id=job_id,
-            scheduled_by=scheduled_by,
-            download=download,
-            filename=filename,
-            url=url,
-            pre_flight=pre_flight,
-            post_flight=post_flight,
-            post_waittime=post_waittime,
-            reboot=reboot,
-            activate=activate,
-        )
-    except Exception as e:
-        logger.exception("Exception while upgrading devices: {}".format(str(e)))
-        return NornirJobResult(nrresult=nrresult)
-    finally:
-        nr_filtered.config.runner.options["num_workers"] = old_num_workers
+    failed_hosts: List[str] = []
+    aggregated_result = AggregatedResult("device_upgrade")
+    for i, upgrade_group in enumerate(upgrade_groups):
+        nr_filtered_group, _, _ = inventory_selector(nr, hostname=upgrade_group)
+        old_num_workers = nr_filtered_group.config.runner.options["num_workers"]
+        try:
+            nr_filtered_group.config.runner.options["num_workers"] = 10
+            nrresult = nr_filtered_group.run(
+                task=device_upgrade_task,
+                job_id=job_id,
+                scheduled_by=scheduled_by,
+                download=download,
+                filename=filename,
+                url=url,
+                pre_flight=pre_flight,
+                post_flight=post_flight,
+                post_waittime=post_waittime,
+                reboot=reboot,
+                activate=activate,
+            )
+            for k, v in nrresult.items():
+                aggregated_result[k] = v
+        except Exception as e:
+            logger.exception("Exception while upgrading devices: {}".format(str(e)))
+            return NornirJobResult(nrresult=aggregated_result)
+        finally:
+            nr_filtered_group.config.runner.options["num_workers"] = old_num_workers
 
-    failed_hosts = list(nrresult.failed_hosts.keys())
+        failed_hosts.extend(list(nrresult.failed_hosts.keys()))
+        if nrresult.failed and i + 1 < len(upgrade_groups):
+            logger.error(
+                "Aborting staggered upgrade due to failures in step {}, failed devices: {}".format(
+                    i + 1, ", ".join(nrresult.failed_hosts.keys())
+                )
+            )
+            break
+        with sqla_session() as session:  # type: ignore
+            if Job.check_job_abort_status(session, job_id):
+                logger.info("Firmware upgrade aborted by user")
+                break
+        if staggered_upgrade:
+            logger.info(f"Upgrade group {i + 1} completed")
+
     for hostname in failed_hosts:
         logger.error("Firmware upgrade of device '{}' failed".format(hostname))
 
-    if nrresult.failed:
+    if aggregated_result.failed:
         logger.error("Not all devices were successfully upgraded")
+    else:
+        logger.info("All devices successfully upgraded")
 
-    return NornirJobResult(nrresult=nrresult)
+    return NornirJobResult(nrresult=aggregated_result)

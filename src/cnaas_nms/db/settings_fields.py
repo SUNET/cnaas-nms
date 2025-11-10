@@ -1,5 +1,4 @@
 import re
-import warnings
 from enum import Enum, StrEnum, auto
 from functools import cached_property
 from ipaddress import AddressValueError, IPv4Interface
@@ -15,6 +14,7 @@ from pydantic import (
 from pydantic.functional_validators import AfterValidator
 
 from cnaas_nms.db.device import Device
+from cnaas_nms.tools.log import get_logger
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
 IPV4_REGEX = r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}" r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
@@ -519,10 +519,10 @@ class f_group(BaseModel):
     templates_branch: Optional[str] = None
 
     def __init__(self, **data):
+        logger = get_logger()
         if "group" in data:
-            warnings.warn(
+            logger.warning(
                 "Old group config style is deprecated and will be removed in a future version.",
-                DeprecationWarning,
                 stacklevel=2,
             )
             legacy_data = data.pop("group")

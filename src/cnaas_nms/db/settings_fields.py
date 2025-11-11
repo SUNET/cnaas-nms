@@ -523,7 +523,6 @@ class f_group(BaseModel):
         if "group" in data:
             logger.warning(
                 "Old group config style is deprecated and will be removed in a future version.",
-                stacklevel=2,
             )
             legacy_data = data.pop("group")
             # Convert legacy group data to new format

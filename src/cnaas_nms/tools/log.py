@@ -7,12 +7,20 @@ from cnaas_nms.tools.event import add_event
 
 
 class WebsocketHandler(logging.StreamHandler):
-    def __init__(self):
-        logging.StreamHandler.__init__(self)
-
     def emit(self, record):
+        # Override module if module_override is set
+        record.module = getattr(record, "module_override", record.module)
+
         msg = self.format(record)
         add_event(msg, level=record.levelname)
+
+
+class StdoutHandler(logging.StreamHandler):
+    def emit(self, record):
+        # Override module if module_override is set
+        record.module = getattr(record, "module_override", record.module)
+
+        super().emit(record)
 
 
 def get_logger():
@@ -23,7 +31,7 @@ def get_logger():
                 "[%(asctime)s] %(levelname)s in %(module)s job #{}: %(message)s".format(thread_data.job_id)
             )
             # stdout logging
-            stdout_handler = logging.StreamHandler()
+            stdout_handler = StdoutHandler()
             stdout_handler.setFormatter(formatter)
             logger.addHandler(stdout_handler)
             # websocket logging
@@ -37,7 +45,7 @@ def get_logger():
         if not logger.handlers:
             formatter = logging.Formatter("[%(asctime)s] %(levelname)s in %(module)s: %(message)s")
             # stdout logging
-            stdout_handler = logging.StreamHandler()
+            stdout_handler = StdoutHandler()
             stdout_handler.setFormatter(formatter)
             logger.addHandler(stdout_handler)
             # websocket logging

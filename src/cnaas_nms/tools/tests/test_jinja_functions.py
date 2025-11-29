@@ -9,13 +9,13 @@ from cnaas_nms.tools.jinja_functions import (
 )
 
 
-class FailTests(unittest.TestCase):
-    def test_fail_exception(self):
+class RaiseTests(unittest.TestCase):
+    def test_raise_helper(self):
         with self.assertRaises(TemplateError) as cm:
             raise_helper("this raises TemplateError")
         assert cm.exception.message == "this raises TemplateError"
 
-    def test_fail_in_jinja(self):
+    def test_raise_in_jinja(self):
         env = Environment(autoescape=True)
         env.globals["raise"] = raise_helper
 

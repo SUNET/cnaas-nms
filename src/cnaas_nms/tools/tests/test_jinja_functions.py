@@ -13,7 +13,7 @@ class FailTests(unittest.TestCase):
     def test_fail_exception(self):
         with self.assertRaises(TemplateError) as cm:
             raise_helper("this raises TemplateError")
-        cm.msg == "this raises TemplateError"
+        assert cm.exception.message == "this raises TemplateError"
 
     def test_fail_in_jinja(self):
         env = Environment()
@@ -23,7 +23,7 @@ class FailTests(unittest.TestCase):
 
         with self.assertRaises(TemplateError) as cm:
             template.render()
-        cm.msg == "some exception"
+        assert cm.exception.message == "some exception"
 
 
 class LogTests(unittest.TestCase):

@@ -16,7 +16,7 @@ class FailTests(unittest.TestCase):
         assert cm.exception.message == "this raises TemplateError"
 
     def test_fail_in_jinja(self):
-        env = Environment()
+        env = Environment(autoescape=True)
         env.globals["raise"] = raise_helper
 
         template = env.from_string('{{ raise("some exception") }}')
@@ -76,7 +76,7 @@ def test_log_in_jinja(caplog):
     Test logging within a jinja2 template.
     Uses pytest so we can use caplog fixture
     """
-    env = Environment()
+    env = Environment(autoescape=True)
     env.globals["log"] = log
 
     template = env.from_string('{{ log("test message", "INFO") }}')

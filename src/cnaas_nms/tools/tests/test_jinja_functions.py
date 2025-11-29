@@ -26,49 +26,64 @@ class FailTests(unittest.TestCase):
         assert cm.exception.message == "some exception"
 
 
-class LogTests(unittest.TestCase):
-    def test_log_filter(self):
-        with self.assertLogs("cnaas-nms", "INFO") as cm:
-            log("this is a info-log")
-            log("this is also a info-log", "info")
-        assert len(cm.records) == 2
-        assert cm.records[0].msg == "this is a info-log"
-        assert cm.records[0].levelname == "INFO"
+def test_log_info(caplog):
+    with caplog.at_level("INFO", logger="cnaas-nms"):
+        log("this is a info-log")
+        log("this is also a info-log", "info")
 
-        with self.assertLogs("cnaas-nms", "WARNING") as cm:
-            log("this is a warning-log", "WARNING")
-        assert len(cm.records) == 1
-        assert cm.records[0].msg == "this is a warning-log"
-        assert cm.records[0].levelname == "WARNING"
+    assert len(caplog.records) == 2
+    assert caplog.records[0].msg == "this is a info-log"
+    assert caplog.records[0].levelname == "INFO"
 
-        with self.assertLogs("cnaas-nms", "CRITICAL") as cm:
-            log("this is a critical-log", "CRITICAL")
-        assert len(cm.records) == 1
-        assert cm.records[0].msg == "this is a critical-log"
-        assert cm.records[0].levelname == "CRITICAL"
 
-        with self.assertLogs("cnaas-nms", "ERROR") as cm:
-            log("this is a error-log", "ERROR")
-        assert len(cm.records) == 1
-        assert cm.records[0].msg == "this is a error-log"
-        assert cm.records[0].levelname == "ERROR"
+def test_log_warning(caplog):
+    with caplog.at_level("WARNING", logger="cnaas-nms"):
+        log("this is a warning-log", "WARNING")
 
-    def test_log_incorrect_level(self):
-        """Sending an invalid level logs with error and info"""
-        with self.assertLogs("cnaas-nms", "INFO") as cm:
-            log("this turns into a info-log", "INVALID_LEVEL")
-        assert len(cm.records) == 2
-        assert cm.records[0].msg == "INVALID_LEVEL is not a valid log level, defaulting to INFO."
-        assert cm.records[0].levelname == "ERROR"
-        assert cm.records[1].msg == "this turns into a info-log"
-        assert cm.records[1].levelname == "INFO"
+    assert len(caplog.records) == 1
+    assert caplog.records[0].msg == "this is a warning-log"
+    assert caplog.records[0].levelname == "WARNING"
 
-    def test_log_module_override(self):
-        with self.assertLogs("cnaas-nms", "INFO") as cm:
-            log("this is a custom info-log", module_override="info_log")
-        # module_override is set to info_log.
-        assert cm.records[0].module_override == "info_log"
-        assert cm.records[0].levelname == "INFO"
+
+def test_log_critical(caplog):
+    with caplog.at_level("CRITICAL", logger="cnaas-nms"):
+        log("this is a critical-log", "CRITICAL")
+
+    assert len(caplog.records) == 1
+    assert caplog.records[0].msg == "this is a critical-log"
+    assert caplog.records[0].levelname == "CRITICAL"
+
+
+def test_log_error(caplog):
+    with caplog.at_level("ERROR", logger="cnaas-nms"):
+        log("this is a error-log", "ERROR")
+
+    assert len(caplog.records) == 1
+    assert caplog.records[0].msg == "this is a error-log"
+    assert caplog.records[0].levelname == "ERROR"
+
+
+def test_log_incorrect_level(caplog):
+    """Sending an invalid level logs with error and info"""
+    with caplog.at_level("INFO", logger="cnaas-nms"):
+        log("this turns into a info-log", "INVALID_LEVEL")
+
+    # Expect two logs: error + defaulted info
+    assert len(caplog.records) == 2
+    assert caplog.records[0].msg == "INVALID_LEVEL is not a valid log level, defaulting to INFO."
+    assert caplog.records[0].levelname == "ERROR"
+    assert caplog.records[1].msg == "this turns into a info-log"
+    assert caplog.records[1].levelname == "INFO"
+
+
+def test_log_module_override(caplog):
+    with caplog.at_level("INFO", logger="cnaas-nms"):
+        log("this is a custom info-log", module_override="info_log")
+
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert getattr(record, "module_override", None) == "info_log"
+    assert record.levelname == "INFO"
 
 
 def test_log_in_jinja(caplog):

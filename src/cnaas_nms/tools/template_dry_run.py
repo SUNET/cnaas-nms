@@ -61,13 +61,24 @@ def load_jinja_filters():
 
         ret = jinja_filters.FILTERS
     except ModuleNotFoundError as e:
-        print("jinja_filters.py could not be loaded from PYTHONPATH, proceeding without filters: " f"{e}")
+        print(f"jinja_filters.py could not be loaded from PYTHONPATH, proceeding without filters: {e}")
     try:
         from netutils.utils import jinja2_convenience_function
 
         ret = {**ret, **jinja2_convenience_function()}
     except ModuleNotFoundError as e:
-        print("netutils could not be loaded from PYTHONPATH, proceeding without filters: " f"{e}")
+        print(f"netutils could not be loaded from PYTHONPATH, proceeding without filters: {e}")
+    return ret
+
+
+def load_jinja_functions():
+    ret = {}
+    try:
+        import jinja_functions
+
+        ret = jinja_functions.FUNCTIONS
+    except ModuleNotFoundError as e:
+        print(f"jinja_functions.py could not be loaded from PYTHONPATH, proceeding without functions: {e}")
     return ret
 
 
@@ -82,6 +93,8 @@ def render_template(platform, device_type, variables):
     )
     jfilters = load_jinja_filters()
     jinjaenv.filters.update(jfilters)
+    jfunctions = load_jinja_functions()
+    jinjaenv.globals.update(jfunctions)
     print("Jinja filters added: {}".format([*jfilters]))
     template_vars = {**variables, **get_environment_secrets()}
     template = jinjaenv.get_template(get_entrypoint(platform, device_type))

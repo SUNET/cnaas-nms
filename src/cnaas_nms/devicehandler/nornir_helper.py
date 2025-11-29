@@ -14,7 +14,7 @@ from nornir.core.task import AggregatedResult, MultiResult
 
 from cnaas_nms.devicehandler.nornir_plugins.cnaas_inventory import CnaasInventory
 from cnaas_nms.scheduler.jobresult import JobResult
-from cnaas_nms.tools import jinja_filters
+from cnaas_nms.tools import jinja_filters, jinja_functions
 
 
 @dataclass
@@ -39,6 +39,7 @@ def get_jinja_env(path):
         loader=FileSystemLoader(path),
         cache_size=0,
     )
+    jinja_env.globals.update(jinja_functions.FUNCTIONS)
     jinja_env.filters.update(jinja_filters.FILTERS)
     jinja_env.filters.update(jinja2_convenience_function())
     return jinja_env

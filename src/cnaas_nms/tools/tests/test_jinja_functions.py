@@ -25,6 +25,26 @@ class RaiseTests(unittest.TestCase):
             template.render()
         assert cm.exception.message == "some exception"
 
+    def test_raise_in_jinja_if_else(self):
+        """Raise exception only when caught in jinja if/else"""
+        env = Environment(autoescape=True)
+        env.globals["raise"] = raise_helper
+
+        template = env.from_string(
+            """
+                {%- if host == "d1" -%}
+                 {{ raise("d1 is not valid") }}
+                {%- else -%}
+                some text
+                {%- endif -%}
+            """
+        )
+
+        with self.assertRaises(TemplateError) as cm:
+            template.render(host="d1")
+        assert cm.exception.message == "d1 is not valid"
+        assert "some text" == template.render(host="a1")
+
 
 def test_log_info(caplog):
     with caplog.at_level("INFO", logger="cnaas-nms"):
@@ -100,6 +120,29 @@ def test_log_in_jinja(caplog):
 
     assert "test message" in caplog.text
     assert render == ""
+
+
+def test_log_in_jinja_if_else(caplog):
+    """Log only when caught in if/else"""
+    env = Environment(autoescape=True)
+    env.globals["log"] = log
+
+    template = env.from_string(
+        """
+            {%- if host == "d1" -%}
+             {{ log("d1 is not valid") }}
+            {%- else -%}
+            some text
+            {%- endif -%}
+        """
+    )
+
+    render1 = template.render(host="d1")
+    render2 = template.render(host="a1")
+    assert len(caplog.records) == 1
+    assert "d1 is not valid" == caplog.records[0].message
+    assert render1 == ""
+    assert render2 == "some text"
 
 
 if __name__ == "__main__":

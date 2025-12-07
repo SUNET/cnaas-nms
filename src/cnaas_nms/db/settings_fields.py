@@ -574,7 +574,7 @@ class f_root(BaseModel):
         for _, access_list in access_lists.items():
             for term in access_list.terms:
                 include_acl = term.get("include")
-                if include_acl not in acl_names:
+                if include_acl and include_acl not in acl_names:
                     raise ValueError(f"access-list: {include_acl} must be defined.")
         return access_lists
 

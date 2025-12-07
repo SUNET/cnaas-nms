@@ -1,16 +1,14 @@
+import datetime  # noqa: F401
+import hashlib
+import json
 import re
 from enum import Enum, StrEnum, auto
 from functools import cached_property
-from ipaddress import AddressValueError, IPv4Interface
-from typing import Annotated, Dict, List, Optional, Self, Union
+from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Network
+from typing import Annotated, Dict, List, Literal, Optional, Self, Set, Union
 
-from pydantic import (
-    BaseModel,
-    Field,
-    ValidationInfo,
-    field_validator,
-    model_validator,
-)
+from aerleon.lib.policy_builder import PolicyInclude, PolicyTerm
+from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
 
 from cnaas_nms.db.device import Device
@@ -93,6 +91,8 @@ group_name = Field(..., pattern=GROUP_NAME, max_length=253)
 group_priority_schema = Field(
     0, ge=0, le=100, description="Group priority 0-100, default 0, higher value means higher priority"
 )
+ACCESS_LIST_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
+access_list_name = Annotated[str, Field(pattern=ACCESS_LIST_NAME, max_length=63)]  # Type
 
 
 class RemovePrivateASEnum(StrEnum):
@@ -423,6 +423,112 @@ class f_port_template(BaseModel):
     groups: Optional[List[str]] = None
 
 
+class f_network_definition(BaseModel):
+    address: Union[IPv4Address | IPv6Address | IPv4Network | IPv6Network]
+    comment: str = ""
+
+    # Convert address to string.
+    @field_validator("address", mode="after")
+    @classmethod
+    def validate_address(cls, v):
+        return str(v)
+
+
+class f_network_definition_include(BaseModel):
+    name: str
+
+
+class f_service_definition(BaseModel):
+    port: int | str
+    protocol: str
+
+
+class f_service_definition_include(BaseModel):
+    name: str
+
+
+PolicyTermAdapter: TypeAdapter = TypeAdapter(PolicyTerm | PolicyInclude)
+
+PolicyTermAdapter.rebuild()
+
+
+class f_access_list(BaseModel):
+    comment: str = ""
+    include_only: bool = False
+    inet_families: Set[Literal["ipv4", "ipv6"]] = {"ipv4"}
+    header_map: Dict[str, str] = {}
+    # Example header_map
+    # {"ios": "{ACL_NAME} {INET_FAMILY} noverbose",
+    # "eos": "ACL_NAME extended noverbose"}
+
+    # Uses Aerleon TypedDict
+    terms: List[PolicyTerm | PolicyInclude]
+
+    @field_validator("terms", mode="before")
+    def ensure_term_names(cls, v):
+        """
+        Make sure all term have a valid name
+        """
+        terms = []
+        for i, term in enumerate(v, start=1):
+            if "include" in term:
+                # This is a PolicyInclude
+                terms.append(term)
+                continue
+
+            # Default the name to term_{index}
+            name = term.get("name", f"term_{i}")
+            # Make sure name does not include whitespace
+            name = re.sub(r"[\s-]+", "_", name)
+            # Invalid characters is a ValueError
+            if not re.match(r"^[A-Za-z0-9_]+$", name):
+                raise ValueError(f"Invalid term name: {name}")
+            term["name"] = name
+            terms.append(term)
+
+        return terms
+
+    @model_validator(mode="after")
+    def finalize_terms(self):
+        def make_hash(term: PolicyTerm | PolicyInclude, index: int) -> str:
+            hash_input = json.dumps(
+                {
+                    "raw_terms": self.terms,
+                    "term": term,
+                    "index": index,
+                },
+                sort_keys=True,
+            )
+            return hashlib.sha256(hash_input.encode()).hexdigest()[:6]
+
+        normalized = []
+
+        for i, term in enumerate(self.terms, start=1):
+            if "include" in term:
+                normalized.append(term)
+                continue
+
+            term_name = term.get("name")
+
+            hash = make_hash(term, i)
+
+            final_name = f"{hash}_{term_name}"
+
+            # Save the updated name back to the term
+            term["name"] = final_name
+
+            # Validate the term
+            term = PolicyTermAdapter.validate_python(term)
+
+            normalized.append(term)
+
+        self.terms = normalized
+        return self
+
+
+f_access_list.model_rebuild()
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -456,6 +562,21 @@ class f_root(BaseModel):
     vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
     arista_models_32bit: Optional[List[str]] = None
     upgrade_post_waittime: Dict[str, int] = {"default": 600}
+    network_definitions: Dict[str, List[Union[f_network_definition | f_network_definition_include]]] = {}
+    service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
+    access_lists: Dict[access_list_name, f_access_list] = {}
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
+    def validate_access_lists_includes(cls, access_lists: Dict[access_list_name, f_access_list]):
+        """Raise an error if some term include is not pointing to a valid access_list"""
+        acl_names = access_lists.keys()
+        for _, access_list in access_lists.items():
+            for term in access_list.terms:
+                include_acl = term.get("include")
+                if include_acl not in acl_names:
+                    raise ValueError(f"access-list: {include_acl} must be defined.")
+        return access_lists
 
 
 class f_group_device_filter(BaseModel):

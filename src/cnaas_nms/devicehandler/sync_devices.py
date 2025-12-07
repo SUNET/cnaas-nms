@@ -21,7 +21,7 @@ from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import get_settings
+from cnaas_nms.db.settings import get_generated_access_lists, get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
@@ -389,6 +389,13 @@ def populate_device_vars(
                 }
             )
         device_variables = {**device_variables, **fabric_device_variables}
+
+    # add generated access_lists to device_vars
+    settings["access_lists"] = get_generated_access_lists(dev)
+
+    # definitions are not needed as device_vars and can be removed
+    del settings["network_definitions"]
+    del settings["service_definitions"]
 
     # if platform/devtype has unmanaged config sections, get running_config and add to device_variables
     local_repo_path = get_template_repo_path(hostname)

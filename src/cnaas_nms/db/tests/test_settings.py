@@ -12,18 +12,20 @@ from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
+    AccessListGenerationError,
     VerifyPathException,
     VlanConflictError,
     check_bgp_neighbor_routemaps,
     check_vlan_collisions,
     get_device_primary_groups,
+    get_generated_access_lists,
     get_group_settings,
     get_groups_priorities_sorted,
     get_settings,
     rebuild_settings_cache,
     verify_dir_structure,
 )
-from cnaas_nms.db.settings_fields import f_group, f_groups
+from cnaas_nms.db.settings_fields import f_group, f_groups, f_root
 
 
 class SettingsTests(unittest.TestCase):
@@ -68,8 +70,9 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     def test_get_settings_device(self):
-        settings, settings_origin = get_settings(device=Device(
-            hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
+        settings, settings_origin = get_settings(
+            device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST
+        )
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
@@ -359,6 +362,51 @@ class SettingsTests(unittest.TestCase):
         for group in settings.groups:
             self.assertEqual(type(group), f_group)
             assert callable(group.matches)
+
+    def test_acl(self):
+        """Generate global acls from integration-test repo"""
+        for platform in ["ios", "eos", "junos"]:
+            device = Device(hostname=self.testdata["testdevice"], platform=platform)
+            get_generated_access_lists(device)
+
+    def test_acl_invalid_definition(self):
+        """Test invalid network definitions"""
+        settings = {
+            "network_definitions": {
+                "ONEONEONEONE": [{"address": "1.1.1.1"}],
+                "ONEZEROZEROONE": [{"address": "1.0.0.1"}],
+                "BOTH": [{"name": "ONEONE"}, {"name": "ONEZEROZEROONE"}, {"address": "1.1.1.10"}],
+            },
+            "access_lists": {
+                "TEST_ACL": {"terms": [{"name": "permit-all", "source-address": "BOTH", "action": "accept"}]}
+            },
+        }
+        with self.assertRaises(AccessListGenerationError):
+            get_generated_access_lists(platform="eos", settings=settings)
+
+    def test_acl_no_terms(self):
+        """Test acl no terms"""
+        settings = {
+            "access_lists": {"TEST_ACL": {"terms": []}},
+        }
+        with self.assertRaises(AccessListGenerationError):
+            get_generated_access_lists(platform="eos", settings=settings)
+
+    def test_acl_include_not_found(self):
+        """Test include acl not found"""
+        settings = {
+            "access_lists": {"TEST_ACL": {"terms": [{"include": "NOT-FOUND-ACL"}]}},
+        }
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
+
+    def test_acl_include(self):
+        """Test include acl"""
+        settings = {
+            "access_lists": {"INCLUDE-ACL": {"terms": [{"name": "some-acl", "action": "accept"}]}, "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}]}},
+        }
+        f_root(**settings)
+        get_generated_access_lists(platform="eos", settings=settings)
 
 
 if __name__ == "__main__":

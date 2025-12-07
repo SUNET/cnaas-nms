@@ -3,10 +3,17 @@ import json
 import os
 import re
 import types
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
 
 import pkg_resources
 import yaml
+from aerleon.aclgen import Error as ACLGenError
+from aerleon.api import Generate
+from aerleon.lib.naming import Error as NamingError
+from aerleon.lib.naming import Naming
+from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyInclude, PolicyTerm
+from aerleon.lib.yaml import PolicyTypeError
+from netutils.lib_mapper import AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
 from pydantic import ValidationError
 from redis import StrictRedis
 from redis_lru import RedisLRU
@@ -18,7 +25,7 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.git_worktrees import refresh_templates_worktree
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings_fields import f_group, f_group_device_filter, f_groups
+from cnaas_nms.db.settings_fields import f_access_list, f_group, f_group_device_filter, f_groups
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
 
@@ -102,7 +109,12 @@ class VlanConflictError(Exception):
     pass
 
 
+class AccessListGenerationError(Exception):
+    pass
+
+
 DIR_STRUCTURE_HOST = {
+    "access_lists.yml": "file",
     "base_system.yml": "file",
     "interfaces.yml": "file",
     "routing.yml": "file",
@@ -110,6 +122,7 @@ DIR_STRUCTURE_HOST = {
 
 DIR_STRUCTURE: dict[str, Any] = {
     "global": {
+        "access_lists.yml": "file",
         "base_system.yml": "file",
         "groups.yml": "file",
         "routing.yml": "file",
@@ -733,6 +746,14 @@ def get_settings(
             groups,
             device.hostname,
         )
+        settings, settings_origin = read_settings(
+            local_repo_path,
+            ["global", "access_lists.yml"],
+            "global->access_lists.yml",
+            settings,
+            settings_origin,
+            groups,
+        )
         settings = get_downstream_dependencies(device.hostname, settings)
 
         # 5. Get settings repo group specific settings
@@ -764,14 +785,21 @@ def get_settings(
                 settings, settings_origin = read_settings(
                     local_repo_path,
                     ["groups", primary_group, "interfaces.yml"],
-                    "groups->{}->base_system.yml".format(primary_group),
+                    "groups->{}->interfaces.yml".format(primary_group),
                     settings,
                     settings_origin,
                 )
                 settings, settings_origin = read_settings(
                     local_repo_path,
                     ["groups", primary_group, "routing.yml"],
-                    "groups->{}->base_system.yml".format(primary_group),
+                    "groups->{}->routing.yml".format(primary_group),
+                    settings,
+                    settings_origin,
+                )
+                settings, settings_origin = read_settings(
+                    local_repo_path,
+                    ["groups", primary_group, "access_lists.yml"],
+                    "groups->{}->access_lists.yml".format(primary_group),
                     settings,
                     settings_origin,
                 )
@@ -796,6 +824,14 @@ def get_settings(
                 local_repo_path,
                 ["devices", device.hostname, "routing.yml"],
                 "device->{}->routing.yml".format(device.hostname),
+                settings,
+                settings_origin,
+                groups,
+            )
+            settings, settings_origin = read_settings(
+                local_repo_path,
+                ["devices", device.hostname, "access_lists.yml"],
+                "device->{}->access_lists.yml".format(device.hostname),
                 settings,
                 settings_origin,
                 groups,
@@ -839,6 +875,14 @@ def get_settings(
             local_repo_path,
             ["global", "vxlans.yml"],
             "global->vxlans.yml",
+            settings,
+            settings_origin,
+            groups,
+        )
+        settings, settings_origin = read_settings(
+            local_repo_path,
+            ["global", "access_lists.yml"],
+            "global->access_lists.yml",
             settings,
             settings_origin,
             groups,
@@ -920,6 +964,176 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
         group_dict[group.name] = group.model_dump()
         del group_dict[group.name]["name"]
     return group_dict
+
+
+def build_aerleon_definitions(settings: dict) -> Naming:
+    aerleon_definitions = Naming()
+
+    networks_dict = {}
+    services_dict = {}
+    for network_name, networks in settings.get("network_definitions", {}).items():
+        networks_dict[network_name] = {"values": networks}
+    for service_name, services in settings.get("service_definitions", {}).items():
+        services_dict[service_name] = services
+
+    aerleon_definitions.ParseDefinitionsObject({"networks": networks_dict, "services": services_dict}, "")
+    return aerleon_definitions
+
+
+def napalm_to_aerleon(platform: str) -> str:
+    """
+    Translates napalm platform to aerleon
+    If not found it will return the platform as is
+    """
+    return AERLEON_LIB_MAPPER_REVERSE.get(NAPALM_LIB_MAPPER.get(platform, ""), platform)
+
+
+def get_aerleon_translated_terms(terms: List[PolicyTerm | PolicyInclude]) -> List[PolicyTerm | PolicyInclude]:
+    """
+    Convert Napalm platform names (e.g. 'ios', 'eos') inside term dictionaries
+    into their corresponding Aerleon generator names (e.g. 'cisco_ios',
+    'arista_eos'). The translation is applied recursively to all nested dicts
+    and lists.
+
+    Returns a new list of translated term dictionaries.
+    """
+
+    def translate(value):
+        if isinstance(value, str):
+            return napalm_to_aerleon(value)
+        if isinstance(value, dict):
+            return {translate(k): translate(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [translate(item) for item in value]
+        return value
+
+    return [translate(term) for term in terms]
+
+
+def get_aerleon_inet(platform: str, inet_family: Literal["ipv4", "ipv6"]) -> str:
+    """
+    Maps ipv4 or ipv6 to aerleon inet-format.
+    Differs between different types of devices.
+    More information here: https://aerleon.readthedocs.io/en/latest/reference/generators/
+
+    To get support for other platforms define a custom header_map in f_access_list for that platform.
+    """
+    inet_family_map = {
+        "eos": {"ipv4": "extended", "ipv6": "inet6"},
+        "ios": {"ipv4": "extended", "ipv6": "inet6"},
+        "iosxr": {"ipv4": "", "ipv6": "inet6"},
+        "junos": {"ipv4": "inet", "ipv6": "inet6"},
+        "nxos": {"ipv4": "extended", "ipv6": "inet6"},
+    }
+    return inet_family_map.get(platform, {}).get(inet_family, inet_family)
+
+
+@redis_lru_cache
+def get_generated_access_lists(
+    dev: Optional[Device] = None, platform: Optional[str] = None, settings: Optional[dict] = None
+) -> Dict[str, str]:
+    """
+    Generate access lists for a given network device or platform.
+
+    This function builds Aerleon policy definitions based on device settings and
+    produces rendered access lists for the target platform. The platform may be
+    provided explicitly or inferred from the device. Settings are loaded
+    automatically if not supplied.
+
+    Args:
+        dev: Optional Device object used to derive platform and settings when not
+            provided explicitly.
+        platform: The platform name (e.g., "eos", "ios", "junos"). Overrides the
+            device's platform if provided.
+        settings: Optional settings dictionary. If omitted or empty, settings
+            will be loaded automatically for the device.
+
+    Returns:
+        A dictionary mapping access list names to their generated configuration
+        strings. IPv4 and IPv6 will be generated to the same output-string.
+        Example: {ACL_NAME: "config_as_text"}
+
+    Raises:
+        AccessListGenerationError:
+            - If the platform cannot be determined.
+            - If the platform is not supported.
+            - If Aerleon encounters an error during generation.
+    """
+    # Prefer platform argument, otherwise get from device.
+    if platform is None:
+        if dev is not None:
+            platform = getattr(dev, "platform", None)
+
+    if platform is None:
+        raise AccessListGenerationError("Platform argument must be provided either directly or via a device")
+
+    # When settings have not been passed in via arguments get_settings
+    if not settings:
+        settings, _ = get_settings(dev)
+
+    # Fix for mypy to understand settings is not dict | None but only dict
+    assert settings is not None
+
+    # Get aerleon platform name from NMS napalm platform
+    aerleon_platform = napalm_to_aerleon(platform)
+    # Could not get a valid aerleon platform
+    if aerleon_platform not in AERLEON_LIB_MAPPER_REVERSE.values():
+        raise AccessListGenerationError(f"Platform: {platform} is not supported for access_list generation.")
+
+    defs = build_aerleon_definitions(settings)
+
+    policies = []  # All access_lists that will be generated
+    includes = {}  # A dict with acl_name: policy_dict if another access_list includes another acl.
+    setting_acls: Dict[str, dict] = settings.get("access_lists", {})
+
+    for access_list_name, access_list_dict in setting_acls.items():
+        # Construct f_access_list object without validation
+        access_list: f_access_list = f_access_list.model_construct(**access_list_dict)
+        # Get aerleon header format, defaults to "{ACL_NAME} {INET_FAMILY}"
+        header = access_list.header_map.get(platform, "{ACL_NAME} {INET_FAMILY}")
+
+        inside_policies = []
+        acl_terms = get_aerleon_translated_terms(access_list.terms)
+        for inet_family in access_list.inet_families:
+            # Format acl_header for the specific inet_family
+            acl_header = header.format(ACL_NAME=access_list_name, INET_FAMILY=get_aerleon_inet(platform, inet_family))
+            inside_policy_dict: PolicyFilter = {
+                "header": {"targets": {aerleon_platform: acl_header}, "comment": access_list.comment},
+                "terms": acl_terms,
+            }
+            inside_policies.append(inside_policy_dict)
+
+        policy_dict: PolicyDict = {  # type:ignore[typeddict-unknown-key]
+            "filename": access_list_name,
+            "filters": inside_policies,
+        }
+
+        # include_only access list should not generate
+        if not access_list.include_only:
+            policies.append(policy_dict)
+
+        # Include access_list only once.
+        # Only need terms and terms are inet-agnostic.
+        includes.update({access_list_name: inside_policies[0]})
+
+    try:
+        # Generate all access-lists at once.
+        generated_configs = Generate(
+            policies,
+            defs,
+            optimize=api_settings.ACCESS_LIST_OPTIMIZE,
+            # Does not seem to work currently
+            # TODO investigate future use-cases
+            shade_check=True,
+            includes=includes,  # type:ignore[arg-type]
+        )
+    except (ACLGenError, NamingError) as e:
+        error_msg = re.sub(r":\n<[^>]*>", ", ", str(e))
+        raise AccessListGenerationError(error_msg)
+    except PolicyTypeError as e:
+        raise AccessListGenerationError(str(e))
+    # Remove suffix from filename
+    return {re.sub(r"\.[^.]+$", "", k): v for k, v in generated_configs.items()}
 
 
 def get_groups_priorities(device: Optional[Device] = None, settings: Optional[f_groups] = None) -> Dict[str, int]:
@@ -1017,6 +1231,7 @@ def rebuild_settings_cache() -> None:
     Raises:
         SettingsSyntaxError: Syntax is wrong in settings files
         VlanConflictError: Multiple conflicting VLANs exists on same device
+        AccessListGenerationError: There is an error when generating an access_lists
     """
     logger = get_logger()
     logger.debug("Clearing redis-lru cache for settings")
@@ -1039,10 +1254,22 @@ def rebuild_settings_cache() -> None:
     logger.debug("Rebuilding settings cache for global settings and primary groups")
     update_device_primary_groups()
     get_settings()
+    # Get all local platforms and try to generate global access_lists for that platform.
+    platforms = []
+    with sqla_session() as session:  # type: ignore
+        device_platforms: List[Device] = (
+            session.query(Device).distinct(Device.platform).where(Device.platform.is_not(None)).all()
+        )
+        platforms = [dev.platform for dev in device_platforms]
+    for platform in platforms:
+        get_generated_access_lists(platform=platform)
     test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE, DeviceType.FIREWALL]
     logger.debug("Rebuilding settings cache for devicetypes")
     for devtype in test_devtypes:
-        get_settings(device_type=devtype)
+        settings, _ = get_settings(device_type=devtype)
+        for platform in platforms:
+            # Generate access_lists for all dev_types and platforms
+            get_generated_access_lists(platform=platform, settings=settings)
     logger.debug("Rebuilding settings cache for device specific settings")
     with sqla_session() as session:  # type: ignore
         for hostname in os.listdir(os.path.join(app_settings.SETTINGS_LOCAL, "devices")):
@@ -1056,6 +1283,9 @@ def rebuild_settings_cache() -> None:
                 logger.warning(f"Device {hostname} specified in settings/devices but it was not found in database")
                 continue
             get_settings(dev, dev.device_type)
+            # Try to generate access_lists for a specific device
+            if dev.platform:
+                get_generated_access_lists(dev)
     logger.debug("Rebuilding settings cache for device models")
     for devtype_str, device_models in get_model_specific_configfiles(True).items():
         devtype = DeviceType[devtype_str]

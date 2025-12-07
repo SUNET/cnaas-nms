@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import json
 import os
@@ -63,6 +64,12 @@ class NMSRedisLRU(RedisLRU):
         even when passing dicts, lists, sets, or custom objects.
         """
 
+        def hash_tuple(t: tuple) -> str:
+            """
+            Convert a already hashable tuple into a short, hex string for caching.
+            """
+            return hashlib.sha256(json.dumps(t, sort_keys=True, default=str).encode()).hexdigest()
+
         def make_hashable(obj):
             """Recursively convert objects into hashable objects."""
             if isinstance(obj, dict):
@@ -81,17 +88,18 @@ class NMSRedisLRU(RedisLRU):
             elif hasattr(obj, "as_dict"):
                 # Use the dictionary representation for caching
                 return tuple((k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()))
+            elif hasattr(obj, "__dict__"):
+                # Use __dict__ if available
+                return tuple((k, make_hashable(v)) for k, v in sorted(obj.__dict__.items()))
             else:
                 return obj
 
         # Convert args & kwargs into stable, hashable forms
-        hashed_args = tuple(make_hashable(arg) for arg in args)
-        hashed_kwargs = {k: make_hashable(v) for k, v in kwargs.items()}
+        hashed_args = tuple(hash_tuple(make_hashable(arg)) for arg in args)
+        hashed_kwargs = {k: hash_tuple(make_hashable(v)) for k, v in kwargs.items()}
 
         # Call the parent class' key generator with transformed arguments
-        return super()._decorator_key(
-            func, *hashed_args, **hashed_kwargs
-        )
+        return super()._decorator_key(func, *hashed_args, **hashed_kwargs)
 
 
 redis_lru_cache = NMSRedisLRU(redis_client, default_ttl=24 * 3600)
@@ -1028,7 +1036,6 @@ def get_aerleon_inet(platform: str, inet_family: Literal["ipv4", "ipv6"]) -> str
     return inet_family_map.get(platform, {}).get(inet_family, inet_family)
 
 
-@redis_lru_cache
 def get_generated_access_lists(
     dev: Optional[Device] = None, platform: Optional[str] = None, settings: Optional[dict] = None
 ) -> Dict[str, str]:
@@ -1118,22 +1125,29 @@ def get_generated_access_lists(
 
     try:
         # Generate all access-lists at once.
-        generated_configs = Generate(
-            policies,
-            defs,
-            optimize=api_settings.ACCESS_LIST_OPTIMIZE,
-            # Does not seem to work currently
-            # TODO investigate future use-cases
-            shade_check=True,
-            includes=includes,  # type:ignore[arg-type]
-        )
+        generated_configs = _generate_acl(policies, defs, includes)
     except (ACLGenError, NamingError) as e:
         error_msg = re.sub(r":\n<[^>]*>", ", ", str(e))
         raise AccessListGenerationError(error_msg)
     except PolicyTypeError as e:
         raise AccessListGenerationError(str(e))
+
+    return generated_configs
+
+
+@redis_lru_cache
+def _generate_acl(policies: List[PolicyDict], defs: Naming, includes: List[PolicyFilter]) -> dict[str, str]:
+    configs = Generate(
+        policies,
+        defs,
+        optimize=api_settings.ACCESS_LIST_OPTIMIZE,
+        # Does not seem to work currently
+        # TODO investigate future use-cases
+        shade_check=True,
+        includes=includes,  # type:ignore[arg-type]
+    )
     # Remove suffix from filename
-    return {re.sub(r"\.[^.]+$", "", k): v for k, v in generated_configs.items()}
+    return {re.sub(r"\.[^.]+$", "", k): v for k, v in configs.items()}
 
 
 def get_groups_priorities(device: Optional[Device] = None, settings: Optional[f_groups] = None) -> Dict[str, int]:

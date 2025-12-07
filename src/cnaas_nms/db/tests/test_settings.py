@@ -403,10 +403,48 @@ class SettingsTests(unittest.TestCase):
     def test_acl_include(self):
         """Test include acl"""
         settings = {
-            "access_lists": {"INCLUDE-ACL": {"terms": [{"name": "some-acl", "action": "accept"}]}, "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}]}},
+            "access_lists": {
+                "INCLUDE-ACL": {"terms": [{"name": "some-acl", "action": "accept"}]},
+                "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}]},
+            },
         }
         f_root(**settings)
         get_generated_access_lists(platform="eos", settings=settings)
+
+    def test_acl_redis_hit(self):
+        """
+        Run get_generated_access_lists twice with the same device should execute get_settings only once
+        """
+        # Clear redis_cache
+        with redis_session() as redis:  # type: ignore
+            cache = RedisLRU(redis)
+            cache.clear_all_cache()
+
+        # Counter to track actual executions
+        call_count = {"count": 0}
+
+        # Save the original undecorated logic
+        original_func = db_settings_module._generate_acl
+
+        # Define a spy wrapper
+        def spy_generate_acl(*args, **kwargs):
+            call_count["count"] += 1
+            return original_func(*args, **kwargs)
+
+        # Reapply RedisLRU decorator to the spy
+        db_settings_module._generate_acl = db_settings_module.redis_lru_cache(spy_generate_acl)
+
+        # First call, executes get_settings
+        # Both devices should get global settings
+        acls1 = db_settings_module.get_generated_access_lists(Device(hostname="acl-testdevice-a1", platform="eos"))
+
+        acls2 = db_settings_module.get_generated_access_lists(Device(hostname="acl-testdevice-a1", platform="eos"))
+
+        # Assert _generate_acl runs once
+        assert call_count["count"] == 1
+
+        # Assert results are identical
+        assert acls1 == acls2
 
 
 if __name__ == "__main__":

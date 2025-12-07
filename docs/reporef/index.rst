@@ -97,7 +97,7 @@ managed network, but then overridden for a specific device type that needs custo
 The inheritence is defined in these steps:
 Global -> Fabric -> Core/Dist/Access -> Group -> Device specific.
 One modification to this rule are fields defined in `SETTINGS_KEYS_TO_MERGE`, which instead will merge global settings with group settings.
-It will prioritize group settings if the entries in the keys collide. The default settings to merge are `prefix_sets` and `routing_policies`.
+It will prioritize group settings if the entries in the keys collide. The default settings to merge are `network_definitions`, `service_definitions`, `access_lists`, `prefix_sets` and `routing_policies`.
 The directory structure looks like this:
 
 - global

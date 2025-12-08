@@ -399,8 +399,16 @@ class SettingsTests(unittest.TestCase):
         settings = {
             "access_lists": {"TEST_ACL": {"terms": []}},
         }
-        with self.assertRaises(AccessListGenerationError):
-            get_generated_access_lists(platform="eos", settings=settings)
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
+
+    def test_acl_non_unique_terms(self):
+        """Test acl non unique terms"""
+        settings = {
+            "access_lists": {"TEST_ACL": {"terms": [{"name": "same"}, {"name": "same"}]}},
+        }
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
 
     def test_acl_include_not_found(self):
         """Test include acl not found"""
@@ -420,6 +428,17 @@ class SettingsTests(unittest.TestCase):
         }
         f_root(**settings)
         get_generated_access_lists(platform="eos", settings=settings)
+
+    def test_acl_include_non_unique(self):
+        """Test include acl where the included terms are not unique together with the parent term names"""
+        settings = {
+            "access_lists": {
+                "INCLUDE-ACL": {"terms": [{"name": "not-unique"}]},
+                "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}, {"name": "not-unique"}]},
+            },
+        }
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
 
     def test_acl_redis_hit(self):
         """

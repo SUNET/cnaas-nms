@@ -481,7 +481,7 @@ class f_access_list(BaseModel):
             # Make sure name does not include whitespace
             name = re.sub(r"[\s-]+", "_", name)
             # Invalid characters is a ValueError
-            if not re.match(r"^[A-Za-z0-9_]+$", name):
+            if not re.match(r"^\w+$", name):
                 raise ValueError(f"Invalid term name: {name}")
             term["name"] = name
             terms.append(term)
@@ -509,9 +509,9 @@ class f_access_list(BaseModel):
 
             term_name = term.get("name")
 
-            hash = make_hash(term, i)
+            name_hash = make_hash(term, i)
 
-            final_name = f"{hash}_{term_name}"
+            final_name = f"{name_hash}_{term_name}"
 
             # Save the updated name back to the term
             term["name"] = final_name
@@ -570,7 +570,7 @@ class f_root(BaseModel):
     def validate_access_lists_includes(cls, access_lists: Dict[access_list_name, f_access_list]):
         """Raise an error if some term include is not pointing to a valid access_list"""
         acl_names = access_lists.keys()
-        for _, access_list in access_lists.items():
+        for access_list in access_lists.values():
             for term in access_list.terms:
                 include_acl = term.get("include")
                 if include_acl and include_acl not in acl_names:

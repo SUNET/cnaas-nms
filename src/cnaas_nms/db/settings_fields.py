@@ -467,7 +467,7 @@ class f_access_list(BaseModel):
     @field_validator("terms", mode="before")
     def ensure_term_names(cls, v):
         """
-        Make sure all term have a valid name
+        Make sure all terms have a valid name
         """
         terms = []
         for i, term in enumerate(v, start=1):
@@ -493,7 +493,6 @@ class f_access_list(BaseModel):
         def make_hash(term: PolicyTerm | PolicyInclude, index: int) -> str:
             hash_input = json.dumps(
                 {
-                    "raw_terms": self.terms,
                     "term": term,
                     "index": index,
                 },

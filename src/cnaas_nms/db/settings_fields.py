@@ -1,6 +1,4 @@
 import datetime  # noqa: F401
-import hashlib
-import json
 import re
 from enum import Enum, StrEnum, auto
 from functools import cached_property
@@ -471,63 +469,35 @@ class f_access_list(BaseModel):
         return sorted(set(v))
 
     @field_validator("terms", mode="before")
-    def ensure_term_names(cls, v):
+    def validate_term_names(cls, v):
         """
-        Make sure all terms have a valid name
+        All terms must have valid names
+        Term name uniqueness is handled in f_root
         """
-        terms = []
-        for i, term in enumerate(v, start=1):
+        for term in v:
             if "include" in term:
-                # This is a PolicyInclude
-                terms.append(term)
-                continue
-
-            # Default the name to term_{index}
-            name = term.get("name", f"term_{i}")
-            # Make sure name does not include whitespace
-            name = re.sub(r"[\s-]+", "_", name)
-            # Invalid characters is a ValueError
-            if not re.match(r"^\w+$", name):
-                raise ValueError(f"Invalid term name: {name}")
-            term["name"] = name
-            terms.append(term)
-
-        return terms
-
-    @model_validator(mode="after")
-    def finalize_terms(self):
-        def make_hash(term: PolicyTerm | PolicyInclude, index: int) -> str:
-            hash_input = json.dumps(
-                {
-                    "term": term,
-                    "index": index,
-                },
-                sort_keys=True,
-            )
-            return hashlib.sha256(hash_input.encode()).hexdigest()[:6]
-
-        normalized = []
-
-        for i, term in enumerate(self.terms, start=1):
-            if "include" in term:
-                normalized.append(term)
+                # This is a PolicyInclude and is validated later in f_root.
                 continue
 
             term_name = term.get("name")
 
-            name_hash = make_hash(term, i)
+            if not term_name:
+                raise ValueError("Terms must have a name")
 
-            final_name = f"{name_hash}_{term_name}"
+            # Invalid characters is a ValueError
+            if not re.match(r"^[\w-]+$", term_name):
+                raise ValueError(f"Invalid term name: {term_name}")
 
-            # Save the updated name back to the term
-            term["name"] = final_name
+        return v
 
-            # Validate the term
-            term = PolicyTermAdapter.validate_python(term)
+    @model_validator(mode="after")
+    def validate_terms(self):
+        if not self.terms:
+            raise ValueError("Terms must be defined and cannot be empty")
 
-            normalized.append(term)
+        # Validate all terms regarding to the TypedDict
+        [PolicyTermAdapter.validate_python(term) for term in self.terms]
 
-        self.terms = normalized
         return self
 
 
@@ -573,14 +543,33 @@ class f_root(BaseModel):
 
     @field_validator("access_lists", mode="after")
     @classmethod
-    def validate_access_lists_includes(cls, access_lists: Dict[access_list_name, f_access_list]):
+    def validate_access_lists_includes(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
         """Raise an error if some term include is not pointing to a valid access_list"""
         acl_names = access_lists.keys()
         for access_list in access_lists.values():
             for term in access_list.terms:
                 include_acl = term.get("include")
                 if include_acl and include_acl not in acl_names:
-                    raise ValueError(f"access-list: {include_acl} must be defined.")
+                    raise ValueError(f"Included access-list: {include_acl} must be defined.")
+        return access_lists
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
+    def validate_access_lists_included_terms(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
+        """Validates an access-list + included access-lists have unique term-names"""
+        for access_list in access_lists.values():
+            all_term_names = [t.get("name") for t in access_list.terms if t.get("name")]
+            for term in access_list.terms:
+                include_acl = term.get("include")
+                if include_acl:
+                    all_term_names.extend([t.get("name") for t in access_lists[include_acl].terms if t.get("name")])
+
+            if len(all_term_names) != len(set(all_term_names)):
+                raise ValueError("All term names in an access-list + included access-lists must be unique.")
         return access_lists
 
 

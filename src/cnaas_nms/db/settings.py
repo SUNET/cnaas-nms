@@ -1142,8 +1142,8 @@ def _generate_acl(policies: List[PolicyDict], defs: Naming, includes: List[Polic
         defs,
         optimize=api_settings.ACCESS_LIST_OPTIMIZE,
         # Does not seem to work currently
-        # TODO investigate future use-cases
-        shade_check=True,
+        # investigate future use-cases
+        shade_check=False,
         includes=includes,  # type:ignore[arg-type]
     )
     # Remove suffix from filename

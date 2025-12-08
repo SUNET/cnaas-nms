@@ -7,7 +7,7 @@ Aerleon imports typing.TypedDict which is not supported with Pydantic.
 Error:
 pydantic.errors.PydanticUserError: Please use `typing_extensions.TypedDict` instead of `typing.TypedDict` on Python < 3.12.
 
-This can be removed when updating a version >= 3.12
+This can be removed when updating to python >= 3.12
 """
 
 if sys.version_info < (3, 12):

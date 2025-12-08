@@ -1245,7 +1245,7 @@ def rebuild_settings_cache() -> None:
     Raises:
         SettingsSyntaxError: Syntax is wrong in settings files
         VlanConflictError: Multiple conflicting VLANs exists on same device
-        AccessListGenerationError: There is an error when generating an access_lists
+        AccessListGenerationError: There is an error when generating access_lists
     """
     logger = get_logger()
     logger.debug("Clearing redis-lru cache for settings")

@@ -23,6 +23,7 @@ from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import (
+    AccessListGenerationError,
     SettingsSyntaxError,
     VlanConflictError,
     get_device_primary_groups,
@@ -385,6 +386,11 @@ class DeviceByIdApi(Resource):
                     logger.error(msg)
                     session.rollback()
                     return empty_result(status="error", data=msg), 500
+                except AccessListGenerationError as e:
+                    msg = str(e)
+                    logger.error(msg)
+                    session.rollback()
+                    return empty_result(status="error", data=msg)
 
             if "synchronized" in json_data and json_data["synchronized"]:
                 remove_sync_events(dev.hostname)

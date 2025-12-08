@@ -5,7 +5,7 @@ import re
 from enum import Enum, StrEnum, auto
 from functools import cached_property
 from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Network
-from typing import Annotated, Dict, List, Literal, Optional, Self, Set, Union
+from typing import Annotated, Dict, List, Literal, Optional, Self, Union
 
 from aerleon.lib.policy_builder import PolicyInclude, PolicyTerm
 from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
@@ -455,7 +455,7 @@ PolicyTermAdapter.rebuild()
 class f_access_list(BaseModel):
     comment: str = ""
     include_only: bool = False
-    inet_families: Set[Literal["ipv4", "ipv6"]] = {"ipv4"}
+    inet_families: List[Literal["ipv4", "ipv6"]] = ["ipv4"]
     header_map: Dict[str, str] = {}
     # Example header_map
     # {"ios": "{ACL_NAME} {INET_FAMILY} noverbose",
@@ -463,6 +463,12 @@ class f_access_list(BaseModel):
 
     # Uses Aerleon TypedDict
     terms: List[PolicyTerm | PolicyInclude]
+
+    @field_validator("inet_families", mode="after")
+    @classmethod
+    def unique_sorted_inet_families(cls, v: List[Literal["ipv4", "ipv6"]]) -> List[Literal["ipv4", "ipv6"]]:
+        """Make sure inet_families are unique and sorted"""
+        return sorted(set(v))
 
     @field_validator("terms", mode="before")
     def ensure_term_names(cls, v):

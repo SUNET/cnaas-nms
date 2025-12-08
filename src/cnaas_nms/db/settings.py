@@ -10,8 +10,7 @@ import pkg_resources
 import yaml
 from aerleon.aclgen import Error as ACLGenError
 from aerleon.api import Generate
-from aerleon.lib.naming import Error as NamingError
-from aerleon.lib.naming import Naming
+from aerleon.lib import naming
 from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyInclude, PolicyTerm
 from aerleon.lib.yaml import PolicyTypeError
 from netutils.lib_mapper import AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
@@ -85,12 +84,12 @@ class NMSRedisLRU(RedisLRU):
                 return tuple(
                     (k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()) if k in device_filter_fields
                 )
+            elif isinstance(obj, naming.Naming) or isinstance(obj, naming._ItemUnit):
+                # Use __dict__ for Naming object
+                return tuple((k, make_hashable(v)) for k, v in sorted(obj.__dict__.items()))
             elif hasattr(obj, "as_dict"):
                 # Use the dictionary representation for caching
                 return tuple((k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()))
-            elif hasattr(obj, "__dict__"):
-                # Use __dict__ if available
-                return tuple((k, make_hashable(v)) for k, v in sorted(obj.__dict__.items()))
             else:
                 return obj
 
@@ -974,8 +973,8 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     return group_dict
 
 
-def build_aerleon_definitions(settings: dict) -> Naming:
-    aerleon_definitions = Naming()
+def build_aerleon_definitions(settings: dict) -> naming.Naming:
+    aerleon_definitions = naming.Naming()
 
     networks_dict = {}
     services_dict = {}
@@ -1126,7 +1125,7 @@ def get_generated_access_lists(
     try:
         # Generate all access-lists at once.
         generated_configs = _generate_acl(policies, defs, includes)
-    except (ACLGenError, NamingError) as e:
+    except (ACLGenError, naming.Error) as e:
         error_msg = re.sub(r":\n<[^>]*>", ", ", str(e))
         raise AccessListGenerationError(error_msg)
     except PolicyTypeError as e:
@@ -1136,7 +1135,7 @@ def get_generated_access_lists(
 
 
 @redis_lru_cache
-def _generate_acl(policies: List[PolicyDict], defs: Naming, includes: List[PolicyFilter]) -> dict[str, str]:
+def _generate_acl(policies: List[PolicyDict], defs: naming.Naming, includes: List[PolicyFilter]) -> dict[str, str]:
     configs = Generate(
         policies,
         defs,

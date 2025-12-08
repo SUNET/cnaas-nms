@@ -31,11 +31,11 @@ from cnaas_nms.db.settings_fields import f_group, f_groups, f_root
 
 
 def random_ipv4_ipaddress():
-    return str(ipaddress.IPv4Address(random.getrandbits(32)))
+    return str(ipaddress.IPv4Address(random.getrandbits(32)))  # noqa: S2245
 
 
 def random_ipv6_ipaddress():
-    return str(ipaddress.IPv6Address(random.getrandbits(128)))
+    return str(ipaddress.IPv6Address(random.getrandbits(128)))  # noqa: S2245
 
 
 class SettingsTests(unittest.TestCase):

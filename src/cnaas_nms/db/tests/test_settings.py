@@ -68,19 +68,19 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     def test_get_settings_global(self):
-        settings, settings_origin = get_settings()
+        settings, _ = get_settings()
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
     def test_get_settings_devicetype(self):
-        settings, settings_origin = get_settings(device_type=DeviceType.DIST)
+        settings, _ = get_settings(device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
     def test_get_settings_device(self):
-        settings, settings_origin = get_settings(
+        settings, _ = get_settings(
             device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST
         )
         # Assert that all required settings are set

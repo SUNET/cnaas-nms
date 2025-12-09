@@ -1,8 +1,11 @@
+====================
 Repository Reference
 ====================
 
-Templates
----------
+.. contents:: Table of Contents
+
+templates
+*********
 
 Templates for switch configurations.
 
@@ -89,7 +92,7 @@ All settings configured in the settings repository are also exposed to the templ
 .. _settings_repo_ref:
 
 settings
---------
+********
 
 Settings are defined at different levels and inherited (possibly overridden) in several steps.
 For example, NTP servers might be defined in the "global" settings to impact the entire
@@ -102,6 +105,7 @@ The directory structure looks like this:
 
 - global
 
+  * access_lists.yml: Definition of global access lists
   * groups.yml: Definition of custom device groups
   * routing.yml: Definition of global routing settings like fabric underlay and VRFs
   * vxlans.yml: Definition of VXLAN/VLANs
@@ -129,6 +133,7 @@ The directory structure looks like this:
 
   * <group name>
 
+    + access_lists.yml
     + base_system.yml
     + interfaces.yml
     + routing.yml
@@ -137,11 +142,168 @@ The directory structure looks like this:
 
   * <hostname>
 
+    + access_lists.yml
     + base_system.yml
     + interfaces.yml
     + routing.yml
 
-groups.yml:
+access_lists.yml
+----------------
+
+| Experimental feature built on top of `aerleon <https://aerleon.readthedocs.io/en/latest/>`_.  
+| Can contain the following dictionaries with specified keys:
+
+
+- network_definitions: Dictionary of {<name>, [entries]}:
+  
+  | A network entry can be one of: an address or an include.
+  | Address:
+
+  * address: A IPv4 address, IPv6 address, IPv4 network or IPv6 network.
+  * comment: A comment that describes the address.
+  
+  Include:
+
+  * name: Name of another network object to include in this network definition
+
+- service_definitions: Dictionary of {<name>, [entries]}:
+  
+  | A service entry can be one of: a port or an include.
+  | Port:
+
+  * port: A port or port range defined as start-end, eq 1024-65535.
+  * protocol: A protocol name or number.
+    Read more here: `<https://aerleon.readthedocs.io/en/latest/reference/generator_patterns/#protocol-support>`_.
+  * comment: A comment that describes the service.
+  
+  Include:
+
+  * name: Name of another service object to include in this service definition
+
+
+* access_lists: Dictionary of {<name>, access_lists}:
+
+  * comment: A comment that describes the access list.
+  * include_only: This access list should not be generated on its own and is only used in other access lists as an imported access list.
+  * inet_families: List of ipv4, ipv6 of which inet families the access list should be generated to, defaults to ipv4 only.
+    For include_only = True this field has no effect.
+  * header_map: A dictionary of {<platform>, <header>} allowing for customization of the aerleon header.
+    Can use two variables that will be substituted :code:`{ACL_NAME}` and :code:`{INET_FAMILY}`.
+    By default for Cisco and Arista the IPv4 access list will be generated as an extended access list.
+    To generate a standard access list you can set header_map to for example: :code:`{ios: "{ACL_NAME} standard"}`, one drawback is now the access list can only be generated to IPv4.
+    Find more information about the header syntax for different platforms here: `<https://aerleon.readthedocs.io/en/latest/reference/generators/>`_.
+    Aerleon header option `mixed` should not be used, use inet_families: :code:`[ipv4, ipv6]` instead.
+    For include_only = True this field has no effect.
+  * terms: List of Aerleon terms. See more below.
+
+- access_list - terms:
+
+  | A term can be a term or an include.
+  | Term: 
+  
+  * name: A term must have a unique name.
+    See here for full examples: `<https://aerleon.readthedocs.io/en/latest/reference/yaml_reference/#configuring-terms>`_
+
+  Include:
+
+  * include: Name of the included access list.
+
+.. note::
+   NMS will substitute napalm platforms to aerleon platforms so for example ios and eos can be used in access-list syntax and will be automatically translated to the correct aerleon platform.
+
+Access list examples
+^^^^^^^^^^^^^^^^^^^^
+.. code-block:: yaml
+
+  ---
+  network_definitions:
+    "ONEONEONEONE":
+      - address: "1.1.1.1"
+      - address: "2606:4700:4700::1111"
+    "ONEZEROZEROONE":
+      - address: "1.0.0.1"
+      - address: "2606:4700:4700::1001"
+    "CLOUDFLARE_ALL":
+      - name: ONEONEONEONE
+      - name: ONEZEROZEROONE
+    "RFC_1918":
+      - address: 10.0.0.0/8
+      - address: 172.16.0.0/12
+      - address: 192.168.0.0/16
+  service_definitions:
+    "DNS":
+      - port: 53
+        protocol: "udp"
+        comment: "udp dns"
+    "HIGH_PORTS":
+      - port: 1024-65535
+        protocol: tcp
+      - port: 1024-65535
+        protocol: udp
+  access_lists:
+    "COUNTERS":
+      comment: |
+        Import this at the start of a access list
+        to enable counters on eos or nxos
+      include_only: true
+      terms:
+        # This will render only on platforms: eos and nxos
+        # and skipped for other platforms
+        - name: "counters_per_entry"
+          verbatim:
+            eos: " counters per-entry"
+            nxos: " statistics per-entry"
+          platform:
+            - "eos"
+            - "nxos"
+    "INCLUDED-ACL":
+      comment: | 
+        This is an access-list
+        that is only included in other lists
+      include_only: true
+      terms:
+        - name: "accept_cloudflare"
+          destination-address: "CLOUDFLARE_ALL"
+          action: "accept"
+    "ACL-TEST":
+      comment: "Some acl"
+      header_map:
+        # noverbose for Cisco IOS removes all comments
+        # from the generated access list.
+        ios: "{ACL_NAME} {INET_FAMILY} noverbose"
+      inet_families:
+        - "ipv4"
+        - "ipv6"
+      terms:
+        - include: "COUNTERS"
+        - include: "INCLUDED-ACL"
+        - name: "accept-DNS"
+          destination-address: ONEONEONEONE
+          destination-port: "DNS"
+          protocol: "udp"
+          action: "accept"
+    "ACL-STANDARD":
+      comment: "A standard acl for ios"
+      header_map:
+        ios: "{ACL_NAME} standard"
+      terms:
+        # Syntax is different for standard and extended access lists.
+        # Combine different platforms by using platform and platform-exclude.
+        # For ios it will be generated as a standard access list
+        # For other platforms it will be generated as normal to an extended access list
+        - name: "accept standard from ONEONEONEONE"
+          address: ONEONEONEONE
+          action: "accept"
+          platform:
+            - ios
+        - name: "accept extended from ONEONEONEONE"
+          source-address: ONEONEONEONE
+          action: "accept"
+          platform-exclude:
+            - ios
+
+groups.yml
+----------
 
 A device in CNaaS-NMS will be a member of exactly one primary group, and
 optionally any number of secandary groups. Primary groups can be used to
@@ -238,7 +400,8 @@ Group examples
       group_priority: 99
 
 
-routing.yml:
+routing.yml
+-----------
 
 Can contain the following dictionaries with specified keys:
 
@@ -359,7 +522,8 @@ Can contain the following dictionaries with specified keys:
   either this list or the routing_policies setting described above.
 
 
-routing.yml examples:
+routing.yml examples
+^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: yaml
 
@@ -417,7 +581,8 @@ routing.yml examples:
              - match_type: "ipv6 prefix-set"
                match_target: "all-ipv6"
 
-vxlans.yml:
+vxlans.yml
+----------
 
 Contains a dictinary called "vxlans", which in turn has one dictinoary per vxlan, vxlan
 name is the dictionary key and dictionaly values are:
@@ -443,7 +608,8 @@ name is the dictionary key and dictionaly values are:
     access switch the parent dist switch should be automatically provisioned.
   * devices: List of device names where this VXLAN/VLAN should be provisioned. Optional.
 
-interfaces.yml:
+interfaces.yml
+--------------
 
 For dist and core devices interfaces are configured in YAML files. The
 interface configuration can either be done per device, or per device model.
@@ -514,7 +680,8 @@ and on the other device in the same management domain you can use ifclass mirror
 without any other settings (but you can optionally override description and enabled
 status).
 
-base_system.yml:
+base_system.yml
+---------------
 
 Contains base system settings like:
 
@@ -602,7 +769,8 @@ Contains base system settings like:
   will be used, otherwise if matching platform is found that wait time will be used, otherwise
   default wait time will be used.
 
-Example of base_system.yml:
+Example of base_system.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: yaml
 
@@ -637,7 +805,7 @@ to "ascending". If internal_vlans is specified then a collision check will
 be performed for any defined vlan_ids in vxlans settings.
 
 etc
----
+***
 
 Configuration files for system daemons
 

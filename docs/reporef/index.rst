@@ -150,24 +150,24 @@ The directory structure looks like this:
 access_lists.yml
 ----------------
 
-| Experimental feature built on top of `aerleon <https://aerleon.readthedocs.io/en/latest/>`_.  
+| Experimental feature built on top of `aerleon <https://aerleon.readthedocs.io/en/latest/>`_.
 | Can contain the following dictionaries with specified keys:
 
 
 - network_definitions: Dictionary of {<name>, [entries]}:
-  
+
   | A network entry can be one of: an address or an include.
   | Address:
 
   * address: A IPv4 address, IPv6 address, IPv4 network or IPv6 network.
   * comment: A comment that describes the address.
-  
+
   Include:
 
   * name: Name of another network object to include in this network definition
 
 - service_definitions: Dictionary of {<name>, [entries]}:
-  
+
   | A service entry can be one of: a port or an include.
   | Port:
 
@@ -175,7 +175,7 @@ access_lists.yml
   * protocol: A protocol name or number.
     Read more here: `<https://aerleon.readthedocs.io/en/latest/reference/generator_patterns/#protocol-support>`_.
   * comment: A comment that describes the service.
-  
+
   Include:
 
   * name: Name of another service object to include in this service definition
@@ -199,8 +199,8 @@ access_lists.yml
 - access_list - terms:
 
   | A term can be a term or an include.
-  | Term: 
-  
+  | Term:
+
   * name: A term must have a unique name.
     See here for full examples: `<https://aerleon.readthedocs.io/en/latest/reference/yaml_reference/#configuring-terms>`_
 
@@ -209,7 +209,7 @@ access_lists.yml
   * include: Name of the included access list.
 
 .. note::
-   NMS will substitute napalm platforms to aerleon platforms so for example ios and eos can be used in access-list syntax and will be automatically translated to the correct aerleon platform.
+   NMS will substitute napalm platforms to aerleon platforms so for example ios and eos can be used in access list syntax and will be automatically translated to the correct aerleon platform.
 
 Access list examples
 ^^^^^^^^^^^^^^^^^^^^
@@ -257,8 +257,8 @@ Access list examples
             - "eos"
             - "nxos"
     "INCLUDED-ACL":
-      comment: | 
-        This is an access-list
+      comment: |
+        This is an access list
         that is only included in other lists
       include_only: true
       terms:

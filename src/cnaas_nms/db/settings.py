@@ -121,7 +121,7 @@ class AccessListGenerationError(Exception):
 
 
 DIR_STRUCTURE_HOST = {
-    "access_lists.yml": "file",
+    "access_lists.yml": "optional_file",
     "base_system.yml": "file",
     "interfaces.yml": "file",
     "routing.yml": "file",
@@ -129,7 +129,7 @@ DIR_STRUCTURE_HOST = {
 
 DIR_STRUCTURE: dict[str, Any] = {
     "global": {
-        "access_lists.yml": "file",
+        "access_lists.yml": "optional_file",
         "base_system.yml": "file",
         "groups.yml": "file",
         "routing.yml": "file",
@@ -195,6 +195,10 @@ def verify_dir_structure(path: str, dir_structure: dict):
                     raise VerifyPathException(f"{filename} is not a regular file")
                 else:
                     raise VerifyPathException(f"File {filename} not found")
+        elif isinstance(subitem, str) and subitem == "optional_file":
+            filename = os.path.join(path, item)
+            if not os.path.isfile(filename) and os.path.exists(filename):
+                raise VerifyPathException(f"{filename} is not a regular file")
         elif item is Device:
             for hostname in os.listdir(path):
                 hostname_path = os.path.join(path, hostname)
@@ -511,6 +515,9 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
 
 @redis_lru_cache
 def read_settings_file(filename):
+    # Optional files that does not exists return nothing
+    if not os.path.isfile(filename):
+        return {}
     with open(filename, "r") as f:
         return yaml.safe_load(f)
 

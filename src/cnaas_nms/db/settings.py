@@ -1091,7 +1091,9 @@ def get_generated_access_lists(
     aerleon_platform = napalm_to_aerleon(platform)
     # Could not get a valid aerleon platform
     if aerleon_platform not in AERLEON_LIB_MAPPER_REVERSE.values():
-        raise AccessListGenerationError(f"Platform: {platform} is not supported for access_list generation.")
+        logger = get_logger()
+        logger.error(f"Platform: {platform} is not supported for access_list generation, no access-lists will be generated.")
+        return {}
 
     defs = build_aerleon_definitions(settings)
 

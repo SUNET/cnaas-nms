@@ -565,7 +565,8 @@ class f_root(BaseModel):
             all_term_names = [t.get("name") for t in access_list.terms if t.get("name")]
             for term in access_list.terms:
                 include_acl = term.get("include")
-                if include_acl:
+
+                if include_acl and isinstance(include_acl, str):
                     all_term_names.extend([t.get("name") for t in access_lists[include_acl].terms if t.get("name")])
 
             if len(all_term_names) != len(set(all_term_names)):

@@ -57,7 +57,7 @@ dependencies = [
   "pytest-env==1.1.5",
   "python-jose==3.4",
   "pytz==2025.2",
-  "pyyaml==6.0.2",
+  "pyyaml==6.0.3",
   "redis==5.2.1",
   "redis-lru==0.1",
   "requests==2.32.3",

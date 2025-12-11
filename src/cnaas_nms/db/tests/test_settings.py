@@ -502,7 +502,7 @@ class SettingsTests(unittest.TestCase):
 
         with self.assertRaises(ValidationError) as e:
             f_root(**{"system_access_lists": system_acls, "access_lists": {}})
-            self.assertEqual(e.msg, "ACL-TEST is not defined as an access-list.")
+            assert e.msg == "ACL-TEST is not defined as an access-list."
 
     def test_acl_auto_from_vxlans(self):
         """vxlan that is allocated to a DeviceType.DIST will be auto included to be generated"""

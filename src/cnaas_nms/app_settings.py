@@ -51,7 +51,7 @@ class ApiSettings(BaseSettings):
     PLUGIN_FILE: Path = Path("/etc/cnaas-nms/plugins.yml")
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
-    SETTINGS_KEYS_TO_MERGE: Optional[List[str]] = ["network_definitions", "service_definitions", "access_lists", "prefix_sets", "routing_policies"]
+    SETTINGS_KEYS_TO_MERGE: Optional[List[str]] = ["prefix_sets", "routing_policies"]
     ACCESS_LIST_OPTIMIZE: bool = False
     MGMTDOMAIN_RESERVED_COUNT: int = 5
     MGMTDOMAIN_PRIMARY_IP_VERSION: int = 4

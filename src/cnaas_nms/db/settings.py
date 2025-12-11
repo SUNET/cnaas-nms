@@ -1,10 +1,9 @@
-import hashlib
 import importlib
 import json
 import os
 import re
 import types
-from typing import Any, Dict, List, Literal, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union
 
 import pkg_resources
 import yaml
@@ -63,12 +62,6 @@ class NMSRedisLRU(RedisLRU):
         even when passing dicts, lists, sets, or custom objects.
         """
 
-        def hash_tuple(t: tuple) -> str:
-            """
-            Convert a already hashable tuple into a short, hex string for caching.
-            """
-            return hashlib.sha256(json.dumps(t, sort_keys=True, default=str).encode()).hexdigest()
-
         def make_hashable(obj):
             """Recursively convert objects into hashable objects."""
             if isinstance(obj, dict):
@@ -94,8 +87,8 @@ class NMSRedisLRU(RedisLRU):
                 return obj
 
         # Convert args & kwargs into stable, hashable forms
-        hashed_args = tuple(hash_tuple(make_hashable(arg)) for arg in args)
-        hashed_kwargs = {k: hash_tuple(make_hashable(v)) for k, v in kwargs.items()}
+        hashed_args = tuple(hash(make_hashable(arg)) for arg in args)
+        hashed_kwargs = {k: hash(make_hashable(v)) for k, v in kwargs.items()}
 
         # Call the parent class' key generator with transformed arguments
         return super()._decorator_key(func, *hashed_args, **hashed_kwargs)
@@ -121,7 +114,6 @@ class AccessListGenerationError(Exception):
 
 
 DIR_STRUCTURE_HOST = {
-    "access_lists.yml": "optional_file",
     "base_system.yml": "file",
     "interfaces.yml": "file",
     "routing.yml": "file",
@@ -810,13 +802,6 @@ def get_settings(
                     settings,
                     settings_origin,
                 )
-                settings, settings_origin = read_settings(
-                    local_repo_path,
-                    ["groups", primary_group, "access_lists.yml"],
-                    "groups->{}->access_lists.yml".format(primary_group),
-                    settings,
-                    settings_origin,
-                )
 
         # 6. Get settings repo device specific settings
         if os.path.isdir(os.path.join(local_repo_path, "devices", device.hostname)):
@@ -838,14 +823,6 @@ def get_settings(
                 local_repo_path,
                 ["devices", device.hostname, "routing.yml"],
                 "device->{}->routing.yml".format(device.hostname),
-                settings,
-                settings_origin,
-                groups,
-            )
-            settings, settings_origin = read_settings(
-                local_repo_path,
-                ["devices", device.hostname, "access_lists.yml"],
-                "device->{}->access_lists.yml".format(device.hostname),
                 settings,
                 settings_origin,
                 groups,
@@ -980,7 +957,7 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     return group_dict
 
 
-def build_aerleon_definitions(settings: dict) -> naming.Naming:
+def _build_aerleon_definitions(settings: dict) -> naming.Naming:
     aerleon_definitions = naming.Naming()
 
     networks_dict = {}
@@ -1002,7 +979,7 @@ def napalm_to_aerleon(platform: str) -> str:
     return AERLEON_LIB_MAPPER_REVERSE.get(NAPALM_LIB_MAPPER.get(platform, ""), platform)
 
 
-def get_aerleon_translated_terms(terms: List[PolicyTerm | PolicyInclude]) -> List[PolicyTerm | PolicyInclude]:
+def _get_aerleon_translated_terms(terms: List[PolicyTerm | PolicyInclude]) -> List[PolicyTerm | PolicyInclude]:
     """
     Convert Napalm platform names (e.g. 'ios', 'eos') inside term dictionaries
     into their corresponding Aerleon generator names (e.g. 'cisco_ios',
@@ -1024,7 +1001,7 @@ def get_aerleon_translated_terms(terms: List[PolicyTerm | PolicyInclude]) -> Lis
     return [translate(term) for term in terms]
 
 
-def get_aerleon_inet(platform: str, inet_family: Literal["ipv4", "ipv6"]) -> str:
+def _get_aerleon_inet(platform: str, inet_family: Literal["ipv4", "ipv6"]) -> str:
     """
     Maps ipv4 or ipv6 to aerleon inet-format.
     Differs between different types of devices.
@@ -1040,6 +1017,23 @@ def get_aerleon_inet(platform: str, inet_family: Literal["ipv4", "ipv6"]) -> str
         "nxos": {"ipv4": "extended", "ipv6": "inet6"},
     }
     return inet_family_map.get(platform, {}).get(inet_family, inet_family)
+
+
+def _get_all_access_lists(data: List[Dict[str, str]]) -> Iterator[str]:
+    """
+    Extracts all access lists from a vxlan or interface and returns them as a single list.
+
+    Args:
+        data: A vxlan or interface dictionary.
+
+    Returns:
+        An iterator of strings with all access list names.
+    """
+    for vi in data:
+        for acl_setting in ["acl_ipv4_in", "acl_ipv4_out", "acl_ipv6_in", "acl_ipv6_out"]:
+            acl = vi.get(acl_setting)
+            if acl:
+                yield acl
 
 
 def get_generated_access_lists(
@@ -1092,39 +1086,58 @@ def get_generated_access_lists(
     # Could not get a valid aerleon platform
     if aerleon_platform not in AERLEON_LIB_MAPPER_REVERSE.values():
         logger = get_logger()
-        logger.error(f"Platform: {platform} is not supported for access_list generation, no access-lists will be generated.")
+        logger.error(
+            f"Platform: {platform} is not supported for access_list generation, no access-lists will be generated."
+        )
         return {}
 
-    defs = build_aerleon_definitions(settings)
+    # List of all access_lists that should be generated for this device.
+    process_access_lists: List[str] = settings.get("system_access_lists", [])
+
+    # Add all acls found from vxlan to a dist-switch
+    if dev and dev.device_type == DeviceType.DIST:
+        process_access_lists.extend(_get_all_access_lists(settings.get("vxlans", {}).values()))
+    # Add all interface-acls.
+    if dev and dev.device_type in [DeviceType.ACCESS, DeviceType.CORE, DeviceType.DIST, DeviceType.FIREWALL]:
+        process_access_lists.extend(_get_all_access_lists(settings.get("interfaces", [])))
 
     policies = []  # All access_lists that will be generated
     includes = {}  # A dict with acl_name: policy_dict if another access_list includes another acl.
     setting_acls: Dict[str, dict] = settings.get("access_lists", {})
 
+    # All other access lists not in process_access_lists can be added
+    # as an include_only access_list in case access lists reference them as an include.
+    for access_list_name, access_list_dict in setting_acls.items():
+        if access_list_name not in process_access_lists:
+            # Not in process_access_list -> Add as include_only
+            setting_acls[access_list_name]["include_only"] = True
+
+    defs = _build_aerleon_definitions(settings)
+
     for access_list_name, access_list_dict in setting_acls.items():
         # Construct f_access_list object without validation
         access_list: f_access_list = f_access_list.model_construct(**access_list_dict)
+
         # Get aerleon header format, defaults to "{ACL_NAME} {INET_FAMILY}"
         header = access_list.header_map.get(platform, "{ACL_NAME} {INET_FAMILY}")
 
         inside_policies = []
-        acl_terms = get_aerleon_translated_terms(access_list.terms)
+        acl_terms = _get_aerleon_translated_terms(access_list.terms)
         for inet_family in access_list.inet_families:
             # Format acl_header for the specific inet_family
-            acl_header = header.format(ACL_NAME=access_list_name, INET_FAMILY=get_aerleon_inet(platform, inet_family))
+            acl_header = header.format(ACL_NAME=access_list_name, INET_FAMILY=_get_aerleon_inet(platform, inet_family))
             inside_policy_dict: PolicyFilter = {
                 "header": {"targets": {aerleon_platform: acl_header}, "comment": access_list.comment},
                 "terms": acl_terms,
             }
             inside_policies.append(inside_policy_dict)
 
-        policy_dict: PolicyDict = {  # type:ignore[typeddict-unknown-key]
-            "filename": access_list_name,
-            "filters": inside_policies,
-        }
-
         # include_only access list should not generate
         if not access_list.include_only:
+            policy_dict: PolicyDict = {  # type:ignore[typeddict-unknown-key]
+                "filename": access_list_name,
+                "filters": inside_policies,
+            }
             policies.append(policy_dict)
 
         # Include access_list only once.
@@ -1154,6 +1167,8 @@ def _generate_acl(policies: List[PolicyDict], defs: naming.Naming, includes: Lis
         shade_check=False,
         includes=includes,  # type:ignore[arg-type]
     )
+    if not configs:
+        return {}
     # Remove suffix from filename
     return {re.sub(r"\.[^.]+$", "", k): v for k, v in configs.items()}
 

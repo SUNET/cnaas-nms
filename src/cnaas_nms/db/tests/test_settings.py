@@ -424,7 +424,7 @@ class SettingsTests(unittest.TestCase):
                 "INCLUDE-ACL": {"include_only": True, "terms": [{"name": "some-acl", "action": "accept"}]},
                 "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}]},
             },
-            "system_access_lists": ["TEST_ACL"]
+            "system_access_lists": ["TEST_ACL"],
         }
         f_root(**settings)
         acls = get_generated_access_lists(platform="eos", settings=settings)
@@ -441,7 +441,7 @@ class SettingsTests(unittest.TestCase):
                 "INCLUDE-ACL4": {"include_only": True, "terms": [{"name": "some-acl", "action": "accept"}]},
                 "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL1"}]},
             },
-            "system_access_lists": ["TEST_ACL"]
+            "system_access_lists": ["TEST_ACL"],
         }
         f_root(**settings)
         acls = get_generated_access_lists(platform="eos", settings=settings)
@@ -496,13 +496,76 @@ class SettingsTests(unittest.TestCase):
 
     def test_acl_system_acl(self):
         system_acls = ["ACL-TEST"]
-        acls = {"ACL-TEST": {"terms": [{"name": "permit-any", "action": "permit"}]}}
+        acls = {"ACL-TEST": {"terms": [{"name": "permit-any", "action": "accept"}]}}
         # Works because the system_access_list is defined in access_lists
         f_root(**{"system_access_lists": system_acls, "access_lists": acls})
 
         with self.assertRaises(ValidationError) as e:
             f_root(**{"system_access_lists": system_acls, "access_lists": {}})
             self.assertEqual(e.msg, "ACL-TEST is not defined as an access-list.")
+
+    def test_acl_auto_from_vxlans(self):
+        """vxlan that is allocated to a DeviceType.DIST will be auto included to be generated"""
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "access_lists": {"SOME_VXLAN_IN": {"terms": [{"name": "permit-any", "action": "accept"}]}},
+        }
+
+        # Validate settings
+        f_root(**settings)
+        # For a dist-switch it will automatically get and generate vxlan access-lists if found in access_lists.
+        dist_acls = get_generated_access_lists(
+            Device(hostname="testdevice-d1", platform="eos", device_type=DeviceType.DIST), settings=settings
+        )
+
+        self.assertIn("SOME_VXLAN_IN", dist_acls.keys())
+        self.assertEqual(len(dist_acls), 1)
+
+        # For access it will not be generated
+        access_acls = get_generated_access_lists(
+            Device(hostname="testdevice-a1", platform="eos", device_type=DeviceType.ACCESS), settings=settings
+        )
+
+        self.assertNotIn("SOME_VXLAN_IN", access_acls.keys())
+        self.assertEqual(len(access_acls), 0)
+
+    def test_acl_auto_from_interfaces(self):
+        """interfaces that is allocated to a device will be auto included to be generated"""
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "interfaces": [
+                {
+                    "name": "Ethernet1",
+                    "ifclass": "custom",
+                    "vrf": "SOME_VRF",
+                    "ipv4_address": "192.168.0.1/24",
+                    "acl_ipv4_in": "SOME_INTF_IN",
+                }
+            ],
+            "access_lists": {"SOME_INTF_IN": {"terms": [{"name": "permit-any", "action": "accept"}]}},
+        }
+
+        # Validate settings
+        f_root(**settings)
+        # For all device-types if access lists are set on interfaces it will automatically generate them
+        for devtype in [DeviceType.ACCESS, DeviceType.CORE, DeviceType.DIST, DeviceType.FIREWALL]:
+            acls = get_generated_access_lists(
+                Device(hostname="testdevice-x1", platform="eos", device_type=devtype), settings=settings
+            )
+
+            self.assertIn("SOME_INTF_IN", acls.keys())
+            self.assertEqual(len(acls), 1)
 
 
 if __name__ == "__main__":

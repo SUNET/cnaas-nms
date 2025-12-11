@@ -514,7 +514,7 @@ class SettingsTests(unittest.TestCase):
                     "vrf": "SOME_VRF",
                     "vlan_id": 101,
                     "vlan_name": "SOME_VXLAN",
-                    "ipv4_gw": "192.168.0.1/24",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
                     "acl_ipv4_in": "SOME_VXLAN_IN",
                     "devices": ["testdevice-d1"],
                 }
@@ -549,7 +549,7 @@ class SettingsTests(unittest.TestCase):
                     "name": "Ethernet1",
                     "ifclass": "custom",
                     "vrf": "SOME_VRF",
-                    "ipv4_address": "192.168.0.1/24",
+                    "ipv4_address": "192.168.0.1/24",  # noqa: S1313
                     "acl_ipv4_in": "SOME_INTF_IN",
                 }
             ],

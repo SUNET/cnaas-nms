@@ -768,6 +768,7 @@ Contains base system settings like:
   String can be a model number, a platform or "default". If matching model is found, that wait time
   will be used, otherwise if matching platform is found that wait time will be used, otherwise
   default wait time will be used.
+- system_access_lists: List of system access-lists that should be generated and passed to templates.
 
 Example of base_system.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -796,6 +797,8 @@ Example of base_system.yml
      vlan_id_low: 3006
      vlan_id_high: 4094
    dot1x_fail_vlan: 13
+   system_access_lists:
+     - SNMP-ACCESS
 
 
 internal_vlans can optionally be specified if you want to manually define

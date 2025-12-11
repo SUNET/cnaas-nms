@@ -468,7 +468,7 @@ class f_access_list(BaseModel):
         """Make sure inet_families are unique and sorted"""
         return sorted(set(v))
 
-    @field_validator("terms", mode="before")
+    @field_validator("terms", mode="after")
     def validate_term_names(cls, v):
         """
         All terms must have valid names
@@ -490,16 +490,16 @@ class f_access_list(BaseModel):
 
         return v
 
-    @model_validator(mode="after")
-    def validate_terms(self):
-        if not self.terms:
+    @field_validator("terms", mode="after")
+    @classmethod
+    def validate_terms(cls, terms):
+        if not terms:
             raise ValueError("Terms must be defined and cannot be empty")
 
         # Validate all terms regarding to the TypedDict
-        [PolicyTermAdapter.validate_python(term) for term in self.terms]
+        [PolicyTermAdapter.validate_python(term) for term in terms]
 
-        return self
-
+        return terms
 
 f_access_list.model_rebuild()
 
@@ -540,6 +540,15 @@ class f_root(BaseModel):
     network_definitions: Dict[str, List[Union[f_network_definition | f_network_definition_include]]] = {}
     service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
     access_lists: Dict[access_list_name, f_access_list] = {}
+    system_access_lists: List[access_list_name] = []
+
+    @model_validator(mode="after")
+    def validate_system_access_lists(self):
+        acl_names = set(self.access_lists.keys())
+        for system_acl in self.system_access_lists:
+            if system_acl not in acl_names:
+                raise ValueError(f"{system_acl} is not defined as an access-list.")
+        return self
 
     @field_validator("access_lists", mode="after")
     @classmethod

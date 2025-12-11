@@ -80,9 +80,7 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     def test_get_settings_device(self):
-        settings, _ = get_settings(
-            device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST
-        )
+        settings, _ = get_settings(device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
@@ -390,6 +388,7 @@ class SettingsTests(unittest.TestCase):
             "access_lists": {
                 "TEST_ACL": {"terms": [{"name": "permit-all", "source-address": "BOTH", "action": "accept"}]}
             },
+            "system_access_lists": ["TEST_ACL"],
         }
         with self.assertRaises(AccessListGenerationError):
             get_generated_access_lists(platform="eos", settings=settings)
@@ -422,12 +421,32 @@ class SettingsTests(unittest.TestCase):
         """Test include acl"""
         settings = {
             "access_lists": {
-                "INCLUDE-ACL": {"terms": [{"name": "some-acl", "action": "accept"}]},
+                "INCLUDE-ACL": {"include_only": True, "terms": [{"name": "some-acl", "action": "accept"}]},
                 "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}]},
             },
+            "system_access_lists": ["TEST_ACL"]
         }
         f_root(**settings)
-        get_generated_access_lists(platform="eos", settings=settings)
+        acls = get_generated_access_lists(platform="eos", settings=settings)
+        self.assertIn("TEST_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
+
+    def test_acl_nested_include(self):
+        """Test include acl"""
+        settings = {
+            "access_lists": {
+                "INCLUDE-ACL1": {"include_only": True, "terms": [{"include": "INCLUDE-ACL2"}]},
+                "INCLUDE-ACL2": {"include_only": True, "terms": [{"include": "INCLUDE-ACL3"}]},
+                "INCLUDE-ACL3": {"include_only": True, "terms": [{"include": "INCLUDE-ACL4"}]},
+                "INCLUDE-ACL4": {"include_only": True, "terms": [{"name": "some-acl", "action": "accept"}]},
+                "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL1"}]},
+            },
+            "system_access_lists": ["TEST_ACL"]
+        }
+        f_root(**settings)
+        acls = get_generated_access_lists(platform="eos", settings=settings)
+        self.assertIn("TEST_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
 
     def test_acl_include_non_unique(self):
         """Test include acl where the included terms are not unique together with the parent term names"""
@@ -474,6 +493,16 @@ class SettingsTests(unittest.TestCase):
 
         # Assert results are identical
         assert acls1 == acls2
+
+    def test_acl_system_acl(self):
+        system_acls = ["ACL-TEST"]
+        acls = {"ACL-TEST": {"terms": [{"name": "permit-any", "action": "permit"}]}}
+        # Works because the system_access_list is defined in access_lists
+        f_root(**{"system_access_lists": system_acls, "access_lists": acls})
+
+        with self.assertRaises(ValidationError) as e:
+            f_root(**{"system_access_lists": system_acls, "access_lists": {}})
+            self.assertEqual(e.msg, "ACL-TEST is not defined as an access-list.")
 
 
 if __name__ == "__main__":

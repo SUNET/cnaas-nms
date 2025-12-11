@@ -500,7 +500,7 @@ class SettingsTests(unittest.TestCase):
         # Works because the system_access_list is defined in access_lists
         f_root(**{"system_access_lists": system_acls, "access_lists": acls})
 
-        with self.assertRaises(ValidationError) as e:
+        with self.assertRaises(ValidationError):
             f_root(**{"system_access_lists": system_acls, "access_lists": {}})
 
     def test_acl_auto_from_vxlans(self):

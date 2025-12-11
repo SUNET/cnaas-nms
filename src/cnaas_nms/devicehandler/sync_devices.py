@@ -396,6 +396,7 @@ def populate_device_vars(
     # definitions are not needed as device_vars and can be removed
     del settings["network_definitions"]
     del settings["service_definitions"]
+    del settings["system_access_lists"]
 
     # if platform/devtype has unmanaged config sections, get running_config and add to device_variables
     local_repo_path = get_template_repo_path(hostname)

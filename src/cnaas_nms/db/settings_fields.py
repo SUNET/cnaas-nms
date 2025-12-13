@@ -501,6 +501,7 @@ class f_access_list(BaseModel):
 
         return terms
 
+
 f_access_list.model_rebuild()
 
 
@@ -541,14 +542,6 @@ class f_root(BaseModel):
     service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
     access_lists: Dict[access_list_name, f_access_list] = {}
     system_access_lists: List[access_list_name] = []
-
-    @model_validator(mode="after")
-    def validate_system_access_lists(self):
-        acl_names = set(self.access_lists.keys())
-        for system_acl in self.system_access_lists:
-            if system_acl not in acl_names:
-                raise ValueError(f"{system_acl} is not defined as an access-list.")
-        return self
 
     @field_validator("access_lists", mode="after")
     @classmethod

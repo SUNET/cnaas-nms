@@ -294,6 +294,14 @@ def get_pydantic_field_descr(schema: dict, loc: tuple):
         return None
 
 
+def check_system_access_lists(settings_dict: dict):
+    """Raises SettingsSyntaxError"""
+    acl_names = set(settings_dict.get("access_lists", {}).keys())
+    for system_acl in settings_dict.get("system_access_lists", []):
+        if system_acl not in acl_names:
+            raise SettingsSyntaxError(f"System access list: {system_acl} must be defined as an access-list.")
+
+
 def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> dict:
     """Verify settings syntax and return a somewhat helpful error message.
 
@@ -878,6 +886,11 @@ def get_settings(
             settings_origin,
             groups,
         )
+
+    # Verify access_lists syntax
+    # If access_lists and system_access_lists are keys in settings dict
+    if "access_lists" in settings and "system_access_lists" in settings:
+        check_system_access_lists(settings)
 
     # Verify syntax
     verified_settings = check_settings_syntax(settings, settings_origin)

@@ -958,6 +958,10 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
 
 
 def _build_aerleon_definitions(settings: dict) -> naming.Naming:
+    """
+    Builds Aerleon Naming from settings network_definitions and service_definitions.
+    Returns a naming.Naming object.
+    """
     aerleon_definitions = naming.Naming()
 
     networks_dict = {}
@@ -1031,8 +1035,7 @@ def _get_all_access_lists(data: List[Dict[str, str]]) -> Iterator[str]:
     """
     for vi in data:
         for acl_setting in ["acl_ipv4_in", "acl_ipv4_out", "acl_ipv6_in", "acl_ipv6_out"]:
-            acl = vi.get(acl_setting)
-            if acl:
+            if acl := vi.get(acl_setting):
                 yield acl
 
 
@@ -1091,25 +1094,26 @@ def get_generated_access_lists(
         )
         return {}
 
-    # List of all access_lists that should be generated for this device.
-    process_access_lists: List[str] = settings.get("system_access_lists", [])
+    # Set of all access_lists that should be generated for this device.
+    # All devices will get global system_access_lists.
+    generate_access_lists: Set[str] = set(settings.get("system_access_lists", []))
 
     # Add all acls found from vxlan to a dist-switch
     if dev and dev.device_type == DeviceType.DIST:
-        process_access_lists.extend(_get_all_access_lists(settings.get("vxlans", {}).values()))
+        generate_access_lists.update(_get_all_access_lists(settings.get("vxlans", {}).values()))
     # Add all interface-acls.
     if dev and dev.device_type in [DeviceType.ACCESS, DeviceType.CORE, DeviceType.DIST, DeviceType.FIREWALL]:
-        process_access_lists.extend(_get_all_access_lists(settings.get("interfaces", [])))
+        generate_access_lists.update(_get_all_access_lists(settings.get("interfaces", [])))
 
     policies = []  # All access_lists that will be generated
     includes = {}  # A dict with acl_name: policy_dict if another access_list includes another acl.
     setting_acls: Dict[str, dict] = settings.get("access_lists", {})
 
-    # All other access lists not in process_access_lists can be added
+    # All other access lists not in generate_access_lists can be added
     # as an include_only access_list in case access lists reference them as an include.
     for access_list_name, access_list_dict in setting_acls.items():
-        if access_list_name not in process_access_lists:
-            # Not in process_access_list -> Add as include_only
+        if access_list_name not in generate_access_lists:
+            # Not in generate_access_lists -> Add as include_only
             setting_acls[access_list_name]["include_only"] = True
 
     defs = _build_aerleon_definitions(settings)

@@ -1,6 +1,4 @@
-import ipaddress
 import os
-import random
 import unittest
 
 import pkg_resources
@@ -28,14 +26,6 @@ from cnaas_nms.db.settings import (
     verify_dir_structure,
 )
 from cnaas_nms.db.settings_fields import f_group, f_groups, f_root
-
-
-def random_ipv4_ipaddress():
-    return str(ipaddress.IPv4Address(random.getrandbits(32)))  # noqa: S2245
-
-
-def random_ipv6_ipaddress():
-    return str(ipaddress.IPv6Address(random.getrandbits(128)))  # noqa: S2245
 
 
 class SettingsTests(unittest.TestCase):
@@ -381,9 +371,9 @@ class SettingsTests(unittest.TestCase):
         """Test invalid network definitions"""
         settings = {
             "network_definitions": {
-                "ONEONEONEONE": [{"address": random_ipv4_ipaddress()}, {"address": random_ipv6_ipaddress()}],
-                "ONEZEROZEROONE": [{"address": random_ipv4_ipaddress()}, {"address": random_ipv6_ipaddress()}],
-                "BOTH": [{"name": "ONEONE"}, {"name": "ONEZEROZEROONE"}, {"address": random_ipv4_ipaddress()}],
+                "ONEONEONEONE": [{"address": "1.1.1.1"}, {"address": "2606:4700:4700::1111"}],  # noqa: S1313
+                "ONEZEROZEROONE": [{"address": "1.0.0.1"}, {"address": "2606:4700:4700::1001"}],  # noqa: S1313
+                "BOTH": [{"name": "ONEONE"}, {"name": "ONEZEROZEROONE"}],
             },
             "access_lists": {
                 "TEST_ACL": {"terms": [{"name": "permit-all", "source-address": "BOTH", "action": "accept"}]}

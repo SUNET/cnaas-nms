@@ -1079,7 +1079,6 @@ def get_generated_access_lists(
     Raises:
         AccessListGenerationError:
             - If the platform cannot be determined.
-            - If the platform is not supported.
             - If Aerleon encounters an error during generation.
     """
     # Prefer platform argument, otherwise get from device.

@@ -152,7 +152,22 @@ def populate_device_vars(
         dev.device_type = devtype
     if ztp_hostname:
         dev.hostname = hostname
-    settings, settings_origin = get_settings(dev, devtype, dev.model)
+    settings, _ = get_settings(dev, devtype, dev.model)
+
+    # Add generated access_lists to device_variables
+    # get_generated_access_lists also depends on dev.device_type so we need to get it with ztp_devtype.
+    # We can reuse settings so it does not need to be pulled down twice.
+    # dev still needs to be passed in so it will generate device-specific acls with the device platform.
+    device_variables["access_lists"] = get_generated_access_lists(dev, settings=settings)
+
+    # ACL definitions are not needed as device_vars and can be removed
+    del (
+        settings["access_lists"],
+        settings["network_definitions"],
+        settings["service_definitions"],
+        settings["system_access_lists"],
+    )
+
     # Revert back to the previous devtype and hostname in case device init step1 fails.
     # This is so it does not get commited at the wrong time in step1/step2.
     if ztp_devtype:
@@ -389,14 +404,6 @@ def populate_device_vars(
                 }
             )
         device_variables = {**device_variables, **fabric_device_variables}
-
-    # add generated access_lists to device_vars
-    settings["access_lists"] = get_generated_access_lists(dev)
-
-    # definitions are not needed as device_vars and can be removed
-    del settings["network_definitions"]
-    del settings["service_definitions"]
-    del settings["system_access_lists"]
 
     # if platform/devtype has unmanaged config sections, get running_config and add to device_variables
     local_repo_path = get_template_repo_path(hostname)

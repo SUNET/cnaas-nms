@@ -1121,13 +1121,6 @@ def get_generated_access_lists(
     includes = {}  # A dict with acl_name: policy_dict if another access_list includes another acl.
     setting_acls: Dict[str, dict] = settings.get("access_lists", {})
 
-    # All other access lists not in generate_access_lists can be added
-    # as an include_only access_list in case access lists reference them as an include.
-    for access_list_name, access_list_dict in setting_acls.items():
-        if access_list_name not in generate_access_lists:
-            # Not in generate_access_lists -> Add as include_only
-            setting_acls[access_list_name]["include_only"] = True
-
     defs = _build_aerleon_definitions(settings)
 
     for access_list_name, access_list_dict in setting_acls.items():
@@ -1148,8 +1141,8 @@ def get_generated_access_lists(
             }
             inside_policies.append(inside_policy_dict)
 
-        # include_only access list should not generate
-        if not access_list.include_only:
+        # Only access list found in generate_access_lists should generate
+        if access_list_name in generate_access_lists:
             policy_dict: PolicyDict = {  # type:ignore[typeddict-unknown-key]
                 "filename": access_list_name,
                 "filters": inside_policies,

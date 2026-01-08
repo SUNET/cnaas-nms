@@ -184,16 +184,13 @@ access_lists.yml
 * access_lists: Dictionary of {<name>, access_lists}:
 
   * comment: A comment that describes the access list.
-  * include_only: This access list should not be generated on its own and is only used in other access lists as an imported access list.
   * inet_families: List of ipv4, ipv6 of which inet families the access list should be generated to, defaults to ipv4 only.
-    For include_only = True this field has no effect.
   * header_map: A dictionary of {<platform>, <header>} allowing for customization of the aerleon header.
     Can use two variables that will be substituted :code:`{ACL_NAME}` and :code:`{INET_FAMILY}`.
     By default for Cisco and Arista the IPv4 access list will be generated as an extended access list.
     To generate a standard access list you can set header_map to for example: :code:`{ios: "{ACL_NAME} standard"}`, one drawback is now the access list can only be generated to IPv4.
     Find more information about the header syntax for different platforms here: `<https://aerleon.readthedocs.io/en/latest/reference/generators/>`_.
     Aerleon header option `mixed` should not be used, use inet_families: :code:`[ipv4, ipv6]` instead.
-    For include_only = True this field has no effect.
   * terms: List of Aerleon terms. See more below.
 
 - access_list - terms:
@@ -245,7 +242,6 @@ Access list examples
       comment: |
         Import this at the start of a access list
         to enable counters on eos or nxos
-      include_only: true
       terms:
         # This will render only on platforms: eos and nxos
         # and skipped for other platforms
@@ -257,10 +253,6 @@ Access list examples
             - "eos"
             - "nxos"
     "INCLUDED-ACL":
-      comment: |
-        This is an access list
-        that is only included in other lists
-      include_only: true
       terms:
         - name: "accept_cloudflare"
           destination-address: "CLOUDFLARE_ALL"

@@ -413,7 +413,7 @@ class SettingsTests(unittest.TestCase):
         """Test include acl"""
         settings = {
             "access_lists": {
-                "INCLUDE-ACL": {"include_only": True, "terms": [{"name": "some-acl", "action": "accept"}]},
+                "INCLUDE-ACL": {"terms": [{"name": "some-acl", "action": "accept"}]},
                 "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}]},
             },
             "system_access_lists": ["TEST_ACL"],
@@ -427,10 +427,10 @@ class SettingsTests(unittest.TestCase):
         """Test include acl"""
         settings = {
             "access_lists": {
-                "INCLUDE-ACL1": {"include_only": True, "terms": [{"include": "INCLUDE-ACL2"}]},
-                "INCLUDE-ACL2": {"include_only": True, "terms": [{"include": "INCLUDE-ACL3"}]},
-                "INCLUDE-ACL3": {"include_only": True, "terms": [{"include": "INCLUDE-ACL4"}]},
-                "INCLUDE-ACL4": {"include_only": True, "terms": [{"name": "some-acl", "action": "accept"}]},
+                "INCLUDE-ACL1": {"terms": [{"include": "INCLUDE-ACL2"}]},
+                "INCLUDE-ACL2": {"terms": [{"include": "INCLUDE-ACL3"}]},
+                "INCLUDE-ACL3": {"terms": [{"include": "INCLUDE-ACL4"}]},
+                "INCLUDE-ACL4": {"terms": [{"name": "some-acl", "action": "accept"}]},
                 "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL1"}]},
             },
             "system_access_lists": ["TEST_ACL"],

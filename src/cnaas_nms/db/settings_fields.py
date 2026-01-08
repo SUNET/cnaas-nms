@@ -452,7 +452,6 @@ PolicyTermAdapter.rebuild()
 
 class f_access_list(BaseModel):
     comment: str = ""
-    include_only: bool = False
     inet_families: List[Literal["ipv4", "ipv6"]] = ["ipv4"]
     header_map: Dict[str, str] = {}
     # Example header_map

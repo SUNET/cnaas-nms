@@ -6,11 +6,13 @@ from ipaddress import IPv4Address
 import pkg_resources
 import pytest
 import yaml
+from sqlalchemy import or_
 
 from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.stackmember import Stackmember
 
@@ -255,6 +257,136 @@ class DeviceTests(unittest.TestCase):
             # clean up
             session.delete(intf)
             session.delete(renamed_device)
+            session.commit()
+
+    def test_rename_device_marks_linknet_neighbors_unsync(self):
+        """Test that renaming a device marks physically connected neighbors as unsynchronized via linknets"""
+        with sqla_session() as session:
+            # Create two DIST devices (uplinks) - synchronized and with NO interface data
+            # Note:  DIST devices have NO interface entries
+            dist1 = Device(
+                hostname="test-dist1",
+                platform="eos",
+                management_ip=IPv4Address("10.100.1.1"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.DIST,
+                synchronized=True,
+            )
+            session.add(dist1)
+
+            dist2 = Device(
+                hostname="test-dist2",
+                platform="eos",
+                management_ip=IPv4Address("10.100.1.2"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType. DIST,
+                synchronized=True,
+            )
+            session.add(dist2)
+            session.flush()
+            dist1_id = dist1.id
+            dist2_id = dist2.id
+
+            # Create ACCESS device that will be renamed
+            access = Device(
+                hostname="access-old-name",
+                platform="eos",
+                management_ip=IPv4Address("10.100.2.1"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType. ACCESS,
+                synchronized=True,
+            )
+            session.add(access)
+            session.flush()
+            access_id = access.id
+
+            # Create linknets connecting ACCESS to both DIST devices
+            linknet1 = Linknet(
+                device_a_id=access_id,
+                device_a_port="Ethernet17",
+                device_b_id=dist1_id,
+                device_b_port="Ethernet2",
+            )
+            session.add(linknet1)
+
+            linknet2 = Linknet(
+                device_a_id=access_id,
+                device_a_port="Ethernet18",
+                device_b_id=dist2_id,
+                device_b_port="Ethernet2",
+            )
+            session.add(linknet2)
+
+            # Create ACCESS_UPLINK interfaces on ACCESS device with neighbor data
+            # (This mimics real scenario where ACCESS devices have uplink interface data)
+            intf1 = Interface(
+                device_id=access_id,
+                name="Ethernet17",
+                configtype=InterfaceConfigType.ACCESS_UPLINK,
+                data={"neighbor": "test-dist1"}
+            )
+            session.add(intf1)
+
+            intf2 = Interface(
+                device_id=access_id,
+                name="Ethernet18",
+                configtype=InterfaceConfigType.ACCESS_UPLINK,
+                data={"neighbor": "test-dist2"}
+            )
+            session.add(intf2)
+
+            session.commit()
+
+        # Verify initial state:  all devices are synchronized
+        with sqla_session() as session:
+            access_dev = session.query(Device).filter(Device.id == access_id).one()
+            dist1_dev = session.query(Device).filter(Device.id == dist1_id).one()
+            dist2_dev = session.query(Device).filter(Device.id == dist2_id).one()
+
+            assert access_dev.synchronized, "ACCESS device should start synchronized"
+            assert dist1_dev.synchronized, "DIST1 device should start synchronized"
+            assert dist2_dev.synchronized, "DIST2 device should start synchronized"
+
+        # Rename the ACCESS device
+        rename_data = {"hostname": "access-new-name"}
+        rename_response = self.client.put(f"/api/v1.0/device/{access_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+        # Verify renamed device is unsynchronized
+        with sqla_session() as session:
+            renamed_device = session.query(Device).filter(Device.id == access_id).one()
+            assert renamed_device.hostname == "access-new-name"
+            assert not renamed_device.synchronized, "Renamed device should be unsynchronized"
+
+        # Verify DIST neighbors are marked as unsynchronized
+        with sqla_session() as session:
+            dist1_dev = session.query(Device).filter(Device.id == dist1_id).one()
+            dist2_dev = session.query(Device).filter(Device.id == dist2_id).one()
+
+            assert not dist1_dev.synchronized, "DIST1 neighbor should be unsynchronized after ACCESS rename"
+            assert not dist2_dev.synchronized, "DIST2 neighbor should be unsynchronized after ACCESS rename"
+
+        # Verify interface neighbor fields were updated
+        with sqla_session() as session:
+            intf1 = session.query(Interface).filter(
+                Interface.device_id == access_id,
+                Interface.name == "Ethernet17"
+            ).one()
+            intf2 = session.query(Interface).filter(
+                Interface. device_id == access_id,
+                Interface.name == "Ethernet18"
+            ).one()
+
+            assert intf1.data["neighbor"] == "test-dist1", "Interface neighbor field should be updated"
+            assert intf2.data["neighbor"] == "test-dist2", "Interface neighbor field should be updated"
+
+        # Cleanup
+        with sqla_session() as session:
+            session.query(Interface).filter(Interface.device_id == access_id).delete()
+            session.query(Linknet).filter(
+                or_(Linknet.device_a_id == access_id, Linknet.device_b_id == access_id)
+            ).delete()
+            session.query(Device).filter(Device.id. in_([access_id, dist1_id, dist2_id])).delete()
             session.commit()
 
     def test_delete_device(self):

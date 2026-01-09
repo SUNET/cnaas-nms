@@ -6,8 +6,9 @@ from typing import Any, List, Optional
 from flask import make_response, request
 from flask_restx import Namespace, Resource, fields, marshal
 from pydantic import ValidationError
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.attributes import flag_modified
 
 import cnaas_nms.devicehandler.get
 import cnaas_nms.devicehandler.init_device
@@ -353,26 +354,51 @@ class DeviceByIdApi(Resource):
 
             if is_name_change_request:
                 try:
-                    # Rebuild settings caches to make sure group memberships are updated after
-                    # setting new hostname
+                    # Rebuild settings caches to make sure group memberships are updated after setting new hostname
                     rebuild_settings_cache()
 
-                    # Update interfaces where this device was a neighbor and make the unsynched
+                    # Mark linknet neighbors as unsynchronized
+                    linknets = session.query(Linknet).filter(
+                        or_(
+                            Linknet.device_a_id == device_id,
+                            Linknet.device_b_id == device_id
+                        )
+                    ).all()
+
+                    neighbor_device_ids = set()
+                    for ln in linknets:
+                        if ln.device_a_id == device_id:
+                            neighbor_device_ids.add(ln. device_b_id)
+                        else:
+                            neighbor_device_ids.add(ln.device_a_id)
+
+                    for neigh_id in neighbor_device_ids:
+                        neigh_dev = session.query(Device).filter(Device.id == neigh_id).one()
+                        neigh_dev.synchronized = False
+                        add_sync_event(neigh_dev.hostname, "linknet_neighbor_name_change", by=get_identity())
+
+                    # Update neighbor interfaces
                     interfaces = (
-                        session.query(Interface).filter(Interface.data["neighbor"].astext == current_hostname).all()
+                        session.query(Interface)
+                        .filter(Interface.data["neighbor"].astext == current_hostname)
+                        .all()
                     )
                     for intf in interfaces:
                         intf.data["neighbor"] = new_hostname
-                        neigh_dev = session.query(Device).filter(Device.id == intf.device_id).one()
+                        flag_modified(intf, "data")
 
-                        neigh_dev.synchronized = False
-                        add_sync_event(neigh_dev.hostname, "neighbor_name_change", by=get_identity())
+                        if intf.device_id not in neighbor_device_ids:
+                            intf_dev = session.query(Device).filter(Device.id == intf.device_id).one()
+                            intf_dev.synchronized = False
+                            add_sync_event(intf_dev.hostname, "neighbor_name_change", by=get_identity())
 
                     dev.synchronized = False
                     add_sync_event(new_hostname, "device_name_change", by=get_identity())
 
                     logger.info(
-                        f"Updated {len(interfaces)} interfaces from neighbor '{current_hostname}' to '{new_hostname}'"
+                        f"Hostname changed from '{current_hostname}' to '{new_hostname}': "
+                        f"marked {len(neighbor_device_ids)} connected devices as unsynchronized, "
+                        f"updated {len(interfaces)} interface neighbor fields"
                     )
 
                 except SettingsSyntaxError as e:

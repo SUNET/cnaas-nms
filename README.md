@@ -51,7 +51,7 @@ Install docker with docker compose and run: `docker compose build -f docker/dock
 Install locally by creating a virtualenv and activate the environment, then:
 
 ```
-python3 -m pip install --groups dependencies
+python3 -m pip install --group dependencies
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
 

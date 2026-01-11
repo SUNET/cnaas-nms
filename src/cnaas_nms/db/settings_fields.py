@@ -5,7 +5,7 @@ from functools import cached_property
 from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Network
 from typing import Annotated, Dict, List, Literal, Optional, Self, Union
 
-from aerleon.lib.policy_builder import PolicyInclude, PolicyTerm
+from aerleon.lib.policy_builder import TermsList
 from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
 
@@ -445,9 +445,9 @@ class f_service_definition_include(BaseModel):
     name: str
 
 
-PolicyTermAdapter: TypeAdapter = TypeAdapter(PolicyTerm | PolicyInclude)
+TermsListAdapter: TypeAdapter = TypeAdapter(TermsList)
 
-PolicyTermAdapter.rebuild()
+TermsListAdapter.rebuild()
 
 
 class f_access_list(BaseModel):
@@ -459,7 +459,7 @@ class f_access_list(BaseModel):
     # "eos": "ACL_NAME extended noverbose"}
 
     # Uses Aerleon TypedDict
-    terms: List[PolicyTerm | PolicyInclude]
+    terms: TermsList
 
     @field_validator("inet_families", mode="after")
     @classmethod
@@ -496,7 +496,7 @@ class f_access_list(BaseModel):
             raise ValueError("Terms must be defined and cannot be empty")
 
         # Validate all terms regarding to the TypedDict
-        [PolicyTermAdapter.validate_python(term) for term in terms]
+        TermsListAdapter.validate_python(terms)
 
         return terms
 

@@ -10,7 +10,7 @@ import yaml
 from aerleon.aclgen import Error as ACLGenError
 from aerleon.api import Generate
 from aerleon.lib import naming
-from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyInclude, PolicyTerm
+from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyFilterTermsOnly, TermsList
 from aerleon.lib.yaml import PolicyTypeError
 from netutils.lib_mapper import AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
 from pydantic import ValidationError
@@ -996,7 +996,7 @@ def napalm_to_aerleon(platform: str) -> str:
     return AERLEON_LIB_MAPPER_REVERSE.get(NAPALM_LIB_MAPPER.get(platform, ""), platform)
 
 
-def _get_aerleon_translated_terms(terms: List[PolicyTerm | PolicyInclude]) -> List[PolicyTerm | PolicyInclude]:
+def _get_aerleon_translated_terms(terms: TermsList) -> TermsList:
     """
     Convert Napalm platform names (e.g. 'ios', 'eos') inside term dictionaries
     into their corresponding Aerleon generator names (e.g. 'cisco_ios',
@@ -1132,6 +1132,12 @@ def get_generated_access_lists(
 
         inside_policies = []
         acl_terms = _get_aerleon_translated_terms(access_list.terms)
+
+        # Add all access_lists to includes
+        # Only needs to be done once as terms are inet-agnistic
+        included_list: PolicyFilterTermsOnly = {"terms": acl_terms}
+        includes.update({access_list_name: included_list})
+
         for inet_family in access_list.inet_families:
             # Format acl_header for the specific inet_family
             acl_header = header.format(ACL_NAME=access_list_name, INET_FAMILY=_get_aerleon_inet(platform, inet_family))
@@ -1143,15 +1149,11 @@ def get_generated_access_lists(
 
         # Only access list found in generate_access_lists should generate
         if access_list_name in generate_access_lists:
-            policy_dict: PolicyDict = {  # type:ignore[typeddict-unknown-key]
+            policy_dict: PolicyDict = {
                 "filename": access_list_name,
                 "filters": inside_policies,
             }
             policies.append(policy_dict)
-
-        # Include access_list only once.
-        # Only need terms and terms are inet-agnostic.
-        includes.update({access_list_name: inside_policies[0]})
 
     try:
         # Generate all access-lists at once.
@@ -1166,7 +1168,9 @@ def get_generated_access_lists(
 
 
 @redis_lru_cache
-def _generate_acl(policies: List[PolicyDict], defs: naming.Naming, includes: List[PolicyFilter]) -> dict[str, str]:
+def _generate_acl(
+    policies: List[PolicyDict], defs: naming.Naming, includes: dict[str, PolicyFilterTermsOnly]
+) -> dict[str, str]:
     configs = Generate(
         policies,
         defs,
@@ -1174,7 +1178,7 @@ def _generate_acl(policies: List[PolicyDict], defs: naming.Naming, includes: Lis
         # Does not seem to work currently
         # investigate future use-cases
         shade_check=False,
-        includes=includes,  # type:ignore[arg-type]
+        includes=includes,
     )
     if not configs:
         return {}

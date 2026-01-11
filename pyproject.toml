@@ -21,7 +21,7 @@ dynamic = [ "version" ]
 [dependency-groups]
 # dependencies are listed as a dependency-group since cnaas-nms itself is NOT a package
 dependencies = [
-  "aerleon==1.12.1",
+  "aerleon==1.13.0",
   "alembic==1.15.2",
   "apscheduler==3.11",
   "async-timeout>=4.0.2",

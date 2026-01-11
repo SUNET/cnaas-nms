@@ -133,7 +133,6 @@ The directory structure looks like this:
 
   * <group name>
 
-    + access_lists.yml
     + base_system.yml
     + interfaces.yml
     + routing.yml
@@ -142,7 +141,6 @@ The directory structure looks like this:
 
   * <hostname>
 
-    + access_lists.yml
     + base_system.yml
     + interfaces.yml
     + routing.yml

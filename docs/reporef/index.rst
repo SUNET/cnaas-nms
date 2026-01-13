@@ -291,6 +291,13 @@ Access list examples
           action: "accept"
           platform-exclude:
             - ios
+    "ACL-ALLOW-ESTABLISHED":
+      comment: "Shows how to use the established option"
+      terms:
+       - name: "allow-all-established"
+         protocol: [tcp, udp]
+         option: ["established"]
+         action: "accept"
 
 groups.yml
 ----------

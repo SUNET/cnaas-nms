@@ -1,5 +1,6 @@
 import importlib
 import json
+import logging
 import os
 import re
 import types
@@ -7,6 +8,7 @@ from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Uni
 
 import pkg_resources
 import yaml
+from absl import logging as absl_logging
 from aerleon.aclgen import Error as ACLGenError
 from aerleon.api import Generate
 from aerleon.lib import naming
@@ -25,7 +27,7 @@ from cnaas_nms.db.git_worktrees import refresh_templates_worktree
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings_fields import f_access_list, f_group, f_group_device_filter, f_groups
-from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.log import CaptureHandler, get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
 
 
@@ -1171,15 +1173,44 @@ def get_generated_access_lists(
 def _generate_acl(
     policies: List[PolicyDict], defs: naming.Naming, includes: dict[str, PolicyFilterTermsOnly]
 ) -> dict[str, str]:
-    configs = Generate(
-        policies,
-        defs,
-        optimize=api_settings.ACCESS_LIST_OPTIMIZE,
-        # Does not seem to work currently
-        # investigate future use-cases
-        shade_check=False,
-        includes=includes,
-    )
+    # Aerleon uses absl as logging.
+    # Override logging and set our own capture handler as the only log handler.
+    absl_logging.use_python_logging(quiet=True)
+    aerleon_logger = absl_logging.get_absl_logger()
+    current_root_handlers = aerleon_logger.root.handlers
+    for c_handler in current_root_handlers:
+        aerleon_logger.root.removeHandler(c_handler)
+
+    # Create the new handler and attach to aerleon_logger
+    handler = CaptureHandler()
+    handler.setLevel(logging.WARNING)
+    aerleon_logger.addHandler(handler)
+
+    try:
+        configs = Generate(
+            policies,
+            defs,
+            optimize=api_settings.ACCESS_LIST_OPTIMIZE,
+            # Does not seem to work currently
+            # investigate future use-cases
+            shade_check=False,
+            includes=includes,
+        )
+    finally:
+        # Revert back absl handlers
+        for c_handler in current_root_handlers:
+            aerleon_logger.root.addHandler(c_handler)
+
+        aerleon_logger.removeHandler(handler)
+
+    if handler.records:
+        logger = get_logger()
+        for record in handler.records:
+            # Remove not needed WARNING message
+            record.msg = record.msg.lstrip("WARNING: ")
+            # Use cnaas logger to emit aerleon logs
+            logger.handle(record)
+
     if not configs:
         return {}
     # Remove suffix from filename

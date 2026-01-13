@@ -390,7 +390,7 @@ class DeviceByIdApi(Resource):
                     msg = str(e)
                     logger.error(msg)
                     session.rollback()
-                    return empty_result(status="error", data=msg)
+                    return empty_result(status="error", data=msg), 500
 
             if "synchronized" in json_data and json_data["synchronized"]:
                 remove_sync_events(dev.hostname)

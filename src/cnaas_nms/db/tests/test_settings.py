@@ -12,18 +12,22 @@ from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
+    AccessListGenerationError,
+    SettingsSyntaxError,
     VerifyPathException,
     VlanConflictError,
     check_bgp_neighbor_routemaps,
+    check_system_access_lists,
     check_vlan_collisions,
     get_device_primary_groups,
+    get_generated_access_lists,
     get_group_settings,
     get_groups_priorities_sorted,
     get_settings,
     rebuild_settings_cache,
     verify_dir_structure,
 )
-from cnaas_nms.db.settings_fields import f_group, f_groups
+from cnaas_nms.db.settings_fields import f_group, f_groups, f_root
 
 
 class SettingsTests(unittest.TestCase):
@@ -56,20 +60,19 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     def test_get_settings_global(self):
-        settings, settings_origin = get_settings()
+        settings, _ = get_settings()
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
     def test_get_settings_devicetype(self):
-        settings, settings_origin = get_settings(device_type=DeviceType.DIST)
+        settings, _ = get_settings(device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
     def test_get_settings_device(self):
-        settings, settings_origin = get_settings(device=Device(
-            hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
+        settings, _ = get_settings(device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
@@ -359,6 +362,201 @@ class SettingsTests(unittest.TestCase):
         for group in settings.groups:
             self.assertEqual(type(group), f_group)
             assert callable(group.matches)
+
+    def test_acl(self):
+        """Generate global acls from integration-test repo"""
+        for platform in ["ios", "eos", "junos"]:
+            device = Device(hostname=self.testdata["testdevice"], platform=platform)
+            get_generated_access_lists(device)
+
+    def test_acl_invalid_definition(self):
+        """Test invalid network definitions"""
+        settings = {
+            "network_definitions": {
+                "ONEONEONEONE": [{"address": "1.1.1.1"}, {"address": "2606:4700:4700::1111"}],  # noqa: S1313
+                "ONEZEROZEROONE": [{"address": "1.0.0.1"}, {"address": "2606:4700:4700::1001"}],  # noqa: S1313
+                "BOTH": [{"name": "ONEONE"}, {"name": "ONEZEROZEROONE"}],
+            },
+            "access_lists": {
+                "TEST_ACL": {"terms": [{"name": "permit-all", "source-address": "BOTH", "action": "accept"}]}
+            },
+            "system_access_lists": ["TEST_ACL"],
+        }
+        with self.assertRaises(AccessListGenerationError):
+            get_generated_access_lists(platform="eos", settings=settings)
+
+    def test_acl_no_terms(self):
+        """Test acl no terms"""
+        settings = {
+            "access_lists": {"TEST_ACL": {"terms": []}},
+        }
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
+
+    def test_acl_non_unique_terms(self):
+        """Test acl non unique terms"""
+        settings = {
+            "access_lists": {"TEST_ACL": {"terms": [{"name": "same"}, {"name": "same"}]}},
+        }
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
+
+    def test_acl_include_not_found(self):
+        """Test include acl not found"""
+        settings = {
+            "access_lists": {"TEST_ACL": {"terms": [{"include": "NOT-FOUND-ACL"}]}},
+        }
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
+
+    def test_acl_include(self):
+        """Test include acl"""
+        settings = {
+            "access_lists": {
+                "INCLUDE-ACL": {"terms": [{"name": "some-acl", "action": "accept"}]},
+                "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}]},
+            },
+            "system_access_lists": ["TEST_ACL"],
+        }
+        f_root(**settings)
+        acls = get_generated_access_lists(platform="eos", settings=settings)
+        self.assertIn("TEST_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
+
+    def test_acl_nested_include(self):
+        """Test include acl"""
+        settings = {
+            "access_lists": {
+                "INCLUDE-ACL1": {"terms": [{"include": "INCLUDE-ACL2"}]},
+                "INCLUDE-ACL2": {"terms": [{"include": "INCLUDE-ACL3"}]},
+                "INCLUDE-ACL3": {"terms": [{"include": "INCLUDE-ACL4"}]},
+                "INCLUDE-ACL4": {"terms": [{"name": "some-acl", "action": "accept"}]},
+                "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL1"}]},
+            },
+            "system_access_lists": ["TEST_ACL"],
+        }
+        f_root(**settings)
+        acls = get_generated_access_lists(platform="eos", settings=settings)
+        self.assertIn("TEST_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
+
+    def test_acl_include_non_unique(self):
+        """Test include acl where the included terms are not unique together with the parent term names"""
+        settings = {
+            "access_lists": {
+                "INCLUDE-ACL": {"terms": [{"name": "not-unique"}]},
+                "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL"}, {"name": "not-unique"}]},
+            },
+        }
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
+
+    def test_acl_redis_hit(self):
+        """
+        Run get_generated_access_lists twice with the same device should execute get_settings only once
+        """
+        # Clear redis_cache
+        with redis_session() as redis:  # type: ignore
+            cache = RedisLRU(redis)
+            cache.clear_all_cache()
+
+        # Counter to track actual executions
+        call_count = {"count": 0}
+
+        # Save the original undecorated logic
+        original_func = db_settings_module._generate_acl
+
+        # Define a spy wrapper
+        def spy_generate_acl(*args, **kwargs):
+            call_count["count"] += 1
+            return original_func(*args, **kwargs)
+
+        # Reapply RedisLRU decorator to the spy
+        db_settings_module._generate_acl = db_settings_module.redis_lru_cache(spy_generate_acl)
+
+        # First call, executes get_settings
+        # Both devices should get global settings
+        acls1 = db_settings_module.get_generated_access_lists(Device(hostname="acl-testdevice-a1", platform="eos"))
+
+        acls2 = db_settings_module.get_generated_access_lists(Device(hostname="acl-testdevice-a1", platform="eos"))
+
+        # Assert _generate_acl runs once
+        assert call_count["count"] == 1
+
+        # Assert results are identical
+        assert acls1 == acls2
+
+    def test_acl_system_acl(self):
+        system_acls = ["ACL-TEST"]
+        acls = {"ACL-TEST": {"terms": [{"name": "permit-any", "action": "accept"}]}}
+        # Works because the system_access_list is defined in access_lists
+        check_system_access_lists({"system_access_lists": system_acls, "access_lists": acls})
+
+        with self.assertRaises(SettingsSyntaxError):
+            check_system_access_lists({"system_access_lists": system_acls, "access_lists": {}})
+
+    def test_acl_auto_from_vxlans(self):
+        """vxlan that is allocated to a DeviceType.DIST will be auto included to be generated"""
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "access_lists": {"SOME_VXLAN_IN": {"terms": [{"name": "permit-any", "action": "accept"}]}},
+        }
+
+        # Validate settings
+        f_root(**settings)
+        # For a dist-switch it will automatically get and generate vxlan access-lists if found in access_lists.
+        dist_acls = get_generated_access_lists(
+            Device(hostname="testdevice-d1", platform="eos", device_type=DeviceType.DIST), settings=settings
+        )
+
+        self.assertIn("SOME_VXLAN_IN", dist_acls.keys())
+        self.assertEqual(len(dist_acls), 1)
+
+        # For access it will not be generated
+        access_acls = get_generated_access_lists(
+            Device(hostname="testdevice-a1", platform="eos", device_type=DeviceType.ACCESS), settings=settings
+        )
+
+        self.assertNotIn("SOME_VXLAN_IN", access_acls.keys())
+        self.assertEqual(len(access_acls), 0)
+
+    def test_acl_auto_from_interfaces(self):
+        """interfaces that is allocated to a device will be auto included to be generated"""
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "interfaces": [
+                {
+                    "name": "Ethernet1",
+                    "ifclass": "custom",
+                    "vrf": "SOME_VRF",
+                    "ipv4_address": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_INTF_IN",
+                }
+            ],
+            "access_lists": {"SOME_INTF_IN": {"terms": [{"name": "permit-any", "action": "accept"}]}},
+        }
+
+        # Validate settings
+        f_root(**settings)
+        # For all device-types if access lists are set on interfaces it will automatically generate them
+        for devtype in [DeviceType.ACCESS, DeviceType.CORE, DeviceType.DIST, DeviceType.FIREWALL]:
+            acls = get_generated_access_lists(
+                Device(hostname="testdevice-x1", platform="eos", device_type=devtype), settings=settings
+            )
+
+            self.assertIn("SOME_INTF_IN", acls.keys())
+            self.assertEqual(len(acls), 1)
 
 
 if __name__ == "__main__":

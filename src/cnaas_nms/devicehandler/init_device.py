@@ -24,7 +24,12 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import SettingsSyntaxError, VlanConflictError, rebuild_settings_cache
+from cnaas_nms.db.settings import (
+    AccessListGenerationError,
+    SettingsSyntaxError,
+    VlanConflictError,
+    rebuild_settings_cache,
+)
 from cnaas_nms.devicehandler.cert import arista_copy_cert
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.devicehandler.sync_devices import confcheck_devices, populate_device_vars
@@ -686,6 +691,9 @@ def init_access_device_step1(
     except VlanConflictError as e:
         logger.error("VLAN conflict in repo configuration: {}".format(e))
         raise e
+    except AccessListGenerationError as e:
+        logger.error(str(e))
+        raise e
 
     nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
@@ -885,6 +893,9 @@ def init_fabric_device_step1(
         raise e
     except VlanConflictError as e:
         logger.error("VLAN conflict in repo configuration: {}".format(e))
+        raise e
+    except AccessListGenerationError as e:
+        logger.error(str(e))
         raise e
 
     nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()

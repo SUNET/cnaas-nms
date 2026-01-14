@@ -23,6 +23,7 @@ from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
+    AccessListGenerationError,
     SettingsSyntaxError,
     VlanConflictError,
     get_device_primary_groups,
@@ -229,6 +230,11 @@ def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
         raise e
     except VlanConflictError as e:
         logger.error("VLAN conflict in repo configuration: {}".format(e))
+        if repo_checkout_working(RepoType.SETTINGS):
+            rebuild_settings_cache()
+        raise e
+    except AccessListGenerationError as e:
+        logger.error(str(e))
         if repo_checkout_working(RepoType.SETTINGS):
             rebuild_settings_cache()
         raise e

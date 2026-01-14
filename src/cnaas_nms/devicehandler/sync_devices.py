@@ -21,7 +21,7 @@ from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import get_settings
+from cnaas_nms.db.settings import get_generated_access_lists, get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
@@ -152,7 +152,22 @@ def populate_device_vars(
         dev.device_type = devtype
     if ztp_hostname:
         dev.hostname = hostname
-    settings, settings_origin = get_settings(dev, devtype, dev.model)
+    settings, _ = get_settings(dev, devtype, dev.model)
+
+    # Add generated access_lists to device_variables
+    # get_generated_access_lists also depends on dev.device_type so we need to get it with ztp_devtype.
+    # We can reuse settings so it does not need to be pulled down twice.
+    # dev still needs to be passed in so it will generate device-specific acls with the device platform.
+    device_variables["access_lists"] = get_generated_access_lists(dev, settings=settings)
+
+    # ACL definitions are not needed as device_vars and can be removed
+    del (
+        settings["access_lists"],
+        settings["network_definitions"],
+        settings["service_definitions"],
+        settings["system_access_lists"],
+    )
+
     # Revert back to the previous devtype and hostname in case device init step1 fails.
     # This is so it does not get commited at the wrong time in step1/step2.
     if ztp_devtype:

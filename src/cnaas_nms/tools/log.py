@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 from flask import current_app
 
@@ -6,8 +7,17 @@ from cnaas_nms.scheduler.thread_data import thread_data
 from cnaas_nms.tools.event import add_event
 
 
+class CaptureHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self.records: List[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord):
+        self.records.append(record)
+
+
 class WebsocketHandler(logging.StreamHandler):
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord):
         # Override module if module_override is set
         record.module = getattr(record, "module_override", record.module)
 
@@ -16,7 +26,7 @@ class WebsocketHandler(logging.StreamHandler):
 
 
 class StdoutHandler(logging.StreamHandler):
-    def emit(self, record):
+    def emit(self, record: logging.LogRecord):
         # Override module if module_override is set
         record.module = getattr(record, "module_override", record.module)
 

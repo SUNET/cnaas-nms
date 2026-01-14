@@ -1,16 +1,12 @@
+import datetime  # noqa: F401
 import re
 from enum import Enum, StrEnum, auto
 from functools import cached_property
-from ipaddress import AddressValueError, IPv4Interface
-from typing import Annotated, Dict, List, Optional, Self, Union
+from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Network
+from typing import Annotated, Dict, List, Literal, Optional, Self, Union
 
-from pydantic import (
-    BaseModel,
-    Field,
-    ValidationInfo,
-    field_validator,
-    model_validator,
-)
+from aerleon.lib.policy_builder import TermsList
+from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
 
 from cnaas_nms.db.device import Device
@@ -93,6 +89,8 @@ group_name = Field(..., pattern=GROUP_NAME, max_length=253)
 group_priority_schema = Field(
     0, ge=0, le=100, description="Group priority 0-100, default 0, higher value means higher priority"
 )
+ACCESS_LIST_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
+access_list_name = Annotated[str, Field(pattern=ACCESS_LIST_NAME, max_length=63)]  # Type
 
 
 class RemovePrivateASEnum(StrEnum):
@@ -423,6 +421,89 @@ class f_port_template(BaseModel):
     groups: Optional[List[str]] = None
 
 
+class f_network_definition(BaseModel):
+    address: Union[IPv4Address | IPv6Address | IPv4Network | IPv6Network]
+    comment: str = ""
+
+    # Convert address to string.
+    @field_validator("address", mode="after")
+    @classmethod
+    def validate_address(cls, v):
+        return str(v)
+
+
+class f_network_definition_include(BaseModel):
+    name: str
+
+
+class f_service_definition(BaseModel):
+    port: int | str
+    protocol: str
+
+
+class f_service_definition_include(BaseModel):
+    name: str
+
+
+TermsListAdapter: TypeAdapter = TypeAdapter(TermsList)
+
+TermsListAdapter.rebuild()
+
+
+class f_access_list(BaseModel):
+    comment: str = ""
+    inet_families: List[Literal["ipv4", "ipv6"]] = ["ipv4"]
+    header_map: Dict[str, str] = {}
+    # Example header_map
+    # {"ios": "{ACL_NAME} {INET_FAMILY} noverbose",
+    # "eos": "ACL_NAME extended noverbose"}
+
+    # Uses Aerleon TypedDict
+    terms: TermsList
+
+    @field_validator("inet_families", mode="after")
+    @classmethod
+    def unique_sorted_inet_families(cls, v: List[Literal["ipv4", "ipv6"]]) -> List[Literal["ipv4", "ipv6"]]:
+        """Make sure inet_families are unique and sorted"""
+        return sorted(set(v))
+
+    @field_validator("terms", mode="after")
+    def validate_term_names(cls, v):
+        """
+        All terms must have valid names
+        Term name uniqueness is handled in f_root
+        """
+        for term in v:
+            if "include" in term:
+                # This is a PolicyInclude and is validated later in f_root.
+                continue
+
+            term_name = term.get("name")
+
+            if not term_name:
+                raise ValueError("Terms must have a name")
+
+            # Invalid characters is a ValueError
+            if not re.match(r"^[\w-]+$", term_name):
+                raise ValueError(f"Invalid term name: {term_name}")
+
+        return v
+
+    @field_validator("terms", mode="after")
+    @classmethod
+    def validate_terms(cls, terms):
+        if not terms:
+            raise ValueError("Terms must be defined and cannot be empty")
+
+        # Validate all terms regarding to the TypedDict
+        TermsListAdapter.validate_python(terms)
+
+        return terms
+
+
+f_access_list.model_rebuild()
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -456,6 +537,42 @@ class f_root(BaseModel):
     vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
     arista_models_32bit: Optional[List[str]] = None
     upgrade_post_waittime: Dict[str, int] = {"default": 600}
+    network_definitions: Dict[str, List[Union[f_network_definition | f_network_definition_include]]] = {}
+    service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
+    access_lists: Dict[access_list_name, f_access_list] = {}
+    system_access_lists: List[access_list_name] = []
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
+    def validate_access_lists_includes(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
+        """Raise an error if some term include is not pointing to a valid access_list"""
+        acl_names = access_lists.keys()
+        for access_list in access_lists.values():
+            for term in access_list.terms:
+                include_acl = term.get("include")
+                if include_acl and include_acl not in acl_names:
+                    raise ValueError(f"Included access-list: {include_acl} must be defined.")
+        return access_lists
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
+    def validate_access_lists_included_terms(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
+        """Validates an access-list + included access-lists have unique term-names"""
+        for access_list in access_lists.values():
+            all_term_names = [t.get("name") for t in access_list.terms if t.get("name")]
+            for term in access_list.terms:
+                include_acl = term.get("include")
+
+                if include_acl and isinstance(include_acl, str):
+                    all_term_names.extend([t.get("name") for t in access_lists[include_acl].terms if t.get("name")])
+
+            if len(all_term_names) != len(set(all_term_names)):
+                raise ValueError("All term names in an access-list + included access-lists must be unique.")
+        return access_lists
 
 
 class f_group_device_filter(BaseModel):

@@ -66,15 +66,15 @@ class GetTests(unittest.TestCase):
 
     def test_00_sync(self):
         r = requests.put(
-            f"{URL}/api/v1.0/repository/templates", headers=AUTH_HEADER, json={"action": "refresh"}, verify=TLS_VERIFY
-        )
-        print("Template refresh status: {}".format(r.status_code))
-        self.assertEqual(r.status_code, 200, "Failed to refresh templates")
-        r = requests.put(
             f"{URL}/api/v1.0/repository/settings", headers=AUTH_HEADER, json={"action": "refresh"}, verify=TLS_VERIFY
         )
         print("Settings refresh status: {}".format(r.status_code))
         self.assertEqual(r.status_code, 200, "Failed to refresh settings")
+        r = requests.put(
+            f"{URL}/api/v1.0/repository/templates", headers=AUTH_HEADER, json={"action": "refresh"}, verify=TLS_VERIFY
+        )
+        print("Template refresh status: {}".format(r.status_code))
+        self.assertEqual(r.status_code, 200, "Failed to refresh templates")
 
     def test_01_init_dist(self):
         new_dist_data = {

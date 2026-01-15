@@ -1,6 +1,8 @@
 import ipaddress
 import unittest
 
+from jinja2 import Environment
+
 from cnaas_nms.tools.jinja_filters import (
     b16decode,
     b16encode,
@@ -12,6 +14,7 @@ from cnaas_nms.tools.jinja_filters import (
     ipwrap,
     isofy_ipv4,
     md5,
+    render_as_jinja,
     sha1,
     sha256,
     sha512,
@@ -167,7 +170,7 @@ class HashTests(unittest.TestCase):
 
     def test_sha512(self):
         self.assertEqual(
-            sha512("Zij3NjTWHt9W4Ljuez7QpJTo5O/Fg+z8bKzWMev+n3lXcEhTv9dnL1Zs" "fJBocAR19QBjLz747LhqkDiQBOuOuw=="),
+            sha512("Zij3NjTWHt9W4Ljuez7QpJTo5O/Fg+z8bKzWMev+n3lXcEhTv9dnL1ZsfJBocAR19QBjLz747LhqkDiQBOuOuw=="),
             "6f7affc55e52d24b6da48182ceae1007a3f7fcdee6ad7e3eae0858e02d98786"
             "cc04e9a329126d31cdf427214ea07428dd61e67b56b9f568e221c4553f391d02e",
         )
@@ -184,6 +187,51 @@ class DecodeHashTests(unittest.TestCase):
         ssh_key = "AAAAB3NzaC1yc2EAAAADAQABAAABAQC/SIee+JR7J87Uty3a6Uv/sdXFq9lMuJ5zCQ1nI94VVMwmDJIfRuvdOOUTwnqxCkrOXyDsNur7rXSzHw8NBeRrPAlk8e7qIIhDhZWYRQWyGW27s7sl0wehJ0e57PeeE9NdZ2O4pRGtuuom5y/N7ed0Ll/z/EDgOqYJpD5r39yoc02efWn+G81Ahl8twi+uS+3Y/hXLvkT9AB0XKPYt8DI2yAygt+3E+BWL53a+UICLP6pUvnwY9TUXqk3S27gD/gJZ/DSC8WtBfrHVuYk3QMA4kASKqu1Bt/FGYegsD7qv16hum4if+8bPioTccd1V7Qx3jtQ3s6pW8AWVxnpWydzl"
         ssh_key_md5 = "79ed70709499afede0f6b865bd641b68"
         self.assertEqual(ssh_key_md5, md5(b64decode(ssh_key, encoding="latin-1"), encoding="latin-1"))
+
+
+class RenderAsJinjaTests(unittest.TestCase):
+    def render_helper(self, jinja_template: str, **vars) -> str:
+        env = Environment()  # noqa: S5247
+        env.filters["render_as_jinja"] = render_as_jinja
+
+        template = env.from_string(jinja_template)
+        return template.render(vars)
+
+    def test_render_as_jinja(self):
+        # Nested jinja string referencing a global variable
+        jinja_string = "{{ test_var }}"
+        jinja_template = "{{ jinja_string | render_as_jinja }}"
+        expected_output = "this_is_a_testvar"
+        output = self.render_helper(jinja_template, jinja_string=jinja_string, test_var="this_is_a_testvar")
+
+        self.assertEqual(output, expected_output)
+
+    def test_render_as_jinja_loop(self):
+        # Nested jinja string referencing a global variable and looping over it
+        jinja_string = "{% for var in loop_var %}{{ var }}{% endfor %}"
+        jinja_template = "{{ jinja_string | render_as_jinja }}"
+        expected_output = "123"
+        output = self.render_helper(jinja_template, jinja_string=jinja_string, loop_var=[1, 2, 3])
+
+        self.assertEqual(output, expected_output)
+
+    def test_render_as_jinja_loop_extra_vars(self):
+        # cli_append_str referencing a local variable intf
+        jinja_template = (
+            "{% for intf in interfaces %}{{ intf.cli_append_str | render_as_jinja(intf=intf) }}{% endfor %}"
+        )
+        expected_output = "Nothing special2"
+        output = self.render_helper(
+            jinja_template,
+            interfaces=[
+                {"name": "Ethernet1", "cli_append_str": "Nothing special"},
+                # cli_append_str uses the local variable intf.name
+                # because it is added as an extra_var with intf=intf in the template
+                {"name": "Ethernet2", "cli_append_str": "{{ intf.name.split('Ethernet') | last }}"},
+            ],
+        )
+
+        self.assertEqual(output, expected_output)
 
 
 if __name__ == "__main__":

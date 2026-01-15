@@ -271,11 +271,11 @@ def get_config_section(config: str, section: str, parser: str) -> str:
 @pass_context
 def render_as_jinja(ctx: Context, jinja_string: str, **extra_vars) -> str:
     env = ctx.environment
-    vars = ctx.get_all().copy()
-    vars.update(extra_vars)
+    jinja_vars = ctx.get_all().copy()
+    jinja_vars.update(extra_vars)
 
     template = env.from_string(jinja_string)
 
-    rendered = template.render(vars)
+    rendered = template.render(jinja_vars)
 
     return rendered

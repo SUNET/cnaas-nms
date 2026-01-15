@@ -6,6 +6,8 @@ import ipaddress
 import re
 from typing import Any, Callable, Optional
 
+from jinja2 import pass_context
+from jinja2.runtime import Context
 from netutils.config.parser import (
     BaseSpaceConfigParser,
     EOSConfigParser,
@@ -263,3 +265,17 @@ def get_config_section(config: str, section: str, parser: str) -> str:
         return collect + "\n}" if isinstance(config_parser, JunosConfigParser) else collect
 
     return ""
+
+
+@template_filter()
+@pass_context
+def render_as_jinja(ctx: Context, jinja_string: str, **extra_vars) -> str:
+    env = ctx.environment
+    vars = ctx.get_all().copy()
+    vars.update(extra_vars)
+
+    template = env.from_string(jinja_string)
+
+    rendered = template.render(vars)
+
+    return rendered

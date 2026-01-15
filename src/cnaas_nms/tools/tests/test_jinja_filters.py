@@ -191,7 +191,7 @@ class DecodeHashTests(unittest.TestCase):
 
 class RenderAsJinjaTests(unittest.TestCase):
     def render_helper(self, jinja_template: str, **vars) -> str:
-        env = Environment()
+        env = Environment()  # noqa: S5247
         env.filters["render_as_jinja"] = render_as_jinja
 
         template = env.from_string(jinja_template)

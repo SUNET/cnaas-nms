@@ -98,7 +98,7 @@ class MyBearerTokenValidator(BearerTokenValidator):
         permissions_rules = auth_settings.PERMISSIONS
         if not permissions_rules:
             logger.warning("No permissions defined, so nobody is permitted to do any api calls.")
-            raise PermissionError()
+            raise PermissionError("Error, no permissions defined in files or environment")
         user_info = get_oauth_token_info(token)
         permissions = get_permissions_user(permissions_rules, user_info)
         if len(permissions) == 0:

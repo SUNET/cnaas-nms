@@ -3,6 +3,8 @@ from typing import List
 
 from authlib.integrations.flask_oauth2.requests import FlaskJsonRequest
 
+from cnaas_nms.db.permissions import get_all_user_db_permissions
+from cnaas_nms.db.session import sqla_session
 from cnaas_nms.models.permissions import PermissionModel, PermissionsModel
 from cnaas_nms.version import __api_version__
 
@@ -40,6 +42,12 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
     relevant_roles = list(set(permissions_rules.roles) & set(user_roles))
     for relevant_role in relevant_roles:
         permissions_of_user.extend(permissions_rules.roles[relevant_role].permissions)
+
+    if permissions_rules.config and permissions_rules.config.userinfo_attributes_in_db:
+        with sqla_session() as session:
+            permissions_of_user.extend(
+                get_all_user_db_permissions(session, user_info, permissions_rules.config.userinfo_attributes_in_db)
+            )
 
     return permissions_of_user
 

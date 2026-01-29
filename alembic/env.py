@@ -35,6 +35,7 @@ from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.db.site import Site
 from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.db.permissions import Roles, RolePermissions, RoleMappings
 
 target_metadata = Base.metadata
 

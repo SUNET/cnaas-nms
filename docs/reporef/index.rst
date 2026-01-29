@@ -296,7 +296,7 @@ Access list examples
       terms:
        - name: "allow-all-established"
          protocol: [tcp, udp]
-         option: ["established"]
+         option: "established"
          action: "accept"
 
 groups.yml

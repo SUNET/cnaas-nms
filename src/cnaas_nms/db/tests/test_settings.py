@@ -369,6 +369,38 @@ class SettingsTests(unittest.TestCase):
             device = Device(hostname=self.testdata["testdevice"], platform=platform)
             get_generated_access_lists(device)
 
+    def test_acl_option(self):
+        """Test validate and generate access list option"""
+        settings = {
+            "access_lists": {
+                "TEST_ACL_ESTABLISHED": {
+                    "terms": [
+                        {
+                            "name": "permit-established",
+                            "protocol": ["tcp", "udp"],
+                            "option": "established",
+                            "action": "accept",
+                        }
+                    ]
+                },
+                "TEST_ACL_TCP_ESTABLISHED": {
+                    "terms": [
+                        {
+                            "name": "permit-tcp-established",
+                            "protocol": ["tcp"],
+                            "option": "tcp-established",
+                            "action": "accept",
+                        }
+                    ]
+                },
+            },
+            "system_access_lists": ["TEST_ACL_ESTABLISHED", "TEST_ACL_TCP_ESTABLISHED"],
+        }
+        # Validate and generate
+        f_root(**settings)
+        acls = get_generated_access_lists(platform="eos", settings=settings)
+        self.assertEqual(len(acls.keys()), 2)
+
     def test_acl_invalid_definition(self):
         """Test invalid network definitions"""
         settings = {

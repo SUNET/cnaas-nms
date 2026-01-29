@@ -35,6 +35,7 @@ from cnaas_nms.api.json import CNaaSJSONEncoder
 from cnaas_nms.api.linknet import linknet_api, linknets_api
 from cnaas_nms.api.mgmtdomain import mgmtdomain_api, mgmtdomains_api
 from cnaas_nms.api.plugins import api as plugins_api
+from cnaas_nms.api.rbac import rbac_api
 from cnaas_nms.api.repository import api as repository_api
 from cnaas_nms.api.settings import api as settings_api
 from cnaas_nms.api.system import api as system_api
@@ -170,6 +171,7 @@ api.add_namespace(repository_api)
 api.add_namespace(settings_api)
 api.add_namespace(plugins_api)
 api.add_namespace(system_api)
+api.add_namespace(rbac_api)
 
 
 # SocketIO on connect

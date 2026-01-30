@@ -18,13 +18,13 @@ Planned features:
 
 ## Dependencies
 
-Dependencies are specified in `[dependency-groups]` in _pyproject.toml_. The are curently three groups
+Dependencies are specified in `[dependency-groups]` in _pyproject.toml_. The are currently three groups:
 
 - `dependencies`
 - `dev`
 - `docs`
 
-dependencies from each group can be installed with
+Dependencies from each group can be installed with:
 
 ```sh
 pip install --group <group>
@@ -36,7 +36,7 @@ pip install --group <group>
 
 Docker and docker compose or:
 
-1. python3.11 or later
+1. Python 3.11 or later
 2. `pip install --group dependencies` (requires pip 25.1 or later)
 3. SQL database, Redis
 
@@ -50,12 +50,12 @@ Install docker with docker compose and run: `docker compose build -f docker/dock
 
 Install locally by creating a virtualenv and activate the environment, then:
 
-```
+```sh
 python3 -m pip install --group dependencies
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
 
-Edit db_config.yml to point to your SQL and redis database.
+Edit db_config.yml to point to your SQL and Redis database.
 
 ## Test
 

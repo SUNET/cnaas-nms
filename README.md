@@ -44,7 +44,7 @@ Docker and docker compose or:
 
 ### Docker
 
-Install docker with docker compose and run: `docker compose build -f docker/docker-compose.yaml`
+Install docker with docker compose and run: `docker compose -f docker/docker-compose.yaml build`
 
 ### Venv
 

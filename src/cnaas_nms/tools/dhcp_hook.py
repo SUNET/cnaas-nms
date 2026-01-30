@@ -139,7 +139,7 @@ def main() -> Optional[int]:
                     )
             else:
                 data = {"ztp_mac": None}
-                r = requests.post(
+                r = requests.put(
                     f"{base_url}/api/v1.0/device/{dev_id}",
                     json=data,
                     verify=verify_tls,

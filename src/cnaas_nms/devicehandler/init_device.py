@@ -1011,6 +1011,7 @@ def init_device_step2(
         set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None
+        dev.ztp_mac = None
         dev.last_seen = datetime.datetime.utcnow()  # type: ignore
 
     # Plugin hook: new managed device

@@ -4,13 +4,14 @@ services:
   cnaas_init:
     image: docker-cnaas_api
     user: root
+    entrypoint: ["bash", "-c"]
     volumes:
       - cnaas-jwtcert:/opt/cnaas/jwtcert
       - cnaas-cacert:/opt/cnaas/cacert
       - cnaas-templates:/opt/cnaas/templates
       - cnaas-settings:/opt/cnaas/settings
-    command: >
-      bash -c '
+    command:
+      - |
         if [ ! -f /opt/cnaas/jwtcert/public.pem ]; then
           echo "Generating JWT keypair (ES256)..." &&
           openssl ecparam -genkey -name prime256v1 -noout -out /opt/cnaas/jwtcert/private.pem &&
@@ -20,7 +21,7 @@ services:
         if [ ! -f /opt/cnaas/jwtcert/dev-token ]; then
           echo "Generating dev token..." &&
           source /opt/cnaas/venv/bin/activate &&
-          python3 -c "import jwt; print(jwt.encode({\"sub\": \"admin\"}, open(\"/opt/cnaas/jwtcert/private.pem\").read(), algorithm=\"ES256\"))" > /opt/cnaas/jwtcert/dev-token
+          python3 -c "import jwt; print(jwt.encode({'sub': 'admin'}, open('/opt/cnaas/jwtcert/private.pem').read(), algorithm='ES256'))" > /opt/cnaas/jwtcert/dev-token
         fi &&
         if [ ! -f /opt/cnaas/cacert/rootCA.crt ]; then
           echo "Generating CA certificate..." &&
@@ -37,7 +38,6 @@ services:
           git clone https://github.com/SUNET/cnaas-integrationtest-settings.git /opt/cnaas/settings
         fi &&
         echo "Init complete."
-      '
 
   cnaas_api:
     depends_on:
@@ -48,5 +48,6 @@ services:
       - PERMISSIONS_DISABLED=false
       - GITREPO_TEMPLATES=https://github.com/SUNET/cnaas-integrationtest-templates.git
       - GITREPO_SETTINGS=https://github.com/SUNET/cnaas-integrationtest-settings.git
+      - UWSGI_PY_AUTORELOAD=1
     volumes:
       - ../src:/opt/cnaas/venv/cnaas-nms/src:ro

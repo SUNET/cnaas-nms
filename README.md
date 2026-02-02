@@ -60,7 +60,7 @@ docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.dev.y
 ```
 
 The dev overlay automatically:
-- Mounts your local `src/` directory (restart `cnaas_api` container to apply code changes)
+- Mounts your local `src/` directory with hot reloading (uwsgi auto-reloads on Python file changes)
 - Generates JWT keypair and CA certificates
 - Clones integrationtest templates and settings repositories
 

@@ -1,0 +1,52 @@
+# Local development overlay.
+
+services:
+  cnaas_init:
+    image: docker-cnaas_api
+    user: root
+    volumes:
+      - cnaas-jwtcert:/opt/cnaas/jwtcert
+      - cnaas-cacert:/opt/cnaas/cacert
+      - cnaas-templates:/opt/cnaas/templates
+      - cnaas-settings:/opt/cnaas/settings
+    command: >
+      bash -c '
+        if [ ! -f /opt/cnaas/jwtcert/public.pem ]; then
+          echo "Generating JWT keypair (ES256)..." &&
+          openssl ecparam -genkey -name prime256v1 -noout -out /opt/cnaas/jwtcert/private.pem &&
+          openssl ec -in /opt/cnaas/jwtcert/private.pem -pubout -out /opt/cnaas/jwtcert/public.pem &&
+          chmod 644 /opt/cnaas/jwtcert/*.pem
+        fi &&
+        if [ ! -f /opt/cnaas/jwtcert/dev-token ]; then
+          echo "Generating dev token..." &&
+          source /opt/cnaas/venv/bin/activate &&
+          python3 -c "import jwt; print(jwt.encode({\"sub\": \"admin\"}, open(\"/opt/cnaas/jwtcert/private.pem\").read(), algorithm=\"ES256\"))" > /opt/cnaas/jwtcert/dev-token
+        fi &&
+        if [ ! -f /opt/cnaas/cacert/rootCA.crt ]; then
+          echo "Generating CA certificate..." &&
+          openssl genrsa -out /opt/cnaas/cacert/rootCA.key 4096 &&
+          openssl req -subj "/CN=cnaasNMSrootCA" -x509 -new -nodes -key /opt/cnaas/cacert/rootCA.key -sha256 -out /opt/cnaas/cacert/rootCA.crt -days 7300 &&
+          chmod 644 /opt/cnaas/cacert/*
+        fi &&
+        if [ ! -d /opt/cnaas/templates/.git ]; then
+          echo "Cloning templates repository..." &&
+          git clone https://github.com/SUNET/cnaas-integrationtest-templates.git /opt/cnaas/templates
+        fi &&
+        if [ ! -d /opt/cnaas/settings/.git ]; then
+          echo "Cloning settings repository..." &&
+          git clone https://github.com/SUNET/cnaas-integrationtest-settings.git /opt/cnaas/settings
+        fi &&
+        echo "Init complete."
+      '
+
+  cnaas_api:
+    depends_on:
+      cnaas_init:
+        condition: service_completed_successfully
+    environment:
+      - JWT_SECRET_KEY=local-dev-secret-change-in-production
+      - PERMISSIONS_DISABLED=false
+      - GITREPO_TEMPLATES=https://github.com/SUNET/cnaas-integrationtest-templates.git
+      - GITREPO_SETTINGS=https://github.com/SUNET/cnaas-integrationtest-settings.git
+    volumes:
+      - ../src:/opt/cnaas/venv/cnaas-nms/src:ro

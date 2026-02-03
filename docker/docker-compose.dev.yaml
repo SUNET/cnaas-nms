@@ -31,11 +31,13 @@ services:
         fi &&
         if [ ! -d /opt/cnaas/templates/.git ]; then
           echo "Cloning templates repository..." &&
-          git clone https://github.com/SUNET/cnaas-integrationtest-templates.git /opt/cnaas/templates
+          git clone https://github.com/SUNET/cnaas-integrationtest-templates.git /opt/cnaas/templates &&
+          chown -R www-data:www-data /opt/cnaas/templates
         fi &&
         if [ ! -d /opt/cnaas/settings/.git ]; then
           echo "Cloning settings repository..." &&
-          git clone https://github.com/SUNET/cnaas-integrationtest-settings.git /opt/cnaas/settings
+          git clone https://github.com/SUNET/cnaas-integrationtest-settings.git /opt/cnaas/settings &&
+          chown -R www-data:www-data /opt/cnaas/settings
         fi &&
         echo "Init complete."
 

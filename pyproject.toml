@@ -17,16 +17,12 @@ classifiers = [
   "Programming Language :: Python :: 3.11",
 ]
 dynamic = [ "version" ]
-
-[dependency-groups]
-# dependencies are listed as a dependency-group since cnaas-nms itself is NOT a package
 dependencies = [
   "aerleon==1.14.1",
   "alembic==1.15.2",
   "apscheduler==3.11",
   "async-timeout>=4.0.2",
   "authlib==1.6.4",
-  "coverage==7.8",
   "flask==3.1",
   "flask-cors==6.0.0",
   "flask-jwt-extended==4.7.1",
@@ -36,8 +32,6 @@ dependencies = [
   "gitpython==3.1.44",
   "greenlet==3.2.1",
   "markupsafe==3.0.2",
-  "mypy==1.15",
-  "mypy-extensions==1.1",
   "napalm==5.0",
   "netmiko==4.5",
   "nornir==3.5",
@@ -45,39 +39,36 @@ dependencies = [
   "nornir-napalm==0.5",
   "nornir-netmiko==1.0.1",
   "nornir-utils==0.2",
-  "nose==1.3.7",
   "pluggy==1.5",
   "portalocker==3.1.1",
   "psycopg2-binary==2.9.10",
   "pydantic==2.11.3",
   "pydantic-settings==2.9.1",
-  "pytest==8.3.5",
-  "pytest-cov==6.1.1",
-  "pytest-docker==3.2.2",
-  "pytest-env==1.1.5",
   "python-jose==3.4",
   "pytz==2025.2",
   "pyyaml==6.0.3",
   "redis==5.2.1",
   "redis-lru==0.1",
   "requests==2.32.3",
-  "sphinx==8.2.3",
   "sqlalchemy==2.0.40",
   "sqlalchemy-utils==0.41.2",
-  "types-pytz==2025.2.0.20250326",
-  "types-requests==2.32.0.20250328",
   "werkzeug==3.1.3",
 ]
+
+[dependency-groups]
 dev = [
-  "pytest >=8.1.1,<9",
-  "ruff",
+  "coverage==7.8",
+  "mypy==1.15",
+  "mypy-extensions==1.1",
+  "nose==1.3.7",
   "pre-commit",
-  "mypy",
-  "mypy-extensions",
-]
-docs = [
-  "Sphinx==3.3.1",
-  "docutils<0.18",
+  "pytest==8.3.5",
+  "pytest-cov==6.1.1",
+  "pytest-docker==3.2.2",
+  "pytest-env==1.1.5",
+  "ruff",
+  "types-pytz==2025.2.0.20250326",
+  "types-requests==2.32.0.20250328",
 ]
 
 [project.readme]

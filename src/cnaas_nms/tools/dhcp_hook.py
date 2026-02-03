@@ -147,10 +147,10 @@ def main() -> Optional[int]:
                 )
 
                 logger.info(
-                    ("Device with ztp_mac {} booted via DHCP, MAC previously belonged to device {}, "
-                    "unassigning MAC from old device (status {})").format(
-                        ztp_mac, dev_dict["hostname"], r.status_code
-                    )
+                    (
+                        "Device with ztp_mac {} booted via DHCP, MAC previously belonged to device {}, "
+                        "unassigning MAC from old device (status {})"
+                    ).format(ztp_mac, dev_dict["hostname"], r.status_code)
                 )
 
         else:

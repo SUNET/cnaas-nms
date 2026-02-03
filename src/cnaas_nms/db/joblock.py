@@ -60,7 +60,10 @@ class Joblock(cnaas_nms.db.base.Base):
 
     @classmethod
     def get_lock(
-        cls, session, name: Optional[str] = None, job_id: Optional[int] = None  # type: ignore
+        cls,
+        session,
+        name: Optional[str] = None,
+        job_id: Optional[int] = None,  # type: ignore
     ) -> Optional[Dict[str, str]]:
         """
 

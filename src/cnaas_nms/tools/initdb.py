@@ -7,7 +7,7 @@ with open("/etc/cnaas-nms/db_config.yml", "r") as db_file:
     db_data = yaml.safe_load(db_file)
 
 print(db_data)
-conn_str = f"postgresql://{db_data['username']}:{db_data['password']}@" f"{db_data['hostname']}:{db_data['port']}"
+conn_str = f"postgresql://{db_data['username']}:{db_data['password']}@{db_data['hostname']}:{db_data['port']}"
 
 from sqlalchemy import create_engine
 

@@ -30,8 +30,8 @@ def test_add_schedule(postgresql, scheduler):
     )
     assert isinstance(job1_id, int)
     assert isinstance(job2_id, int)
-    print(f"Test job 1 scheduled as ID { job1_id }")
-    print(f"Test job 2 scheduled as ID { job2_id }")
+    print(f"Test job 1 scheduled as ID {job1_id}")
+    print(f"Test job 2 scheduled as ID {job2_id}")
     time.sleep(3)
     with sqla_session() as session:  # type: ignore
         job1 = session.query(Job).filter(Job.id == job1_id).one_or_none()
@@ -50,7 +50,7 @@ def test_abort_schedule(postgresql, scheduler):
         job_testfunc_success, when=600, scheduled_by="test_user", kwargs={"text": "abort"}
     )
     assert isinstance(job3_id, int)
-    print(f"Test job 3 scheduled as ID { job3_id }")
+    print(f"Test job 3 scheduled as ID {job3_id}")
     scheduler.remove_scheduled_job(job3_id)
     time.sleep(3)
     with sqla_session() as session:  # type: ignore

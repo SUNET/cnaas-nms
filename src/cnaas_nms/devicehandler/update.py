@@ -1,6 +1,8 @@
 import datetime
+from copy import deepcopy
 from typing import Dict, List, Optional
 
+from netutils.interface import canonical_interface_name
 from nornir_napalm.plugins.tasks import napalm_get
 
 import cnaas_nms.devicehandler.nornir_helper
@@ -63,6 +65,8 @@ def update_interfacedb_worker(
     if not phy_interfaces:
         raise Exception("Could not find any physical interfaces for device {}".format(dev.hostname))
 
+    log_new_interfaces = []
+    log_updated_interfaces = []
     for intf_name in phy_interfaces:
         intf: Interface = (
             session.query(Interface).filter(Interface.device == dev).filter(Interface.name == intf_name).one_or_none()
@@ -76,7 +80,6 @@ def update_interfacedb_worker(
             intf = Interface()
         if not new_intf and not replace:
             continue
-        logger.debug("New/updated physical interface found on device {}: {}".format(dev.hostname, intf_name))
         if intf_name in uplinks.keys():
             intf.configtype = InterfaceConfigType.ACCESS_UPLINK
             intf.data = {"neighbor": uplinks[intf_name]}
@@ -89,7 +92,18 @@ def update_interfacedb_worker(
         intf.device = dev
         if new_intf:
             session.add(intf)
+            log_new_interfaces.append(intf_name)
+        else:
+            log_updated_interfaces.append(intf_name)
         ret.append(intf.as_dict())
+    if log_new_interfaces:
+        logger.debug(
+            "New physical interfaces found on device {}: {}".format(dev.hostname, ", ".join(log_new_interfaces))
+        )
+    if log_updated_interfaces:
+        logger.debug(
+            "Updated physical interfaces on device {}: {}".format(dev.hostname, ", ".join(log_updated_interfaces))
+        )
 
     # Remove interfaces that no longer exist on device
     for unmatched_intf in unmatched_iflist:
@@ -252,28 +266,32 @@ def update_linknets(
     )
 
     for idx, (local_if, data) in enumerate(neighbors.items()):
-        logger.debug(f"Local: {local_if}, remote: {data[0]['hostname']} {data[0]['port']}")
-        remote_device_inst: Device = session.query(Device).filter(Device.hostname == data[0]["hostname"]).one_or_none()
+        remote_hostname = data[0]["hostname"]
+        remote_if = canonical_interface_name(data[0]["port"])
+        logger.debug(f"Local: {local_if}, remote: {remote_hostname} {remote_if}")
+        remote_device_inst: Device = session.query(Device).filter(Device.hostname == remote_hostname).one_or_none()
         if not remote_device_inst:
-            logger.debug(f"Unknown neighbor device, ignoring: {data[0]['hostname']}")
+            logger.debug(f"Unknown neighbor device, ignoring: {remote_hostname}")
             continue
         if mlag_peer_dev and remote_device_inst.id == mlag_peer_dev.id:
             # In case of MLAG init the peer does not have the correct devtype set yet,
             # use same devtype as local device instead
             remote_devtype = devtype
         elif remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
-            logger.debug("Neighbor device has invalid state, ignoring: {}".format(data[0]["hostname"]))
+            logger.debug("Neighbor device has invalid state, ignoring: {}".format(remote_hostname))
             continue
         else:
             remote_devtype = remote_device_inst.device_type
 
         logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
 
-        local_device_settings, _ = get_settings(settings_hostname, devtype, local_device_inst.model)
-        remote_device_settings, _ = get_settings(remote_device_inst.hostname, remote_devtype, remote_device_inst.model)
-
-        local_device_inst_copy = Device(hostname=local_device_inst.hostname, device_type=local_device_inst.device_type)
+        local_device_inst_copy = deepcopy(local_device_inst)
         local_device_inst_copy.device_type = devtype
+        local_device_inst_copy.hostname = settings_hostname
+
+        local_device_settings, _ = get_settings(local_device_inst_copy, devtype, local_device_inst.model)
+        remote_device_settings, _ = get_settings(remote_device_inst, remote_devtype, remote_device_inst.model)
+
         redundant_link = verify_peer_iftype(
             session,
             local_device_inst_copy,
@@ -281,7 +299,7 @@ def update_linknets(
             local_if,
             remote_device_inst,
             remote_device_settings,
-            data[0]["port"],
+            remote_if,
         )
 
         # Check if linknet object already exists in database
@@ -291,8 +309,8 @@ def update_linknets(
             .filter(
                 ((Linknet.device_a_id == local_devid) & (Linknet.device_a_port == local_if))
                 | ((Linknet.device_b_id == local_devid) & (Linknet.device_b_port == local_if))
-                | ((Linknet.device_a_id == remote_device_inst.id) & (Linknet.device_a_port == data[0]["port"]))
-                | ((Linknet.device_b_id == remote_device_inst.id) & (Linknet.device_b_port == data[0]["port"]))
+                | ((Linknet.device_a_id == remote_device_inst.id) & (Linknet.device_a_port == remote_if))
+                | ((Linknet.device_b_id == remote_device_inst.id) & (Linknet.device_b_port == remote_if))
             )
             .one_or_none()
         )
@@ -302,12 +320,12 @@ def update_linknets(
                 check_linknet.device_a_id == local_devid
                 and check_linknet.device_a_port == local_if
                 and check_linknet.device_b_id == remote_device_inst.id
-                and check_linknet.device_b_port == data[0]["port"]
+                and check_linknet.device_b_port == remote_if
             ) or (
                 check_linknet.device_a_id == local_devid
                 and check_linknet.device_a_port == local_if
                 and check_linknet.device_b_id == remote_device_inst.id
-                and check_linknet.device_b_port == data[0]["port"]
+                and check_linknet.device_b_port == remote_if
             ):
                 if not dry_run:
                     if check_linknet.device_a_id == local_devid:
@@ -351,7 +369,7 @@ def update_linknets(
             hostname_a=local_device_inst.hostname,
             interface_a=local_if,
             hostname_b=remote_device_inst.hostname,
-            interface_b=data[0]["port"],
+            interface_b=remote_if,
             ipv4_network=ipv4_network,
             strict_check=not dry_run,  # Don't do strict check if this is a dry_run
         )

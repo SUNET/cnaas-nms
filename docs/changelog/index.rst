@@ -1,6 +1,27 @@
 Changelog
 =========
 
+Version 1.8.0
+-------------
+
+New features:
+
+ - Groups YAML syntax redesign, still backwards compatible (#407)
+ - Handle changing of device hostnames, check that new hostname will have same settings (#420)
+ - Set default ZTP firmware via API (#422)
+ - Allow different firmware checksum types (#422)
+ - Settings from different priority levels can be merged instead of overwritten (#428)
+ - Replace access switch with new hardware (#431)
+ - Special API endpoint for export of access interface configuration (#434)
+ - Automatically decide what order to upgrade access switches under one dist pair (#441)
+ - Functions to raise errors and log from inside jinja2 template files (#450)
+ - Experimental support for generating access lists via Aerleon syntax in settings repo (#452)
+ - New render_as_jinja template filter makes it possible to write jinja in cli_append_str for example (#458)
+
+Bug fixes:
+
+ - Handle LLDP neighbors with abbreviated interface names (#402)
+
 Version 1.7.0
 -------------
 

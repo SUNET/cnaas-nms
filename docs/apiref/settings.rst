@@ -123,6 +123,8 @@ Output will very depending on version of NMS running, example:
        "PLUGIN_FILE": "/etc/cnaas-nms/plugins.yml",
        "GLOBAL_UNIQUE_VLANS": true,
        "INIT_MGMT_TIMEOUT": 30,
+       "SETTINGS_KEYS_TO_MERGE": ["system_access_lists", "prefix_sets", "routing_policies"],
+       "ACCESS_LIST_OPTIMIZE": false,
        "MGMTDOMAIN_RESERVED_COUNT": 5,
        "COMMIT_CONFIRMED_MODE": 2,
        "COMMIT_CONFIRMED_TIMEOUT": 300,

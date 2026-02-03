@@ -1,4 +1,0 @@
-ruff
-pre-commit
-mypy
-mypy-extensions

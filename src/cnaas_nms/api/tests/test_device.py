@@ -6,20 +6,24 @@ from ipaddress import IPv4Address
 import pkg_resources
 import pytest
 import yaml
+from sqlalchemy import or_
 
 from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.stackmember import Stackmember
 
 
 @pytest.mark.integration
+@pytest.mark.usefixtures("mock_get_settings")
 class DeviceTests(unittest.TestCase):
     @pytest.fixture(autouse=True)
-    def requirements(self, postgresql, settings_directory):
+    def requirements(self, postgresql, settings_directory, mock_get_settings):
         """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
-        pass
+        self.mock_get_settings = mock_get_settings
 
     def cleandb(self):
         with sqla_session() as session:  # type: ignore
@@ -28,7 +32,15 @@ class DeviceTests(unittest.TestCase):
                 if stack:
                     session.delete(stack)
                     session.commit()
-            for hostname in ["testdevice", "testdevice2", "testfwdevice"]:
+            for hostname in [
+                "testdevice",
+                "testdevice2",
+                "testgroup-device1",
+                "testfwdevice",
+                "neighbor-device",
+                "renamed-device",
+                "hostname-device2",
+            ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
                     session.delete(device)
@@ -127,12 +139,316 @@ class DeviceTests(unittest.TestCase):
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertEqual(modify_data["description"], q_device.description)
 
+    def test_interface_data_mutable(self):
+        from cnaas_nms.db.interface import Interface, InterfaceConfigType
+
+        with sqla_session() as session:
+            intf = Interface(
+                device_id=self.device_id,
+                name="test-intf",
+                configtype=InterfaceConfigType.ACCESS_AUTO,
+                data={"neighbor": "should-change"},
+            )
+            session.add(intf)
+            session.commit()
+
+            # Mutate JSONB field
+            intf.data["neighbor"] = "changed"
+            session.commit()
+
+            # Verify mutation persisted
+            updated = session.query(Interface).filter_by(name="test-intf", device_id=self.device_id).one()
+            assert updated.data["neighbor"] == "changed"
+
+            if updated:
+                session.delete(updated)
+                session.commit()
+
+    def test_interface_export(self):
+        from cnaas_nms.db.interface import Interface, InterfaceConfigType
+
+        with sqla_session() as session:
+            intf1 = Interface(
+                device_id=self.device_id,
+                name="Ethernet1",
+                configtype=InterfaceConfigType.ACCESS_AUTO,
+                data={"description": "testdesc"},
+            )
+            session.add(intf1)
+            intf2 = Interface(
+                device_id=self.device_id,
+                name="Ethernet2",
+                configtype=InterfaceConfigType.ACCESS_UPLINK,
+                data={"neighbor": "testneigh"},
+            )
+            session.add(intf2)
+            intf3 = Interface(
+                device_id=self.device_id,
+                name="Ethernet3",
+                configtype=InterfaceConfigType.ACCESS_DOWNLINK,
+            )
+            session.add(intf3)
+            session.commit()
+
+            # Make a query with most things excluded
+            response = self.client.get(
+                f"/api/v1.0/device/{self.hostname}/interfaces_export",
+                query_string={"include_downlinks": False, "include_descriptions": False},
+            )
+            # example output: {'interfaces': {'Ethernet1': {'configtype': 'ACCESS_AUTO', 'data': {'description': 'testdesc'}}}}
+            for interface in response.json["interfaces"]:
+                self.assertNotEqual(response.json["interfaces"][interface]["configtype"], "ACCESS_UPLINK")
+            for interface in response.json["interfaces"]:
+                self.assertNotEqual(response.json["interfaces"][interface]["configtype"], "ACCESS_DOWNLINK")
+            for interface in response.json["interfaces"]:
+                self.assertNotIn("description", response.json["interfaces"][interface]["data"])
+
+            # Make a query with everything included
+            response = self.client.get(
+                f"/api/v1.0/device/{self.hostname}/interfaces_export",
+                query_string={"include_uplinks": True},
+            )
+            for interface in response.json["interfaces"]:
+                self.assertIn(interface, ["Ethernet1", "Ethernet2", "Ethernet3"])
+            self.assertIn("description", response.json["interfaces"]["Ethernet1"]["data"])
+
+            session.delete(intf1)
+            session.delete(intf2)
+            session.delete(intf3)
+            session.commit()
+
+    def test_rename_device_updates_neighbor(self):
+        with sqla_session() as session:
+            neighbor_device = Device(
+                hostname="neighbor-device",
+                platform="eos",
+                management_ip=IPv4Address("10.2.2.2"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.DIST,
+                synchronized=True,
+            )
+            session.add(neighbor_device)
+            session.commit()
+            intf = Interface(
+                device=neighbor_device,
+                name="Ethernet1",
+                configtype=InterfaceConfigType.ACCESS_AUTO,
+                data={"neighbor": "testdevice"},
+            )
+            session.add(intf)
+            session.commit()
+
+        # Rename 'testdevice' to 'renamed-device'
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+        # Confirm that the neighbor field in interface has been updated
+        with sqla_session() as session:
+            renamed_device = session.query(Device).filter_by(hostname="renamed-device").one()
+            assert renamed_device
+            assert not renamed_device.synchronized
+            assert session.query(Device).filter_by(hostname="testdevice").one_or_none() is None
+            neighbor = session.query(Device).filter_by(hostname="neighbor-device").one()
+            intf = session.query(Interface).filter_by(name="Ethernet1", device_id=neighbor.id).one()
+            assert intf.data["neighbor"] == "renamed-device"
+            assert not neighbor.synchronized
+
+            # clean up
+            session.delete(intf)
+            session.delete(renamed_device)
+            session.commit()
+
+    def test_rename_device_marks_linknet_neighbors_unsync(self):
+        """Test that renaming a device marks physically connected neighbors as unsynchronized via linknets"""
+        with sqla_session() as session:
+            # Create two DIST devices (uplinks) - synchronized and with NO interface data
+            # Note:  DIST devices have NO interface entries
+            dist1 = Device(
+                hostname="test-dist1",
+                platform="eos",
+                management_ip=IPv4Address("10.100.1.1"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.DIST,
+                synchronized=True,
+            )
+            session.add(dist1)
+
+            dist2 = Device(
+                hostname="test-dist2",
+                platform="eos",
+                management_ip=IPv4Address("10.100.1.2"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType. DIST,
+                synchronized=True,
+            )
+            session.add(dist2)
+            session.flush()
+            dist1_id = dist1.id
+            dist2_id = dist2.id
+
+            # Create ACCESS device that will be renamed
+            access = Device(
+                hostname="access-old-name",
+                platform="eos",
+                management_ip=IPv4Address("10.100.2.1"),
+                state=DeviceState.MANAGED,
+                device_type=DeviceType. ACCESS,
+                synchronized=True,
+            )
+            session.add(access)
+            session.flush()
+            access_id = access.id
+
+            # Create linknets connecting ACCESS to both DIST devices
+            linknet1 = Linknet(
+                device_a_id=access_id,
+                device_a_port="Ethernet17",
+                device_b_id=dist1_id,
+                device_b_port="Ethernet2",
+            )
+            session.add(linknet1)
+
+            linknet2 = Linknet(
+                device_a_id=access_id,
+                device_a_port="Ethernet18",
+                device_b_id=dist2_id,
+                device_b_port="Ethernet2",
+            )
+            session.add(linknet2)
+
+            # Create ACCESS_UPLINK interfaces on ACCESS device with neighbor data
+            # (This mimics real scenario where ACCESS devices have uplink interface data)
+            intf1 = Interface(
+                device_id=access_id,
+                name="Ethernet17",
+                configtype=InterfaceConfigType.ACCESS_UPLINK,
+                data={"neighbor": "test-dist1"}
+            )
+            session.add(intf1)
+
+            intf2 = Interface(
+                device_id=access_id,
+                name="Ethernet18",
+                configtype=InterfaceConfigType.ACCESS_UPLINK,
+                data={"neighbor": "test-dist2"}
+            )
+            session.add(intf2)
+
+            session.commit()
+
+        # Verify initial state:  all devices are synchronized
+        with sqla_session() as session:
+            access_dev = session.query(Device).filter(Device.id == access_id).one()
+            dist1_dev = session.query(Device).filter(Device.id == dist1_id).one()
+            dist2_dev = session.query(Device).filter(Device.id == dist2_id).one()
+
+            assert access_dev.synchronized, "ACCESS device should start synchronized"
+            assert dist1_dev.synchronized, "DIST1 device should start synchronized"
+            assert dist2_dev.synchronized, "DIST2 device should start synchronized"
+
+        # Rename the ACCESS device
+        rename_data = {"hostname": "access-new-name"}
+        rename_response = self.client.put(f"/api/v1.0/device/{access_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+        # Verify renamed device is unsynchronized
+        with sqla_session() as session:
+            renamed_device = session.query(Device).filter(Device.id == access_id).one()
+            assert renamed_device.hostname == "access-new-name"
+            assert not renamed_device.synchronized, "Renamed device should be unsynchronized"
+
+        # Verify DIST neighbors are marked as unsynchronized
+        with sqla_session() as session:
+            dist1_dev = session.query(Device).filter(Device.id == dist1_id).one()
+            dist2_dev = session.query(Device).filter(Device.id == dist2_id).one()
+
+            assert not dist1_dev.synchronized, "DIST1 neighbor should be unsynchronized after ACCESS rename"
+            assert not dist2_dev.synchronized, "DIST2 neighbor should be unsynchronized after ACCESS rename"
+
+        # Verify interface neighbor fields were updated
+        with sqla_session() as session:
+            intf1 = session.query(Interface).filter(
+                Interface.device_id == access_id,
+                Interface.name == "Ethernet17"
+            ).one()
+            intf2 = session.query(Interface).filter(
+                Interface. device_id == access_id,
+                Interface.name == "Ethernet18"
+            ).one()
+
+            assert intf1.data["neighbor"] == "test-dist1", "Interface neighbor field should be updated"
+            assert intf2.data["neighbor"] == "test-dist2", "Interface neighbor field should be updated"
+
+        # Cleanup
+        with sqla_session() as session:
+            session.query(Interface).filter(Interface.device_id == access_id).delete()
+            session.query(Linknet).filter(
+                or_(Linknet.device_a_id == access_id, Linknet.device_b_id == access_id)
+            ).delete()
+            session.query(Device).filter(Device.id. in_([access_id, dist1_id, dist2_id])).delete()
+            session.commit()
+
     def test_delete_device(self):
         result = self.client.delete(f"/api/v1.0/device/{self.device_id}")
         self.assertEqual(result.status_code, 200)
         with sqla_session() as session:  # type: ignore
             q_device = session.query(Device).filter(Device.hostname == self.hostname).one_or_none()
             self.assertIsNone(q_device)
+
+    def test_change_device_name(self):
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+    def test_change_device_name_groups_changed_abort(self):
+        rename_data = {"hostname": "testgroup-device1"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 400
+
+    def test_change_device_name_groups_changed_allow(self):
+        device_id = 0
+        # Device that is NOT in MANAGED state
+        with sqla_session() as session:  # type: ignore
+            device = Device(
+                hostname="hostname-device2",
+                platform="eos",
+                management_ip=IPv4Address("10.0.1.22"),
+                state=DeviceState.UNMANAGED,
+                device_type=DeviceType.DIST,
+            )
+            session.add(device)
+            session.commit()
+            device_id = device.id
+        # Change to hostname in TEST_GROUP
+        rename_data = {"hostname": "testgroup-device1"}
+        rename_response = self.client.put(f"/api/v1.0/device/{device_id}", json=rename_data)
+        assert rename_response.status_code == 200
+
+    def test_change_device_name_abort(self):
+        mock_settings_old = {
+            "vxlans": {
+                "student1": {
+                    "vni": "100500",
+                    "ipv4_gw": "10.200.1.1/24",
+                }
+            },
+        }
+        mock_settings_new = {
+            "vxlans": {
+                "student1": {
+                    "vni": "100500",
+                    "ipv4_gw": "10.200.1.2/24",
+                }
+            },
+        }
+
+        self.mock_get_settings("testdevice", mock_settings_old)
+        self.mock_get_settings("renamed-device", mock_settings_new)
+
+        rename_data = {"hostname": "renamed-device"}
+        rename_response = self.client.put(f"/api/v1.0/device/{self.device_id}", json=rename_data)
+        assert rename_response.status_code == 400
 
     @pytest.mark.equipment
     def test_initcheck_distdevice(self):

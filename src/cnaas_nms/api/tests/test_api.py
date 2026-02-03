@@ -176,6 +176,19 @@ def test_repository_get(client):
     assert re.match(r"[Cc]ommit", result.json["data"])
 
 
+def test_settings_hostname(client):
+    """
+    Test getting settings with query parameter
+    """
+    result = client.get("/api/v1.0/settings?hostname=eosaccess")
+    assert result.status_code == 200
+    assert result.content_type == "application/json"
+
+    # Not found hostname
+    result = client.get("/api/v1.0/settings?hostname=notfoundaccess")
+    assert result.status_code == 400
+
+
 def test_sync_devices_invalid_input(client):
     # Test invalid hostname
     data = {"hostname": "...", "dry_run": True}
@@ -295,9 +308,43 @@ def test_add_new_device(client):
         "device_type": "ACCESS",
     }
     result = client.post("/api/v1.0/device", json=data)
-    print(result.json)
     assert result.status_code == 200
     assert result.json["status"] == "success"
+
+    # cleanup
+    device_id = result.json["data"]["added_device"]["id"]
+    response = client.delete(f"/api/v1.0/device/{device_id}", json=data)
+    assert response.json["status"] == "success"
+
+
+def test_add_new_device_gets_group_membership(client):
+    hostname = "testgroup-device1"
+    data = {
+        "hostname": hostname,
+        "site_id": 1,
+        "description": "",
+        "management_ip": "10.1.2.33",
+        "dhcp_ip": "11.1.2.33",
+        "serial": "",
+        "ztp_mac": "0800275C091A",
+        "platform": "eos",
+        "vendor": "",
+        "model": "",
+        "os_version": "",
+        "state": "MANAGED",
+        "device_type": "ACCESS",
+    }
+    result = client.post("/api/v1.0/device", json=data)
+    assert result.status_code == 200
+    assert result.json["status"] == "success"
+
+    result_groups = client.get("/api/v1.0/groups")
+    assert hostname in result_groups.json["data"]["groups"]["TEST_GROUP"]
+
+    # cleanup
+    device_id = result.json["data"]["added_device"]["id"]
+    response = client.delete(f"/api/v1.0/device/{device_id}", json=data)
+    assert response.json["status"] == "success"
 
 
 def test_get_joblocks(client):
@@ -372,9 +419,9 @@ def test_generate_only_vars(client, testdata, templates_directory):
     result = client.get("/api/v1.0/device/{}/generate_config".format(testdata["interface_device"]))
     assert result.status_code == 200
     assert result.json["status"] == "success"
-    assert (
-        result.json["data"]["config"]["available_variables"]["hostname"] == testdata["interface_device"]
-    ), "hostname variable not found in generate_only variables"
+    assert result.json["data"]["config"]["available_variables"]["hostname"] == testdata["interface_device"], (
+        "hostname variable not found in generate_only variables"
+    )
 
 
 def test_linknet(client):

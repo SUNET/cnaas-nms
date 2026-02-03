@@ -1,5 +1,6 @@
 import datetime
 import enum
+import fnmatch
 import json
 import os
 import shutil
@@ -22,6 +23,7 @@ from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
+    AccessListGenerationError,
     SettingsSyntaxError,
     VlanConflictError,
     get_device_primary_groups,
@@ -202,7 +204,7 @@ def get_peer_with_mirror_interfaces(session, dev: Device) -> Optional[Device]:
         logger.exception("Error while finding peer device for mirrored interfaces")
         return None
 
-    peer_settings, _ = get_settings(peer_device.hostname, peer_device.device_type, peer_device.model)
+    peer_settings, _ = get_settings(peer_device, peer_device.device_type, peer_device.model)
 
     try:
         for intf in expand_interface_settings(peer_settings["interfaces"]):
@@ -228,6 +230,11 @@ def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
         raise e
     except VlanConflictError as e:
         logger.error("VLAN conflict in repo configuration: {}".format(e))
+        if repo_checkout_working(RepoType.SETTINGS):
+            rebuild_settings_cache()
+        raise e
+    except AccessListGenerationError as e:
+        logger.error(str(e))
         if repo_checkout_working(RepoType.SETTINGS):
             rebuild_settings_cache()
         raise e
@@ -347,6 +354,18 @@ def _refresh_repo_task(local_repo_path, remote_repo_path) -> Tuple[str, Set[str]
     return ret, changed_files
 
 
+def _is_device_type_update_required(updated_templates: set[str], dependencies: List[str], platform: str) -> bool:
+    """
+    Checks if any of the updated templates matches any of the platform dependencies.
+    Support for glob patterns in dependencies with fnmatch.
+    """
+    for updated_template in updated_templates:
+        for dependency in dependencies:
+            if fnmatch.fnmatch(updated_template, os.path.join(platform, dependency)):
+                return True
+    return False
+
+
 def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
     """Determine what device types have become unsynchronized because
     of updated template files."""
@@ -373,7 +392,6 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
         devtype: DeviceType
         for devtype in DeviceType:
             if devtype.name in mapping:
-                update_required = False
                 try:
                     dependencies = list([mapping[devtype.name]["entrypoint"]])
                     if "dependencies" in mapping[devtype.name] and isinstance(
@@ -391,11 +409,7 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
                             devtype.name, str(e)
                         )
                     )
-
-                for dependency in dependencies:
-                    if os.path.join(platform, dependency) in updated_templates:
-                        update_required = True
-                if update_required:
+                if _is_device_type_update_required(updated_templates, dependencies, platform):
                     logger.info("Template for device type {} has been updated".format(devtype.name))
                     unsynced_devtypes.add((devtype, platform))
 

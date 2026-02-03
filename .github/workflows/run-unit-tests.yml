@@ -33,8 +33,8 @@ jobs:
 
       - name: "Set environment variables"
         run: |
-          echo "GITREPO_TEMPLATES=git://gitops.sunet.se/cnaas-lab-templates" >> $GITHUB_ENV
-          echo "GITREPO_SETTINGS=git://gitops.sunet.se/cnaas-lab-settings" >> $GITHUB_ENV
+          echo "GITREPO_TEMPLATES=https://github.com/SUNET/cnaas-integrationtest-templates.git" >> $GITHUB_ENV
+          echo "GITREPO_SETTINGS=https://github.com/SUNET/cnaas-integrationtest-settings.git" >> $GITHUB_ENV
           echo "GITREPO_ETC=https://github.com/indy-independence/cnaas-nms-lab-etc.git" >> $GITHUB_ENV
           echo "USERNAME_DHCP_BOOT=admin" >> $GITHUB_ENV
           echo "PASSWORD_DHCP_BOOT=abc123abc123" >> $GITHUB_ENV
@@ -45,8 +45,7 @@ jobs:
           echo "USERNAME_MANAGED=admin" >> $GITHUB_ENV
           echo "PASSWORD_MANAGED=abc123abc123" >> $GITHUB_ENV
           echo "NO_EQUIPMENTTEST=1" >> $GITHUB_ENV
-          echo "PYTEST_POSTGRES_EXTERNAL=1" >> $GITHUB_ENV
-          echo "PYTEST_REDIS_EXTERNAL=1" >> $GITHUB_ENV
+          echo "EXTERNAL_TEST_CONTAINERS=1" >> $GITHUB_ENV
           echo "JWT_AUTH_TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw" >> $GITHUB_ENV
           echo "JWT_SECRET_KEY=unittestsharedsecret" >> $GITHUB_ENV
           echo "COMPOSE_COMPATIBILITY=1" >> $GITHUB_ENV
@@ -64,13 +63,18 @@ jobs:
 
       - name: Get repo URL
         shell: bash
-        run: echo "CNAAS_REPO=$(echo ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY})" >> $GITHUB_ENV
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "CNAAS_REPO=${{ github.event.pull_request.head.repo.clone_url }}" >> $GITHUB_ENV
+          else
+            echo "CNAAS_REPO=${{ github.server_url }}/${{ github.repository }}" >> $GITHUB_ENV
+          fi
 
       - name: Print branch name
         run: echo ${{ env.BRANCH_NAME }} at ${{ env.CNAAS_REPO }}
 
       - name: Build docker
-        run: docker compose -f docker/docker-compose_test.yaml build --build-arg GITREPO_BASE=${{ env.CNAAS_REPO }} --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }}
+        run: docker compose -f docker/docker-compose_test.yaml build --build-arg GITREPO_BASE=${{ env.CNAAS_REPO }} --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} --build-arg GIT_COMMIT=${{ github.sha }}
 
       - name: Start docker
         run: docker compose -f docker/docker-compose_test.yaml up -d

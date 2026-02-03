@@ -3,8 +3,8 @@
 pushd .
 cd ../docker/
 
-export GITREPO_TEMPLATES="git://gitops.sunet.se/cnaas-lab-templates"
-export GITREPO_SETTINGS="git://gitops.sunet.se/cnaas-lab-settings"
+export GITREPO_TEMPLATES="https://github.com/SUNET/cnaas-integrationtest-templates.git"
+export GITREPO_SETTINGS="https://github.com/SUNET/cnaas-integrationtest-settings.git"
 export GITREPO_ETC="https://github.com/indy-independence/cnaas-nms-lab-etc.git"
 export USERNAME_DHCP_BOOT="admin"
 export PASSWORD_DHCP_BOOT="abc123abc123"
@@ -15,8 +15,7 @@ export PASSWORD_INIT="abc123abc123"
 export USERNAME_MANAGED="admin"
 export PASSWORD_MANAGED="abc123abc123"
 export COVERAGE=1
-export PYTEST_POSTGRES_EXTERNAL=1
-export PYTEST_REDIS_EXTERNAL=1
+export EXTERNAL_TEST_CONTAINERS=1
 export PYTEST_SETTINGS_CLONED=1
 export PYTEST_TEMPLATES_CLONED=1
 export OIDC_ENABLED=0

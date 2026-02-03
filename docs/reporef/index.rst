@@ -1,8 +1,11 @@
+====================
 Repository Reference
 ====================
 
-Templates
----------
+.. contents:: Table of Contents
+
+templates
+*********
 
 Templates for switch configurations.
 
@@ -13,17 +16,20 @@ In each of these directories there needs to be a file called "mapping.yml", this
 what template files should be used for each device type. For example, in mapping.yml there
 might be a definition of templates for an access switch specified like this:
 
-::
+.. code-block:: yaml
 
     ACCESS:
         entrypoint: access.j2
         dependencies:
+            - access*.j2
             - managed-full.j2
 
 
 This indicates that the starting point for the template of access switches for this platform
 is deffined in the Jinja2 template file called "access.j2". Additionally, this template file
-will depend on things defined in a file called "managed-full.j2".
+will depend on things defined in files "access*.j2" and "managed-full.j2".
+The dependencies can use glob patterns, so "access*.j2" will match any file starting with "access"
+and ending with ".j2".
 
 The template files themselves are written using the Jinja2 templating language. Variables
 that are exposed from CNaaS includes:
@@ -86,17 +92,20 @@ All settings configured in the settings repository are also exposed to the templ
 .. _settings_repo_ref:
 
 settings
---------
+********
 
 Settings are defined at different levels and inherited (possibly overridden) in several steps.
 For example, NTP servers might be defined in the "global" settings to impact the entire
 managed network, but then overridden for a specific device type that needs custom NTP servers.
 The inheritence is defined in these steps:
 Global -> Fabric -> Core/Dist/Access -> Group -> Device specific.
+One modification to this rule are fields defined in `SETTINGS_KEYS_TO_MERGE`, which instead will merge global settings with group settings.
+It will prioritize group settings if the entries in the keys collide. The default settings to merge are `system_access_lists`, `prefix_sets` and `routing_policies`.
 The directory structure looks like this:
 
 - global
 
+  * access_lists.yml: Definition of global access lists
   * groups.yml: Definition of custom device groups
   * routing.yml: Definition of global routing settings like fabric underlay and VRFs
   * vxlans.yml: Definition of VXLAN/VLANs
@@ -136,7 +145,162 @@ The directory structure looks like this:
     + interfaces.yml
     + routing.yml
 
-groups.yml:
+access_lists.yml
+----------------
+
+| Experimental feature built on top of `aerleon <https://aerleon.readthedocs.io/en/latest/>`_.
+| Can contain the following dictionaries with specified keys:
+
+
+- network_definitions: Dictionary of {<name>, [entries]}:
+
+  | A network entry can be one of: an address or an include.
+  | Address:
+
+  * address: A IPv4 address, IPv6 address, IPv4 network or IPv6 network.
+  * comment: A comment that describes the address.
+
+  Include:
+
+  * name: Name of another network object to include in this network definition
+
+- service_definitions: Dictionary of {<name>, [entries]}:
+
+  | A service entry can be one of: a port or an include.
+  | Port:
+
+  * port: A port or port range defined as start-end, eq 1024-65535.
+  * protocol: A protocol name or number.
+    Read more here: `<https://aerleon.readthedocs.io/en/latest/reference/generator_patterns/#protocol-support>`_.
+  * comment: A comment that describes the service.
+
+  Include:
+
+  * name: Name of another service object to include in this service definition
+
+
+* access_lists: Dictionary of {<name>, access_lists}:
+
+  * comment: A comment that describes the access list.
+  * inet_families: List of ipv4, ipv6 of which inet families the access list should be generated to, defaults to ipv4 only.
+  * header_map: A dictionary of {<platform>, <header>} allowing for customization of the aerleon header.
+    Can use two variables that will be substituted :code:`{ACL_NAME}` and :code:`{INET_FAMILY}`.
+    By default for Cisco and Arista the IPv4 access list will be generated as an extended access list.
+    To generate a standard access list you can set header_map to for example: :code:`{ios: "{ACL_NAME} standard"}`, one drawback is now the access list can only be generated to IPv4.
+    Find more information about the header syntax for different platforms here: `<https://aerleon.readthedocs.io/en/latest/reference/generators/>`_.
+    Aerleon header option `mixed` should not be used, use inet_families: :code:`[ipv4, ipv6]` instead.
+  * terms: List of Aerleon terms. See more below.
+
+- access_list - terms:
+
+  | A term can be a term or an include.
+  | Term:
+
+  * name: A term must have a unique name.
+    See here for full examples: `<https://aerleon.readthedocs.io/en/latest/reference/yaml_reference/#configuring-terms>`_
+
+  Include:
+
+  * include: Name of the included access list.
+
+.. note::
+   NMS will substitute napalm platforms to aerleon platforms so for example ios and eos can be used in access list syntax and will be automatically translated to the correct aerleon platform.
+
+Access list examples
+^^^^^^^^^^^^^^^^^^^^
+.. code-block:: yaml
+
+  ---
+  network_definitions:
+    "ONEONEONEONE":
+      - address: "1.1.1.1"
+      - address: "2606:4700:4700::1111"
+    "ONEZEROZEROONE":
+      - address: "1.0.0.1"
+      - address: "2606:4700:4700::1001"
+    "CLOUDFLARE_ALL":
+      - name: ONEONEONEONE
+      - name: ONEZEROZEROONE
+    "RFC_1918":
+      - address: 10.0.0.0/8
+      - address: 172.16.0.0/12
+      - address: 192.168.0.0/16
+  service_definitions:
+    "DNS":
+      - port: 53
+        protocol: "udp"
+        comment: "udp dns"
+    "HIGH_PORTS":
+      - port: 1024-65535
+        protocol: tcp
+      - port: 1024-65535
+        protocol: udp
+  access_lists:
+    "COUNTERS":
+      comment: |
+        Import this at the start of a access list
+        to enable counters on eos or nxos
+      terms:
+        # This will render only on platforms: eos and nxos
+        # and skipped for other platforms
+        - name: "counters_per_entry"
+          verbatim:
+            eos: " counters per-entry"
+            nxos: " statistics per-entry"
+          platform:
+            - "eos"
+            - "nxos"
+    "INCLUDED-ACL":
+      terms:
+        - name: "accept_cloudflare"
+          destination-address: "CLOUDFLARE_ALL"
+          action: "accept"
+    "ACL-TEST":
+      comment: "Some acl"
+      header_map:
+        # noverbose for Cisco IOS removes all comments
+        # from the generated access list.
+        ios: "{ACL_NAME} {INET_FAMILY} noverbose"
+      inet_families:
+        - "ipv4"
+        - "ipv6"
+      terms:
+        - include: "COUNTERS"
+        - include: "INCLUDED-ACL"
+        - name: "accept-DNS"
+          destination-address: ONEONEONEONE
+          destination-port: "DNS"
+          protocol: "udp"
+          action: "accept"
+    "ACL-STANDARD":
+      comment: "A standard acl for ios"
+      header_map:
+        ios: "{ACL_NAME} standard"
+      terms:
+        # Syntax is different for standard and extended access lists.
+        # Combine different platforms by using platform and platform-exclude.
+        # For ios it will be generated as a standard access list
+        # For other platforms it will be generated as normal to an extended access list
+        - name: "accept standard from ONEONEONEONE"
+          address: ONEONEONEONE
+          action: "accept"
+          platform:
+            - ios
+        - name: "accept extended from ONEONEONEONE"
+          source-address: ONEONEONEONE
+          action: "accept"
+          platform-exclude:
+            - ios
+    "ACL-ALLOW-ESTABLISHED":
+      comment: "Shows how to use the established option"
+      terms:
+       - name: "allow-all-established"
+         protocol: [tcp, udp]
+         option: "established"
+         action: "accept"
+
+groups.yml
+----------
 
 A device in CNaaS-NMS will be a member of exactly one primary group, and
 optionally any number of secandary groups. Primary groups can be used to
@@ -144,12 +308,15 @@ configure settings per group. Secondary groups can be used to assign VXLAN
 memberships, select devices for synchronization or firmware upgrade etc.
 
 groups.yml contains a dictionary named "groups", that contains a list of groups.
-Each group is defined as a dictionary with a single key named "group",
-and that key contains a dictionary with two keys:
+Each group is defined as a dictionary with the following keys:
 
-- name: A string representing a name. No spaces.
-- regex: A Python style regex that matches on device hostnames.
-- group_priority: Optional integer value 0-100. Specifies which group should
+- name: A unique string representing a name. No spaces.
+- device_filter: A dictionary of match conditions on the following fields: hostname, device_type, model, os_version and platform.
+  If multiple match criteria are set all must match for a device to be included in the group.
+  This field cannot be used together with devices list.
+- devices: A list of device hostnames for direct matching.
+  This field cannot be used together with device_filter.
+- group_priority: Optional unique integer value 0-100. Specifies which group should
   have the highest priority when determining the primary group for a device.
   Higher value means higher priority. Defaults to 0, value of 1 is reserved
   for builtin group DEFAULT.
@@ -161,36 +328,77 @@ and that key contains a dictionary with two keys:
 There will always exist a group called DEFAULT with group_priority 1 even
 if it's not specified in groups.yml.
 
-All devices that matches the regex will be included in the group.
+Migrate to new group format
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To migrate to the new group-format you can run the following command.
+Prerequisites: install `yq <https://github.com/mikefarah/yq>`_.
 
-::
+.. code-block:: bash
 
-   ---
-   groups:
-     - group:
-         name: 'ALL'
-         regex: '.*'
-     - group:
-         name: 'BORDER_DIST'
-         regex: '(south-dist0[1-2]|north-dist0[1-2])'
-     - group:
-         name: 'DIST_EVEN'
-         regex: '.*-dist[0-9][02468]'
-     - group:
-         name: 'DIST_ODD'
-         regex: '.*-dist[0-9][13579]'
-     - group:
-         name: 'E1'
-         regex: 'eosdist1$'
-         group_priority: 100
-         templates_branch: "new_dist_features"
-     - group:
-         name: 'E'
-         regex: 'eosdist.*'
-         group_priority: 99
+  # cd to your settings-repo
+  # view what changes the command will do
+  yq '.groups |= map(
+    .group | {
+      "name": .name,
+      "device_filter":
+        {"hostname": .regex},
+      "group_priority": .group_priority,
+      "templates_branch": .templates_branch
+    } | with_entries(select(.value != null))
+  )' global/groups.yml
+
+  # modify file inplace
+  yq -i '.groups |= map(
+    .group | {
+      "name": .name,
+      "device_filter":
+        {"hostname": .regex},
+      "group_priority": .group_priority,
+      "templates_branch": .templates_branch
+    } | with_entries(select(.value != null))
+  )' global/groups.yml
+
+Group examples
+^^^^^^^^^^^^^^
+.. code-block:: yaml
+
+  ---
+  groups:
+    - name: 'ALL'
+      device_filter:
+        hostname: '.*'
+    - name: 'BORDER_DIST'
+      devices:
+        - south-dist01
+        - south-dist02
+        - north-dist01
+        - north-dist02
+    - name: 'DIST_EVEN'
+      device_filter:
+        hostname: '[0-9][02468]'
+        device_type: 'DIST'
+    - name: 'DIST_ODD'
+      device_filter:
+        hostname: '[0-9][13579]'
+        device_type: 'DIST'
+    - name: 'ACCESS_EOS_POE'
+      device_filter:
+        model: '.*DP.*'
+        platform: 'eos'
+        device_type: 'ACCESS'
+    - name: 'E1'
+      device_filter:
+        hostname: 'eosdist1$'
+      group_priority: 100
+      templates_branch: "new_dist_features"
+    - name: 'E'
+      device_filter:
+        hostname: 'eosdist.*'
+      group_priority: 99
 
 
-routing.yml:
+routing.yml
+-----------
 
 Can contain the following dictionaries with specified keys:
 
@@ -282,7 +490,7 @@ Can contain the following dictionaries with specified keys:
       * peer_ipv6: IPv6 address of peer
       * other options are the same as neighbor_v4
 
-- prefix_sets: Dictionary of {<name>, <entry>}:
+* prefix_sets: Dictionary of {<name>, <entry>}:
 
   * mode: String, either "ipv4", "ipv6" or "mixed"
   * prefixes: list of
@@ -290,7 +498,10 @@ Can contain the following dictionaries with specified keys:
     * prefix: String for ipv4 or ipv6 prefix, ex: 10.0.0.0/8
     * masklength_range: Optional string defining range of prefixes to match, ex: 24-32 or 32-32
 
-- routing_policies: Dictionary of {<name>, <entry>}:
+.. note::
+   By default merges global and group settings, see `settings_keys_to_merge` in :ref:`configuration_api_ref`.
+
+* routing_policies: Dictionary of {<name>, <entry>}:
 
   * statements: List of:
 
@@ -300,14 +511,18 @@ Can contain the following dictionaries with specified keys:
       * match_type: String, ex "ipv4 prefix-set"
       * match_target: String, referring to prefix-set for example: "default-route"
 
+.. note::
+   By default merges global and group settings, see `settings_keys_to_merge` in :ref:`configuration_api_ref`.
+
 - external_routing_policies: List of strings, referring to routing policies defined in external
   sources such as templates repository. BGP neighbor route maps must refer to a policy defined in
   either this list or the routing_policies setting described above.
 
 
-routing.yml examples:
+routing.yml examples
+^^^^^^^^^^^^^^^^^^^^
 
-::
+.. code-block:: yaml
 
    ---
    extroute_bgp:
@@ -363,7 +578,8 @@ routing.yml examples:
              - match_type: "ipv6 prefix-set"
                match_target: "all-ipv6"
 
-vxlans.yml:
+vxlans.yml
+----------
 
 Contains a dictinary called "vxlans", which in turn has one dictinoary per vxlan, vxlan
 name is the dictionary key and dictionaly values are:
@@ -389,7 +605,8 @@ name is the dictionary key and dictionaly values are:
     access switch the parent dist switch should be automatically provisioned.
   * devices: List of device names where this VXLAN/VLAN should be provisioned. Optional.
 
-interfaces.yml:
+interfaces.yml
+--------------
 
 For dist and core devices interfaces are configured in YAML files. The
 interface configuration can either be done per device, or per device model.
@@ -460,7 +677,8 @@ and on the other device in the same management domain you can use ifclass mirror
 without any other settings (but you can optionally override description and enabled
 status).
 
-base_system.yml:
+base_system.yml
+---------------
 
 Contains base system settings like:
 
@@ -547,10 +765,12 @@ Contains base system settings like:
   String can be a model number, a platform or "default". If matching model is found, that wait time
   will be used, otherwise if matching platform is found that wait time will be used, otherwise
   default wait time will be used.
+- system_access_lists: List of system access-lists that should be generated and passed to templates.
 
-Example of base_system.yml:
+Example of base_system.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-::
+.. code-block:: yaml
 
    ---
    ntp_servers:
@@ -574,6 +794,8 @@ Example of base_system.yml:
      vlan_id_low: 3006
      vlan_id_high: 4094
    dot1x_fail_vlan: 13
+   system_access_lists:
+     - SNMP-ACCESS
 
 
 internal_vlans can optionally be specified if you want to manually define
@@ -583,7 +805,7 @@ to "ascending". If internal_vlans is specified then a collision check will
 be performed for any defined vlan_ids in vxlans settings.
 
 etc
----
+***
 
 Configuration files for system daemons
 

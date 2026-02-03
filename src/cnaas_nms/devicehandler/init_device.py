@@ -24,7 +24,12 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import SettingsSyntaxError, VlanConflictError, rebuild_settings_cache
+from cnaas_nms.db.settings import (
+    AccessListGenerationError,
+    SettingsSyntaxError,
+    VlanConflictError,
+    rebuild_settings_cache,
+)
 from cnaas_nms.devicehandler.cert import arista_copy_cert
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, get_jinja_env
 from cnaas_nms.devicehandler.sync_devices import confcheck_devices, populate_device_vars
@@ -229,9 +234,11 @@ def pre_init_check_neighbors(
                     dev.id, dev.hostname, uplinks
                 )
             )
-        elif len(uplinks) == 2 and redundant_uplinks == 2:
+        elif len(uplinks) % 2 == 0 and redundant_uplinks == len(uplinks):
             logger.debug(
-                "Two redundant uplink neighbors found for device id {} ({}): {}".format(dev.id, dev.hostname, uplinks)
+                "{} redundant uplink neighbors found for device id {} ({}): {}".format(
+                    len(uplinks), dev.id, dev.hostname, uplinks
+                )
             )
         else:
             raise InitVerificationError(
@@ -243,13 +250,13 @@ def pre_init_check_neighbors(
 
         if mlag_peer_dev and len(mlag_peers) < 2:
             raise InitVerificationError(
-                ("MLAG requires at least two MLAG peer links, {} found for " "device id {} ({})").format(
+                ("MLAG requires at least two MLAG peer links, {} found for device id {} ({})").format(
                     len(mlag_peers), dev.id, dev.hostname
                 )
             )
 
         try:
-            cnaas_nms.db.helper.find_mgmtdomain(session, uplinks)
+            cnaas_nms.db.helper.find_mgmtdomain(session, list(set(uplinks)))
         except Exception as e:
             raise InitVerificationError(str(e))
         else:
@@ -418,6 +425,7 @@ def init_access_device_step1(
     mlag_peer_id: Optional[int] = None,
     mlag_peer_new_hostname: Optional[str] = None,
     uplink_hostnames_arg: Optional[List[str]] = [],
+    replace_hostname: Optional[bool] = None,
     job_id: Optional[int] = None,
     scheduled_by: str = "",
 ) -> NornirJobResult:
@@ -457,6 +465,14 @@ def init_access_device_step1(
                 )
             else:
                 raise e
+        # Pre checks for device being replaced
+        if replace_hostname:
+            replace_dev: Optional[Device] = session.query(Device).filter(Device.hostname == new_hostname).one_or_none()
+            if not replace_dev:
+                raise DeviceStateError(f"Device {new_hostname} not found")
+            if replace_dev.state != DeviceState.UNMANAGED:
+                raise DeviceStateError(f"Device {new_hostname} not in UNMANAGED state")
+
         linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None
 
@@ -535,6 +551,53 @@ def init_access_device_step1(
             session.rollback()
             raise e
 
+        mgmt_ip = None
+        secondary_mgmt_ip = None
+        # old hostname
+        if replace_hostname:
+            new_ztp_mac = dev.ztp_mac
+            new_serial = dev.serial
+            new_model = dev.model
+            new_dhcp_ip = dev.dhcp_ip
+            ztp_hostname = dev.hostname
+            ztp_device_id = dev.id
+            logger.info(
+                f"Replacing device {new_hostname}, "
+                + f"serial: {replace_dev.serial} -> {new_serial}, model: {replace_dev.model} -> {new_model}"  # type: ignore
+            )
+            logger.info(
+                f"Replacing device {new_hostname}, " + f"removing device ID {dev.id} and keeping {replace_dev.id}"  # type: ignore
+            )
+            session.delete(dev)
+            session.commit()
+            dev = replace_dev  # type: ignore
+            device_id = dev.id
+            dev.ztp_mac = new_ztp_mac
+            dev.serial = new_serial
+            dev.model = new_model
+            dev.hostname = ztp_hostname
+            dev.dhcp_ip = new_dhcp_ip
+            dev.state = DeviceState.DISCOVERED
+            mgmt_ip = dev.management_ip
+            secondary_mgmt_ip = dev.secondary_management_ip
+            dev.management_ip = None
+            dev.secondary_management_ip = None
+            dev.confhash = None
+            if mgmt_ip:
+                reserved_ip = ReservedIP(device=dev, ip=mgmt_ip, ip_version=mgmt_ip.version)
+                session.add(reserved_ip)
+            if secondary_mgmt_ip:
+                reserved_ip = ReservedIP(device=dev, ip=secondary_mgmt_ip, ip_version=secondary_mgmt_ip.version)
+                session.add(reserved_ip)
+            session.commit()
+            # go through linknets and update neighbor id from ztp device_id to old device_id
+            for linknet in linknets:  # type: ignore
+                if linknet["device_a_id"] == ztp_device_id:
+                    linknet["device_a_id"] = dev.id
+                if linknet["device_b_id"] == ztp_device_id:
+                    linknet["device_b_id"] = dev.id
+            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
+
         try:
             update_linknets(
                 session,
@@ -550,26 +613,26 @@ def init_access_device_step1(
             raise e
 
         # TODO: check compatability, same dist pair and same ports on dists
-        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, uplink_hostnames)
+        mgmtdomain = cnaas_nms.db.helper.find_mgmtdomain(session, list(set(uplink_hostnames)))
         if not mgmtdomain:
             raise Exception(
                 "Could not find appropriate management domain for uplink peer devices: {}".format(uplink_hostnames)
             )
-        # Select a new management IP for the device
-        ReservedIP.clean_reservations(session, device=dev)
-        session.commit()
-        mgmt_ip = mgmtdomain.find_free_primary_mgmt_ip(session)
         if not mgmt_ip:
-            raise Exception(
-                "Could not find free primary management IP for management domain {}/{}".format(
-                    mgmtdomain.id, mgmtdomain.description
+            # Select a new management IP for the device
+            ReservedIP.clean_reservations(session, device=dev)
+            session.commit()
+            mgmt_ip = mgmtdomain.find_free_primary_mgmt_ip(session)
+            if not mgmt_ip:
+                raise Exception(
+                    "Could not find free primary management IP for management domain {}/{}".format(
+                        mgmtdomain.id, mgmtdomain.description
+                    )
                 )
-            )
-        reserved_ip = ReservedIP(device=dev, ip=mgmt_ip, ip_version=mgmt_ip.version)
-        session.add(reserved_ip)
+            reserved_ip = ReservedIP(device=dev, ip=mgmt_ip, ip_version=mgmt_ip.version)
+            session.add(reserved_ip)
 
-        secondary_mgmt_ip = None
-        if mgmtdomain.is_dual_stack:
+        if mgmtdomain.is_dual_stack and not secondary_mgmt_ip:
             secondary_mgmt_ip = mgmtdomain.find_free_secondary_mgmt_ip(session)
             if not secondary_mgmt_ip:
                 raise Exception(
@@ -628,6 +691,9 @@ def init_access_device_step1(
     except VlanConflictError as e:
         logger.error("VLAN conflict in repo configuration: {}".format(e))
         raise e
+    except AccessListGenerationError as e:
+        logger.error(str(e))
+        raise e
 
     nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
@@ -671,13 +737,20 @@ def init_access_device_step1(
 
     # Plugin hook, allocated IP
     try:
-        pmh = PluginManagerHandler()
-        pmh.pm.hook.allocated_ipv4(
-            vrf="mgmt",
-            ipv4_address=str(mgmt_ip),
-            ipv4_network=str(mgmt_gw_ipif.network),
-            hostname=hostname,
-        )
+        if mgmt_ip.version == 4:
+            ipv4_addr = mgmt_ip
+            ipv4_net = mgmt_gw_ipif.network
+        elif secondary_mgmt_ip and secondary_mgmt_ip.version == 4:
+            ipv4_addr = secondary_mgmt_ip
+            ipv4_net = secondary_mgmt_gw_ipif.network
+        if ipv4_addr and ipv4_net:
+            pmh = PluginManagerHandler()
+            pmh.pm.hook.allocated_ipv4(
+                vrf="mgmt",
+                ipv4_address=str(ipv4_addr),
+                ipv4_network=str(ipv4_net),
+                hostname=hostname,
+            )
     except Exception as e:
         logger.exception("Error while running plugin hooks for allocated_ipv4: {}".format(str(e)))
 
@@ -821,6 +894,9 @@ def init_fabric_device_step1(
     except VlanConflictError as e:
         logger.error("VLAN conflict in repo configuration: {}".format(e))
         raise e
+    except AccessListGenerationError as e:
+        logger.error(str(e))
+        raise e
 
     nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
     nr_filtered = nr.filter(name=hostname)
@@ -935,6 +1011,7 @@ def init_device_step2(
         set_facts(dev, facts)
         management_ip = dev.management_ip
         dev.dhcp_ip = None
+        dev.ztp_mac = None
         dev.last_seen = datetime.datetime.utcnow()  # type: ignore
 
     # Plugin hook: new managed device

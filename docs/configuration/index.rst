@@ -14,6 +14,8 @@ Config files are placed in /etc/cnaas-nms
 
 Defines how to connect to the SQL and redis databases.
 
+.. _configuration_api_ref:
+
 /etc/cnaas-nms/api.yml
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -34,6 +36,8 @@ Defines parameters for the API:
   Defaults to True.
 - init_mgmt_timeout: Timeout to wait for device to apply changed management IP.
   Defaults to 30, specified in seconds (integer).
+- settings_keys_to_merge: Settings keys from global to try to merge with group settings.
+  Defaults to `system_access_lists`, `prefix_sets` and `routing_policies`.
 - mgmtdomain_reserved_count: Number of IP addresses to reserve for internal use on
   each defined management domain when assigning new management IP addresses to devices.
   Defaults to 5 (e.g. meaning 10.0.0.1 through 10.0.0.5 would remain unassigned on

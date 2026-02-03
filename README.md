@@ -6,9 +6,9 @@ Campus Network-as-a-Service - Network Management System. Software to automate ma
 
 Planned features:
 1. Zero-touch provisioning of switches
-1. Automation of common changes for campus LAN
-1. Automated procedure for firmware upgrades
-1. Multi-vendor support
+2. Automation of common changes for campus LAN
+3. Automated procedure for firmware upgrades
+4. Multi-vendor support
 
 [Documentation](https://cnaas-nms.readthedocs.io/)
 
@@ -16,33 +16,66 @@ Planned features:
 
 ![CNaaS component architecture](cnaas-components-20190408.png?raw=true)
 
+## Dependencies
+
+Dependencies are specified in `[dependency-groups]` in _pyproject.toml_. The are currently three groups:
+
+- `dependencies`
+- `dev`
+- `docs`
+
+Dependencies from each group can be installed with:
+
+```sh
+pip install --group <group>
+```
+
+**Note**: requires pip 25.1 or later.
+
 ## Requirements
 
-Docker and docker-compose or:
+Docker and docker compose or:
 
-1. python3.7 or later
-1. install requirements.txt
-1. SQL database, Redis
+1. Python 3.11 or later
+2. `pip install --group dependencies` (requires pip 25.1 or later)
+3. SQL database, Redis
 
 ## Installation
 
-Install docker and docker-compose and run: docker-compose build -f docker/docker-compose.yaml
+### Docker
 
-Or install locally by creating a virtualenv and activate the environment, then:
+Install docker with docker compose and run: `docker compose -f docker/docker-compose.yaml build`
 
-```
-python3 -m pip install -r requirements.txt
+### Venv
+
+Install locally by creating a virtualenv and activate the environment, then:
+
+```sh
+python3 -m pip install --group dependencies
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
 
-Edit db_config.yml to point to your SQL and redis database.
+Edit db_config.yml to point to your SQL and Redis database.
 
 ## Test
 
 ```
 cd src/
-python3 -m cnaas_nms.api.tests.test_api
-python3 -m cnaas_nms.confpush.tests.test_get
+pytest
+```
+
+Two marks can be used for pytest: `integration` and `equipment`, that can be be used to do a subset of all tests. Eg
+
+```
+pytest -m "not integration and not equipment"
+```
+
+Note that `and` must be used to apply filters at the same time.
+
+If the tests should not spin up any containers at all, set the environment variable `EXTERNAL_TEST_CONTAINERS`, eg
+
+```
+EXTERNAL_TEST_CONTAINERS=1 pytest -m "not equipment"
 ```
 
 ## Authorization

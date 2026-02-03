@@ -21,7 +21,7 @@ from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings import get_settings
+from cnaas_nms.db.settings import get_generated_access_lists, get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
@@ -145,7 +145,35 @@ def populate_device_vars(
     if not isinstance(dev.platform, str):
         raise ValueError("Unknown platform: {}".format(dev.platform))
 
-    settings, settings_origin = get_settings(hostname, devtype, dev.model)
+    # Add ztp_hostname and ztp_devtype to the device so get_settings and get_groups can filter the device on those attributes
+    current_devtype = dev.device_type
+    current_hostname = dev.hostname
+    if ztp_hostname:
+        dev.device_type = devtype
+    if ztp_hostname:
+        dev.hostname = hostname
+    settings, _ = get_settings(dev, devtype, dev.model)
+
+    # Add generated access_lists to device_variables
+    # get_generated_access_lists also depends on dev.device_type so we need to get it with ztp_devtype.
+    # We can reuse settings so it does not need to be pulled down twice.
+    # dev still needs to be passed in so it will generate device-specific acls with the device platform.
+    device_variables["access_lists"] = get_generated_access_lists(dev, settings=settings)
+
+    # ACL definitions are not needed as device_vars and can be removed
+    del (
+        settings["access_lists"],
+        settings["network_definitions"],
+        settings["service_definitions"],
+        settings["system_access_lists"],
+    )
+
+    # Revert back to the previous devtype and hostname in case device init step1 fails.
+    # This is so it does not get commited at the wrong time in step1/step2.
+    if ztp_devtype:
+        dev.device_type = current_devtype
+    if ztp_hostname:
+        dev.hostname = current_hostname
 
     if devtype == DeviceType.ACCESS:
         if ztp_hostname:
@@ -323,7 +351,7 @@ def populate_device_vars(
                     # Copy interface settings from mgmtdomain peer device
                     if_dict = {"indexnum": ifindexnum}
                     peer_device = cnaas_nms.db.helper.find_mgmtdomain_peer(session, dev)
-                    peer_settings, _ = get_settings(peer_device.hostname, devtype, peer_device.model)
+                    peer_settings, _ = get_settings(peer_device, devtype, peer_device.model)
                     if "interfaces" in peer_settings and peer_settings["interfaces"]:
                         for peer_intf in peer_settings["interfaces"]:
                             if peer_intf["name"] == intf["name"]:
@@ -345,9 +373,7 @@ def populate_device_vars(
                     fabric_device_variables["interfaces"].append(if_dict)
 
         for local_if, data in fabric_interfaces.items():
-            logger.warn(
-                f"Interface {local_if} on device {hostname} not " "configured as linknet because of wrong ifclass"
-            )
+            logger.warn(f"Interface {local_if} on device {hostname} not configured as linknet because of wrong ifclass")
 
         if not ztp_hostname:
             for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):

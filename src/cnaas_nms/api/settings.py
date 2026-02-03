@@ -9,7 +9,15 @@ from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.helper import json_dumper
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings import SettingsSyntaxError, check_settings_syntax, get_settings, get_settings_root
+from cnaas_nms.db.settings import (
+    AccessListGenerationError,
+    SettingsSyntaxError,
+    check_settings_syntax,
+    check_system_access_lists,
+    get_generated_access_lists,
+    get_settings,
+    get_settings_root,
+)
 from cnaas_nms.tools.mergedict import merge_dict_origin
 from cnaas_nms.tools.security import login_required
 from cnaas_nms.version import __api_version__
@@ -40,6 +48,7 @@ class SettingsApi(Resource):
                 if dev:
                     device_type = dev.device_type
                     model = dev.model
+                    session.expunge(dev)
                 else:
                     return empty_result("error", "Hostname not found in database"), 400
         if "device_type" in args:
@@ -49,7 +58,7 @@ class SettingsApi(Resource):
                 return empty_result("error", "Invalid device type specified"), 400
 
         try:
-            settings, settings_origin = get_settings(hostname, device_type, model)
+            settings, settings_origin = get_settings(dev, device_type, model)
         except Exception as e:
             return empty_result("error", "Error getting settings: {}".format(str(e))), 400
 
@@ -67,7 +76,16 @@ class SettingsModelApi(Resource):
         syntax_dict, syntax_dict_origin = merge_dict_origin({}, json_data, {}, "API POST data")
         try:
             ret = check_settings_syntax(syntax_dict, syntax_dict_origin)
+            if "access_lists" in syntax_dict:
+                # Try to generate all access_lists and return any errors
+                ret_copy = ret.copy()
+                ret_copy["system_access_lists"] = list(ret_copy.get("access_lists", {}).keys())
+                get_generated_access_lists(platform="eos", settings=ret_copy)
+            if "access_lists" in syntax_dict and "system_access_lists" in syntax_dict:
+                check_system_access_lists(syntax_dict)
         except SettingsSyntaxError as e:
+            return empty_result(status="error", data=str(e)), 400
+        except AccessListGenerationError as e:
             return empty_result(status="error", data=str(e)), 400
         else:
             return empty_result(status="success", data=ret)

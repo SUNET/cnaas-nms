@@ -344,6 +344,14 @@ To initialize a pair of ACCESS devices as an MLAG pair:
 
 For MLAG pairs the devices must be able to dectect it's peer via LLDP neighbors and compatible uplink devices for initialization to finish.
 
+If you want to replace an existing switch new a new device that is in DISCOVERED state, use the following API call on the new device in DISCOVERED state:
+
+::
+
+   curl https://localhost/api/v1.0/device_init/46 -d '{"hostname": "a1", "device_type": "ACCESS", "replace_hostname": true}' -X POST -H "Content-Type: application/json"
+
+See more details about switch replacement under Howto :ref:`switch_replacement`
+
 Update facts
 ------------
 

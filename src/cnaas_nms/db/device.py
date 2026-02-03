@@ -101,6 +101,9 @@ class Device(cnaas_nms.db.base.Base):
         "Stackmember", foreign_keys="[Stackmember.device_id]", lazy="subquery", back_populates="device"
     )
 
+    def __repr__(self):
+        return self.hostname
+
     def as_dict(self) -> dict:
         """Return JSON serializable dict."""
         d = {}

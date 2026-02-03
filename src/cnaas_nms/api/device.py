@@ -1,12 +1,14 @@
 import datetime
 import json
+from copy import deepcopy
 from typing import Any, List, Optional
 
 from flask import make_response, request
 from flask_restx import Namespace, Resource, fields, marshal
 from pydantic import ValidationError
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.attributes import flag_modified
 
 import cnaas_nms.devicehandler.get
 import cnaas_nms.devicehandler.init_device
@@ -17,14 +19,17 @@ from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers
 from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import (
+    AccessListGenerationError,
     SettingsSyntaxError,
     VlanConflictError,
     get_device_primary_groups,
     get_groups,
+    get_settings,
     rebuild_settings_cache,
     update_device_primary_groups,
 )
@@ -97,7 +102,16 @@ device_model = device_api.model(
 )
 
 device_init_model = device_init_api.model(
-    "device_init", {"hostname": fields.String(required=False), "device_type": fields.String(required=False)}
+    "device_init",
+    {
+        "hostname": fields.String(required=False),
+        "device_type": fields.String(required=False),
+        "replace_hostname": fields.Boolean(
+            required=False,
+            description="This device id should replace old device with specified hostname",
+            default=False,
+        ),
+    },
 )
 
 device_initcheck_model = device_initcheck_api.model(
@@ -235,6 +249,18 @@ def device_data_postprocess(device_list: List[Device]) -> List[dict]:
     return ret
 
 
+def _is_name_change_allowed(device: Device, new_hostname: str) -> bool:
+    if device.state != DeviceState.MANAGED:
+        return True
+
+    new_dev = deepcopy(device)
+    new_dev.hostname = new_hostname
+    old_settings, _ = get_settings(device)
+    new_settings, _ = get_settings(new_dev)
+
+    return old_settings == new_settings
+
+
 class DeviceByIdApi(Resource):
     @login_required
     def get(self, device_id):
@@ -302,24 +328,80 @@ class DeviceByIdApi(Resource):
 
     @login_required
     @device_api.expect(device_model)
-    def put(self, device_id):
+    def put(self, device_id: int):
         """Modify device from ID"""
         json_data = request.get_json()
         with sqla_session() as session:  # type: ignore
             dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
-
             if not dev:
                 return empty_result(status="error", data=f"No device with id {device_id}"), 404
 
             dev_prev_state: DeviceState = dev.state
+
+            current_hostname: str = dev.hostname
+            new_hostname = json_data.get("hostname", current_hostname)
+            is_name_change_request = current_hostname != new_hostname
+
+            if is_name_change_request and not _is_name_change_allowed(dev, new_hostname):
+                msg = (
+                    f"Configuration after name change for {current_hostname} would not be the same."
+                    f" Please check device specific configuration for {current_hostname} and {new_hostname}"
+                )
+                return empty_result(status="error", data=[msg]), 400
+
             errors = dev.device_update(**json_data)
             if errors:
                 return empty_result(status="error", data=errors), 400
-            if "hostname" in json_data:
-                # Rebuild settings caches to make sure group memberships are updated after
-                # setting new hostname
+
+            if is_name_change_request:
                 try:
+                    # Rebuild settings caches to make sure group memberships are updated after setting new hostname
                     rebuild_settings_cache()
+
+                    # Mark linknet neighbors as unsynchronized
+                    linknets = session.query(Linknet).filter(
+                        or_(
+                            Linknet.device_a_id == device_id,
+                            Linknet.device_b_id == device_id
+                        )
+                    ).all()
+
+                    neighbor_device_ids = set()
+                    for ln in linknets:
+                        if ln.device_a_id == device_id:
+                            neighbor_device_ids.add(ln. device_b_id)
+                        else:
+                            neighbor_device_ids.add(ln.device_a_id)
+
+                    for neigh_id in neighbor_device_ids:
+                        neigh_dev = session.query(Device).filter(Device.id == neigh_id).one()
+                        neigh_dev.synchronized = False
+                        add_sync_event(neigh_dev.hostname, "linknet_neighbor_name_change", by=get_identity())
+
+                    # Update neighbor interfaces
+                    interfaces = (
+                        session.query(Interface)
+                        .filter(Interface.data["neighbor"].astext == current_hostname)
+                        .all()
+                    )
+                    for intf in interfaces:
+                        intf.data["neighbor"] = new_hostname
+                        flag_modified(intf, "data")
+
+                        if intf.device_id not in neighbor_device_ids:
+                            intf_dev = session.query(Device).filter(Device.id == intf.device_id).one()
+                            intf_dev.synchronized = False
+                            add_sync_event(intf_dev.hostname, "neighbor_name_change", by=get_identity())
+
+                    dev.synchronized = False
+                    add_sync_event(new_hostname, "device_name_change", by=get_identity())
+
+                    logger.info(
+                        f"Hostname changed from '{current_hostname}' to '{new_hostname}': "
+                        f"marked {len(neighbor_device_ids)} connected devices as unsynchronized, "
+                        f"updated {len(interfaces)} interface neighbor fields"
+                    )
+
                 except SettingsSyntaxError as e:
                     msg = "Error in settings repo configuration: {}".format(e)
                     logger.error(msg)
@@ -330,14 +412,22 @@ class DeviceByIdApi(Resource):
                     logger.error(msg)
                     session.rollback()
                     return empty_result(status="error", data=msg), 500
+                except AccessListGenerationError as e:
+                    msg = str(e)
+                    logger.error(msg)
+                    session.rollback()
+                    return empty_result(status="error", data=msg), 500
+
             if "synchronized" in json_data and json_data["synchronized"]:
                 remove_sync_events(dev.hostname)
+
             if (
                 "state" in json_data
                 and json_data["state"].upper() == "UNMANAGED"
                 and dev_prev_state == DeviceState.MANAGED
             ):
                 add_sync_event(dev.hostname, "was_unmanaged", by=get_identity())
+
             session.commit()
             update_device_primary_groups()
             dev_dict = device_data_postprocess([dev])[0]
@@ -450,7 +540,7 @@ class DeviceInitApi(Resource):
                 )
 
                 logger.info("Re-scheduled init step 2 for {} as job # {}".format(device_id, job_id))
-                res = empty_result(data=f"Re-scheduled init step 2 for device_id { device_id }")
+                res = empty_result(data=f"Re-scheduled init step 2 for device_id {device_id}")
                 res["job_id"] = job_id
                 return res
 
@@ -475,7 +565,7 @@ class DeviceInitApi(Resource):
         else:
             return empty_result(status="error", data="Unsupported 'device_type' provided"), 400
 
-        res = empty_result(data=f"Scheduled job to initialize device_id { str(device_id) }")
+        res = empty_result(data=f"Scheduled job to initialize device_id {str(device_id)}")
         res["job_id"] = job_id
 
         return res
@@ -530,6 +620,9 @@ class DeviceInitApi(Resource):
                 )
         else:
             parsed_args["neighbors"] = None
+
+        if "replace_hostname" in json_data and json_data["replace_hostname"] is not None:
+            parsed_args["replace_hostname"] = json_data["replace_hostname"]
 
         return parsed_args
 

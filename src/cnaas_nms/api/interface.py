@@ -1,7 +1,8 @@
+import datetime
 from typing import Any, List, Optional
 
-from flask import request
-from flask_restx import Namespace, Resource, fields
+from flask import make_response, request
+from flask_restx import Namespace, Resource, fields, inputs, reqparse
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.device import Device
@@ -61,6 +62,11 @@ interfaces_model = api.model(
         "interfaces": fields.Nested(interfacename_model, required=True),
     },
 )
+
+export_parser = reqparse.RequestParser()
+export_parser.add_argument("include_uplinks", type=inputs.boolean, default=False, location="args")
+export_parser.add_argument("include_downlinks", type=inputs.boolean, default=True, location="args")
+export_parser.add_argument("include_descriptions", type=inputs.boolean, default=True, location="args")
 
 
 class InterfaceApi(Resource):
@@ -140,7 +146,7 @@ class InterfaceApi(Resource):
                         # TODO: maybe this validation should be done via
                         #  pydantic if it gets more complex
                         if not device_settings:
-                            device_settings, _ = get_settings(hostname, dev.device_type)
+                            device_settings, _ = get_settings(dev, dev.device_type)
                         if "vxlan" in if_dict["data"]:
                             if if_dict["data"]["vxlan"] in device_settings["vxlans"]:
                                 intfdata["vxlan"] = if_dict["data"]["vxlan"]
@@ -295,6 +301,40 @@ class InterfaceApi(Resource):
             return empty_result(status="success", data={"updated": data})
 
 
+class InterfaceExportApi(Resource):
+    @login_required
+    @api.expect(export_parser)
+    def get(self, hostname):
+        """Export all interfaces for local download"""
+        args = export_parser.parse_args()
+        result: dict[str, dict] = {"interfaces": {}}
+        with sqla_session() as session:  # type: ignore
+            dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if not dev:
+                return empty_result("error", "Device not found"), 404
+            intfs = session.query(Interface).filter(Interface.device == dev).all()
+            intf: Interface
+            for intf in intfs:
+                session.expunge(intf)  # don't modify the database
+                if not args["include_uplinks"] and intf.configtype == InterfaceConfigType.ACCESS_UPLINK:
+                    continue
+                if not args["include_downlinks"] and intf.configtype == InterfaceConfigType.ACCESS_DOWNLINK:
+                    continue
+                ifdict = intf.as_dict()
+                del ifdict["name"]
+                del ifdict["device_id"]
+                if not args["include_descriptions"]:
+                    if "data" in ifdict and ifdict["data"] and "description" in ifdict["data"]:
+                        del ifdict["data"]["description"]
+                result["interfaces"][intf.name] = ifdict
+
+        response = make_response(result)
+        response.headers["Content-type"] = "application/json"
+        timestamp_str: str = datetime.datetime.isoformat(datetime.datetime.now(), timespec="seconds")
+        response.headers["Content-Disposition"] = f"attachment; filename={hostname}-interfaces-{timestamp_str}.json"
+        return response
+
+
 class InterfaceStatusApi(Resource):
     @login_required
     def get(self, hostname):
@@ -333,4 +373,5 @@ class InterfaceStatusApi(Resource):
 
 
 api.add_resource(InterfaceApi, "/<string:hostname>/interfaces")
+api.add_resource(InterfaceExportApi, "/<string:hostname>/interfaces_export")
 api.add_resource(InterfaceStatusApi, "/<string:hostname>/interface_status")

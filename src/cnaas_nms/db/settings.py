@@ -1,22 +1,33 @@
 import importlib
 import json
+import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+import types
+from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union
 
 import pkg_resources
 import yaml
+from absl import logging as absl_logging
+from aerleon.aclgen import Error as ACLGenError
+from aerleon.api import Generate
+from aerleon.lib import naming
+from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyFilterTermsOnly, TermsList
+from aerleon.lib.yaml import PolicyTypeError
+from netutils.lib_mapper import AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
 from pydantic import ValidationError
 from redis import StrictRedis
 from redis_lru import RedisLRU
+from sqlalchemy import inspect
+from sqlalchemy.exc import NoInspectionAvailable
 
 from cnaas_nms.app_settings import api_settings, app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.git_worktrees import refresh_templates_worktree
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings_fields import f_groups
-from cnaas_nms.tools.log import get_logger
+from cnaas_nms.db.settings_fields import f_access_list, f_group, f_group_device_filter, f_groups
+from cnaas_nms.tools.log import CaptureHandler, get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
 
 
@@ -44,7 +55,48 @@ redis_client = StrictRedis(
     retry_on_timeout=True,
     socket_keepalive=True,
 )
-redis_lru_cache = RedisLRU(redis_client, default_ttl=24 * 3600)
+
+
+class NMSRedisLRU(RedisLRU):
+    def _decorator_key(self, func: types.FunctionType, *args, **kwargs):
+        """
+        Generate a hashable cache key for RedisLRU,
+        even when passing dicts, lists, sets, or custom objects.
+        """
+
+        def make_hashable(obj):
+            """Recursively convert objects into hashable objects."""
+            if isinstance(obj, dict):
+                # Sort keys to ensure consistent ordering
+                return tuple((k, make_hashable(v)) for k, v in sorted(obj.items()))
+            elif isinstance(obj, (list, tuple)):
+                return tuple(make_hashable(v) for v in obj)
+            elif isinstance(obj, set):
+                return frozenset(make_hashable(v) for v in obj)
+            elif isinstance(obj, Device):
+                # If device use only the fields that are relevant
+                device_filter_fields = f_group_device_filter.model_fields
+                return tuple(
+                    (k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()) if k in device_filter_fields
+                )
+            elif isinstance(obj, naming.Naming) or isinstance(obj, naming._ItemUnit):
+                # Use __dict__ for Naming object
+                return tuple((k, make_hashable(v)) for k, v in sorted(obj.__dict__.items()))
+            elif hasattr(obj, "as_dict"):
+                # Use the dictionary representation for caching
+                return tuple((k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()))
+            else:
+                return obj
+
+        # Convert args & kwargs into stable, hashable forms
+        hashed_args = tuple(hash(make_hashable(arg)) for arg in args)
+        hashed_kwargs = {k: hash(make_hashable(v)) for k, v in kwargs.items()}
+
+        # Call the parent class' key generator with transformed arguments
+        return super()._decorator_key(func, *hashed_args, **hashed_kwargs)
+
+
+redis_lru_cache = NMSRedisLRU(redis_client, default_ttl=24 * 3600)
 
 
 class VerifyPathException(Exception):
@@ -59,6 +111,10 @@ class VlanConflictError(Exception):
     pass
 
 
+class AccessListGenerationError(Exception):
+    pass
+
+
 DIR_STRUCTURE_HOST = {
     "base_system.yml": "file",
     "interfaces.yml": "file",
@@ -67,6 +123,7 @@ DIR_STRUCTURE_HOST = {
 
 DIR_STRUCTURE: dict[str, Any] = {
     "global": {
+        "access_lists.yml": "optional_file",
         "base_system.yml": "file",
         "groups.yml": "file",
         "routing.yml": "file",
@@ -132,6 +189,10 @@ def verify_dir_structure(path: str, dir_structure: dict):
                     raise VerifyPathException(f"{filename} is not a regular file")
                 else:
                     raise VerifyPathException(f"File {filename} not found")
+        elif isinstance(subitem, str) and subitem == "optional_file":
+            filename = os.path.join(path, item)
+            if not os.path.isfile(filename) and os.path.exists(filename):
+                raise VerifyPathException(f"{filename} is not a regular file")
         elif item is Device:
             for hostname in os.listdir(path):
                 hostname_path = os.path.join(path, hostname)
@@ -235,6 +296,14 @@ def get_pydantic_field_descr(schema: dict, loc: tuple):
         return None
 
 
+def check_system_access_lists(settings_dict: dict):
+    """Raises SettingsSyntaxError"""
+    acl_names = set(settings_dict.get("access_lists", {}).keys())
+    for system_acl in settings_dict.get("system_access_lists", []):
+        if system_acl not in acl_names:
+            raise SettingsSyntaxError(f"System access list: {system_acl} must be defined as an access-list.")
+
+
 def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> dict:
     """Verify settings syntax and return a somewhat helpful error message.
 
@@ -313,13 +382,12 @@ def check_settings_collisions(unique_vlans: bool = True):
                 mgmt_vlans.add(mgmtdom.vlan)
         managed_devices: List[Device] = session.query(Device).filter(Device.state == DeviceState.MANAGED).all()
         for dev in managed_devices:
-            dev_settings, _ = get_settings(dev.hostname, dev.device_type)
+            dev_settings, _ = get_settings(dev, dev.device_type)
             devices_dict[dev.hostname] = dev_settings
 
     logger.debug("Memory size of all device settings: {}".format(sizeof_fmt(json.dumps(devices_dict).__sizeof__())))
 
     check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
-    check_group_priority_collisions()
     check_routing_policies(devices_dict)
 
 
@@ -447,33 +515,11 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
                 device_vlan_names[hostname] = {vxlan_data["vlan_name"]}
 
 
-def check_group_priority_collisions(settings: Optional[dict] = None):
-    priorities: Dict[int, str] = {}
-    if not settings:
-        settings, _ = get_group_settings()
-    if not settings:
-        return
-    if not settings.get("groups", None):
-        return
-    for group in settings["groups"]:
-        if "name" not in group["group"]:
-            continue
-        if "group_priority" not in group["group"] or group["group"]["group_priority"] == 0:
-            continue
-        if group["group"]["group_priority"] in priorities.keys():
-            raise ValueError(
-                "Groups must have unique group_priority values, "
-                "but group {} and {} both have priority {}".format(
-                    priorities[group["group"]["group_priority"]],
-                    group["group"]["name"],
-                    group["group"]["group_priority"],
-                )
-            )
-        priorities[group["group"]["group_priority"]] = group["group"]["name"]
-
-
 @redis_lru_cache
 def read_settings_file(filename):
+    # Optional files that does not exists return nothing
+    if not os.path.isfile(filename):
+        return {}
     with open(filename, "r") as f:
         return yaml.safe_load(f)
 
@@ -509,12 +555,12 @@ def read_settings(
     elif not isinstance(yamldata, dict):
         logger.info("Invalid yaml file ignored: {}".format(filename))
         return merged_settings, merged_settings_origin
-    settings: dict = yamldata
+    settings_from_file: dict = yamldata
     if groups or hostname:
-        syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings, {}, origin)
+        syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings_from_file, {}, origin)
         check_settings_syntax(syntax_dict, syntax_dict_origin)
-        settings = filter_yamldata(settings, groups if groups else [], hostname if hostname else "")
-    return merge_dict_origin(merged_settings, settings, merged_settings_origin, origin)
+        settings_from_file = filter_yamldata(settings_from_file, groups if groups else [], hostname if hostname else "")
+    return merge_dict_origin(merged_settings, settings_from_file, merged_settings_origin, origin)
 
 
 def filter_yamldata(data: Union[List, dict], groups: List[str], hostname: str) -> dict:
@@ -613,12 +659,10 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
             return settings
         neighbor_devices = dev.get_neighbors(session)
         # Downstream device hostnames
-        ds_hostnames = []
         for neighbor_dev in neighbor_devices:
-            if neighbor_dev.device_type == DeviceType.ACCESS:
-                ds_hostnames.append(neighbor_dev.hostname)
-        for ds_hostname in ds_hostnames:
-            ds_settings, _ = get_settings(ds_hostname, DeviceType.ACCESS)
+            if neighbor_dev.device_type != DeviceType.ACCESS:
+                continue
+            ds_settings, _ = get_settings(neighbor_dev, DeviceType.ACCESS)
             for vxlan_name, vxlan_data in ds_settings["vxlans"].items():
                 if vxlan_name not in settings["vxlans"].keys():
                     settings["vxlans"][vxlan_name] = vxlan_data
@@ -627,14 +671,13 @@ def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
 
 @redis_lru_cache
 def get_settings(
-    hostname: Optional[str] = None,
+    device: Optional[Device] = None,
     device_type: Optional[DeviceType] = None,
     device_model: Optional[str] = None,
 ) -> Tuple[dict, dict]:
     """Get settings to use for device matching hostname or global
     settings if no hostname is specified."""
     logger = get_logger()
-    get_type = "global"
 
     local_repo_path = app_settings.SETTINGS_LOCAL
     try:
@@ -653,9 +696,10 @@ def get_settings(
         settings_origin[k] = "default"
 
     # 2. Get settings repo global settings
-    if hostname:
+    get_type = "global"
+    if device:
         # Some settings parsing require knowledge of group memberships
-        groups = get_groups(hostname)
+        groups = get_groups(device)
         settings, settings_origin = read_settings(
             local_repo_path,
             ["global", "base_system.yml"],
@@ -682,14 +726,15 @@ def get_settings(
             settings,
             settings_origin,
         )
+
     # 4. Get settings repo device type settings
     if device_type:
         get_type = "devicetype {}".format(device_type.name)
         if device_type == DeviceType.UNKNOWN:
-            if hostname is None:
+            if device is None:
                 raise ValueError("It's not possible to get settings for devices with type UNKNOWN")
             else:
-                logger.warning("Device type is UNKNOWN, trying to get settings for hostname {}".format(hostname))
+                logger.warning("Device type is UNKNOWN, trying to get settings for hostname {}".format(device.hostname))
         else:
             settings, settings_origin = read_settings(
                 local_repo_path,
@@ -698,8 +743,8 @@ def get_settings(
                 settings,
                 settings_origin,
             )
-    if hostname:
-        get_type = "hostname {}".format(hostname)
+    if device:
+        get_type = "hostname {}".format(device.hostname)
         settings, settings_origin = read_settings(
             local_repo_path,
             ["global", "routing.yml"],
@@ -715,11 +760,31 @@ def get_settings(
             settings,
             settings_origin,
             groups,
-            hostname,
+            device.hostname,
         )
-        settings = get_downstream_dependencies(hostname, settings)
+        settings, settings_origin = read_settings(
+            local_repo_path,
+            ["global", "access_lists.yml"],
+            "global->access_lists.yml",
+            settings,
+            settings_origin,
+            groups,
+        )
+        settings = get_downstream_dependencies(device.hostname, settings)
+
         # 5. Get settings repo group specific settings
-        primary_group = get_device_primary_groups().get(hostname)
+        primary_group = None
+        # Check if the device is in the db
+        try:
+            device_state = inspect(device)
+        except NoInspectionAvailable:
+            device_state = None
+        # Device is in the db
+        if device_state is not None and device_state.persistent:
+            primary_group = get_device_primary_groups().get(device.hostname)
+        # Device is not in the db
+        else:
+            primary_group = get_primary_group_for_device(device)
         if primary_group:
             # add templates worktree
             templates_branch = get_group_templates_branch(primary_group)
@@ -736,37 +801,38 @@ def get_settings(
                 settings, settings_origin = read_settings(
                     local_repo_path,
                     ["groups", primary_group, "interfaces.yml"],
-                    "groups->{}->base_system.yml".format(primary_group),
+                    "groups->{}->interfaces.yml".format(primary_group),
                     settings,
                     settings_origin,
                 )
                 settings, settings_origin = read_settings(
                     local_repo_path,
                     ["groups", primary_group, "routing.yml"],
-                    "groups->{}->base_system.yml".format(primary_group),
+                    "groups->{}->routing.yml".format(primary_group),
                     settings,
                     settings_origin,
                 )
+
         # 6. Get settings repo device specific settings
-        if os.path.isdir(os.path.join(local_repo_path, "devices", hostname)):
+        if os.path.isdir(os.path.join(local_repo_path, "devices", device.hostname)):
             settings, settings_origin = read_settings(
                 local_repo_path,
-                ["devices", hostname, "base_system.yml"],
-                "device->{}->base_system.yml".format(hostname),
+                ["devices", device.hostname, "base_system.yml"],
+                "device->{}->base_system.yml".format(device.hostname),
                 settings,
                 settings_origin,
             )
             settings, settings_origin = read_settings(
                 local_repo_path,
-                ["devices", hostname, "interfaces.yml"],
-                "device->{}->interfaces.yml".format(hostname),
+                ["devices", device.hostname, "interfaces.yml"],
+                "device->{}->interfaces.yml".format(device.hostname),
                 settings,
                 settings_origin,
             )
             settings, settings_origin = read_settings(
                 local_repo_path,
-                ["devices", hostname, "routing.yml"],
-                "device->{}->routing.yml".format(hostname),
+                ["devices", device.hostname, "routing.yml"],
+                "device->{}->routing.yml".format(device.hostname),
                 settings,
                 settings_origin,
                 groups,
@@ -813,8 +879,21 @@ def get_settings(
             settings,
             settings_origin,
             groups,
-            hostname,
         )
+        settings, settings_origin = read_settings(
+            local_repo_path,
+            ["global", "access_lists.yml"],
+            "global->access_lists.yml",
+            settings,
+            settings_origin,
+            groups,
+        )
+
+    # Verify access_lists syntax
+    # If access_lists and system_access_lists are keys in settings dict
+    if "access_lists" in settings and "system_access_lists" in settings:
+        check_system_access_lists(settings)
+
     # Verify syntax
     verified_settings = check_settings_syntax(settings, settings_origin)
     set_everything = set(settings)
@@ -828,7 +907,7 @@ def get_settings(
 
 
 @redis_lru_cache
-def get_group_settings() -> Tuple[dict, dict]:
+def get_group_settings() -> Tuple[f_groups, dict]:
     logger = get_logger()
     settings: dict = {}
     settings_origin: dict = {}
@@ -849,35 +928,29 @@ def get_group_settings() -> Tuple[dict, dict]:
     )
     settings["groups"] += default_settings["groups"]
     check_settings_syntax(settings, settings_origin)
-    return f_groups(**settings).model_dump(), settings_origin
+    return f_groups(**settings), settings_origin
 
 
 @redis_lru_cache
-def get_groups(hostname: Optional[str] = None) -> List[str]:
+def get_groups(device: Optional[Device] = None) -> List[str]:
     """Return list of names for valid groups."""
     groups: list[str] = []
     settings, origin = get_group_settings()
-    if not settings:
+    if not settings or settings.groups is None:
         return groups
-    if not settings.get("groups", None):
-        return groups
-    for group in settings["groups"]:
-        if "name" not in group["group"]:
+    for group in settings.groups:
+        if device and not group.matches(device):
             continue
-        if hostname:
-            if "regex" not in group["group"]:
-                continue
-            # TODO: try and catch, report what regex failed
-            if not re.match(group["group"]["regex"], hostname):
-                continue
-        groups.append(group["group"]["name"])
+        groups.append(group.name)
     return groups
 
 
-def get_group_regex(group_name: str) -> Optional[str]:
-    """Returns a string containing the regex defining the specified
-    group name if it's found."""
-    return get_group_settings_asdict().get(group_name, {}).get("regex")
+def get_group(group_name: str) -> Optional[f_group]:
+    """Returns the group object if it's found."""
+    settings, _ = get_group_settings()
+    if not settings or settings.groups is None:
+        return None
+    return next((group for group in settings.groups if group.name == group_name), None)
 
 
 def get_group_templates_branch(group_name: str) -> Optional[str]:
@@ -890,20 +963,261 @@ def get_group_templates_branch(group_name: str) -> Optional[str]:
 def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     """Returns a dict with group name as key and other parameters as values"""
     settings, _ = get_group_settings()
-    if not settings:
-        return {}
-    if not settings.get("groups"):
+    if not settings or not settings.groups:
         return {}
     group_dict: Dict[str, Dict[str, Any]] = {}
-    for group in settings["groups"]:
-        if "name" not in group["group"]:
-            continue
-        group_dict[group["group"]["name"]] = group["group"]
-        del group_dict[group["group"]["name"]]["name"]
+    for group in settings.groups:
+        group_dict[group.name] = group.model_dump()
+        del group_dict[group.name]["name"]
     return group_dict
 
 
-def get_groups_priorities(hostname: Optional[str] = None, settings: Optional[dict] = None) -> Dict[str, int]:
+def _build_aerleon_definitions(settings: dict) -> naming.Naming:
+    """
+    Builds Aerleon Naming from settings network_definitions and service_definitions.
+    Returns a naming.Naming object.
+    """
+    aerleon_definitions = naming.Naming()
+
+    networks_dict = {}
+    services_dict = {}
+    for network_name, networks in settings.get("network_definitions", {}).items():
+        networks_dict[network_name] = {"values": networks}
+    for service_name, services in settings.get("service_definitions", {}).items():
+        services_dict[service_name] = services
+
+    aerleon_definitions.ParseDefinitionsObject({"networks": networks_dict, "services": services_dict}, "")
+    return aerleon_definitions
+
+
+def napalm_to_aerleon(platform: str) -> str:
+    """
+    Translates napalm platform to aerleon
+    If not found it will return the platform as is
+    """
+    return AERLEON_LIB_MAPPER_REVERSE.get(NAPALM_LIB_MAPPER.get(platform, ""), platform)
+
+
+def _get_aerleon_translated_terms(terms: TermsList) -> TermsList:
+    """
+    Convert Napalm platform names (e.g. 'ios', 'eos') inside term dictionaries
+    into their corresponding Aerleon generator names (e.g. 'cisco_ios',
+    'arista_eos'). The translation is applied recursively to all nested dicts
+    and lists.
+
+    Returns a new list of translated term dictionaries.
+    """
+
+    def translate(value):
+        if isinstance(value, str):
+            return napalm_to_aerleon(value)
+        if isinstance(value, dict):
+            return {translate(k): translate(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [translate(item) for item in value]
+        return value
+
+    return [translate(term) for term in terms]
+
+
+def _get_aerleon_inet(platform: str, inet_family: Literal["ipv4", "ipv6"]) -> str:
+    """
+    Maps ipv4 or ipv6 to aerleon inet-format.
+    Differs between different types of devices.
+    More information here: https://aerleon.readthedocs.io/en/latest/reference/generators/
+
+    To get support for other platforms define a custom header_map in f_access_list for that platform.
+    """
+    inet_family_map = {
+        "eos": {"ipv4": "extended", "ipv6": "inet6"},
+        "ios": {"ipv4": "extended", "ipv6": "inet6"},
+        "iosxr": {"ipv4": "", "ipv6": "inet6"},
+        "junos": {"ipv4": "inet", "ipv6": "inet6"},
+        "nxos": {"ipv4": "extended", "ipv6": "inet6"},
+    }
+    return inet_family_map.get(platform, {}).get(inet_family, inet_family)
+
+
+def _get_all_access_lists(data: List[Dict[str, str]]) -> Iterator[str]:
+    """
+    Extracts all access lists from a vxlan or interface and returns them as a single list.
+
+    Args:
+        data: A vxlan or interface dictionary.
+
+    Returns:
+        An iterator of strings with all access list names.
+    """
+    for vi in data:
+        for acl_setting in ["acl_ipv4_in", "acl_ipv4_out", "acl_ipv6_in", "acl_ipv6_out"]:
+            if acl := vi.get(acl_setting):
+                yield acl
+
+
+def get_generated_access_lists(
+    dev: Optional[Device] = None, platform: Optional[str] = None, settings: Optional[dict] = None
+) -> Dict[str, str]:
+    """
+    Generate access lists for a given network device or platform.
+
+    This function builds Aerleon policy definitions based on device settings and
+    produces rendered access lists for the target platform. The platform may be
+    provided explicitly or inferred from the device. Settings are loaded
+    automatically if not supplied.
+
+    Args:
+        dev: Optional Device object used to derive platform and settings when not
+            provided explicitly.
+        platform: The platform name (e.g., "eos", "ios", "junos"). Overrides the
+            device's platform if provided.
+        settings: Optional settings dictionary. If omitted or empty, settings
+            will be loaded automatically for the device.
+
+    Returns:
+        A dictionary mapping access list names to their generated configuration
+        strings. IPv4 and IPv6 will be generated to the same output-string.
+        Example: {ACL_NAME: "config_as_text"}
+
+    Raises:
+        AccessListGenerationError:
+            - If the platform cannot be determined.
+            - If Aerleon encounters an error during generation.
+    """
+    # Prefer platform argument, otherwise get from device.
+    if platform is None:
+        if dev is not None:
+            platform = getattr(dev, "platform", None)
+
+    if platform is None:
+        raise AccessListGenerationError("Platform argument must be provided either directly or via a device")
+
+    # When settings have not been passed in via arguments get_settings
+    if not settings:
+        settings, _ = get_settings(dev)
+
+    # Fix for mypy to understand settings is not dict | None but only dict
+    assert settings is not None
+
+    # Get aerleon platform name from NMS napalm platform
+    aerleon_platform = napalm_to_aerleon(platform)
+    # Could not get a valid aerleon platform
+    if aerleon_platform not in AERLEON_LIB_MAPPER_REVERSE.values():
+        logger = get_logger()
+        logger.error(
+            f"Platform: {platform} is not supported for access_list generation, no access-lists will be generated."
+        )
+        return {}
+
+    # Set of all access_lists that should be generated for this device.
+    # All devices will get global system_access_lists.
+    generate_access_lists: Set[str] = set(settings.get("system_access_lists", []))
+
+    # Add all acls found from vxlan to a dist-switch
+    if dev and dev.device_type == DeviceType.DIST:
+        generate_access_lists.update(_get_all_access_lists(settings.get("vxlans", {}).values()))
+    # Add all interface-acls.
+    if dev and dev.device_type in [DeviceType.ACCESS, DeviceType.CORE, DeviceType.DIST, DeviceType.FIREWALL]:
+        generate_access_lists.update(_get_all_access_lists(settings.get("interfaces", [])))
+
+    policies = []  # All access_lists that will be generated
+    includes = {}  # A dict with acl_name: policy_dict if another access_list includes another acl.
+    setting_acls: Dict[str, dict] = settings.get("access_lists", {})
+
+    defs = _build_aerleon_definitions(settings)
+
+    for access_list_name, access_list_dict in setting_acls.items():
+        # Construct f_access_list object without validation
+        access_list: f_access_list = f_access_list.model_construct(**access_list_dict)
+
+        # Get aerleon header format, defaults to "{ACL_NAME} {INET_FAMILY}"
+        header = access_list.header_map.get(platform, "{ACL_NAME} {INET_FAMILY}")
+
+        inside_policies = []
+        acl_terms = _get_aerleon_translated_terms(access_list.terms)
+
+        # Add all access_lists to includes
+        # Only needs to be done once as terms are inet-agnistic
+        included_list: PolicyFilterTermsOnly = {"terms": acl_terms}
+        includes.update({access_list_name: included_list})
+
+        for inet_family in access_list.inet_families:
+            # Format acl_header for the specific inet_family
+            acl_header = header.format(ACL_NAME=access_list_name, INET_FAMILY=_get_aerleon_inet(platform, inet_family))
+            inside_policy_dict: PolicyFilter = {
+                "header": {"targets": {aerleon_platform: acl_header}, "comment": access_list.comment},
+                "terms": acl_terms,
+            }
+            inside_policies.append(inside_policy_dict)
+
+        # Only access list found in generate_access_lists should generate
+        if access_list_name in generate_access_lists:
+            policy_dict: PolicyDict = {
+                "filename": access_list_name,
+                "filters": inside_policies,
+            }
+            policies.append(policy_dict)
+
+    try:
+        # Generate all access-lists at once.
+        generated_configs = _generate_acl(policies, defs, includes)
+    except (ACLGenError, naming.Error) as e:
+        error_msg = re.sub(r":\n<[^>]*>", ", ", str(e))
+        raise AccessListGenerationError(error_msg)
+    except PolicyTypeError as e:
+        raise AccessListGenerationError(str(e))
+
+    return generated_configs
+
+
+@redis_lru_cache
+def _generate_acl(
+    policies: List[PolicyDict], defs: naming.Naming, includes: dict[str, PolicyFilterTermsOnly]
+) -> dict[str, str]:
+    # Aerleon uses absl as logging.
+    # Override logging and set our own capture handler as the only log handler.
+    absl_logging.use_python_logging(quiet=True)
+    aerleon_logger = absl_logging.get_absl_logger()
+    current_root_handlers = aerleon_logger.root.handlers
+    for c_handler in current_root_handlers:
+        aerleon_logger.root.removeHandler(c_handler)
+
+    # Create the new handler and attach to aerleon_logger
+    handler = CaptureHandler()
+    handler.setLevel(logging.WARNING)
+    aerleon_logger.addHandler(handler)
+
+    try:
+        configs = Generate(
+            policies,
+            defs,
+            optimize=api_settings.ACCESS_LIST_OPTIMIZE,
+            # Does not seem to work currently
+            # investigate future use-cases
+            shade_check=False,
+            includes=includes,
+        )
+    finally:
+        # Revert back absl handlers
+        for c_handler in current_root_handlers:
+            aerleon_logger.root.addHandler(c_handler)
+
+        aerleon_logger.removeHandler(handler)
+
+    if handler.records:
+        logger = get_logger()
+        for record in handler.records:
+            # Remove not needed WARNING message
+            record.msg = record.msg.lstrip("WARNING: ")
+            # Use cnaas logger to emit aerleon logs
+            logger.handle(record)
+
+    if not configs:
+        return {}
+    # Remove suffix from filename
+    return {re.sub(r"\.[^.]+$", "", k): v for k, v in configs.items()}
+
+
+def get_groups_priorities(device: Optional[Device] = None, settings: Optional[f_groups] = None) -> Dict[str, int]:
     """Return dicts with {name: priority} for groups"""
     groups_priorities: dict[str, Any] = {}
 
@@ -911,28 +1225,25 @@ def get_groups_priorities(hostname: Optional[str] = None, settings: Optional[dic
         settings, _ = get_group_settings()
     if not settings:
         return groups_priorities
-    if not settings.get("groups", None):
+    if settings.groups is None:
         return groups_priorities
-    for group in settings["groups"]:
-        if "name" not in group["group"]:
+    for group in settings.groups:
+        if not group.group_priority or group.group_priority == 0:
             continue
-        if "group_priority" not in group["group"] or group["group"]["group_priority"] == 0:
+        if device and not group.matches(device):
             continue
-        if hostname:
-            if "regex" not in group["group"]:
-                continue
-            # TODO: try and catch, report what regex failed
-            if not re.match(group["group"]["regex"], hostname):
-                continue
-        groups_priorities[group["group"]["name"]] = group["group"]["group_priority"]
+        groups_priorities[group.name] = group.group_priority
+
     return groups_priorities
 
 
-def get_groups_priorities_sorted(hostname: Optional[str] = None, settings: Optional[dict] = None) -> Dict[str, int]:
+def get_groups_priorities_sorted(
+    device: Optional[Device] = None, settings: Optional[f_groups] = None
+) -> Dict[str, int]:
     return {
         k: v
         for k, v in sorted(
-            get_groups_priorities(hostname, settings).items(),
+            get_groups_priorities(device, settings).items(),
             key=lambda item: item[1],  # sort on value(priority)
             reverse=True,
         )
@@ -954,10 +1265,15 @@ def parse_device_primary_groups() -> Dict[str, str]:
     with sqla_session() as session:  # type: ignore
         devices: List[Device] = session.query(Device).all()
         for dev in devices:
-            groups = get_groups(dev.hostname)
+            groups = get_groups(dev)
             primary_group: str = find_primary_group(groups, groups_priorities_sorted)
             device_primary_group[dev.hostname] = primary_group
     return device_primary_group
+
+
+def get_primary_group_for_device(dev: Device) -> str:
+    """Matches device against groups. Does not require a session."""
+    return find_primary_group(get_groups(dev), get_groups_priorities_sorted())
 
 
 def update_device_primary_groups():
@@ -996,6 +1312,7 @@ def rebuild_settings_cache() -> None:
     Raises:
         SettingsSyntaxError: Syntax is wrong in settings files
         VlanConflictError: Multiple conflicting VLANs exists on same device
+        AccessListGenerationError: There is an error when generating access_lists
     """
     logger = get_logger()
     logger.debug("Clearing redis-lru cache for settings")
@@ -1018,10 +1335,22 @@ def rebuild_settings_cache() -> None:
     logger.debug("Rebuilding settings cache for global settings and primary groups")
     update_device_primary_groups()
     get_settings()
+    # Get all local platforms and try to generate global access_lists for that platform.
+    platforms = []
+    with sqla_session() as session:  # type: ignore
+        device_platforms: List[Device] = (
+            session.query(Device).distinct(Device.platform).where(Device.platform.is_not(None)).all()
+        )
+        platforms = [dev.platform for dev in device_platforms]
+    for platform in platforms:
+        get_generated_access_lists(platform=platform)
     test_devtypes = [DeviceType.ACCESS, DeviceType.DIST, DeviceType.CORE, DeviceType.FIREWALL]
     logger.debug("Rebuilding settings cache for devicetypes")
     for devtype in test_devtypes:
-        get_settings(device_type=devtype)
+        settings, _ = get_settings(device_type=devtype)
+        for platform in platforms:
+            # Generate access_lists for all dev_types and platforms
+            get_generated_access_lists(platform=platform, settings=settings)
     logger.debug("Rebuilding settings cache for device specific settings")
     with sqla_session() as session:  # type: ignore
         for hostname in os.listdir(os.path.join(app_settings.SETTINGS_LOCAL, "devices")):
@@ -1034,11 +1363,14 @@ def rebuild_settings_cache() -> None:
             if dev is None or dev.device_type == DeviceType.UNKNOWN:
                 logger.warning(f"Device {hostname} specified in settings/devices but it was not found in database")
                 continue
-            get_settings(hostname, dev.device_type)
+            get_settings(dev, dev.device_type)
+            # Try to generate access_lists for a specific device
+            if dev.platform:
+                get_generated_access_lists(dev)
     logger.debug("Rebuilding settings cache for device models")
     for devtype_str, device_models in get_model_specific_configfiles(True).items():
         devtype = DeviceType[devtype_str]
         for device_model in device_models:
-            get_settings("nonexisting", devtype, device_model)
+            get_settings(None, devtype, device_model)
     logger.debug("Rechecking settings collisions")
     check_settings_collisions(api_settings.GLOBAL_UNIQUE_VLANS)

@@ -1,9 +1,16 @@
-from enum import StrEnum, auto
-from ipaddress import AddressValueError, IPv4Interface
-from typing import Annotated, Dict, List, Optional, Union
+import datetime  # noqa: F401
+import re
+from enum import Enum, StrEnum, auto
+from functools import cached_property
+from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Network
+from typing import Annotated, Dict, List, Literal, Optional, Self, Union
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from aerleon.lib.policy_builder import TermsList
+from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
+
+from cnaas_nms.db.device import Device
+from cnaas_nms.tools.log import get_logger
 
 # HOSTNAME_REGEX = r'([a-z0-9-]{1,63}\.?)+'
 IPV4_REGEX = r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}" r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
@@ -82,6 +89,8 @@ group_name = Field(..., pattern=GROUP_NAME, max_length=253)
 group_priority_schema = Field(
     0, ge=0, le=100, description="Group priority 0-100, default 0, higher value means higher priority"
 )
+ACCESS_LIST_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
+access_list_name = Annotated[str, Field(pattern=ACCESS_LIST_NAME, max_length=63)]  # Type
 
 
 class RemovePrivateASEnum(StrEnum):
@@ -412,6 +421,89 @@ class f_port_template(BaseModel):
     groups: Optional[List[str]] = None
 
 
+class f_network_definition(BaseModel):
+    address: Union[IPv4Address | IPv6Address | IPv4Network | IPv6Network]
+    comment: str = ""
+
+    # Convert address to string.
+    @field_validator("address", mode="after")
+    @classmethod
+    def validate_address(cls, v):
+        return str(v)
+
+
+class f_network_definition_include(BaseModel):
+    name: str
+
+
+class f_service_definition(BaseModel):
+    port: int | str
+    protocol: str
+
+
+class f_service_definition_include(BaseModel):
+    name: str
+
+
+TermsListAdapter: TypeAdapter = TypeAdapter(TermsList)
+
+TermsListAdapter.rebuild()
+
+
+class f_access_list(BaseModel):
+    comment: str = ""
+    inet_families: List[Literal["ipv4", "ipv6"]] = ["ipv4"]
+    header_map: Dict[str, str] = {}
+    # Example header_map
+    # {"ios": "{ACL_NAME} {INET_FAMILY} noverbose",
+    # "eos": "ACL_NAME extended noverbose"}
+
+    # Uses Aerleon TypedDict
+    terms: TermsList
+
+    @field_validator("inet_families", mode="after")
+    @classmethod
+    def unique_sorted_inet_families(cls, v: List[Literal["ipv4", "ipv6"]]) -> List[Literal["ipv4", "ipv6"]]:
+        """Make sure inet_families are unique and sorted"""
+        return sorted(set(v))
+
+    @field_validator("terms", mode="after")
+    def validate_term_names(cls, v):
+        """
+        All terms must have valid names
+        Term name uniqueness is handled in f_root
+        """
+        for term in v:
+            if "include" in term:
+                # This is a PolicyInclude and is validated later in f_root.
+                continue
+
+            term_name = term.get("name")
+
+            if not term_name:
+                raise ValueError("Terms must have a name")
+
+            # Invalid characters is a ValueError
+            if not re.match(r"^[\w-]+$", term_name):
+                raise ValueError(f"Invalid term name: {term_name}")
+
+        return v
+
+    @field_validator("terms", mode="after")
+    @classmethod
+    def validate_terms(cls, terms):
+        if not terms:
+            raise ValueError("Terms must be defined and cannot be empty")
+
+        # Validate all terms regarding to the TypedDict
+        TermsListAdapter.validate_python(terms)
+
+        return terms
+
+
+f_access_list.model_rebuild()
+
+
 class f_root(BaseModel):
     ntp_servers: List[f_ntp_server] = []
     radius_servers: List[f_radius_server] = []
@@ -445,13 +537,119 @@ class f_root(BaseModel):
     vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
     arista_models_32bit: Optional[List[str]] = None
     upgrade_post_waittime: Dict[str, int] = {"default": 600}
+    network_definitions: Dict[str, List[Union[f_network_definition | f_network_definition_include]]] = {}
+    service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
+    access_lists: Dict[access_list_name, f_access_list] = {}
+    system_access_lists: List[access_list_name] = []
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
+    def validate_access_lists_includes(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
+        """Raise an error if some term include is not pointing to a valid access_list"""
+        acl_names = access_lists.keys()
+        for access_list in access_lists.values():
+            for term in access_list.terms:
+                include_acl = term.get("include")
+                if include_acl and include_acl not in acl_names:
+                    raise ValueError(f"Included access-list: {include_acl} must be defined.")
+        return access_lists
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
+    def validate_access_lists_included_terms(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
+        """Validates an access-list + included access-lists have unique term-names"""
+        for access_list in access_lists.values():
+            all_term_names = [t.get("name") for t in access_list.terms if t.get("name")]
+            for term in access_list.terms:
+                include_acl = term.get("include")
+
+                if include_acl and isinstance(include_acl, str):
+                    all_term_names.extend([t.get("name") for t in access_lists[include_acl].terms if t.get("name")])
+
+            if len(all_term_names) != len(set(all_term_names)):
+                raise ValueError("All term names in an access-list + included access-lists must be unique.")
+        return access_lists
 
 
-class f_group_item(BaseModel):
+class f_group_device_filter(BaseModel):
+    hostname: Optional[str] = None
+    device_type: Optional[str] = None
+    model: Optional[str] = None
+    os_version: Optional[str] = None
+    platform: Optional[str] = None
+
+    @field_validator("hostname", "device_type", "model", "os_version", "platform")
+    @classmethod
+    def validate_regex(cls, v):
+        """Validate that the value is a valid regex pattern."""
+        try:
+            # Try compiling regex
+            re.compile(v)
+        except re.error as exc:
+            raise ValueError(f"Invalid regex pattern: {v}") from exc
+        return v
+
+    @cached_property
+    def compiled_patterns(self) -> Dict[str, re.Pattern]:
+        """
+        Is a cached property to avoid re-compiling regex patterns
+        """
+        fields = set(self.__annotations__.keys())
+        compiled_patterns = {}
+        for field in fields:
+            pattern = getattr(self, field, None)
+            if pattern:
+                compiled_patterns.update({field: re.compile(pattern)})
+        return compiled_patterns
+
+    def matches(self, device: Device) -> bool:
+        """
+        A function that matches a device based on the regex patterns.
+        """
+        compiled_patterns = self.compiled_patterns
+        # No patterns defined, match nothing
+        if not compiled_patterns:
+            return False
+
+        for field, pattern in compiled_patterns.items():
+            value = getattr(device, field, None)
+            if value is None:
+                return False  # field missing → no match
+            if isinstance(value, Enum):
+                match_value = value.name
+            else:
+                match_value = value
+            if not pattern.match(str(match_value)):  # convert to str to be safe
+                return False  # pattern did not match
+        return True  # all matched
+
+
+class f_group(BaseModel):
     name: str = group_name
-    regex: str = ""
+    device_filter: Optional[f_group_device_filter] = None
+    devices: Optional[List[str]] = None
     group_priority: int = group_priority_schema
     templates_branch: Optional[str] = None
+
+    def __init__(self, **data):
+        logger = get_logger()
+        if "group" in data:
+            logger.warning(
+                "Old group config style is deprecated and will be removed in a future version.",
+            )
+            legacy_data = data.pop("group")
+            # Convert legacy group data to new format
+            data["name"] = legacy_data.pop("name")
+            regex = legacy_data.pop("regex")
+            if regex:
+                data["device_filter"] = {"hostname": regex}
+            data["group_priority"] = legacy_data.pop("group_priority", 0)
+            data["templates_branch"] = legacy_data.pop("templates_branch", None)
+        super().__init__(**data)
 
     @field_validator("group_priority")
     @classmethod
@@ -467,10 +665,49 @@ class f_group_item(BaseModel):
             raise ValueError("templates_branch can only be specified on primary groups")
         return v
 
+    @model_validator(mode="after")
+    def cannot_use_device_filter_with_devices(self: Self) -> Self:
+        device_filter = self.device_filter
+        devices = self.devices
+        if device_filter and devices:
+            raise ValueError("cannot use device_filter together with devices")
 
-class f_group(BaseModel):
-    group: Optional[f_group_item] = None
+        return self
+
+    def matches(self, device: Device) -> bool:
+        """A function to check if a device matches the group filters."""
+        if self.device_filter is not None:
+            # Use the device filter matcher to check if the device matches
+            return self.device_filter.matches(device)
+        elif self.devices is not None:
+            # If no device filter is defined, check if the device is in the devices list
+            return device.hostname in self.devices
+        return False
+
+
+def validate_groups(groups: List[f_group]):
+    """
+    Validate that the provided list of groups have unique names and group priorities.
+    """
+
+    # Validate uniqueness of group names and group priorities
+    unique_fields = ["name", "group_priority"]
+    for unique_field in unique_fields:
+        seen = set()
+        for group in groups:
+            value = getattr(group, unique_field)
+            # Skip validation for group_priority if it's 0
+            if unique_field == "group_priority" and value == 0:
+                continue
+            if value in seen:
+                raise ValueError(
+                    f"Groups must have unique {unique_field} values, "
+                    f"but group {group} has a duplicate {unique_field} value as another group."
+                )
+            seen.add(value)
+
+    return groups
 
 
 class f_groups(BaseModel):
-    groups: Optional[List[f_group]] = None
+    groups: Annotated[Optional[List[f_group]], AfterValidator(validate_groups)] = None

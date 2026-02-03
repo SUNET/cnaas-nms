@@ -132,8 +132,7 @@ To remove a firmware image:
    curl -X DELETE https://hostname/api/v1.0/firmware/firmware.bin
    {
     "status": "success",
-    "data": "Scheduled job to remove firmware",
-    "job_id": "5d849177dd428720db72c693"
+    "data": null
    }
 
 
@@ -157,6 +156,7 @@ The API method will accept a few parameters:
 * post_waittime: Optional, default is 0. Defines the time we should wait before trying to connect to an updated device.
 * activate: Optional, default is false. Control whether we should install the new firmware or not.
 * reboot: Optional, default is false. When the firmware is downloaded, reboot the switch.
+* staggered_upgrade: Optional, default is false. Only works when upgrading a group of ACCESS devices. If true, the devices will be upgraded in steps to minimize downtime. Only one member of an MLAG pair will be rebooted at a time, and chained access switches will be upgraded one layer at a time starting from the one closest to the core.
 * start_at: Schedule a firmware upgrade to be started sometime in the future.
 
 An example CURL command can look like this:

@@ -71,8 +71,7 @@ dev = [
   "types-requests==2.32.0.20250328",
 ]
 docs = [
-  "sphinx==3.3.1",
-  "docutils<0.18",
+  "sphinx==7.4.7",
 ]
 
 [project.readme]

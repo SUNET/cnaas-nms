@@ -61,8 +61,6 @@ services:
         - SQLFILE=nms_test.sql
     volumes:
       - cnaas-postgres-data:/var/lib/postgresql/data
-    ports:
-      - 5432:5432
     environment:
       - POSTGRES_USER=cnaas
       - POSTGRES_PASSWORD=cnaas
@@ -72,8 +70,6 @@ services:
 
   cnaas_redis:
     build: ./redis/
-    ports:
-      - 6379:6379
     networks:
       - cnaas
 

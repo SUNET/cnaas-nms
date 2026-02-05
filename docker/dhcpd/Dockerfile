@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:bookworm-slim
 
 RUN mkdir -p /opt/cnaas \
     && mkdir /etc/cnaas-nms

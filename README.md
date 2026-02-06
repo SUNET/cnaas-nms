@@ -18,26 +18,23 @@ Planned features:
 
 ## Dependencies
 
-Dependencies are specified in `[dependency-groups]` in _pyproject.toml_. The are currently three groups:
-
-- `dependencies`
-- `dev`
-- `docs`
-
-Dependencies from each group can be installed with:
+Runtime dependencies are specified in `[project].dependencies` in _pyproject.toml_.
+Development dependencies are in `[dependency-groups]` with two groups: `dev` and `docs`.
 
 ```sh
-pip install --group <group>
+pip install .             # runtime dependencies
+pip install --group dev   # test/lint tools (pytest, mypy, ruff, etc.)
+pip install --group docs  # documentation tools (sphinx)
 ```
 
-**Note**: requires pip 25.1 or later.
+**Note**: `--group` requires pip 25.1 or later.
 
 ## Requirements
 
 Docker and docker compose or:
 
-1. Python 3.11 or later
-2. `pip install --group dependencies` (requires pip 25.1 or later)
+1. python3.11 or later
+2. `pip install .` (and `pip install --group dev` for development)
 3. SQL database, Redis
 
 ## Installation
@@ -82,8 +79,8 @@ Use the token:
 
 Install locally by creating a virtualenv and activate the environment, then:
 
-```sh
-python3 -m pip install --group dependencies
+```
+python3 -m pip install .
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
 

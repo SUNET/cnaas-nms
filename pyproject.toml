@@ -49,7 +49,7 @@ dependencies = [
   "pyyaml==6.0.3",
   "redis==5.2.1",
   "redis-lru==0.1",
-  "requests==2.32.3",
+  "requests==2.32.4",
   "sqlalchemy==2.0.40",
   "sqlalchemy-utils==0.41.2",
   "werkzeug==3.1.3",

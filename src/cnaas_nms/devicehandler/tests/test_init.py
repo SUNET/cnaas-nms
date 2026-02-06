@@ -58,14 +58,14 @@ class InitTests(unittest.TestCase):
                 "new_hostname": self.testdata["init_access_new_hostname"],
             },
         )
-        print(f"Step1 scheduled as ID { job_id }")
+        print(f"Step1 scheduled as ID {job_id}")
 
     def reset_access_device(self):
         nr = cnaas_nms.devicehandler.nornir_helper.cnaas_init()
         nr_filtered = nr.filter(name=self.testdata["init_access_new_hostname"])
-        nr_filtered.inventory.hosts[self.testdata["init_access_new_hostname"]].connection_options[
-            "napalm"
-        ] = ConnectionOptions(extras={"timeout": 5})
+        nr_filtered.inventory.hosts[self.testdata["init_access_new_hostname"]].connection_options["napalm"] = (
+            ConnectionOptions(extras={"timeout": 5})
+        )
 
         data_dir = pkg_resources.resource_filename(__name__, "data")
         with open(os.path.join(data_dir, "access_reset.j2"), "r") as f_reset_config:

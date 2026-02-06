@@ -279,7 +279,7 @@ class DeviceTests(unittest.TestCase):
                 platform="eos",
                 management_ip=IPv4Address("10.100.1.2"),
                 state=DeviceState.MANAGED,
-                device_type=DeviceType. DIST,
+                device_type=DeviceType.DIST,
                 synchronized=True,
             )
             session.add(dist2)
@@ -293,7 +293,7 @@ class DeviceTests(unittest.TestCase):
                 platform="eos",
                 management_ip=IPv4Address("10.100.2.1"),
                 state=DeviceState.MANAGED,
-                device_type=DeviceType. ACCESS,
+                device_type=DeviceType.ACCESS,
                 synchronized=True,
             )
             session.add(access)
@@ -323,7 +323,7 @@ class DeviceTests(unittest.TestCase):
                 device_id=access_id,
                 name="Ethernet17",
                 configtype=InterfaceConfigType.ACCESS_UPLINK,
-                data={"neighbor": "test-dist1"}
+                data={"neighbor": "test-dist1"},
             )
             session.add(intf1)
 
@@ -331,7 +331,7 @@ class DeviceTests(unittest.TestCase):
                 device_id=access_id,
                 name="Ethernet18",
                 configtype=InterfaceConfigType.ACCESS_UPLINK,
-                data={"neighbor": "test-dist2"}
+                data={"neighbor": "test-dist2"},
             )
             session.add(intf2)
 
@@ -368,14 +368,12 @@ class DeviceTests(unittest.TestCase):
 
         # Verify interface neighbor fields were updated
         with sqla_session() as session:
-            intf1 = session.query(Interface).filter(
-                Interface.device_id == access_id,
-                Interface.name == "Ethernet17"
-            ).one()
-            intf2 = session.query(Interface).filter(
-                Interface. device_id == access_id,
-                Interface.name == "Ethernet18"
-            ).one()
+            intf1 = (
+                session.query(Interface).filter(Interface.device_id == access_id, Interface.name == "Ethernet17").one()
+            )
+            intf2 = (
+                session.query(Interface).filter(Interface.device_id == access_id, Interface.name == "Ethernet18").one()
+            )
 
             assert intf1.data["neighbor"] == "test-dist1", "Interface neighbor field should be updated"
             assert intf2.data["neighbor"] == "test-dist2", "Interface neighbor field should be updated"
@@ -386,7 +384,7 @@ class DeviceTests(unittest.TestCase):
             session.query(Linknet).filter(
                 or_(Linknet.device_a_id == access_id, Linknet.device_b_id == access_id)
             ).delete()
-            session.query(Device).filter(Device.id. in_([access_id, dist1_id, dist2_id])).delete()
+            session.query(Device).filter(Device.id.in_([access_id, dist1_id, dist2_id])).delete()
             session.commit()
 
     def test_delete_device(self):
@@ -464,7 +462,7 @@ class DeviceTests(unittest.TestCase):
         self.assertEqual(json_data["status"], "error")
 
     def test_get_stackmembers_invalid_device(self):
-        result = self.client.get(f'/api/v1.0/device/{"nonexisting"}/stackmember')
+        result = self.client.get(f"/api/v1.0/device/{'nonexisting'}/stackmember")
         json_data = json.loads(result.data.decode())
         self.assertEqual(result.status_code, 404, msg=json_data)
 

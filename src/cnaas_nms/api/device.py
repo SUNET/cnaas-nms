@@ -359,17 +359,16 @@ class DeviceByIdApi(Resource):
                     rebuild_settings_cache()
 
                     # Mark linknet neighbors as unsynchronized
-                    linknets = session.query(Linknet).filter(
-                        or_(
-                            Linknet.device_a_id == device_id,
-                            Linknet.device_b_id == device_id
-                        )
-                    ).all()
+                    linknets = (
+                        session.query(Linknet)
+                        .filter(or_(Linknet.device_a_id == device_id, Linknet.device_b_id == device_id))
+                        .all()
+                    )
 
                     neighbor_device_ids = set()
                     for ln in linknets:
                         if ln.device_a_id == device_id:
-                            neighbor_device_ids.add(ln. device_b_id)
+                            neighbor_device_ids.add(ln.device_b_id)
                         else:
                             neighbor_device_ids.add(ln.device_a_id)
 
@@ -380,9 +379,7 @@ class DeviceByIdApi(Resource):
 
                     # Update neighbor interfaces
                     interfaces = (
-                        session.query(Interface)
-                        .filter(Interface.data["neighbor"].astext == current_hostname)
-                        .all()
+                        session.query(Interface).filter(Interface.data["neighbor"].astext == current_hostname).all()
                     )
                     for intf in interfaces:
                         intf.data["neighbor"] = new_hostname
@@ -615,8 +612,7 @@ class DeviceInitApi(Resource):
                 parsed_args["neighbors"] = json_data["neighbors"]
             else:
                 raise ValueError(
-                    "Neighbors must be specified as either a list of hostnames,"
-                    "an empty list, or not specified at all"
+                    "Neighbors must be specified as either a list of hostnames,an empty list, or not specified at all"
                 )
         else:
             parsed_args["neighbors"] = None

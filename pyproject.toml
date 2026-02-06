@@ -57,6 +57,8 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+  "pytest >=8.1.1,<9",
+  "ruff==0.14.14",
   "coverage==7.8",
   "mypy==1.15",
   "mypy-extensions==1.1",

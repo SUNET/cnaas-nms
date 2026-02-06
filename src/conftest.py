@@ -42,7 +42,7 @@ def mock_get_settings(monkeypatch):
     mocks = {}
 
     def _mock(hostname: str, mock_response={}):
-        """ Register a mock for a given hostname. """
+        """Register a mock for a given hostname."""
         mocks[hostname] = mock_response
 
     def fake_get_settings(dev=None, *args, **kwargs):

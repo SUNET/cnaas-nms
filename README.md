@@ -18,40 +18,69 @@ Planned features:
 
 ## Dependencies
 
-Dependencies are specified in `[dependency-groups]` in _pyproject.toml_. The are currently three groups:
-
-- `dependencies`
-- `dev`
-- `docs`
-
-Dependencies from each group can be installed with:
+Runtime dependencies are specified in `[project].dependencies` in _pyproject.toml_.
+Development dependencies are in `[dependency-groups]` with two groups: `dev` and `docs`.
 
 ```sh
-pip install --group <group>
+pip install .             # runtime dependencies
+pip install --group dev   # test/lint tools (pytest, mypy, ruff, etc.)
+pip install --group docs  # documentation tools (sphinx)
 ```
 
-**Note**: requires pip 25.1 or later.
+**Note**: `--group` requires pip 25.1 or later.
 
 ## Requirements
 
 Docker and docker compose or:
 
-1. Python 3.11 or later
-2. `pip install --group dependencies` (requires pip 25.1 or later)
+1. python3.11 or later
+2. `pip install .` (and `pip install --group dev` for development)
 3. SQL database, Redis
 
 ## Installation
 
 ### Docker
 
-Install docker with docker compose and run: `docker compose -f docker/docker-compose.yaml build`
+Build and run the production image:
+
+```sh
+docker compose -f docker/docker-compose.yaml build
+```
+
+#### Local Development
+
+Local development builds on the test compose (with test data) and adds source mounting:
+
+```sh
+docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.dev.yaml build
+docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.dev.yaml up -d
+```
+
+The dev overlay automatically:
+- Mounts your local `src/` directory with hot reloading (uwsgi auto-reloads on Python file changes)
+- Generates JWT keypair and CA certificates
+- Clones integrationtest templates and settings repositories
+
+Access points:
+- API: https://localhost/api/v1.0/
+- Swagger UI: https://localhost/api/doc/
+
+Get a dev token for API access:
+
+```sh
+docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.dev.yaml exec cnaas_api cat /opt/cnaas/jwtcert/dev-token
+```
+
+Use the token:
+- **Swagger UI**: Click "Authorize", enter `Bearer <token>`, then click "Authorize"
+- **curl**: `curl -ks -H "Authorization: Bearer <token>" https://localhost/api/v1.0/devices`
 
 ### Venv
 
 Install locally by creating a virtualenv and activate the environment, then:
 
-```sh
-python3 -m pip install --group dependencies
+```
+python3 -m pip install .
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
 

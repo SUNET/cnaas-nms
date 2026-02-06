@@ -27,7 +27,8 @@ python3 -m pip install --no-cache-dir uwsgi
 python3 -m pip install --no-cache-dir uwsgi gevent
 # https://github.com/yaml/pyyaml/issues/724#issuecomment-1638636728
 python3 -m pip install "cython<3.0.0" wheel && python3 -m pip install --no-build-isolation pyyaml==6.0
-python3 -m pip install --no-cache-dir --group dependencies
+python3 -m pip install --no-cache-dir .
+python3 -m pip install --no-cache-dir --group dev
 
 # Temp bugfix for napalm issue #2166
 cd /opt/cnaas/venv/lib/python3.11/site-packages

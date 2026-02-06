@@ -22,7 +22,7 @@ dependencies = [
   "alembic==1.15.2",
   "apscheduler==3.11",
   "async-timeout>=4.0.2",
-  "authlib==1.6.4",
+  "authlib==1.6.6",
   "flask==3.1.1",
   "flask-cors==6.0.0",
   "flask-jwt-extended==4.7.1",

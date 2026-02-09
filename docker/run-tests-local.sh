@@ -6,8 +6,8 @@ cd "$(dirname "$0")"
 
 # Check if containers are running
 if ! docker compose -f docker-compose_test.yaml ps --status running | grep -q cnaas_api; then
-    echo "Error: Containers not running. Start them with:"
-    echo "  docker compose -f docker-compose_test.yaml -f docker-compose.test-local.yaml up -d"
+    echo "Error: Containers not running. Start them with:" >&2
+    echo "  docker compose -f docker-compose_test.yaml -f docker-compose.test-local.yaml up -d" >&2
     exit 1
 fi
 

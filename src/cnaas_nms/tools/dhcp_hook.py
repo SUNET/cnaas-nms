@@ -138,10 +138,19 @@ def main() -> Optional[int]:
                         )
                     )
             else:
-                logger.error(
-                    "Device with ztp_mac {} in state {} unexpectedly booted via DHCP ({})".format(
-                        ztp_mac, dev_dict["state"], dhcp_ip
-                    )
+                data = {"ztp_mac": None}
+                r = requests.put(
+                    f"{base_url}/api/v1.0/device/{dev_id}",
+                    json=data,
+                    verify=verify_tls,
+                    headers={"Authorization": "Bearer " + token},
+                )
+
+                logger.info(
+                    (
+                        "Device with ztp_mac {} booted via DHCP, MAC previously belonged to device {}, "
+                        "unassigning MAC from old device (status {})"
+                    ).format(ztp_mac, dev_dict["hostname"], r.status_code)
                 )
 
         else:

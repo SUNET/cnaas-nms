@@ -319,7 +319,7 @@ def verify_peer_iftype(
                 match = True
         if not match:
             raise InterfaceError(
-                "Peer device interface is not configured: " "{} {}".format(remote_dev.hostname, remote_if)
+                "Peer device interface is not configured: {} {}".format(remote_dev.hostname, remote_if)
             )
     if local_dev.device_type in [DeviceType.DIST, DeviceType.CORE]:
         match = False
@@ -327,9 +327,7 @@ def verify_peer_iftype(
             if intf["name"] == local_if:
                 match = True
         if not match:
-            raise InterfaceError(
-                "Local device interface is not configured: " "{} {}".format(local_dev.hostname, local_if)
-            )
+            raise InterfaceError("Local device interface is not configured: {} {}".format(local_dev.hostname, local_if))
 
     # Make sure linknets between CORE/DIST devices are configured as fabric
     if local_dev.device_type in [DeviceType.DIST, DeviceType.CORE] and remote_dev.device_type in [
@@ -339,14 +337,16 @@ def verify_peer_iftype(
         for intf in expand_interface_settings(local_device_settings["interfaces"]):
             if intf["name"] == local_if and intf["ifclass"] != "fabric":
                 raise InterfaceError(
-                    "Local device interface is not configured as fabric: "
-                    "{} {} ifclass: {}".format(local_dev.hostname, intf["name"], intf["ifclass"])
+                    "Local device interface is not configured as fabric: {} {} ifclass: {}".format(
+                        local_dev.hostname, intf["name"], intf["ifclass"]
+                    )
                 )
         for intf in expand_interface_settings(remote_device_settings["interfaces"]):
             if intf["name"] == remote_if and intf["ifclass"] != "fabric":
                 raise InterfaceError(
-                    "Peer device interface is not configured as fabric: "
-                    "{} {} ifclass: {}".format(remote_dev.hostname, intf["name"], intf["ifclass"])
+                    "Peer device interface is not configured as fabric: {} {} ifclass: {}".format(
+                        remote_dev.hostname, intf["name"], intf["ifclass"]
+                    )
                 )
 
     # Make sure that an access switch is connected to an interface
@@ -355,8 +355,9 @@ def verify_peer_iftype(
         for intf in expand_interface_settings(remote_device_settings["interfaces"]):
             if intf["name"] == remote_if and intf["ifclass"] != "downlink":
                 raise InterfaceError(
-                    "Peer device interface is not configured as downlink: "
-                    "{} {} ifclass: {}".format(remote_dev.hostname, intf["name"], intf["ifclass"])
+                    "Peer device interface is not configured as downlink: {} {} ifclass: {}".format(
+                        remote_dev.hostname, intf["name"], intf["ifclass"]
+                    )
                 )
             if intf["name"] == remote_if and intf["ifclass"] == "downlink" and not intf["redundant_link"]:
                 return False

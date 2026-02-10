@@ -1,6 +1,6 @@
 import os
+from pathlib import Path
 
-import pkg_resources
 import pytest
 import yaml
 from flask.testing import FlaskClient
@@ -11,7 +11,7 @@ from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 @pytest.fixture
 def testdata(scope="module") -> dict:
-    data_dir = pkg_resources.resource_filename(__name__, "data")
+    data_dir = Path(__file__).parent / "data"
     with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
         return yaml.safe_load(f_testdata)
 

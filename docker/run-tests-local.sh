@@ -1,31 +1,63 @@
 #!/bin/bash
-# Run tests locally in Docker containers
+# Run tests locally: unit tests first, then integration tests
 set -e
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
-# Check if containers are running
-if ! docker compose -f docker-compose_test.yaml ps --status running | grep -q cnaas_api; then
-    echo "Error: Containers not running. Start them with:" >&2
-    echo "  docker compose -f docker-compose_test.yaml -f docker-compose.test-local.yaml up -d" >&2
-    exit 1
+TEST_DATA_DIR=".test-data"
+TEMPLATES_DIR="$TEST_DATA_DIR/templates"
+SETTINGS_DIR="$TEST_DATA_DIR/settings"
+
+TEMPLATES_REPO="https://github.com/SUNET/cnaas-integrationtest-templates.git"
+SETTINGS_REPO="https://github.com/SUNET/cnaas-integrationtest-settings.git"
+
+# Provision test data (clone once, reuse)
+provision_test_data() {
+  mkdir -p "$TEST_DATA_DIR"
+
+  if [ ! -d "$TEMPLATES_DIR/.git" ]; then
+    echo "Cloning templates..."
+    git clone --depth 1 "$TEMPLATES_REPO" "$TEMPLATES_DIR"
+  fi
+
+  if [ ! -d "$SETTINGS_DIR/.git" ]; then
+    echo "Cloning settings..."
+    git clone --depth 1 "$SETTINGS_REPO" "$SETTINGS_DIR"
+  fi
+}
+
+# Start databases if not running
+if ! docker compose -f docker/docker-compose_pytest.yaml ps --status running | grep -q cnaas_postgres; then
+  echo "Starting test databases..."
+  docker compose -f docker/docker-compose_pytest.yaml up -d
+  echo "Waiting for databases to be ready..."
+  sleep 10
 fi
 
-# Install JWT cert if missing
-if ! docker compose -f docker-compose_test.yaml exec -T cnaas_api test -f /opt/cnaas/jwtcert/public.pem; then
-    echo "Installing JWT certificate..."
-    docker cp ./jwt-cert/public.pem "$(docker compose -f docker-compose_test.yaml ps -q cnaas_api)":/opt/cnaas/jwtcert/public.pem
-    docker compose -f docker-compose_test.yaml exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/jwtcert/
+# Ensure pytest is available
+if ! command -v pytest &>/dev/null; then
+  echo "Error: pytest not found. Install with: pip install . --group dev" >&2
+  exit 1
 fi
 
-# Create CA if missing
-docker compose -f docker-compose_test.yaml exec -u root -T cnaas_api /opt/cnaas/createca.sh 2>/dev/null || true
+# Provision templates
+provision_test_data
 
-# Run tests
-echo "Running tests..."
-docker compose -f docker-compose_test.yaml exec \
-    -e EXTERNAL_TEST_CONTAINERS=1 \
-    -e NO_EQUIPMENTTEST=1 \
-    -u www-data \
-    -T cnaas_api \
-    /opt/cnaas/pytest.sh "$@"
+# Set environment
+export EXTERNAL_TEST_CONTAINERS=1
+export JWT_SECRET_KEY=unittestsharedsecret
+export PERMISSIONS_DISABLED=True
+CNAAS_TEMPLATES_LOCAL="$(pwd)/$TEMPLATES_DIR"
+export CNAAS_TEMPLATES_LOCAL
+CNAAS_SETTINGS_LOCAL="$(pwd)/$SETTINGS_DIR"
+export CNAAS_SETTINGS_LOCAL
+
+# Run unit tests first
+echo "Running unit tests..."
+pytest -vv --showlocals -m "not equipment and not integration" "$@"
+
+# If unit tests pass, run integration tests
+echo "Running integration tests..."
+pytest -vv --showlocals -m "integration and not equipment" "$@"
+
+echo "All tests passed!"

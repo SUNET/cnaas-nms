@@ -6,10 +6,8 @@ services:
 
   cnaas_api:
     build:
-      context: ./api/
-      args:
-        - BUILDBRANCH=master
-        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
+      context: ..
+      dockerfile: docker/api/Dockerfile
     ports:
       - 443:1443
     networks:
@@ -62,10 +60,8 @@ services:
 
   cnaas_dhcpd:
     build:
-      context: ./dhcpd/
-      args:
-        - BUILDBRANCH=develop
-        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
+      context: ..
+      dockerfile: docker/dhcpd/Dockerfile
     ports:
       - 67:67/udp
     networks:

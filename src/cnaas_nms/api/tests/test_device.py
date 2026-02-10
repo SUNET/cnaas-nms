@@ -2,8 +2,8 @@ import json
 import os
 import unittest
 from ipaddress import IPv4Address
+from pathlib import Path
 
-import pkg_resources
 import pytest
 import yaml
 from sqlalchemy import or_
@@ -48,7 +48,7 @@ class DeviceTests(unittest.TestCase):
 
     def setUp(self):
         self.jwt_auth_token = None
-        data_dir = pkg_resources.resource_filename(__name__, "data")
+        data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
             if "jwt_auth_token" in self.testdata:

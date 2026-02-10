@@ -1,89 +1,74 @@
-FROM debian:bookworm
+# Stage 1: Builder - install dependencies
+FROM python:3.11-slim-bookworm AS builder
 
-USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev libpcre2-dev libpcre3-dev libssl-dev git \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install system packages
-RUN apt-get update \
-    && apt-get -y upgrade \
-    && apt-get install -y --no-install-recommends \
-      bind9-host \
-      build-essential \
-      curl \
-      git \
-      iputils-ping \
-      libpcre2-dev \
-      libpcre3-dev \
-      libpq-dev \
-      libssl-dev \
-      net-tools \
-      netcat-traditional \
-      netcat-openbsd \
-      nginx \
-      procps \
-      python3-dev \
-      python3-pip \
-      python3-setuptools \
-      python3-venv \
-      python3-wheel \
-      python3-yaml \
-      python3-full \
-      psmisc \
-      supervisor \
-      uwsgi-plugin-python3 \
-      ssh-client \
-      python3-gevent \
-    && pip3 install --no-cache-dir uwsgi --break-system-packages
+WORKDIR /build
+RUN python -m venv /opt/cnaas/venv
 
-# Prepare for supervisord, ngninx
-COPY config/supervisord_app.conf /etc/supervisor/supervisord.conf
-COPY config/nginx_app.conf /etc/nginx/sites-available/
-COPY config/nginx.conf /etc/nginx/
-COPY cert/* /etc/nginx/conf.d/
-COPY config/gitconfig /var/www/.gitconfig
-# Prepare running nginx as www-data
+# Copy source code first (needed for dynamic version in pyproject.toml)
+COPY src/ /build/src/
+COPY pyproject.toml .
+
+# Install Python dependencies
+RUN /opt/cnaas/venv/bin/pip install --no-cache-dir -U pip && \
+    /opt/cnaas/venv/bin/pip install --no-cache-dir uwsgi gevent && \
+    /opt/cnaas/venv/bin/pip install --no-cache-dir .
+
+# Apply patches
+COPY docker/api/pull2167.patch docker/api/swaggeruirequestintercept.patch /tmp/
+RUN cd /opt/cnaas/venv/lib/python3.11/site-packages && \
+    patch -p1 < /tmp/pull2167.patch || true && \
+    patch -p1 < /tmp/swaggeruirequestintercept.patch || true
+
+# Copy source code and alembic to venv location
+COPY src/ /opt/cnaas/venv/cnaas-nms/src/
+COPY alembic/ /opt/cnaas/venv/cnaas-nms/alembic/
+COPY alembic.ini /opt/cnaas/venv/cnaas-nms/
+
+
+# Stage 2: Runtime - minimal production image
+FROM debian:bookworm-slim AS runtime
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-venv libpq5 nginx supervisor ssh-client \
+    bind9-host iputils-ping net-tools netcat-openbsd procps psmisc \
+    curl uwsgi-plugin-python3 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Create cnaas user and directories
+RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /etc/cnaas-nms /tmp/devicecerts \
+    && chown -R www-data:www-data /opt/cnaas /etc/cnaas-nms /tmp/devicecerts
+
+# Copy venv from builder
+COPY --from=builder --chown=www-data:www-data /opt/cnaas/venv /opt/cnaas/venv
+
+# Copy nginx/supervisor configs
+COPY docker/api/config/supervisord_app.conf /etc/supervisor/supervisord.conf
+COPY docker/api/config/nginx_app.conf /etc/nginx/sites-available/
+COPY docker/api/config/nginx.conf /etc/nginx/
+COPY docker/api/cert/* /etc/nginx/conf.d/
+COPY docker/api/config/gitconfig /var/www/.gitconfig
+COPY --chown=www-data:www-data docker/api/config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
+
+# Configure nginx
 RUN unlink /etc/nginx/sites-enabled/default \
     && ln -s /etc/nginx/sites-available/nginx_app.conf /etc/nginx/sites-enabled/default \
-    && chown -R www-data:www-data /var/log/nginx/ \
-    && chown -R www-data:www-data /var/lib/nginx/ \
+    && chown -R www-data:www-data /var/log/nginx/ /var/lib/nginx/ \
     && chown -R root:www-data /etc/nginx/ \
     && chmod -R u=rwX,g=rX,o= /etc/nginx/
 
-# Create cnaas directories
-RUN mkdir -p /opt/cnaas /etc/cnaas-nms \
-    && chown -R root:www-data /opt/cnaas /etc/cnaas-nms \
-    && chmod -R u=rwX,g=rX,o= /opt/cnaas
-RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv \
-    && chown www-data:www-data /opt/cnaas/templates /opt/cnaas/settings /opt/cnaas/venv /var/www/.gitconfig
+# Copy runtime scripts
+COPY --chown=root:www-data docker/api/createca.sh docker/api/exec-pre-app.sh /opt/cnaas/
 
-# Copy cnaas scripts
-COPY --chown=root:www-data cnaas-setup.sh createca.sh exec-pre-app.sh pytest.sh coverage.sh /opt/cnaas/
-# Temp bugfix for napalm issue #2166
-COPY --chown=www-data:www-data pull2167.patch swaggeruirequestintercept.patch /opt/cnaas/venv/lib/python3.11/site-packages/
-
-# Copy cnaas configuration files, used glob notation (ym?) to only copy when exist
-COPY --chown=www-data:www-data config/api.yml config/auth_config.yml config/db_config.yml config/plugins.yml config/repository.yml config/permissions.ym? /etc/cnaas-nms/
+# Copy cnaas configuration files
+COPY --chown=www-data:www-data docker/api/config/api.yml docker/api/config/db_config.yml \
+     docker/api/config/plugins.yml docker/api/config/repository.yml /etc/cnaas-nms/
+# Optional auth config (may not exist) - use glob pattern
+COPY --chown=www-data:www-data docker/api/config/auth_config.ym[l] docker/api/config/permissions.ym[l] /etc/cnaas-nms/
 
 USER www-data
-
-# Give permission for devicecert store
-RUN mkdir /tmp/devicecerts \
-    && chmod -R u=rwX,g=,o= /tmp/devicecerts
-
-ARG BUILDBRANCH=develop
-ARG GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
-# Branch specific, don't cache and run cnaas setup script
-ARG GIT_COMMIT=unknown
-RUN echo "$GIT_COMMIT" \ 
-    &&  /opt/cnaas/cnaas-setup.sh ${GITREPO_BASE} ${BUILDBRANCH}
-# Freeze source
-USER root
-RUN chown -R root:www-data /opt/cnaas/venv/cnaas-nms/ && chmod -R u=rwX,g=rX,o= /opt/cnaas/venv/cnaas-nms/
-USER www-data
-
-# Prepare for uwsgi
-COPY --chown=root:www-data config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
-
-# Expose HTTPS
 EXPOSE 1443
-
-ENTRYPOINT supervisord -c /etc/supervisor/supervisord.conf
+ENTRYPOINT ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]

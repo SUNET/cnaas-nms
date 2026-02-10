@@ -9,12 +9,6 @@ from sqlalchemy.testing.schema import mapped_column
 import cnaas_nms.db.base
 from cnaas_nms.models.permissions import PermissionModel
 
-# class PermissionModel(BaseModel):
-#    methods: Optional[list[str]] = []
-#    endpoints: Optional[list[str]] = []
-#    pages: Optional[list[str]] = []
-#    rights: Optional[list[str]] = []
-
 
 class Roles(cnaas_nms.db.base.Base):
     __tablename__ = "roles"

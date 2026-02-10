@@ -35,6 +35,7 @@ def test_valid_setting(testclient: FlaskClient):
     assert result.status_code == 200
 
 
+@pytest.mark.integration
 def test_invalid_system_access_list_setting(testclient: FlaskClient):
     # System ACL not in access_lists.
     settings_data = {
@@ -45,6 +46,7 @@ def test_invalid_system_access_list_setting(testclient: FlaskClient):
     assert result.status_code == 400
 
 
+@pytest.mark.integration
 def test_valid_system_access_list_setting(testclient: FlaskClient):
     # System ACL in access_lists.
     settings_data = {
@@ -63,6 +65,7 @@ def test_invalid_access_list_setting(testclient: FlaskClient):
     assert result.status_code == 400
 
 
+@pytest.mark.integration
 def test_valid_access_list_setting(testclient: FlaskClient):
     settings_data = {
         "access_lists": {"ACLTEST": {"terms": [{"name": "term_name", "action": "accept"}]}},

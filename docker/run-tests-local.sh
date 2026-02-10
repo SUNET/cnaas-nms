@@ -17,7 +17,7 @@ provision_test_data() {
 
   if [ ! -d "$TEMPLATES_DIR/.git" ]; then
     echo "Cloning templates..."
-    git clone --depth 1 "$TEMPLATES_REPO" "$TEMPLATES_DIR"
+    git clone --depth 1 --no-single-branch "$TEMPLATES_REPO" "$TEMPLATES_DIR"
   fi
 
   if [ ! -d "$SETTINGS_DIR/.git" ]; then

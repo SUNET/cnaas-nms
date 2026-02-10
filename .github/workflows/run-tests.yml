@@ -78,8 +78,8 @@ jobs:
           EXTERNAL_TEST_CONTAINERS: "1"
           JWT_SECRET_KEY: unittestsharedsecret
           PERMISSIONS_DISABLED: "True"
-          CNAAS_TEMPLATES_LOCAL: ${{ github.workspace }}/.test-data/templates
-          CNAAS_SETTINGS_LOCAL: ${{ github.workspace }}/.test-data/settings
+          TEMPLATES_LOCAL: ${{ github.workspace }}/.test-data/templates
+          SETTINGS_LOCAL: ${{ github.workspace }}/.test-data/settings
         run: |
           pytest -vv --showlocals -m "integration and not equipment"
 

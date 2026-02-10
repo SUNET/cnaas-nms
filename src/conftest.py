@@ -22,21 +22,21 @@ def pytest_configure(config):
 def settings_directory():
     """Configure settings path from environment variable.
 
-    Set CNAAS_SETTINGS_LOCAL to a pre-cloned settings repository path.
+    Set SETTINGS_LOCAL to a pre-cloned settings repository path.
     """
     from cnaas_nms.app_settings import app_settings
 
-    external_path = os.getenv("CNAAS_SETTINGS_LOCAL")
+    external_path = os.getenv("SETTINGS_LOCAL")
     if external_path:
         if not os.path.isdir(external_path):
-            raise ValueError(f"CNAAS_SETTINGS_LOCAL path does not exist: {external_path}")
+            raise ValueError(f"SETTINGS_LOCAL path does not exist: {external_path}")
         app_settings.SETTINGS_LOCAL = external_path
         return external_path
 
     if not os.path.isdir(app_settings.SETTINGS_LOCAL):
         raise ValueError(
             f"Settings directory not found: {app_settings.SETTINGS_LOCAL}. "
-            "Set CNAAS_SETTINGS_LOCAL to a pre-cloned settings repository."
+            "Set SETTINGS_LOCAL to a pre-cloned settings repository."
         )
     return app_settings.SETTINGS_LOCAL
 
@@ -68,21 +68,21 @@ def mock_get_settings(monkeypatch):
 def templates_directory():
     """Configure templates path from environment variable.
 
-    Set CNAAS_TEMPLATES_LOCAL to a pre-cloned templates repository path.
+    Set TEMPLATES_LOCAL to a pre-cloned templates repository path.
     """
     from cnaas_nms.app_settings import app_settings
 
-    external_path = os.getenv("CNAAS_TEMPLATES_LOCAL")
+    external_path = os.getenv("TEMPLATES_LOCAL")
     if external_path:
         if not os.path.isdir(external_path):
-            raise ValueError(f"CNAAS_TEMPLATES_LOCAL path does not exist: {external_path}")
+            raise ValueError(f"TEMPLATES_LOCAL path does not exist: {external_path}")
         app_settings.TEMPLATES_LOCAL = external_path
         return external_path
 
     if not os.path.isdir(app_settings.TEMPLATES_LOCAL):
         raise ValueError(
             f"Templates directory not found: {app_settings.TEMPLATES_LOCAL}. "
-            "Set CNAAS_TEMPLATES_LOCAL to a pre-cloned templates repository."
+            "Set TEMPLATES_LOCAL to a pre-cloned templates repository."
         )
     return app_settings.TEMPLATES_LOCAL
 

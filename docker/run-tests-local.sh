@@ -47,10 +47,10 @@ provision_test_data
 export EXTERNAL_TEST_CONTAINERS=1
 export JWT_SECRET_KEY=unittestsharedsecret
 export PERMISSIONS_DISABLED=True
-CNAAS_TEMPLATES_LOCAL="$(pwd)/$TEMPLATES_DIR"
-export CNAAS_TEMPLATES_LOCAL
-CNAAS_SETTINGS_LOCAL="$(pwd)/$SETTINGS_DIR"
-export CNAAS_SETTINGS_LOCAL
+TEMPLATES_LOCAL="$(pwd)/$TEMPLATES_DIR"
+export TEMPLATES_LOCAL
+SETTINGS_LOCAL="$(pwd)/$SETTINGS_DIR"
+export SETTINGS_LOCAL
 
 # Run unit tests first
 echo "Running unit tests..."

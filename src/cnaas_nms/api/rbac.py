@@ -1,9 +1,12 @@
+import zlib
+
 import psycopg2.errors
 from flask_restx import Namespace, Resource, fields
 from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy.exc import IntegrityError
 
 from cnaas_nms.api.generic import empty_result
+from cnaas_nms.app_settings import auth_settings
 from cnaas_nms.db.permissions import RoleMappings, RolePermissions, Roles
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.models.permissions import PermissionModel
@@ -55,12 +58,23 @@ class RoleInputModel(BaseModel):
         return v
 
 
+def hash_to_32bit(s: str) -> int:
+    """Hash role names to 32bit integer for use from permissions.yml"""
+    return zlib.crc32(s.encode()) & 0xFFFFFFFF
+
+
 class RoleApi(Resource):
     @rbac_api.marshal_with(role_model_list_model)
     @login_required
     def get(self):
         """Get a list of all roles"""
         ret = []
+        # read roles from permissios.yml and add to the list
+        if auth_settings.PERMISSIONS:
+            permissions: PermissionModel = auth_settings.PERMISSIONS
+
+            for role_name, role_data in permissions.roles.items():
+                ret.append({"id": hash_to_32bit(role_name), "name": role_name, "description": "from permissions.yml"})
         with sqla_session() as session:  # type: ignore
             roles = session.query(Roles).all()
             for role in roles:
@@ -79,6 +93,21 @@ class RoleApi(Resource):
             session.add(new_role)
             session.commit()
             return empty_result(status="success", data=new_role.as_dict()), 201
+
+
+class RoleApiById(Resource):
+    @rbac_api.marshal_with(role_model_cud_model, code=200)
+    @login_required
+    def delete(self, role_id: int):
+        """Delete a role by ID"""
+        with sqla_session() as session:  # type: ignore
+            role = session.query(Roles).filter(Roles.id == role_id).one_or_none()
+            if role is None:
+                raise ApiError(data=f"Role with id {role_id} does not exist", status_code=400)
+
+            session.delete(role)
+            session.commit()
+            return empty_result(status="success", data=f"Role with id {role_id} deleted"), 200
 
 
 role_mapping_model = rbac_api.model(
@@ -116,6 +145,23 @@ class RoleMappingApi(Resource):
     def get(self):
         """Get a list of all role mappings"""
         ret = []
+        if auth_settings.PERMISSIONS:
+            permissions: PermissionModel = auth_settings.PERMISSIONS
+
+            if permissions.group_mappings:
+                for map_type, mappings in permissions.group_mappings.items():
+                    for value, groups in mappings.items():
+                        for group in groups:
+                            ret.append(
+                                {
+                                    "id": None,
+                                    "attribute_name": map_type,
+                                    "attribute_value": value,
+                                    "role_id": hash_to_32bit(group),
+                                    "last_modified_by": "from permissions.yml",
+                                    "last_modified": None,
+                                }
+                            )
         with sqla_session() as session:  # type: ignore
             mappings = session.query(RoleMappings).all()
             for mapping in mappings:
@@ -133,6 +179,21 @@ class RoleMappingApi(Resource):
             session.add(new_mapping)
             session.commit()
             return empty_result(status="success", data=new_mapping.as_dict()), 201
+
+
+class RoleMappyngByIdApi(Resource):
+    @rbac_api.marshal_with(role_model_cud_model, code=200)
+    @login_required
+    def delete(self, mapping_id: int):
+        """Delete a role mapping by ID"""
+        with sqla_session() as session:  # type: ignore
+            mapping = session.query(RoleMappings).filter(RoleMappings.id == mapping_id).one_or_none()
+            if mapping is None:
+                raise ApiError(data=f"RoleMapping with id {mapping_id} does not exist", status_code=400)
+
+            session.delete(mapping)
+            session.commit()
+            return empty_result(status="success", data=f"RoleMapping with id {mapping_id} deleted"), 200
 
 
 role_permission_model = rbac_api.model(
@@ -173,6 +234,24 @@ class RolePermissionApi(Resource):
     def get(self):
         """Get a list of all role permissions"""
         ret = []
+        if auth_settings.PERMISSIONS:
+            permissions: PermissionModel = auth_settings.PERMISSIONS
+
+            for role_name, role_data in permissions.roles.items():
+                for permission in role_data.permissions:
+                    ret.append(
+                        {
+                            "id": None,
+                            "role_id": hash_to_32bit(role_name),
+                            "methods": permission.methods if permission else [],
+                            "endpoints": permission.endpoints if permission else [],
+                            "exclude_endpoints": permission.exclude_endpoints if permission else [],
+                            "pages": permission.pages if permission else [],
+                            "rights": permission.rights if permission else [],
+                            "last_modified_by": "from permissions.yml",
+                            "last_modified": None,
+                        }
+                    )
         with sqla_session() as session:  # type: ignore
             permissions = session.query(RolePermissions).all()
             for permission in permissions:
@@ -230,6 +309,19 @@ class RolePermissionByIdApi(Resource):
             session.commit()
             return empty_result(status="success", data=existing_permission.as_dict()), 200
 
+    @rbac_api.marshal_with(role_permission_cud_model, code=200)
+    @login_required
+    def delete(self, permission_id: int):
+        """Delete a role permission by ID"""
+        with sqla_session() as session:  # type: ignore
+            permission = session.query(RolePermissions).filter(RolePermissions.id == permission_id).one_or_none()
+            if permission is None:
+                raise ApiError(data=f"RolePermission with id {permission_id} does not exist", status_code=400)
+
+            session.delete(permission)
+            session.commit()
+            return empty_result(status="success", data=f"RolePermission with id {permission_id} deleted"), 200
+
 
 @rbac_api.errorhandler(IntegrityError)
 def handle_integrity_error(e):
@@ -256,6 +348,8 @@ def handle_exception(error):
 
 
 rbac_api.add_resource(RoleApi, "/roles")
+rbac_api.add_resource(RoleApiById, "/roles/<int:role_id>")
 rbac_api.add_resource(RoleMappingApi, "/role_mappings")
+rbac_api.add_resource(RoleMappyngByIdApi, "/role_mappings/<int:mapping_id>")
 rbac_api.add_resource(RolePermissionApi, "/role_permissions")
 rbac_api.add_resource(RolePermissionByIdApi, "/role_permissions/<int:permission_id>")

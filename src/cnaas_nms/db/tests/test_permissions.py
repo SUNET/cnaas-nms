@@ -1,4 +1,3 @@
-
 from authlib.oauth2 import JsonRequest
 
 from cnaas_nms.db.permissions import (
@@ -38,7 +37,6 @@ def test_combine_permissions_with_data(postgresql):
         file_permissions = [PermissionModel(methods=["GET", "POST"], endpoints=["/auth/*"])]
         combined_permissions = combine_permissions(db_permissions, file_permissions)
         session.rollback()
-        # breakpoint()
 
         request_fail = JsonRequest("GET", prefix + "/uri/test")
         is_allowed = check_if_api_call_is_permitted(request_fail, combined_permissions)

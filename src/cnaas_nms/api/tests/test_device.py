@@ -40,9 +40,17 @@ class DeviceTests(unittest.TestCase):
                 "neighbor-device",
                 "renamed-device",
                 "hostname-device2",
+                "test-dist1",
+                "test-dist2",
+                "access-old-name",
+                "access-new-name",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
+                    session.query(Linknet).filter(
+                        or_(Linknet.device_a_id == device.id, Linknet.device_b_id == device.id)
+                    ).delete()
+                    session.query(Interface).filter(Interface.device_id == device.id).delete()
                     session.delete(device)
                     session.commit()
 

@@ -3,12 +3,8 @@ import re
 import shutil
 import unittest
 
-import pkg_resources
 import pytest
-import yaml
 
-import cnaas_nms.api.app
-from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.app_settings import app_settings
 
 pytestmark = pytest.mark.integration  # All tests in this module are integration tests:
@@ -419,9 +415,9 @@ def test_generate_only_vars(client, testdata, templates_directory):
     result = client.get("/api/v1.0/device/{}/generate_config".format(testdata["interface_device"]))
     assert result.status_code == 200
     assert result.json["status"] == "success"
-    assert result.json["data"]["config"]["available_variables"]["hostname"] == testdata["interface_device"], (
-        "hostname variable not found in generate_only variables"
-    )
+    assert (
+        result.json["data"]["config"]["available_variables"]["hostname"] == testdata["interface_device"]
+    ), "hostname variable not found in generate_only variables"
 
 
 def test_linknet(client):
@@ -469,33 +465,6 @@ def test_linknet(client):
     assert result.json["status"] == "success"
     assert isinstance(result.json["data"]["deleted_linknet"]["id"], int)
     assert result.json["data"]["deleted_linknet"]["id"] == linknet_id
-
-
-#
-# Re-usable test fixtures
-#
-@pytest.fixture
-def client(app, redis, postgresql, settings_directory):
-    return app.test_client()
-
-
-@pytest.fixture
-def app(jwt_auth_token):
-    the_app = cnaas_nms.api.app.app
-    the_app.wsgi_app = TestAppWrapper(the_app.wsgi_app, jwt_auth_token)
-    return the_app
-
-
-@pytest.fixture
-def jwt_auth_token(testdata):
-    return testdata.get("jwt_auth_token")
-
-
-@pytest.fixture
-def testdata(scope="session"):
-    data_dir = pkg_resources.resource_filename(__name__, "data")
-    with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-        return yaml.safe_load(f_testdata)
 
 
 if __name__ == "__main__":

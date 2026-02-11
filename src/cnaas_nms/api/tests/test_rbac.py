@@ -5,7 +5,7 @@ from cnaas_nms.db.session import sqla_session
 
 
 @pytest.fixture(autouse=True)
-def cleanup_rbac_test_data(client):
+def cleanup_rbac_test_data():
     """
     Cleanup fixture that runs before and after each test.
     Removes any test data that might have been left from failed tests.

@@ -86,12 +86,12 @@ class RoleMappings(cnaas_nms.db.base.Base):
 #
 def get_all_user_db_permissions(
     session, user_info: dict, userinfo_attributes_in_db: list[str]
-) -> list[RolePermissions]:
+) -> list[PermissionModel]:
     """Get all permissions for a user based on their roles"""
     if not userinfo_attributes_in_db or not isinstance(userinfo_attributes_in_db, list):
         return []
 
-    permissions: list[RolePermissions] = []
+    permissions: list[PermissionModel] = []
     for attribute_name, attribute_value in user_info.items():
         if attribute_name not in userinfo_attributes_in_db:
             continue
@@ -103,23 +103,24 @@ def get_all_user_db_permissions(
         )
         for user_role in user_roles:
             role_permissions = session.query(RolePermissions).filter(RolePermissions.role_id == user_role.role_id).all()
-            permissions.extend(role_permissions)
+            for role_permission in role_permissions:
+                perm_model = PermissionModel(
+                    methods=role_permission.methods,
+                    endpoints=role_permission.endpoints,
+                    pages=role_permission.pages,
+                    rights=role_permission.rights,
+                )
+                permissions.append(perm_model)
     return permissions
 
 
-def combine_permissions(db_permissions: list[RolePermissions], file_permissions: list[PermissionModel]):
+def combine_permissions(db_permissions: list[PermissionModel], file_permissions: list[PermissionModel]):
     """Combine permissions from database and file"""
     combined_permissions: list[PermissionModel] = []
 
     # Add database permissions
     for db_perm in db_permissions:
-        perm_model = PermissionModel(
-            methods=db_perm.methods,
-            endpoints=db_perm.endpoints,
-            pages=db_perm.pages,
-            rights=db_perm.rights,
-        )
-        combined_permissions.append(perm_model)
+        combined_permissions.append(db_perm)
 
     # Add file permissions
     for file_perm in file_permissions:

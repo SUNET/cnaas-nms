@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator, model_validator
 
 class PemissionConfig(BaseModel):
     default_permissions: str
+    userinfo_attributes_in_db: list[str] = ["sub", "username", "preferred_username", "email"]
 
 
 class PermissionModel(BaseModel):

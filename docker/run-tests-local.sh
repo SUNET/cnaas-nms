@@ -15,15 +15,16 @@ SETTINGS_REPO="https://github.com/SUNET/cnaas-integrationtest-settings.git"
 provision_test_data() {
   mkdir -p "$TEST_DATA_DIR"
 
-  if [ ! -d "$TEMPLATES_DIR/.git" ]; then
+  if [[ ! -d "$TEMPLATES_DIR/.git" ]]; then
     echo "Cloning templates..."
     git clone --depth 1 --no-single-branch "$TEMPLATES_REPO" "$TEMPLATES_DIR"
   fi
 
-  if [ ! -d "$SETTINGS_DIR/.git" ]; then
+  if [[ ! -d "$SETTINGS_DIR/.git" ]]; then
     echo "Cloning settings..."
     git clone --depth 1 "$SETTINGS_REPO" "$SETTINGS_DIR"
   fi
+  return 0
 }
 
 # Start databases if not running

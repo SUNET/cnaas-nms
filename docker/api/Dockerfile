@@ -36,14 +36,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 python3-venv libpq5 nginx supervisor ssh-client \
     bind9-host iputils-ping net-tools netcat-openbsd procps psmisc \
     curl uwsgi-plugin-python3 \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-# Create cnaas user and directories
-RUN mkdir -p /opt/cnaas/templates /opt/cnaas/settings /etc/cnaas-nms /tmp/devicecerts \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /opt/cnaas/templates /opt/cnaas/settings /etc/cnaas-nms /tmp/devicecerts \
     && chown -R www-data:www-data /opt/cnaas /etc/cnaas-nms /tmp/devicecerts
 
 # Copy venv from builder
-COPY --from=builder --chown=www-data:www-data /opt/cnaas/venv /opt/cnaas/venv
+COPY --chmod=555 --from=builder --chown=root:www-data /opt/cnaas/venv /opt/cnaas/venv
 
 # Copy nginx/supervisor configs
 COPY docker/api/config/supervisord_app.conf /etc/supervisor/supervisord.conf
@@ -51,7 +49,7 @@ COPY docker/api/config/nginx_app.conf /etc/nginx/sites-available/
 COPY docker/api/config/nginx.conf /etc/nginx/
 COPY docker/api/cert/* /etc/nginx/conf.d/
 COPY docker/api/config/gitconfig /var/www/.gitconfig
-COPY --chown=www-data:www-data docker/api/config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
+COPY --chmod=444 --chown=root:www-data docker/api/config/uwsgi.ini /opt/cnaas/venv/cnaas-nms/
 
 # Configure nginx
 RUN unlink /etc/nginx/sites-enabled/default \
@@ -61,13 +59,13 @@ RUN unlink /etc/nginx/sites-enabled/default \
     && chmod -R u=rwX,g=rX,o= /etc/nginx/
 
 # Copy runtime scripts
-COPY --chown=root:www-data docker/api/createca.sh docker/api/exec-pre-app.sh /opt/cnaas/
+COPY --chmod=555 --chown=root:www-data docker/api/createca.sh docker/api/exec-pre-app.sh /opt/cnaas/
 
 # Copy cnaas configuration files
-COPY --chown=www-data:www-data docker/api/config/api.yml docker/api/config/db_config.yml \
+COPY --chmod=444 --chown=root:www-data docker/api/config/api.yml docker/api/config/db_config.yml \
      docker/api/config/plugins.yml docker/api/config/repository.yml /etc/cnaas-nms/
 # Optional auth config (may not exist) - use glob pattern
-COPY --chown=www-data:www-data docker/api/config/auth_config.ym[l] docker/api/config/permissions.ym[l] /etc/cnaas-nms/
+COPY --chmod=444 --chown=root:www-data docker/api/config/auth_config.ym[l] docker/api/config/permissions.ym[l] /etc/cnaas-nms/
 
 USER www-data
 EXPOSE 1443

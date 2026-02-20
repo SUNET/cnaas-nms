@@ -30,12 +30,12 @@ COPY alembic.ini /opt/cnaas/venv/cnaas-nms/
 
 
 # Stage 2: Runtime - minimal production image
-FROM debian:bookworm-slim AS runtime
+FROM python:3.11-slim-bookworm AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-venv libpq5 nginx supervisor ssh-client \
+    libpq5 nginx supervisor ssh-client \
     bind9-host iputils-ping net-tools netcat-openbsd procps psmisc \
-    curl uwsgi-plugin-python3 \
+    curl uwsgi-plugin-python3 git openssl \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/cnaas/templates /opt/cnaas/settings /etc/cnaas-nms /tmp/devicecerts \
     && chown -R www-data:www-data /opt/cnaas /etc/cnaas-nms /tmp/devicecerts

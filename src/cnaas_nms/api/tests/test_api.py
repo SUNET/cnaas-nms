@@ -415,9 +415,9 @@ def test_generate_only_vars(client, testdata, templates_directory):
     result = client.get("/api/v1.0/device/{}/generate_config".format(testdata["interface_device"]))
     assert result.status_code == 200
     assert result.json["status"] == "success"
-    assert (
-        result.json["data"]["config"]["available_variables"]["hostname"] == testdata["interface_device"]
-    ), "hostname variable not found in generate_only variables"
+    assert result.json["data"]["config"]["available_variables"]["hostname"] == testdata["interface_device"], (
+        "hostname variable not found in generate_only variables"
+    )
 
 
 def test_linknet(client):

@@ -95,9 +95,9 @@ def test_rbac_workflow(client):
     }
 
     create_permission_response = client.post("/api/v1.0/rbac/role_permissions", json=permission_data)
-    assert (
-        create_permission_response.status_code == 201
-    ), f"Failed to create permission: {create_permission_response.json}"
+    assert create_permission_response.status_code == 201, (
+        f"Failed to create permission: {create_permission_response.json}"
+    )
     assert create_permission_response.json["status"] == "success"
 
     created_permission = create_permission_response.json["data"]
@@ -153,9 +153,9 @@ def test_rbac_workflow(client):
 
     # Step 9: Delete the role permission
     delete_permission_response = client.delete(f"/api/v1.0/rbac/role_permissions/{permission_id}")
-    assert (
-        delete_permission_response.status_code == 200
-    ), f"Failed to delete permission: {delete_permission_response.json}"
+    assert delete_permission_response.status_code == 200, (
+        f"Failed to delete permission: {delete_permission_response.json}"
+    )
     assert delete_permission_response.json["status"] == "success"
 
     # Step 10: Verify permission is deleted
@@ -244,9 +244,9 @@ def test_create_permission_with_excludes(client):
 
     # Delete the permission
     delete_permission_response = client.delete(f"/api/v1.0/rbac/role_permissions/{permission_id}")
-    assert (
-        delete_permission_response.status_code == 200
-    ), f"Failed to delete permission: {delete_permission_response.json}"
+    assert delete_permission_response.status_code == 200, (
+        f"Failed to delete permission: {delete_permission_response.json}"
+    )
     assert delete_permission_response.json["status"] == "success"
 
     # Delete the role
@@ -295,9 +295,9 @@ def test_create_mappings_for_different_attributes(client):
     # Delete all mappings
     for mapping_id in created_mapping_ids:
         delete_mapping_response = client.delete(f"/api/v1.0/rbac/role_mappings/{mapping_id}")
-        assert (
-            delete_mapping_response.status_code == 200
-        ), f"Failed to delete mapping {mapping_id}: {delete_mapping_response.json}"
+        assert delete_mapping_response.status_code == 200, (
+            f"Failed to delete mapping {mapping_id}: {delete_mapping_response.json}"
+        )
         assert delete_mapping_response.json["status"] == "success"
 
     # Verify all mappings are deleted
@@ -343,9 +343,9 @@ def test_create_permission_readonly(client):
 
     # Delete the permission
     delete_permission_response = client.delete(f"/api/v1.0/rbac/role_permissions/{permission_id}")
-    assert (
-        delete_permission_response.status_code == 200
-    ), f"Failed to delete permission: {delete_permission_response.json}"
+    assert delete_permission_response.status_code == 200, (
+        f"Failed to delete permission: {delete_permission_response.json}"
+    )
     assert delete_permission_response.json["status"] == "success"
 
     # Delete the role

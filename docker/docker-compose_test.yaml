@@ -5,6 +5,7 @@ services:
   #
 
   cnaas_api:
+    image: cnaas-api
     build:
       context: ..
       dockerfile: docker/api/Dockerfile

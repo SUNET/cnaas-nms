@@ -54,6 +54,7 @@ services:
   #
 
   cnaas_postgres:
+    image: cnaas-postgres-test
     build:
       context: ./postgres/
       args:
@@ -68,6 +69,7 @@ services:
       - cnaas
 
   cnaas_redis:
+    image: cnaas-redis
     build: ./redis/
     networks:
       - cnaas

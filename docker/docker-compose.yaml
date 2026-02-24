@@ -5,6 +5,7 @@ services:
   #
 
   cnaas_api:
+    image: cnaas-api
     build:
       context: ..
       dockerfile: docker/api/Dockerfile
@@ -59,6 +60,7 @@ services:
       - GITREPO_TEMPLATES
 
   cnaas_dhcpd:
+    image: cnaas-dhcpd
     build:
       context: ..
       dockerfile: docker/dhcpd/Dockerfile
@@ -69,7 +71,7 @@ services:
     environment:
       - GITREPO_ETC
       - DB_PASSWORD=cnaas
-      - DB_HOSTNAME=docker_cnaas_postgres_1
+      - DB_HOSTNAME=cnaas_postgres
       - JWT_AUTH_TOKEN
     depends_on:
       - "cnaas_httpd"
@@ -94,6 +96,7 @@ services:
       - cnaas
 
   cnaas_redis:
+    image: cnaas-redis
     build: ./redis/
     ports:
       - 6379:6379

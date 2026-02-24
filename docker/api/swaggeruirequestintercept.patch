@@ -1,12 +1,95 @@
-diff --git a/flask_restx/templates/swagger-ui.html b/flask_restx/templates/swagger-ui.html
-index b233e01..d0c6f2a 100644
 --- a/flask_restx/templates/swagger-ui.html
 +++ b/flask_restx/templates/swagger-ui.html
-@@ -56,6 +56,7 @@
+@@ -56,12 +56,72 @@
                  {%- endif %}
                  validatorUrl: "{{ config.SWAGGER_VALIDATOR_URL }}" || null,
                  dom_id: "#swagger-ui",
-+                requestInterceptor: (req) => { if (!('Authorization' in req.headers)) { req.headers['Authorization'] = `Bearer ${localStorage.getItem("token")}`; } return req; },
++                // Auto-add Bearer token from localStorage if not already set
++                requestInterceptor: (req) => {
++                    if (!('Authorization' in req.headers)) {
++                        const token = localStorage.getItem('token');
++                        if (token) {
++                            req.headers['Authorization'] = 'Bearer ' + token;
++                        }
++                    }
++                    return req;
++                },
                  presets: [
                      SwaggerUIBundle.presets.apis,
                      SwaggerUIStandalonePreset.slice(1) // No Topbar
+                 ],
+                 plugins: [
+-                    SwaggerUIBundle.plugins.DownloadUrl
++                    SwaggerUIBundle.plugins.DownloadUrl,
++                    // Token validation plugin - validates JWT before authorizing
++                    {
++                        statePlugins: {
++                            auth: {
++                                wrapActions: {
++                                    authorize: (oriAction) => async (payload) => {
++                                        const authData = Object.values(payload)[0];
++                                        if (!authData?.value) return oriAction(payload);
++
++                                        // Normalize token format
++                                        const rawToken = authData.value.replace(/^Bearer\s+/i, '');
++                                        const bearerToken = 'Bearer ' + rawToken;
++
++                                        // Validate against backend
++                                        try {
++                                            const resp = await fetch('/api/v1.0/auth/identity', {
++                                                headers: { 'Authorization': bearerToken }
++                                            });
++                                            if (!resp.ok) {
++                                                const data = await resp.json();
++                                                alert('Token validation failed: ' + (data.message || 'Invalid token'));
++                                                return;
++                                            }
++                                        } catch (e) {
++                                            alert('Token validation failed: Network error');
++                                            return;
++                                        }
++
++                                        // Save for persistence and show success
++                                        localStorage.setItem('token', rawToken);
++                                        setTimeout(() => {
++                                            const wrapper = document.querySelector('.auth-container .wrapper');
++                                            if (wrapper && !wrapper.querySelector('.token-validated-msg')) {
++                                                const msg = document.createElement('div');
++                                                msg.className = 'token-validated-msg';
++                                                msg.style.cssText = 'background:#49cc90;color:white;padding:8px 12px;border-radius:4px;margin:10px 0;font-weight:bold;';
++                                                msg.textContent = 'Token validated successfully';
++                                                wrapper.insertBefore(msg, wrapper.firstChild);
++                                            }
++                                        }, 100);
++                                        return oriAction(payload);
++                                    },
++                                    logout: (oriAction) => (payload) => {
++                                        localStorage.removeItem('token');
++                                        return oriAction(payload);
++                                    }
++                                }
++                            }
++                        }
++                    }
+                 ],
+                 {% if config.SWAGGER_SUPPORTED_SUBMIT_METHODS is defined -%}
+                   supportedSubmitMethods: {{ config.SWAGGER_SUPPORTED_SUBMIT_METHODS | tojson}},
+@@ -71,6 +131,18 @@
+                 docExpansion: "{{ config.SWAGGER_UI_DOC_EXPANSION | default('none') }}"
+             })
+
++            // Restore auth from localStorage on page load
++            const savedToken = localStorage.getItem('token');
++            if (savedToken) {
++                ui.authActions.authorize({
++                    apikey: {
++                        name: 'apikey',
++                        schema: { type: 'apiKey', in: 'header', name: 'Authorization' },
++                        value: 'Bearer ' + savedToken
++                    }
++                });
++            }
++
+             {% if config.SWAGGER_UI_OAUTH_CLIENT_ID -%}
+             ui.initOAuth({
+                 clientId: "{{ config.SWAGGER_UI_OAUTH_CLIENT_ID }}",

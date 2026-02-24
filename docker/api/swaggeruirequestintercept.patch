@@ -4,10 +4,10 @@
                  {%- endif %}
                  validatorUrl: "{{ config.SWAGGER_VALIDATOR_URL }}" || null,
                  dom_id: "#swagger-ui",
-+                // Auto-add Bearer token from localStorage if not already set
++                // Auto-add Bearer token from sessionStorage if not already set
 +                requestInterceptor: (req) => {
 +                    if (!('Authorization' in req.headers)) {
-+                        const token = localStorage.getItem('token');
++                        const token = sessionStorage.getItem('token');
 +                        if (token) {
 +                            req.headers['Authorization'] = 'Bearer ' + token;
 +                        }
@@ -50,7 +50,7 @@
 +                                        }
 +
 +                                        // Save for persistence and show success
-+                                        localStorage.setItem('token', rawToken);
++                                        sessionStorage.setItem('token', rawToken);
 +                                        setTimeout(() => {
 +                                            const wrapper = document.querySelector('.auth-container .wrapper');
 +                                            if (wrapper && !wrapper.querySelector('.token-validated-msg')) {
@@ -64,7 +64,7 @@
 +                                        return oriAction(payload);
 +                                    },
 +                                    logout: (oriAction) => (payload) => {
-+                                        localStorage.removeItem('token');
++                                        sessionStorage.removeItem('token');
 +                                        return oriAction(payload);
 +                                    }
 +                                }
@@ -78,8 +78,8 @@
                  docExpansion: "{{ config.SWAGGER_UI_DOC_EXPANSION | default('none') }}"
              })
 
-+            // Restore auth from localStorage on page load
-+            const savedToken = localStorage.getItem('token');
++            // Restore auth from sessionStorage on page load
++            const savedToken = sessionStorage.getItem('token');
 +            if (savedToken) {
 +                ui.authActions.authorize({
 +                    apikey: {

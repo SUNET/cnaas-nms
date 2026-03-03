@@ -17,8 +17,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install ruff
-        run: pip install ruff==0.14.14
+      - name: Install dev dependencies from pyproject
+        run: |
+          pip install --upgrade pip
+          pip install --group dev
 
       - name: Run ruff check
         run: ruff check src/

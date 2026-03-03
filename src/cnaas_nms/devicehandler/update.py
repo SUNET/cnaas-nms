@@ -208,7 +208,9 @@ def update_facts(hostname: str, job_id: Optional[int] = None, scheduled_by: str 
     try:
         facts = nrresult[hostname][0].result["facts"]
         with sqla_session() as session:  # type: ignore
-            dev = session.query(Device).filter(Device.hostname == hostname).one()
+            dev = session.query(Device).filter(Device.hostname == hostname).one_or_none()
+            if dev is None:
+                raise ValueError("Device with hostname {} not found".format(hostname))
             diff = set_facts(dev, facts)
             dev.last_seen = datetime.datetime.utcnow()  # type: ignore
 

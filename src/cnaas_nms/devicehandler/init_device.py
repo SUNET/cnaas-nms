@@ -1103,7 +1103,9 @@ def discover_device(
     try:
         facts = nrresult[hostname][0].result["facts"]
         with sqla_session() as session:  # type: ignore
-            dev = session.query(Device).filter(Device.ztp_mac == ztp_mac).one()
+            dev = session.query(Device).filter(Device.ztp_mac == ztp_mac).one_or_none()
+            if dev is None:
+                raise ValueError("Device with ztp_mac {} not found".format(ztp_mac))
             dev.serial = facts["serial_number"][:64]
             dev.vendor = facts["vendor"][:64]
             dev.model = facts["model"][:64]

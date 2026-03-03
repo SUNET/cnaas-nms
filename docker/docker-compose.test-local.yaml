@@ -1,0 +1,11 @@
+# Local test overlay - extends docker-compose_test.yaml
+
+services:
+  cnaas_api:
+    volumes:
+      # Mount source for live editing during development
+      - ../src:/opt/cnaas/venv/cnaas-nms/src:ro
+    environment:
+      - JWT_SECRET_KEY=unittestsharedsecret
+      # Use external containers (redis/postgres from this compose)
+      - EXTERNAL_TEST_CONTAINERS=1

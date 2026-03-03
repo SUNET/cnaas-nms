@@ -1,6 +1,6 @@
 --- a/flask_restx/templates/swagger-ui.html
 +++ b/flask_restx/templates/swagger-ui.html
-@@ -56,12 +56,72 @@
+@@ -56,12 +56,73 @@
                  {%- endif %}
                  validatorUrl: "{{ config.SWAGGER_VALIDATOR_URL }}" || null,
                  dom_id: "#swagger-ui",

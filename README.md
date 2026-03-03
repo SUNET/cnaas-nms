@@ -75,6 +75,12 @@ Use the token:
 - **Swagger UI**: Click "Authorize", enter `Bearer <token>`, then click "Authorize"
 - **curl**: `curl -ks -H "Authorization: Bearer <token>" https://localhost/api/v1.0/devices`
 
+Tear down containers when done:
+
+```sh
+docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.dev.yaml down
+```
+
 ### Venv
 
 Install locally by creating a virtualenv and activate the environment, then:
@@ -87,6 +93,24 @@ cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 Edit db_config.yml to point to your SQL and Redis database.
 
 ## Test
+
+### Docker
+
+Run tests in Docker containers matching the CI environment:
+
+```sh
+# Build and start containers
+docker compose -f docker/docker-compose_test.yaml build
+docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.test-local.yaml up -d
+
+# Run tests
+docker/run-tests-local.sh
+
+# Stop containers when done
+docker compose -f docker/docker-compose_test.yaml down
+```
+
+### Local venv
 
 ```
 cd src/

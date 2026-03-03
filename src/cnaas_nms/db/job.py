@@ -51,7 +51,7 @@ class Job(cnaas_nms.db.base.Base):
     __table_args__ = (None,)
     id = mapped_column(Integer, autoincrement=True, primary_key=True)
     status = mapped_column(Enum(JobStatus), index=True, default=JobStatus.SCHEDULED)
-    scheduled_time = mapped_column(DateTime, default=datetime.datetime.utcnow)
+    scheduled_time = mapped_column(DateTime, default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None))
     start_time = mapped_column(DateTime)
     finish_time = mapped_column(DateTime, index=True)
     function_name = mapped_column(Unicode(255))
@@ -83,7 +83,7 @@ class Job(cnaas_nms.db.base.Base):
         return d
 
     def start_job(self, function_name: Optional[str] = None, scheduled_by: str = ""):
-        self.start_time = datetime.datetime.utcnow()  # type: ignore
+        self.start_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
         self.status = JobStatus.RUNNING
         self.finished_devices = []
         if function_name:
@@ -119,7 +119,7 @@ class Job(cnaas_nms.db.base.Base):
             )
             self.result = {"error": "unserializable"}
 
-        self.finish_time = datetime.datetime.utcnow()  # type: ignore
+        self.finish_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
         if self.status == JobStatus.ABORTING:
             self.status = JobStatus.ABORTED
         else:
@@ -138,7 +138,7 @@ class Job(cnaas_nms.db.base.Base):
 
     def finish_exception(self, e: Exception, traceback: str):
         logger.warning("Job {} finished with exception: {}".format(self.id, str(e)))
-        self.finish_time = datetime.datetime.utcnow()  # type: ignore
+        self.finish_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
         self.status = JobStatus.EXCEPTION
         try:
             self.exception = json.dumps(
@@ -163,7 +163,7 @@ class Job(cnaas_nms.db.base.Base):
 
     def finish_abort(self, message: str):
         logger.debug("Job {} aborted: {}".format(self.id, message))
-        self.finish_time = datetime.datetime.utcnow()  # type: ignore
+        self.finish_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
         self.status = JobStatus.ABORTED
         self.result = {"message": message}
         try:
@@ -198,7 +198,7 @@ class Job(cnaas_nms.db.base.Base):
             # Clear jobs that should have been run in the past, timing might need tuning if
             # APschedulers misfire_grace_time is modified
             aps_misfire_grace_time = datetime.timedelta(seconds=5)
-            if job.scheduled_time < (datetime.datetime.utcnow() - aps_misfire_grace_time):
+            if job.scheduled_time < (datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - aps_misfire_grace_time):
                 logger.warning("Job found in past SCHEDULED state at startup moved to ABORTED, id: {}".format(job.id))
                 job.status = JobStatus.ABORTED
 

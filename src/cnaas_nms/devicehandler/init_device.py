@@ -1012,7 +1012,7 @@ def init_device_step2(
         management_ip = dev.management_ip
         dev.dhcp_ip = None
         dev.ztp_mac = None
-        dev.last_seen = datetime.datetime.utcnow()  # type: ignore
+        dev.last_seen = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
 
     # Plugin hook: new managed device
     # Send: hostname , device type , serial , platform , vendor , model , os version
@@ -1111,7 +1111,7 @@ def discover_device(
             dev.model = facts["model"][:64]
             dev.os_version = facts["os_version"][:64]
             dev.state = DeviceState.DISCOVERED
-            dev.last_seen = datetime.datetime.utcnow()  # type: ignore
+            dev.last_seen = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
             new_hostname = dev.hostname
             logger.info(
                 f"Device with ztp_mac {ztp_mac} successfully scanned"

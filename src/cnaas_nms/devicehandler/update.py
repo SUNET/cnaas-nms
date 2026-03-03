@@ -212,7 +212,7 @@ def update_facts(hostname: str, job_id: Optional[int] = None, scheduled_by: str 
             if dev is None:
                 raise ValueError("Device with hostname {} not found".format(hostname))
             diff = set_facts(dev, facts)
-            dev.last_seen = datetime.datetime.utcnow()  # type: ignore
+            dev.last_seen = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
 
         logger.debug(
             "Updating facts for device {}, new values: {}, {}, {}, {}".format(

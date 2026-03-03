@@ -154,7 +154,7 @@ def arista_post_flight_check(
                 dev.confhash = None
                 dev.synchronized = False
                 add_sync_event(task.host.name, "firmware_upgrade", scheduled_by, job_id)
-                dev.last_seen = datetime.datetime.utcnow()  # type: ignore
+                dev.last_seen = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
     except Exception as e:
         logger.exception("Could not update OS version on device {}: {}".format(task.host.name, str(e)))
         raise e

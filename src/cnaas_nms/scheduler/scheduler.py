@@ -169,7 +169,7 @@ class Scheduler(object, metaclass=SingletonType):
         """
         if when and isinstance(when, int):
             trigger = "date"
-            run_date = datetime.datetime.utcnow() + datetime.timedelta(seconds=when)
+            run_date = datetime.datetime.now(datetime.UTC).replace(tzinfo=None) + datetime.timedelta(seconds=when)
         else:
             trigger = None
             run_date = None

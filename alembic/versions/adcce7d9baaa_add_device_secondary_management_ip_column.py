@@ -1,10 +1,11 @@
-""""Add secondary_management_ip to Device
+"""Add secondary_management_ip to Device
 
 Revision ID: adcce7d9baaa
 Revises: 2f9faee221a7
 Create Date: 2023-01-11 15:18:12.188994
 
 """
+
 import sqlalchemy as sa
 import sqlalchemy_utils
 

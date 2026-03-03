@@ -25,3 +25,23 @@ jobs:
 
       - name: Run ruff format check
         run: ruff format --check src/
+
+
+  mypy:
+    name: Mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dev dependencies from pyproject
+        run: |
+          pip install --upgrade pip
+          pip install --group dev
+
+      - name: Run mypy
+        run: pre-commit run mypy --all-files

@@ -21,7 +21,7 @@
                  plugins: [
 -                    SwaggerUIBundle.plugins.DownloadUrl
 +                    SwaggerUIBundle.plugins.DownloadUrl,
-+                    // Token validation plugin - validates JWT before authorizing
++                    // Auth plugin - checks credentials via backend identity endpoint
 +                    {
 +                        statePlugins: {
 +                            auth: {
@@ -34,18 +34,19 @@
 +                                        const rawToken = authData.value.replace(/^Bearer\s+/i, '');
 +                                        const bearerToken = 'Bearer ' + rawToken;
 +
-+                                        // Validate against backend
++                                        // Check authorization against backend
 +                                        try {
 +                                            const resp = await fetch('/api/v1.0/auth/identity', {
 +                                                headers: { 'Authorization': bearerToken }
 +                                            });
 +                                            if (!resp.ok) {
 +                                                const data = await resp.json();
-+                                                alert('Token validation failed: ' + (data.message || 'Invalid token'));
++                                                alert('Authorization check failed: ' + (data.message || 'Invalid token'));
 +                                                return;
 +                                            }
++                                            var identity = await resp.json();
 +                                        } catch (e) {
-+                                            alert('Token validation failed: Network error');
++                                            alert('Authorization check failed: Network error');
 +                                            return;
 +                                        }
 +
@@ -53,11 +54,11 @@
 +                                        sessionStorage.setItem('token', rawToken);
 +                                        setTimeout(() => {
 +                                            const wrapper = document.querySelector('.auth-container .wrapper');
-+                                            if (wrapper && !wrapper.querySelector('.token-validated-msg')) {
++                                            if (wrapper && !wrapper.querySelector('.auth-status-msg')) {
 +                                                const msg = document.createElement('div');
-+                                                msg.className = 'token-validated-msg';
++                                                msg.className = 'auth-status-msg';
 +                                                msg.style.cssText = 'background:#49cc90;color:white;padding:8px 12px;border-radius:4px;margin:10px 0;font-weight:bold;';
-+                                                msg.textContent = 'Token validated successfully';
++                                                msg.textContent = 'Authenticated as ' + identity;
 +                                                wrapper.insertBefore(msg, wrapper.firstChild);
 +                                            }
 +                                        }, 100);

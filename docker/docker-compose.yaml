@@ -60,7 +60,6 @@ services:
       - GITREPO_TEMPLATES
 
   cnaas_dhcpd:
-    image: cnaas-dhcpd
     build:
       context: ..
       dockerfile: docker/dhcpd/Dockerfile

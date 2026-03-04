@@ -18,6 +18,7 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "absl-py==2.3.1",
   "aerleon==1.14.1",
   "alembic==1.15.2",
   "apscheduler==3.11",

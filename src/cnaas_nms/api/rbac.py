@@ -2,7 +2,7 @@ import zlib
 
 import psycopg2.errors
 from flask_restx import Namespace, Resource, fields
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from cnaas_nms.api.generic import empty_result
@@ -45,17 +45,6 @@ class ApiError(Exception):
     def __init__(self, data: str, status_code: int = 400):
         super().__init__(data)
         self.status_code = status_code
-
-
-class RoleInputModel(BaseModel):
-    name: str
-    description: str | None = None
-
-    @field_validator("name")
-    def name_must_not_be_empty(cls, v):
-        if not v or not v.strip():
-            raise ValueError("Role name must not be empty")
-        return v
 
 
 def hash_to_32bit(s: str) -> int:
@@ -122,7 +111,7 @@ role_mapping_model = rbac_api.model(
     },
 )
 
-role_model_cud_model = rbac_api.model(
+role_mapping_model_cud_model = rbac_api.model(
     "RoleMappingCreateUpdate",
     {
         "status": fields.String(description="Status of the response"),
@@ -169,7 +158,7 @@ class RoleMappingApi(Resource):
         return empty_result(status="success", data=ret)
 
     @rbac_api.expect(role_mapping_model, validate=True)
-    @rbac_api.marshal_with(role_model_cud_model, code=201)
+    @rbac_api.marshal_with(role_mapping_model_cud_model, code=201)
     @login_required
     def post(self):
         """Create a new role mapping"""
@@ -181,7 +170,7 @@ class RoleMappingApi(Resource):
             return empty_result(status="success", data=new_mapping.as_dict()), 201
 
 
-class RoleMappyngByIdApi(Resource):
+class RoleMappingByIdApi(Resource):
     @rbac_api.marshal_with(role_model_cud_model, code=200)
     @login_required
     def delete(self, mapping_id: int):
@@ -304,7 +293,7 @@ class RolePermissionByIdApi(Resource):
                 if getattr(updated_permission, field) is not None:
                     setattr(existing_permission, field, getattr(updated_permission, field))
 
-            existing_permission.last_modified_by = str(get_identity)
+            existing_permission.last_modified_by = str(get_identity())
 
             session.commit()
             return empty_result(status="success", data=existing_permission.as_dict()), 200
@@ -350,6 +339,6 @@ def handle_exception(error):
 rbac_api.add_resource(RoleApi, "/roles")
 rbac_api.add_resource(RoleApiById, "/roles/<int:role_id>")
 rbac_api.add_resource(RoleMappingApi, "/role_mappings")
-rbac_api.add_resource(RoleMappyngByIdApi, "/role_mappings/<int:mapping_id>")
+rbac_api.add_resource(RoleMappingByIdApi, "/role_mappings/<int:mapping_id>")
 rbac_api.add_resource(RolePermissionApi, "/role_permissions")
 rbac_api.add_resource(RolePermissionByIdApi, "/role_permissions/<int:permission_id>")

@@ -3,8 +3,7 @@ import datetime
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Unicode
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.mutable import MutableList
-from sqlalchemy.orm import Mapped
-from sqlalchemy.testing.schema import mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
 
 import cnaas_nms.db.base
 from cnaas_nms.models.permissions import PermissionModel
@@ -85,15 +84,15 @@ class RoleMappings(cnaas_nms.db.base.Base):
 
 #
 def get_all_user_db_permissions(
-    session, user_info: dict, userinfo_attributes_in_db: list[str]
+    session, user_info: dict, user_info_attributes_in_db: list[str]
 ) -> list[PermissionModel]:
     """Get all permissions for a user based on their roles"""
-    if not userinfo_attributes_in_db or not isinstance(userinfo_attributes_in_db, list):
+    if not user_info_attributes_in_db or not isinstance(user_info_attributes_in_db, list):
         return []
 
     permissions: list[PermissionModel] = []
     for attribute_name, attribute_value in user_info.items():
-        if attribute_name not in userinfo_attributes_in_db:
+        if attribute_name not in user_info_attributes_in_db:
             continue
         user_roles = (
             session.query(RoleMappings)

@@ -17,7 +17,10 @@ RUN /opt/cnaas/venv/bin/pip install --no-cache-dir -U pip && \
     /opt/cnaas/venv/bin/pip install --no-cache-dir uwsgi gevent && \
     /opt/cnaas/venv/bin/pip install --no-cache-dir .
 
-# Apply patches
+# Apply patches.
+# - pull2167.patch: Napalm EOS 4.32 config-session compatibility fix
+# - swaggeruirequestintercept.patch: allows Swagger UI request interceptor
+#   to include credentials from browser local storage during manual API testing
 COPY docker/api/pull2167.patch docker/api/swaggeruirequestintercept.patch /tmp/
 RUN cd /opt/cnaas/venv/lib/python3.11/site-packages && \
     patch -p1 < /tmp/pull2167.patch || true && \
@@ -63,7 +66,9 @@ COPY --chmod=555 --chown=root:www-data docker/api/createca.sh docker/api/exec-pr
 
 # Copy cnaas configuration files
 COPY --chmod=444 --chown=root:www-data docker/api/config/api.yml docker/api/config/db_config.yml \
-     docker/api/config/plugins.yml docker/api/config/repository.yml /etc/cnaas-nms/
+     docker/api/config/plugins.yml /etc/cnaas-nms/
+# repository.yml is updated by exec-pre-app.sh before uwsgi starts
+COPY --chmod=664 --chown=root:www-data docker/api/config/repository.yml /etc/cnaas-nms/
 # Optional auth config (may not exist) - use glob pattern
 COPY --chmod=444 --chown=root:www-data docker/api/config/auth_config.ym[l] docker/api/config/permissions.ym[l] /etc/cnaas-nms/
 

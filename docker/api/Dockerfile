@@ -30,6 +30,7 @@ RUN cd /opt/cnaas/venv/lib/python3.11/site-packages && \
 COPY src/ /opt/cnaas/venv/cnaas-nms/src/
 COPY alembic/ /opt/cnaas/venv/cnaas-nms/alembic/
 COPY alembic.ini /opt/cnaas/venv/cnaas-nms/
+COPY pyproject.toml /opt/cnaas/venv/cnaas-nms/
 
 
 # Stage 2: Runtime - minimal production image

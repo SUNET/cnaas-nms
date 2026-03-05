@@ -10,7 +10,7 @@ services:
       context: ..
       dockerfile: docker/api/Dockerfile
       args:
-        - INCLUDE_INTEGRATION_TOOLS=1
+        - INCLUDE_INTEGRATION_TOOLS=${INCLUDE_INTEGRATION_TOOLS:-0}
     ports:
       - 443:1443
     networks:

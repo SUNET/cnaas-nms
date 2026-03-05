@@ -75,6 +75,9 @@ dev = [
 docs = [
   "sphinx==7.4.7",
 ]
+api-runtime = [
+  "uwsgi==2.0.31",
+]
 integration-tools = [
   "pytest==8.3.5",
   "pytest-cov==6.1.1",

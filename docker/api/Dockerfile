@@ -15,8 +15,8 @@ COPY pyproject.toml .
 # Install Python dependencies
 ARG INCLUDE_INTEGRATION_TOOLS=0
 RUN /opt/cnaas/venv/bin/pip install --no-cache-dir -U pip && \
-    /opt/cnaas/venv/bin/pip install --no-cache-dir uwsgi gevent && \
     /opt/cnaas/venv/bin/pip install --no-cache-dir . && \
+    /opt/cnaas/venv/bin/pip install --no-cache-dir --group /build/pyproject.toml:api-runtime && \
     if [ "$INCLUDE_INTEGRATION_TOOLS" = "1" ]; then \
         /opt/cnaas/venv/bin/pip install --no-cache-dir --group /build/pyproject.toml:integration-tools; \
     fi

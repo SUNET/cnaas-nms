@@ -13,9 +13,13 @@ COPY src/ /build/src/
 COPY pyproject.toml .
 
 # Install Python dependencies
+ARG INCLUDE_INTEGRATION_TOOLS=0
 RUN /opt/cnaas/venv/bin/pip install --no-cache-dir -U pip && \
     /opt/cnaas/venv/bin/pip install --no-cache-dir uwsgi gevent && \
-    /opt/cnaas/venv/bin/pip install --no-cache-dir .
+    /opt/cnaas/venv/bin/pip install --no-cache-dir . && \
+    if [ "$INCLUDE_INTEGRATION_TOOLS" = "1" ]; then \
+        /opt/cnaas/venv/bin/pip install --no-cache-dir --group /build/pyproject.toml:integration-tools; \
+    fi
 
 # Apply patches.
 # - pull2167.patch: Napalm EOS 4.32 config-session compatibility fix
@@ -30,7 +34,6 @@ RUN cd /opt/cnaas/venv/lib/python3.11/site-packages && \
 COPY src/ /opt/cnaas/venv/cnaas-nms/src/
 COPY alembic/ /opt/cnaas/venv/cnaas-nms/alembic/
 COPY alembic.ini /opt/cnaas/venv/cnaas-nms/
-COPY pyproject.toml /opt/cnaas/venv/cnaas-nms/
 
 
 # Stage 2: Runtime - minimal production image

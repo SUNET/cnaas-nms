@@ -70,7 +70,7 @@ docker volume create cnaas-cacert
 
 set -e
 
-$COMPOSE_COMMAND up -d
+$COMPOSE_COMMAND up -d --build
 
 API_CONTAINER="$($COMPOSE_COMMAND ps -q cnaas_api)"
 DHCPD_CONTAINER="$($COMPOSE_COMMAND ps -q cnaas_dhcpd)"
@@ -97,7 +97,6 @@ docker cp ../test/pytest.sh "$API_CONTAINER":/tmp/pytest.sh
 docker cp ../test/coverage.sh "$API_CONTAINER":/tmp/coverage.sh
 $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/chmod 755 /tmp/pytest.sh /tmp/coverage.sh
 $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/chown www-data:www-data /tmp/pytest.sh /tmp/coverage.sh
-$COMPOSE_COMMAND exec -u root -T cnaas_api /opt/cnaas/venv/bin/pip install --no-cache-dir --group /opt/cnaas/venv/cnaas-nms/pyproject.toml:integration-tools
 
 sleep 5
 

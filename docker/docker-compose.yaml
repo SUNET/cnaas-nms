@@ -9,6 +9,8 @@ services:
     build:
       context: ..
       dockerfile: docker/api/Dockerfile
+      args:
+        - INCLUDE_INTEGRATION_TOOLS=1
     ports:
       - 443:1443
     networks:

@@ -25,9 +25,8 @@ export JWT_SECRET_KEY="integrationtestkey"
 
 # select docker compose v 1 or 2
 set +e
-docker compose > /dev/null 2>&1
-if [ $? -eq 1 ]
-then
+docker compose >/dev/null 2>&1
+if [ $? -eq 1 ]; then
 	echo "detected docker-compose v1"
 	COMPOSE_COMMAND="docker-compose"
 else
@@ -38,32 +37,30 @@ fi
 
 $COMPOSE_COMMAND down -t 3
 
-if docker volume ls | egrep -q "cnaas-postgres-data$"
-then
-	if [ -z "$AUTOTEST" ]
-	then
+if docker volume ls | egrep -q "cnaas-postgres-data$"; then
+	if [ -z "$AUTOTEST" ]; then
 		read -p "Do you want to continue and reset existing SQL database? [y/N]" ans
 		case $ans in
-			[Yy]* ) docker volume rm cnaas-postgres-data;;
-			* ) exit 1;;
+		[Yy]*) docker volume rm cnaas-postgres-data ;;
+		*) exit 1 ;;
 		esac
 	else
 		docker volume rm cnaas-postgres-data
 	fi
 fi
 
-on_exit () {
-    docker logs docker_cnaas_dhcpd_1
-    docker logs docker_cnaas_api_1
-    echo "Integrationtests exited (on_exit)"
+on_exit() {
+	$COMPOSE_COMMAND logs cnaas_dhcpd
+	$COMPOSE_COMMAND logs cnaas_api
+	echo "Integrationtests exited (on_exit)"
 }
 
-on_err () {
-    docker logs -n 100 docker_cnaas_api_1
+on_err() {
+	$COMPOSE_COMMAND logs -n 100 cnaas_api
 }
 
-trap on_exit EXIT
-trap on_err ERR
+# trap on_exit EXIT
+# trap on_err ERR
 
 docker volume create cnaas-templates
 docker volume create cnaas-settings
@@ -75,25 +72,29 @@ set -e
 
 $COMPOSE_COMMAND up -d
 
-docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
+$COMPOSE_COMMAND cp ./jwt-cert/public.pem cnaas_api:/opt/cnaas/jwtcert/public.pem
 $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
 $COMPOSE_COMMAND exec -u root -T cnaas_api /opt/cnaas/createca.sh
 
-sleep 5
+echo "Setting up test utilities in api container"
+$COMPOSE_COMMAND cp ../pyproject.toml cnaas_api:/opt/cnaas/venv/cnaas-nms/
+$COMPOSE_COMMAND cp ../test/pytest.sh cnaas_api:/opt/cnaas/
+$COMPOSE_COMMAND cp ../test/coverage.sh cnaas_api:/opt/cnaas/
+$COMPOSE_COMMAND exec -u root -T cnaas_api /bin/bash -c \
+	'chown www-data:www-data /opt/cnaas/pytest.sh /opt/cnaas/coverage.sh  && \
+	chmod ug+x /opt/cnaas/pytest.sh /opt/cnaas/coverage.sh && \
+	cd /opt/cnaas/venv/cnaas-nms && \
+	source ../bin/activate && \
+	pip install -q --group dev && \
+	chmod ug+w src && \
+	supervisorctl stop uwsgi && \
+	rm src/.coverage-* && \
+	supervisorctl start uwsgi'
 
 curl --connect-timeout 2 --max-time 2 --retry 10 --retry-delay 0 --retry-max-time 60 -ks "https://localhost/api/v1.0/system/version"
 
-# optional copy and restart
-$COMPOSE_COMMAND exec -u root -T cnaas_api /bin/mv /opt/cnaas/venv/cnaas-nms/src/ /opt/cnaas/venv/cnaas-nms/src-bundled
-docker cp ../src docker_cnaas_api_1:/opt/cnaas/venv/cnaas-nms/src
-$COMPOSE_COMMAND exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
-$COMPOSE_COMMAND exec -u root -T cnaas_api /usr/bin/killall uwsgi
-#
-
-if [ ! -z "$PRE_TEST_SCRIPT" ]
-then
-	if [ -x "$PRE_TEST_SCRIPT" ]
-	then
+if [ ! -z "$PRE_TEST_SCRIPT" ]; then
+	if [ -x "$PRE_TEST_SCRIPT" ]; then
 		echo "Running PRE_TEST_SCRIPT..."
 		bash -c $PRE_TEST_SCRIPT
 	fi
@@ -110,8 +111,7 @@ python3 -m integrationtests
 
 set +e
 
-if [ -z "$AUTOTEST" ]
-then
+if [ -z "$AUTOTEST" ]; then
 	echo "Press enter to continue:"
 	read
 	echo "Continuing..."
@@ -121,9 +121,10 @@ fi
 # workaround to trigger coverage save
 cd ../docker/
 # Sleep very long to make sure all napalm jobs are finished?
-sleep 120
+# TODO add some verification-steps here?
+sleep 10
 echo "Gathering coverage reports from integration tests:"
-MULE_PID="`docker logs docker_cnaas_api_1 | awk '/spawned uWSGI mule/{print $6}' | egrep -o "[0-9]+" | tail -n1`"
+MULE_PID="$($COMPOSE_COMMAND logs cnaas_api | awk '/spawned uWSGI mule/{print $6}' | egrep -o "[0-9]+" | tail -n1)"
 echo "Found mule at pid $MULE_PID"
 # Allow for code coverage files to be saved
 $COMPOSE_COMMAND exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
@@ -133,18 +134,17 @@ sleep 3
 echo "Starting unit tests..."
 $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/pytest.sh
 echo "Try to generate coverage report:"
-if [ -z "$AUTOTEST" ]
-then
+if [ -z "$AUTOTEST" ]; then
 	read -p "Do you want to upload coverage report to codecov.io? [y/N]" ans
 	case $ans in
-		[Yy]* ) $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh;;
-		* ) echo "Not uploading coverage report";;
+	[Yy]*) $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh ;;
+	*) echo "Not uploading coverage report" ;;
 	esac
 else
 	$COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh
 fi
 
-docker logs docker_cnaas_dhcpd_1
-docker logs docker_cnaas_api_1
+$COMPOSE_COMMAND logs cnaas_dhcpd
+$COMPOSE_COMMAND logs cnaas_api
 
 $COMPOSE_COMMAND down

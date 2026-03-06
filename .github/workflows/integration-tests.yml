@@ -38,7 +38,7 @@ jobs:
 
       - name: Docker build
         working-directory: ./docker
-        run: docker-compose build --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} cnaas_api
+        run: docker compose build --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} cnaas_api
 
       - name: Run integration tests
         working-directory: ./test

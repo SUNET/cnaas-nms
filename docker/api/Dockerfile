@@ -71,8 +71,8 @@ COPY --chmod=555 --chown=root:www-data docker/api/createca.sh docker/api/exec-pr
 # Copy cnaas configuration files
 COPY --chmod=444 --chown=root:www-data docker/api/config/api.yml docker/api/config/db_config.yml \
      docker/api/config/plugins.yml /etc/cnaas-nms/
-# repository.yml is updated by exec-pre-app.sh before uwsgi starts
-COPY --chmod=664 --chown=root:www-data docker/api/config/repository.yml /etc/cnaas-nms/
+# repository.yml is replaced by exec-pre-app.sh before uwsgi starts
+COPY --chmod=444 --chown=root:www-data docker/api/config/repository.yml /etc/cnaas-nms/
 # Optional auth config (may not exist) - use glob pattern
 COPY --chmod=444 --chown=root:www-data docker/api/config/auth_config.ym[l] docker/api/config/permissions.ym[l] /etc/cnaas-nms/
 

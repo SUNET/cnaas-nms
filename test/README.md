@@ -19,7 +19,7 @@ For the vEOS image you need to modify the start script so it starts in ZTP mode.
 First modify the Makefile and swap out the docker-pre-build so it configures a zerotouch-config file with Disabled=False.
 
 ```bash
-# File: vrnetlab/veos/Makefile
+# File: vrnetlab/arista/veos/Makefile
 docker-pre-build:
 	# checking if ZTP config contains a string (DISABLE=False) in the file /zerotouch-config
 	# if it does, we don't need to write this file
@@ -35,7 +35,7 @@ Then modify the docker/launch.py script to not do any initial config.
 Just commented out the following lines in the function bootstrap_spin on line 71->76.
 
 ```python
-# File: vrnetlab/veos/docker/launch.py
+# File: vrnetlab/arista/veos/docker/launch.py
 # Omitted lines ...
     def bootstrap_spin(self):
 # Omitted lines ...

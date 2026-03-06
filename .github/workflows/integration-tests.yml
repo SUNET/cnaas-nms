@@ -47,3 +47,15 @@ jobs:
       - name: Check running containers
         run: docker ps -a
         if: failure()
+
+      - name: Check ZTP hostname
+        run: echo "" | nc -w 3 10.100.2.1 5000
+        if: failure()
+
+      - name: Stop VMs
+        run: ~/stop-vms.sh
+        if: always()
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false

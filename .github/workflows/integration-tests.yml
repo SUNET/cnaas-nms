@@ -18,7 +18,6 @@ jobs:
           echo "JWT_ENABLED=0" >> $GITHUB_ENV
           echo "OIDC_ENABLED=0" >> $GITHUB_ENV
           echo "COMPOSE_COMPATIBILITY=1" >> $GITHUB_ENV
-          echo "PRE_TEST_SCRIPT=~/start-vms.sh" >> $GITHUB_ENV
 
       - name: Get branch name (merge)
         shell: bash
@@ -39,6 +38,9 @@ jobs:
       - name: Docker build
         working-directory: ./docker
         run: docker compose build --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} cnaas_api
+
+      - name: Start VMs
+        run: ~/start-vms.sh
 
       - name: Run integration tests
         working-directory: ./test

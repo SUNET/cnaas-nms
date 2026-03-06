@@ -67,7 +67,7 @@ services:
         - BUILDBRANCH=develop
         - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
     ports:
-      - 67:67/udp
+      - 10.100.2.2:67:67/udp
     networks:
       - cnaas
     environment:
@@ -85,7 +85,7 @@ services:
   #
 
   cnaas_postgres:
-    image: postgres:11
+    image: postgres:16
     volumes:
       - cnaas-postgres-data:/var/lib/postgresql/data
     ports:
@@ -98,16 +98,9 @@ services:
       - cnaas
 
   cnaas_redis:
-    build: ./redis/
+    image: redis:7-alpine
     ports:
       - 6379:6379
-    networks:
-      - cnaas
-
-  cnaas_auth:
-    image: docker.sunet.se/auth-server-poc:latest
-    ports:
-      - 2443:1443
     networks:
       - cnaas
 

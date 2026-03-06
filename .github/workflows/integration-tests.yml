@@ -9,7 +9,7 @@ jobs:
     runs-on: norpan-kvm
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
 
       - name: "Set environment variables"
         run: |
@@ -36,10 +36,14 @@ jobs:
       - name: Print branch name
         run: echo ${{ env.BRANCH_NAME }} at ${{ env.CNAAS_REPO }}
 
+      - name: Docker build
+        working-directory: ./docker
+        run: docker-compose build --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} cnaas_api
+
       - name: Run integration tests
-        run: |
-          cd test/
-          ./integrationtests.sh
+        working-directory: ./test
+        run: ./integrationtests.sh
 
       - name: Check running containers
         run: docker ps -a
+        if: failure()

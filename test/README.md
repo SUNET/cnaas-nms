@@ -76,3 +76,6 @@ Make sure to build production images beforehand.
 Run integrationtests within the test folder.
 
 `./integrationtests.sh`
+
+Run with script to save output to a log-file.  
+`script -c './integrationtests.sh' out.log`

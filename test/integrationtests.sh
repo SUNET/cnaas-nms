@@ -41,8 +41,8 @@ if docker volume ls | egrep -q "cnaas-postgres-data$"; then
 	if [ -z "$AUTOTEST" ]; then
 		read -p "Do you want to continue and reset existing SQL database? [y/N]" ans
 		case $ans in
-		[Yy]*) docker volume rm cnaas-postgres-data ;;
-		*) exit 1 ;;
+			[Yy]* ) docker volume rm cnaas-postgres-data ;;
+			* ) exit 1 ;;
 		esac
 	else
 		docker volume rm cnaas-postgres-data
@@ -78,6 +78,7 @@ $COMPOSE_COMMAND exec -u root -T cnaas_api /opt/cnaas/createca.sh
 
 echo "Setting up test utilities in api container"
 $COMPOSE_COMMAND cp ../pyproject.toml cnaas_api:/opt/cnaas/venv/cnaas-nms/
+$COMPOSE_COMMAND cp ../pytest.ini cnaas_api:/opt/cnaas/venv/cnaas-nms/
 $COMPOSE_COMMAND cp ../test/pytest.sh cnaas_api:/opt/cnaas/
 $COMPOSE_COMMAND cp ../test/coverage.sh cnaas_api:/opt/cnaas/
 $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/bash -c \
@@ -88,8 +89,18 @@ $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/bash -c \
 	pip install -q --group dev && \
 	chmod ug+w src && \
 	supervisorctl stop uwsgi && \
-	rm src/.coverage-* && \
-	supervisorctl start uwsgi'
+	rm src/.coverage-*'
+
+echo "Trying to reset api container logs"
+API_CONTAINER_NAME=$($COMPOSE_COMMAND ps | grep cnaas_api | awk '{print $1}')
+
+LOGPATH=$(docker inspect --format='{{.LogPath}}' $API_CONTAINER_NAME)
+
+# This needs to be run as sudo
+# Move on if this step fails.
+sudo truncate -s 0 "$LOGPATH" || true
+
+$COMPOSE_COMMAND exec -u root -T cnaas_api /bin/bash -c 'supervisorctl start uwsgi'
 
 curl --connect-timeout 2 --max-time 2 --retry 10 --retry-delay 0 --retry-max-time 60 -ks "https://localhost/api/v1.0/system/version"
 
@@ -137,8 +148,8 @@ echo "Try to generate coverage report:"
 if [ -z "$AUTOTEST" ]; then
 	read -p "Do you want to upload coverage report to codecov.io? [y/N]" ans
 	case $ans in
-	[Yy]*) $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh ;;
-	*) echo "Not uploading coverage report" ;;
+		[Yy]* ) $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh ;;
+		* ) echo "Not uploading coverage report" ;;
 	esac
 else
 	$COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh

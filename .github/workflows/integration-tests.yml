@@ -1,4 +1,6 @@
 name: Run CNaaS-NMS integration tests
+permissions:
+  contents: read
 on:
   push:
   workflow_dispatch:

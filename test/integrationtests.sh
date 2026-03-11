@@ -98,7 +98,11 @@ LOGPATH=$(docker inspect --format='{{.LogPath}}' $API_CONTAINER_NAME)
 
 # This needs to be run as sudo
 # Move on if this step fails.
-sudo truncate -s 0 "$LOGPATH" || true
+if [ -z "$AUTOTEST" ]; then
+       sudo truncate -s 0 "$LOGPATH" || true
+else
+       sudo -n truncate -s 0 "$LOGPATH" || true
+fi
 
 $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/bash -c 'supervisorctl start uwsgi'
 

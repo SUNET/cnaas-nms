@@ -15,7 +15,6 @@ export PASSWORD_INIT="abc123abc123"
 export USERNAME_MANAGED="admin"
 export PASSWORD_MANAGED="abc123abc123"
 export COVERAGE=1
-export INCLUDE_INTEGRATION_TOOLS=1
 export EXTERNAL_TEST_CONTAINERS=1
 export PYTEST_SETTINGS_CLONED=1
 export PYTEST_TEMPLATES_CLONED=1
@@ -54,14 +53,17 @@ then
 fi
 
 on_exit () {
-    docker logs "$DHCPD_CONTAINER"
-    docker logs "$API_CONTAINER"
+    docker logs docker_cnaas_dhcpd_1
+    docker logs docker_cnaas_api_1
     echo "Integrationtests exited (on_exit)"
 }
 
 on_err () {
-    docker logs -n 100 "$API_CONTAINER"
+    docker logs -n 100 docker_cnaas_api_1
 }
+
+trap on_exit EXIT
+trap on_err ERR
 
 docker volume create cnaas-templates
 docker volume create cnaas-settings
@@ -71,33 +73,11 @@ docker volume create cnaas-cacert
 
 set -e
 
-$COMPOSE_COMMAND up -d --build
+$COMPOSE_COMMAND up -d
 
-API_CONTAINER="$($COMPOSE_COMMAND ps -q cnaas_api)"
-DHCPD_CONTAINER="$($COMPOSE_COMMAND ps -q cnaas_dhcpd)"
-if [ -z "$API_CONTAINER" ]
-then
-    echo "Error: failed to resolve cnaas_api container id"
-    exit 1
-fi
-if [ -z "$DHCPD_CONTAINER" ]
-then
-    echo "Error: failed to resolve cnaas_dhcpd container id"
-    exit 1
-fi
-
-trap on_exit EXIT
-trap on_err ERR
-
-docker cp ./jwt-cert/public.pem "$API_CONTAINER":/opt/cnaas/jwtcert/public.pem
+docker cp ./jwt-cert/public.pem docker_cnaas_api_1:/opt/cnaas/jwtcert/public.pem
 $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/jwtcert/
 $COMPOSE_COMMAND exec -u root -T cnaas_api /opt/cnaas/createca.sh
-
-# Integration-test-only tooling and helpers (not part of production image)
-docker cp ../test/pytest.sh "$API_CONTAINER":/tmp/pytest.sh
-docker cp ../test/coverage.sh "$API_CONTAINER":/tmp/coverage.sh
-$COMPOSE_COMMAND exec -u root -T cnaas_api /bin/chmod 755 /tmp/pytest.sh /tmp/coverage.sh
-$COMPOSE_COMMAND exec -u root -T cnaas_api /bin/chown www-data:www-data /tmp/pytest.sh /tmp/coverage.sh
 
 sleep 5
 
@@ -105,7 +85,7 @@ curl --connect-timeout 2 --max-time 2 --retry 10 --retry-delay 0 --retry-max-tim
 
 # optional copy and restart
 $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/mv /opt/cnaas/venv/cnaas-nms/src/ /opt/cnaas/venv/cnaas-nms/src-bundled
-docker cp ../src "$API_CONTAINER":/opt/cnaas/venv/cnaas-nms/src
+docker cp ../src docker_cnaas_api_1:/opt/cnaas/venv/cnaas-nms/src
 $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
 $COMPOSE_COMMAND exec -u root -T cnaas_api /usr/bin/killall uwsgi
 #
@@ -143,7 +123,7 @@ cd ../docker/
 # Sleep very long to make sure all napalm jobs are finished?
 sleep 120
 echo "Gathering coverage reports from integration tests:"
-MULE_PID="`docker logs "$API_CONTAINER" | awk '/spawned uWSGI mule/{print $6}' | egrep -o "[0-9]+" | tail -n1`"
+MULE_PID="`docker logs docker_cnaas_api_1 | awk '/spawned uWSGI mule/{print $6}' | egrep -o "[0-9]+" | tail -n1`"
 echo "Found mule at pid $MULE_PID"
 # Allow for code coverage files to be saved
 $COMPOSE_COMMAND exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
@@ -151,20 +131,20 @@ curl -ks -H "Authorization: Bearer $JWT_AUTH_TOKEN" "https://localhost/api/v1.0/
 sleep 3
 
 echo "Starting unit tests..."
-$COMPOSE_COMMAND exec -u www-data -T cnaas_api /tmp/pytest.sh
+$COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/pytest.sh
 echo "Try to generate coverage report:"
 if [ -z "$AUTOTEST" ]
 then
 	read -p "Do you want to upload coverage report to codecov.io? [y/N]" ans
 	case $ans in
-		[Yy]* ) $COMPOSE_COMMAND exec -u www-data -T cnaas_api /tmp/coverage.sh;;
+		[Yy]* ) $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh;;
 		* ) echo "Not uploading coverage report";;
 	esac
 else
-	$COMPOSE_COMMAND exec -u www-data -T cnaas_api /tmp/coverage.sh
+	$COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh
 fi
 
-docker logs "$DHCPD_CONTAINER"
-docker logs "$API_CONTAINER"
+docker logs docker_cnaas_dhcpd_1
+docker logs docker_cnaas_api_1
 
 $COMPOSE_COMMAND down

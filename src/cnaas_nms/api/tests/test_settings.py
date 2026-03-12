@@ -1,6 +1,6 @@
 import os
-from pathlib import Path
 
+import pkg_resources
 import pytest
 import yaml
 from flask.testing import FlaskClient
@@ -11,7 +11,7 @@ from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 
 @pytest.fixture
 def testdata(scope="module") -> dict:
-    data_dir = Path(__file__).parent / "data"
+    data_dir = pkg_resources.resource_filename(__name__, "data")
     with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
         return yaml.safe_load(f_testdata)
 
@@ -35,7 +35,6 @@ def test_valid_setting(testclient: FlaskClient):
     assert result.status_code == 200
 
 
-@pytest.mark.integration
 def test_invalid_system_access_list_setting(testclient: FlaskClient):
     # System ACL not in access_lists.
     settings_data = {
@@ -46,7 +45,6 @@ def test_invalid_system_access_list_setting(testclient: FlaskClient):
     assert result.status_code == 400
 
 
-@pytest.mark.integration
 def test_valid_system_access_list_setting(testclient: FlaskClient):
     # System ACL in access_lists.
     settings_data = {
@@ -65,7 +63,6 @@ def test_invalid_access_list_setting(testclient: FlaskClient):
     assert result.status_code == 400
 
 
-@pytest.mark.integration
 def test_valid_access_list_setting(testclient: FlaskClient):
     settings_data = {
         "access_lists": {"ACLTEST": {"terms": [{"name": "term_name", "action": "accept"}]}},

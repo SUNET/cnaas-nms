@@ -5,6 +5,7 @@ import time
 from contextlib import closing
 
 import pytest
+from git import Repo
 
 from cnaas_nms.scheduler.scheduler import Scheduler
 
@@ -19,26 +20,17 @@ def pytest_configure(config):
 
 
 @pytest.fixture(scope="session")
-def settings_directory():
-    """Configure settings path from environment variable.
-
-    Set SETTINGS_LOCAL to a pre-cloned settings repository path.
-    """
+def settings_directory(tmp_path_factory):
     from cnaas_nms.app_settings import app_settings
 
-    external_path = os.getenv("SETTINGS_LOCAL")
-    if external_path:
-        if not os.path.isdir(external_path):
-            raise ValueError(f"SETTINGS_LOCAL path does not exist: {external_path}")
-        app_settings.SETTINGS_LOCAL = external_path
-        return external_path
-
-    if not os.path.isdir(app_settings.SETTINGS_LOCAL):
-        raise ValueError(
-            f"Settings directory not found: {app_settings.SETTINGS_LOCAL}. "
-            "Set SETTINGS_LOCAL to a pre-cloned settings repository."
-        )
-    return app_settings.SETTINGS_LOCAL
+    if os.getenv("PYTEST_SETTINGS_CLONED", "0").strip() in ("0", "off", "false", "no"):
+        settings_dir = tmp_path_factory.mktemp("settings")
+        app_settings.SETTINGS_LOCAL = settings_dir
+        print(f"placing settings in {settings_dir}")
+        Repo.clone_from(app_settings.SETTINGS_REMOTE, app_settings.SETTINGS_LOCAL)
+        return settings_dir
+    else:
+        return app_settings.SETTINGS_LOCAL
 
 
 @pytest.fixture
@@ -65,26 +57,17 @@ def mock_get_settings(monkeypatch):
 
 
 @pytest.fixture(scope="session")
-def templates_directory():
-    """Configure templates path from environment variable.
-
-    Set TEMPLATES_LOCAL to a pre-cloned templates repository path.
-    """
+def templates_directory(tmp_path_factory):
     from cnaas_nms.app_settings import app_settings
 
-    external_path = os.getenv("TEMPLATES_LOCAL")
-    if external_path:
-        if not os.path.isdir(external_path):
-            raise ValueError(f"TEMPLATES_LOCAL path does not exist: {external_path}")
-        app_settings.TEMPLATES_LOCAL = external_path
-        return external_path
-
-    if not os.path.isdir(app_settings.TEMPLATES_LOCAL):
-        raise ValueError(
-            f"Templates directory not found: {app_settings.TEMPLATES_LOCAL}. "
-            "Set TEMPLATES_LOCAL to a pre-cloned templates repository."
-        )
-    return app_settings.TEMPLATES_LOCAL
+    if os.getenv("PYTEST_TEMPLATES_CLONED", "0").strip() in ("0", "off", "false", "no"):
+        templates_dir = tmp_path_factory.mktemp("templates")
+        app_settings.TEMPLATES_LOCAL = templates_dir
+        print(f"placing settings in {templates_dir}")
+        Repo.clone_from(app_settings.TEMPLATES_REMOTE, app_settings.TEMPLATES_LOCAL)
+        return templates_dir
+    else:
+        return app_settings.TEMPLATES_LOCAL
 
 
 @pytest.fixture(scope="session")

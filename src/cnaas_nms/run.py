@@ -4,7 +4,6 @@ import signal
 import threading
 from typing import List
 
-import coverage
 from gevent import monkey
 from gevent import signal as gevent_signal
 
@@ -25,6 +24,8 @@ print("Code coverage collection for worker in pid {}: {}".format(os.getpid(), is
 
 
 if is_coverage_enabled():
+    import coverage
+
     cov = coverage.coverage(data_file=".coverage-{}".format(os.getpid()), concurrency="gevent")
     cov.start()
 

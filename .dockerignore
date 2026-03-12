@@ -1,0 +1,42 @@
+# Version control
+.git
+.github
+.git-blame-ignore-revs
+
+# Virtual environments
+.venv
+venv
+
+# Python build artifacts
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+dist
+build
+
+# Test and lint caches
+.pytest_cache
+.coverage*
+.mypy_cache
+.ruff_cache
+
+# Directories not needed for runtime
+docs
+test
+labenv
+etc
+
+# Config files not needed for build
+.pre-commit-config.yaml
+.jenkins.yaml
+.readthedocs.yaml
+_config.yml
+mypy.ini
+pytest.ini
+publiccode.yml
+
+# Other unnecessary files
+*.md
+*.png

@@ -63,6 +63,12 @@ coverage.xml
 .pytest_cache/
 docker/coverage/
 
+# Containerlab data
+test/clab-cnaas*
+
+# Test data (provisioned by run-tests-local.sh)
+.test-data/
+
 # Translations
 *.mo
 *.pot

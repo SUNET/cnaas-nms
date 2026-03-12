@@ -94,18 +94,42 @@ Edit db_config.yml to point to your SQL and Redis database.
 
 ## Test
 
-### Local with Docker
+### Docker
 
-Run tests locally with pre-provisioned test data:
+Run tests in Docker containers matching the CI environment:
 
 ```sh
-./docker/run-tests-local.sh
+# Build and start containers
+docker compose -f docker/docker-compose_test.yaml build
+docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.test-local.yaml up -d
+
+# Run tests
+docker/run-tests-local.sh
+
+# Stop containers when done
+docker compose -f docker/docker-compose_test.yaml down
 ```
 
-This script:
-- Starts PostgreSQL and Redis containers if not running
-- Clones test templates/settings to `.test-data/` (once, reused on subsequent runs)
-- Runs unit tests first, then integration tests
+### Local venv
+
+```
+cd src/
+pytest
+```
+
+Two marks can be used for pytest: `integration` and `equipment`, that can be be used to do a subset of all tests. Eg
+
+```
+pytest -m "not integration and not equipment"
+```
+
+Note that `and` must be used to apply filters at the same time.
+
+If the tests should not spin up any containers at all, set the environment variable `EXTERNAL_TEST_CONTAINERS`, eg
+
+```
+EXTERNAL_TEST_CONTAINERS=1 pytest -m "not equipment"
+```
 
 ## Authorization
 

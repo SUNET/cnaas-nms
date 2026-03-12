@@ -5,7 +5,6 @@ services:
   #
 
   cnaas_postgres:
-    image: cnaas-postgres-test
     build:
       context: ./postgres/
       args:
@@ -18,7 +17,6 @@ services:
       - POSTGRES_DB=cnaas
 
   cnaas_redis:
-    image: cnaas-redis
     build: ./redis/
     ports:
       - 6379:6379

@@ -5,6 +5,8 @@ import os
 import signal
 from typing import Optional
 
+import coverage
+
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.joblock import Joblock
 from cnaas_nms.db.session import sqla_session
@@ -22,8 +24,6 @@ def is_coverage_enabled():
 logger.info("Code coverage collection for mule in pid {}: {}".format(os.getpid(), is_coverage_enabled()))
 
 if is_coverage_enabled():
-    import coverage
-
     cov = coverage.coverage(data_file=".coverage-{}".format(os.getpid()))
     cov.start()
 

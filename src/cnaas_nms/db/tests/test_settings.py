@@ -1,7 +1,7 @@
 import os
 import unittest
-from pathlib import Path
 
+import pkg_resources
 import pytest
 import yaml
 from pydantic import ValidationError
@@ -32,12 +32,12 @@ from cnaas_nms.db.settings_fields import f_group, f_groups, f_root
 
 class SettingsTests(unittest.TestCase):
     @pytest.fixture(autouse=True)
-    def requirements(self, postgresql, redis):
-        """Ensures database fixtures are loaded for all tests."""
+    def requirements(self, postgresql, redis, settings_directory):
+        """Ensures the required pytest fixtures are loaded implicitly for all these tests"""
         pass
 
     def setUp(self):
-        data_dir = Path(__file__).parent / "data"
+        data_dir = pkg_resources.resource_filename(__name__, "data")
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
         self.required_setting_keys = ["ntp_servers", "radius_servers"]
@@ -59,28 +59,24 @@ class SettingsTests(unittest.TestCase):
                     rebuild_settings_cache()
 
     @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_get_settings_global(self):
         settings, _ = get_settings()
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_get_settings_devicetype(self):
         settings, _ = get_settings(device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_get_settings_device(self):
         settings, _ = get_settings(device=Device(hostname=self.testdata["testdevice"]), device_type=DeviceType.DIST)
         # Assert that all required settings are set
         self.assertTrue(all(k in settings for k in self.required_setting_keys))
 
     @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_get_settings_merge_keys(self):
         testgroup_dev1 = Device(hostname="testgroup_dev1", state="MANAGED", device_type=DeviceType.DIST)
         with sqla_session() as session:
@@ -98,7 +94,6 @@ class SettingsTests(unittest.TestCase):
         self.assertTrue("allow_infra_loopback" in settings["routing_policies"])
 
     @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_get_settings_redis_hit(self):
         """
         Run get_settings twice with the same device should execute get_settings only once
@@ -143,6 +138,7 @@ class SettingsTests(unittest.TestCase):
         # is raised when looking in the filesystem root
         self.assertRaises(VerifyPathException, verify_dir_structure, "", DIR_STRUCTURE)
 
+    @pytest.mark.integration
     def test_vlan_collisions(self):
         mgmt_vlans = {100}
         # Check colliding mgmt vlan
@@ -288,7 +284,6 @@ class SettingsTests(unittest.TestCase):
         )
 
     @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_get_device_primary_group(self):
         before = get_device_primary_groups()
         after = get_device_primary_groups(no_cache=True)
@@ -362,16 +357,12 @@ class SettingsTests(unittest.TestCase):
         del group_settings_dict["groups"][2]
         f_groups(**group_settings_dict).model_dump()
 
-    @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_group_settings(self):
         settings, _ = get_group_settings()
         for group in settings.groups:
             self.assertEqual(type(group), f_group)
             assert callable(group.matches)
 
-    @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_acl(self):
         """Generate global acls from integration-test repo"""
         for platform in ["ios", "eos", "junos"]:
@@ -492,8 +483,6 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             f_root(**settings)
 
-    @pytest.mark.integration
-    @pytest.mark.usefixtures("settings_directory")
     def test_acl_redis_hit(self):
         """
         Run get_generated_access_lists twice with the same device should execute get_settings only once

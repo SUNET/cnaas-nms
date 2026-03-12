@@ -4,9 +4,9 @@ import logging
 import os
 import re
 import types
-from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union
 
+import pkg_resources
 import yaml
 from absl import logging as absl_logging
 from aerleon.aclgen import Error as ACLGenError
@@ -687,7 +687,7 @@ def get_settings(
         raise e
 
     # 1. Get CNaaS-NMS default settings
-    data_dir = Path(__file__).parent / "data"
+    data_dir = pkg_resources.resource_filename(__name__, "data")
     with open(os.path.join(data_dir, "default_settings.yml"), "r") as f_default_settings:
         settings: dict = yaml.safe_load(f_default_settings)
 
@@ -919,7 +919,7 @@ def get_group_settings() -> Tuple[f_groups, dict]:
         logger.exception("Exception when verifying settings repository directory structure")
         raise e
 
-    data_dir = Path(__file__).parent / "data"
+    data_dir = pkg_resources.resource_filename(__name__, "data")
     with open(os.path.join(data_dir, "default_groups.yml"), "r") as f_default_settings:
         default_settings: dict = yaml.safe_load(f_default_settings)
 

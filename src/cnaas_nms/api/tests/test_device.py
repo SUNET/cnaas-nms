@@ -2,8 +2,8 @@ import json
 import os
 import unittest
 from ipaddress import IPv4Address
-from pathlib import Path
 
+import pkg_resources
 import pytest
 import yaml
 from sqlalchemy import or_
@@ -40,23 +40,15 @@ class DeviceTests(unittest.TestCase):
                 "neighbor-device",
                 "renamed-device",
                 "hostname-device2",
-                "test-dist1",
-                "test-dist2",
-                "access-old-name",
-                "access-new-name",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
-                    session.query(Linknet).filter(
-                        or_(Linknet.device_a_id == device.id, Linknet.device_b_id == device.id)
-                    ).delete()
-                    session.query(Interface).filter(Interface.device_id == device.id).delete()
                     session.delete(device)
                     session.commit()
 
     def setUp(self):
         self.jwt_auth_token = None
-        data_dir = Path(__file__).parent / "data"
+        data_dir = pkg_resources.resource_filename(__name__, "data")
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
             if "jwt_auth_token" in self.testdata:

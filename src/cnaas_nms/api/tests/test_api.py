@@ -294,6 +294,7 @@ def test_update_interface_data_enabled(client, testdata):
 def test_add_new_device(client):
     data = {
         "hostname": "unittestdevice",
+        "site_id": 1,
         "description": "",
         "management_ip": "10.1.2.3",
         "dhcp_ip": "11.1.2.3",
@@ -320,6 +321,7 @@ def test_add_new_device_gets_group_membership(client):
     hostname = "testgroup-device1"
     data = {
         "hostname": hostname,
+        "site_id": 1,
         "description": "",
         "management_ip": "10.1.2.33",
         "dhcp_ip": "11.1.2.33",

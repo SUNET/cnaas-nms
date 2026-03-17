@@ -1,7 +1,7 @@
 """Unit tests for generic.py and the framework-agnostic filtering/response utilities."""
 
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from pydantic import BaseModel, ValidationError
 
@@ -170,7 +170,7 @@ class TestBuildFilter(unittest.TestCase):
         mock_query.limit.return_value = mock_query
         mock_query.offset.return_value = mock_query
 
-        result = build_filter(mock_model, mock_query, {})
+        build_filter(mock_model, mock_query, {})
         mock_query.limit.assert_called_once_with(50)
         mock_query.offset.assert_called_once_with(0)
 
@@ -191,7 +191,7 @@ class TestBuildFilter(unittest.TestCase):
         mock_query.limit.return_value = mock_query
         mock_query.offset.return_value = mock_query
 
-        result = build_filter(mock_model, mock_query, {}, per_page=10, page=3)
+        build_filter(mock_model, mock_query, {}, per_page=10, page=3)
         mock_query.limit.assert_called_once_with(10)
         mock_query.offset.assert_called_once_with(20)
 

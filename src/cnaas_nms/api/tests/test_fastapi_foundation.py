@@ -2,7 +2,6 @@
 
 import unittest
 
-import pytest
 from fastapi.testclient import TestClient
 
 from cnaas_nms.api.fastapi_app import app

@@ -125,12 +125,8 @@ def pagination_headers(
     page = max(1, page)
 
     if page < last_page:
-        links.append(
-            '<{}>; rel="next"'.format(base_url + "?" + urllib.parse.urlencode({**args, "page": page + 1}))
-        )
-        links.append(
-            '<{}>; rel="last"'.format(base_url + "?" + urllib.parse.urlencode({**args, "page": last_page}))
-        )
+        links.append('<{}>; rel="next"'.format(base_url + "?" + urllib.parse.urlencode({**args, "page": page + 1})))
+        links.append('<{}>; rel="last"'.format(base_url + "?" + urllib.parse.urlencode({**args, "page": last_page})))
 
     if links:
         headers["Link"] = ",".join(links)

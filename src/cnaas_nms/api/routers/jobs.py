@@ -83,7 +83,9 @@ def get_jobs(request: Request, user: str = Depends(get_current_user)):
             data["jobs"].append(filtered_job_dict)
             total_count = instance.total
 
-    headers = pagination_headers(total_count, args, per_page=per_page, page=page, base_url=str(request.base_url) + "api/v1.0/jobs")
+    headers = pagination_headers(
+        total_count, args, per_page=per_page, page=page, base_url=str(request.base_url) + "api/v1.0/jobs"
+    )
     return CnaasJSONResponse(
         content=empty_result(status="success", data=data),
         headers=headers,

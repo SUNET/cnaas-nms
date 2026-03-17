@@ -94,12 +94,16 @@ def get_group_os_version(group_name: str, user: str = Depends(get_current_user))
     except ValueError as e:
         return CnaasJSONResponse(
             status_code=404,
-            content=empty_result(status="error", data="Exception while getting group {}: {}".format(group_name, str(e))),
+            content=empty_result(
+                status="error", data="Exception while getting group {}: {}".format(group_name, str(e))
+            ),
         )
     except Exception as e:
         return CnaasJSONResponse(
             status_code=500,
-            content=empty_result(status="error", data="Exception while getting group {}: {}".format(group_name, str(e))),
+            content=empty_result(
+                status="error", data="Exception while getting group {}: {}".format(group_name, str(e))
+            ),
         )
     result = {"groups": group_os_versions}
     return empty_result(status="success", data=result)

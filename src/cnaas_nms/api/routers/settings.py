@@ -47,7 +47,9 @@ def get_settings_api(
                 model = dev.model
                 session.expunge(dev)
             else:
-                return CnaasJSONResponse(status_code=400, content=empty_result("error", "Hostname not found in database"))
+                return CnaasJSONResponse(
+                    status_code=400, content=empty_result("error", "Hostname not found in database")
+                )
 
     if device_type:
         if DeviceType.has_name(device_type.upper()):

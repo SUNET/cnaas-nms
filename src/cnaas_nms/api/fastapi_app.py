@@ -57,9 +57,7 @@ async def expired_sig_handler(request: Request, exc: ExpiredSignatureError) -> C
 
 @app.exception_handler(InvalidKeyError)
 async def invalid_key_handler(request: Request, exc: InvalidKeyError) -> CnaasJSONResponse:
-    return CnaasJSONResponse(
-        status_code=401, content={"status": "error", "data": "Invalid keys {}".format(exc)}
-    )
+    return CnaasJSONResponse(status_code=401, content={"status": "error", "data": "Invalid keys {}".format(exc)})
 
 
 @app.exception_handler(InvalidTokenError)
@@ -72,9 +70,7 @@ async def invalid_token_handler(request: Request, exc: InvalidTokenError) -> Cna
 
 @app.exception_handler(InvalidSignatureError)
 async def invalid_sig_handler(request: Request, exc: InvalidSignatureError) -> CnaasJSONResponse:
-    return CnaasJSONResponse(
-        status_code=401, content={"status": "error", "message": "Invalid token signature"}
-    )
+    return CnaasJSONResponse(status_code=401, content={"status": "error", "message": "Invalid token signature"})
 
 
 @app.exception_handler(InvalidHeaderError)
@@ -87,16 +83,12 @@ async def invalid_header_handler(request: Request, exc: InvalidHeaderError) -> C
 
 @app.exception_handler(MissingAuthorizationError)
 async def missing_auth_handler(request: Request, exc: MissingAuthorizationError) -> CnaasJSONResponse:
-    return CnaasJSONResponse(
-        status_code=401, content={"status": "error", "message": "JWT token missing?"}
-    )
+    return CnaasJSONResponse(status_code=401, content={"status": "error", "message": "JWT token missing?"})
 
 
 @app.exception_handler(NoAuthorizationError)
 async def no_auth_handler(request: Request, exc: NoAuthorizationError) -> CnaasJSONResponse:
-    return CnaasJSONResponse(
-        status_code=401, content={"status": "error", "message": "JWT token missing?"}
-    )
+    return CnaasJSONResponse(status_code=401, content={"status": "error", "message": "JWT token missing?"})
 
 
 @app.exception_handler(ConnectionError)

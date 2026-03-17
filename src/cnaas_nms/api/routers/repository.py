@@ -39,7 +39,9 @@ def modify_repository(repo: str, repo_action: RepositoryAction, user: str = Depe
         except VerifyPathException as e:
             return CnaasJSONResponse(
                 status_code=400,
-                content=empty_result("error", "Repository structure is invalid ({}): {}".format(type(e).__name__, str(e))),
+                content=empty_result(
+                    "error", "Repository structure is invalid ({}): {}".format(type(e).__name__, str(e))
+                ),
             )
         except JoblockError as e:
             return CnaasJSONResponse(

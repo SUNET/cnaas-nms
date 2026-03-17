@@ -20,9 +20,7 @@ def get_plugins(user: str = Depends(get_current_user)):
         plugindata = pmh.get_plugindata()
         plugin_module_names = pmh.get_plugins()
     except Exception as e:
-        return CnaasJSONResponse(
-            content=empty_result("error", "Error retrieving plugins {}".format(str(e)))
-        )
+        return CnaasJSONResponse(content=empty_result("error", "Error retrieving plugins {}".format(str(e))))
     else:
         return empty_result("success", {"loaded_plugins": plugin_module_names, "plugindata": plugindata})
 

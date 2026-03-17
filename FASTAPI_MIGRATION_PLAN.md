@@ -84,7 +84,7 @@ def get_devices(user: str = Depends(get_current_user)):
 
 ---
 
-### PR 2: Repository, Settings, Jobs
+### PR 2: Repository, Settings, Jobs ✅
 
 #### New files:
 - `src/cnaas_nms/api/routers/repository.py` — `GET/PUT /repository/{repo}`

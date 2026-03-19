@@ -5,7 +5,18 @@ from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationErr
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidKeyError, InvalidSignatureError, InvalidTokenError
 
 from cnaas_nms.api.response import CnaasJSONResponse
-from cnaas_nms.api.routers import groups, jobs, linknet, mgmtdomain, plugins, repository, settings, system
+from cnaas_nms.api.routers import (
+    firmware,
+    groups,
+    interface,
+    jobs,
+    linknet,
+    mgmtdomain,
+    plugins,
+    repository,
+    settings,
+    system,
+)
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.version import __api_version__
 
@@ -152,3 +163,5 @@ app.include_router(settings.router, prefix=api_prefix)
 app.include_router(jobs.router, prefix=api_prefix)
 app.include_router(linknet.router, prefix=api_prefix)
 app.include_router(mgmtdomain.router, prefix=api_prefix)
+app.include_router(interface.router, prefix=api_prefix)
+app.include_router(firmware.router, prefix=api_prefix)

@@ -107,7 +107,7 @@ Already use Pydantic (`f_linknet`, `f_mgmtdomain`) — cleanest conversions.
 
 ---
 
-### PR 4: Interface + Firmware
+### PR 4: Interface + Firmware ✅
 
 #### New files:
 - `src/cnaas_nms/api/routers/interface.py` — `GET/PUT /device/{hostname}/interfaces`

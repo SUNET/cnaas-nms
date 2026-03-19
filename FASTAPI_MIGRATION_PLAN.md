@@ -96,7 +96,7 @@ def get_devices(user: str = Depends(get_current_user)):
 
 ---
 
-### PR 3: Linknet + Management Domain
+### PR 3: Linknet + Management Domain ✅
 
 Already use Pydantic (`f_linknet`, `f_mgmtdomain`) — cleanest conversions.
 

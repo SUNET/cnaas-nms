@@ -117,7 +117,7 @@ Already use Pydantic (`f_linknet`, `f_mgmtdomain`) — cleanest conversions.
 
 ---
 
-### PR 5-6: Device Endpoints (split in two)
+### PR 5-6: Device Endpoints (split in two) ✅
 
 **PR 5 — Read-only**: `GET /device/{id}`, `GET /devices`, `GET /device/{hostname}/generate_config`, running_config, previous_config, LLDP neighbors, sync history
 

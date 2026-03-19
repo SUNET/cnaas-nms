@@ -6,6 +6,7 @@ from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidKeyError, 
 
 from cnaas_nms.api.response import CnaasJSONResponse
 from cnaas_nms.api.routers import (
+    device,
     firmware,
     groups,
     interface,
@@ -165,3 +166,4 @@ app.include_router(linknet.router, prefix=api_prefix)
 app.include_router(mgmtdomain.router, prefix=api_prefix)
 app.include_router(interface.router, prefix=api_prefix)
 app.include_router(firmware.router, prefix=api_prefix)
+app.include_router(device.router, prefix=api_prefix)

@@ -65,6 +65,8 @@ docker/coverage/
 
 # Test data (provisioned by run-tests-local.sh)
 .test-data/
+# Containerlab data
+test/clab-cnaas*
 
 # Translations
 *.mo

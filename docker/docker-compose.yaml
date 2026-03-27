@@ -97,12 +97,7 @@ services:
       - cnaas
 
   cnaas_redis:
-<<<<<<< feature.selfhosted_runner
     image: redis:7-alpine
-=======
-    image: cnaas-redis
-    build: ./redis/
->>>>>>> develop
     ports:
       - 6379:6379
     networks:

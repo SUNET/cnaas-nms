@@ -8,6 +8,8 @@ on:
 jobs:
   docker-tests:
     name: "Run integration tests"
+    contents: read
+    pull-requests: read
     runs-on: norpan-kvm
 
     steps:

@@ -1,0 +1,47 @@
+name: cnaas-integration
+
+mgmt:
+  network: cnaas_mgmt # management network name
+  ipv4-subnet: 10.100.2.0/24 # ipv4 range
+  ipv4-gw: 10.100.2.2
+
+topology:
+  kinds:
+    arista_ceos:
+      image-pull-policy: Never
+    arista_veos:
+      image-pull-policy: Never
+  nodes:
+    eosdist1:
+      kind: arista_ceos
+      image: ceos:${ARISTA_VERSION:=4.32.5.1M}
+      startup-config: config/eosdist1_startup_config.txt
+      mgmt-ipv4: 10.100.2.11
+    eosdist2:
+      kind: arista_ceos
+      image: ceos:${ARISTA_VERSION:=4.32.5.1M}
+      startup-config: config/eosdist2_startup_config.txt
+      mgmt-ipv4: 10.100.2.12
+    eosaccess:
+      kind: arista_veos
+      image: vrnetlab/arista_veos:${ARISTA_VERSION:=4.32.5.1M}
+      suppress-startup-config: true
+      mgmt-ipv4: 10.100.2.13
+    h1:
+      # Autosetup static routes on host
+      kind: host
+      exec:
+        - ip route add 10.0.6.0/24 via 10.100.2.101
+        - ip route add 192.168.0.0/24 via 10.100.2.101
+        - ip route add 10.100.3.101/32 via 10.100.2.101
+        - ip route add 10.100.3.102/32 via 10.100.2.102
+
+  links:
+    - endpoints: ["eosdist1:eth3", "eosdist2:eth3"]
+    - endpoints: ["eosdist1:eth2", "eosaccess:eth2"]
+    - endpoints: ["eosdist2:eth2", "eosaccess:eth3"]
+
+    # Extra management interfaces connected to the clab management
+    # https://containerlab.dev/manual/network/#additional-connections-to-management-network
+    - endpoints: ["eosdist1:eth1", "mgmt-net:eosdist1-eth1"]
+    - endpoints: ["eosdist2:eth1", "mgmt-net:eosdist2-eth1"]

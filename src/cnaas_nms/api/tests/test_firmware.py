@@ -1,5 +1,7 @@
 from typing import Union
 
+import pytest
+
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.linknet import Linknet
@@ -7,6 +9,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.upgradeorder import determine_upgrade_order
 
 
+@pytest.mark.integration
 def test_topology_mlag():
     topology = {"devices": [], "linknets": [], "connected_devices": [], "interfaces": [], "expected_order": []}
     dist_device1 = Device(hostname="d1", platform="eos", device_type=DeviceType.DIST, state=DeviceState.MANAGED)
@@ -100,6 +103,7 @@ def test_topology_mlag():
     verify_upgrade_order(topology)
 
 
+@pytest.mark.integration
 def test_topology_access():
     topology = {"devices": [], "linknets": [], "connected_devices": [], "interfaces": [], "expected_order": []}
     dist_device1 = Device(hostname="d1", platform="eos", device_type=DeviceType.DIST, state=DeviceState.MANAGED)

@@ -1,0 +1,88 @@
+name: CNaaS-NMS tests
+on:
+  push:
+  workflow_dispatch:
+  pull_request:
+jobs:
+  unit-tests:
+    name: "Run unit tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pip==26.0.1
+          pip install . --group dev
+
+      - name: Start test databases
+        run: docker compose -f docker/docker-compose_pytest.yaml up -d
+
+      - name: Wait for databases
+        run: |
+          echo "Waiting for PostgreSQL..."
+          timeout 60 bash -c 'until docker compose -f docker/docker-compose_pytest.yaml exec -T cnaas_postgres pg_isready; do sleep 2; done'
+          echo "Waiting for Redis..."
+          timeout 30 bash -c 'until docker compose -f docker/docker-compose_pytest.yaml exec -T cnaas_redis redis-cli ping; do sleep 2; done'
+
+      - name: Run unit tests
+        env:
+          EXTERNAL_TEST_CONTAINERS: "1"
+          JWT_SECRET_KEY: unittestsharedsecret
+          PERMISSIONS_DISABLED: "True"
+        run: |
+          pytest -vv --showlocals -m "not equipment and not integration"
+
+      - name: Check logs
+        if: always()
+        run: docker compose -f docker/docker-compose_pytest.yaml logs
+
+  integration-tests:
+    name: "Run integration tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pip==26.0.1
+          pip install . --group dev
+
+      - name: Clone test data
+        run: |
+          git clone --depth 1 --no-single-branch https://github.com/SUNET/cnaas-integrationtest-templates.git .test-data/templates
+          git clone --depth 1 https://github.com/SUNET/cnaas-integrationtest-settings.git .test-data/settings
+
+      - name: Start test databases
+        run: docker compose -f docker/docker-compose_pytest.yaml up -d
+
+      - name: Wait for databases
+        run: |
+          echo "Waiting for PostgreSQL..."
+          timeout 60 bash -c 'until docker compose -f docker/docker-compose_pytest.yaml exec -T cnaas_postgres pg_isready; do sleep 2; done'
+          echo "Waiting for Redis..."
+          timeout 30 bash -c 'until docker compose -f docker/docker-compose_pytest.yaml exec -T cnaas_redis redis-cli ping; do sleep 2; done'
+
+      - name: Run integration tests
+        env:
+          EXTERNAL_TEST_CONTAINERS: "1"
+          JWT_SECRET_KEY: unittestsharedsecret
+          PERMISSIONS_DISABLED: "True"
+          TEMPLATES_LOCAL: ${{ github.workspace }}/.test-data/templates
+          SETTINGS_LOCAL: ${{ github.workspace }}/.test-data/settings
+        run: |
+          pytest -vv --showlocals -m "integration and not equipment"
+
+      - name: Check logs
+        if: always()
+        run: docker compose -f docker/docker-compose_pytest.yaml logs

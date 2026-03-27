@@ -5,11 +5,12 @@ services:
   #
 
   cnaas_api:
+    image: cnaas-api
     build:
-      context: ./api/
+      context: ..
+      dockerfile: docker/api/Dockerfile
       args:
-        - BUILDBRANCH=master
-        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
+        - INCLUDE_INTEGRATION_TOOLS=${INCLUDE_INTEGRATION_TOOLS:-0}
     ports:
       - 443:1443
     networks:
@@ -62,10 +63,8 @@ services:
 
   cnaas_dhcpd:
     build:
-      context: ./dhcpd/
-      args:
-        - BUILDBRANCH=develop
-        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
+      context: ..
+      dockerfile: docker/dhcpd/Dockerfile
     ports:
       - 10.100.2.2:67:67/udp
     networks:
@@ -73,7 +72,7 @@ services:
     environment:
       - GITREPO_ETC
       - DB_PASSWORD=cnaas
-      - DB_HOSTNAME=docker_cnaas_postgres_1
+      - DB_HOSTNAME=cnaas_postgres
       - JWT_AUTH_TOKEN
     depends_on:
       - "cnaas_httpd"
@@ -98,7 +97,12 @@ services:
       - cnaas
 
   cnaas_redis:
+<<<<<<< feature.selfhosted_runner
     image: redis:7-alpine
+=======
+    image: cnaas-redis
+    build: ./redis/
+>>>>>>> develop
     ports:
       - 6379:6379
     networks:

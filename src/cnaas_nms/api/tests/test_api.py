@@ -2,8 +2,8 @@ import os
 import re
 import shutil
 import unittest
+from pathlib import Path
 
-import pkg_resources
 import pytest
 import yaml
 
@@ -294,7 +294,6 @@ def test_update_interface_data_enabled(client, testdata):
 def test_add_new_device(client):
     data = {
         "hostname": "unittestdevice",
-        "site_id": 1,
         "description": "",
         "management_ip": "10.1.2.3",
         "dhcp_ip": "11.1.2.3",
@@ -321,7 +320,6 @@ def test_add_new_device_gets_group_membership(client):
     hostname = "testgroup-device1"
     data = {
         "hostname": hostname,
-        "site_id": 1,
         "description": "",
         "management_ip": "10.1.2.33",
         "dhcp_ip": "11.1.2.33",
@@ -493,7 +491,7 @@ def jwt_auth_token(testdata):
 
 @pytest.fixture
 def testdata(scope="session"):
-    data_dir = pkg_resources.resource_filename(__name__, "data")
+    data_dir = Path(__file__).parent / "data"
     with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
         return yaml.safe_load(f_testdata)
 

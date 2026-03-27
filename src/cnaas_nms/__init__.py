@@ -1,6 +1,3 @@
-__import__("pkg_resources").declare_namespace(__name__)
-
-
 def setup_package():
     import cnaas_nms.api.app
     from cnaas_nms.api.tests.app_wrapper import TestAppWrapper

@@ -26,7 +26,7 @@ export JWT_SECRET_KEY="integrationtestkey"
 # select docker compose v 1 or 2
 set +e
 docker compose >/dev/null 2>&1
-if [ $? -eq 1 ]; then
+if [[ $? -eq 1 ]]; then
 	echo "detected docker-compose v1"
 	COMPOSE_COMMAND="docker-compose"
 else
@@ -38,7 +38,7 @@ fi
 $COMPOSE_COMMAND down -t 3
 
 if docker volume ls | egrep -q "cnaas-postgres-data$"; then
-	if [ -z "$AUTOTEST" ]; then
+	if [[ -z "$AUTOTEST" ]]; then
 		read -p "Do you want to continue and reset existing SQL database? [y/N]" ans
 		case $ans in
 			[Yy]* ) docker volume rm cnaas-postgres-data ;;
@@ -99,7 +99,7 @@ LOGPATH=$(docker inspect --format='{{.LogPath}}' $API_CONTAINER_NAME)
 
 # This needs to be run as sudo
 # Move on if this step fails.
-if [ -z "$AUTOTEST" ]; then
+if [[ -z "$AUTOTEST" ]]; then
        sudo truncate -s 0 "$LOGPATH" || true
 else
        sudo -n truncate -s 0 "$LOGPATH" || true
@@ -109,11 +109,9 @@ $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/bash -c 'supervisorctl start uws
 
 curl --connect-timeout 2 --max-time 2 --retry 10 --retry-delay 0 --retry-max-time 60 -ks "https://localhost/api/v1.0/system/version"
 
-if [ ! -z "$PRE_TEST_SCRIPT" ]; then
-	if [ -x "$PRE_TEST_SCRIPT" ]; then
-		echo "Running PRE_TEST_SCRIPT..."
-		bash -c $PRE_TEST_SCRIPT
-	fi
+if [[ ! -z "$PRE_TEST_SCRIPT" && -x "$PRE_TEST_SCRIPT" ]]; then
+	echo "Running PRE_TEST_SCRIPT..."
+	bash -c $PRE_TEST_SCRIPT
 fi
 
 # go back to test dir
@@ -127,7 +125,7 @@ python3 -m integrationtests
 
 set +e
 
-if [ -z "$AUTOTEST" ]; then
+if [[ -z "$AUTOTEST" ]]; then
 	echo "Press enter to continue:"
 	read
 	echo "Continuing..."
@@ -150,7 +148,7 @@ sleep 3
 echo "Starting unit tests..."
 $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/pytest.sh
 echo "Try to generate coverage report:"
-if [ -z "$AUTOTEST" ]; then
+if [[ -z "$AUTOTEST" ]]; then
 	read -p "Do you want to upload coverage report to codecov.io? [y/N]" ans
 	case $ans in
 		[Yy]* ) $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/coverage.sh ;;

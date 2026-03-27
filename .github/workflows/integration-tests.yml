@@ -1,0 +1,67 @@
+name: Run CNaaS-NMS integration tests
+permissions:
+  contents: read
+on:
+  push:
+  workflow_dispatch:
+  pull_request:
+jobs:
+  docker-tests:
+    name: "Run integration tests"
+    contents: read
+    pull-requests: read
+    runs-on: norpan-kvm
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: "Set environment variables"
+        run: |
+          echo "AUTOTEST=1" >> $GITHUB_ENV
+          echo "COMPOSE_INTERACTIVE_NO_CLI=1" >> $GITHUB_ENV
+          echo "JWT_ENABLED=0" >> $GITHUB_ENV
+          echo "OIDC_ENABLED=0" >> $GITHUB_ENV
+          echo "COMPOSE_COMPATIBILITY=1" >> $GITHUB_ENV
+
+      - name: Get branch name (merge)
+        shell: bash
+        run: echo "BRANCH_NAME=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
+
+      - name: Get repo URL
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "CNAAS_REPO=${{ github.event.pull_request.head.repo.clone_url }}" >> $GITHUB_ENV
+          else
+            echo "CNAAS_REPO=${{ github.server_url }}/${{ github.repository }}" >> $GITHUB_ENV
+          fi
+
+      - name: Print branch name
+        run: echo ${{ env.BRANCH_NAME }} at ${{ env.CNAAS_REPO }}
+
+      - name: Docker build
+        working-directory: ./docker
+        run: docker compose build --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} cnaas_api
+
+      - name: Start VMs
+        run: ~/start-vms.sh
+
+      - name: Run integration tests
+        working-directory: ./test
+        run: ./integrationtests.sh
+
+      - name: Check running containers
+        run: docker ps -a
+        if: failure()
+
+      - name: Check ZTP hostname
+        run: echo "" | nc -w 3 10.100.2.1 5000
+        if: failure()
+
+      - name: Stop VMs
+        run: ~/stop-vms.sh
+        if: always()
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false

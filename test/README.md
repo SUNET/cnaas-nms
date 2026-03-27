@@ -67,6 +67,11 @@ Containerlab adds some static routes on the host machine during the test.
 Console access to eosaccess-switch to follow ztp progress.  
 `telnet 10.100.2.13 5000`
 
+Run containerlab with a specific Arista version by using environment variable: `ARISTA_VERSION`.  
+Like:
+
+`sudo ARISTA_VERSION=4.33.6M containerlab -t cnaas-integration.clab.yml deploy`
+
 ## Run integrationtests
 
 Make sure to build production images beforehand.

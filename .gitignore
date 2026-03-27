@@ -63,6 +63,9 @@ coverage.xml
 .pytest_cache/
 docker/coverage/
 
+# Test data (provisioned by run-tests-local.sh)
+.test-data/
+
 # Translations
 *.mo
 *.pot
@@ -104,6 +107,7 @@ celerybeat-schedule
 # Environments
 .env
 .venv*
+uv.lock
 env/
 venv/
 ENV/

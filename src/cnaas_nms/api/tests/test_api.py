@@ -2,8 +2,8 @@ import os
 import re
 import shutil
 import unittest
+from pathlib import Path
 
-import pkg_resources
 import pytest
 import yaml
 
@@ -493,7 +493,7 @@ def jwt_auth_token(testdata):
 
 @pytest.fixture
 def testdata(scope="session"):
-    data_dir = pkg_resources.resource_filename(__name__, "data")
+    data_dir = Path(__file__).parent / "data"
     with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
         return yaml.safe_load(f_testdata)
 

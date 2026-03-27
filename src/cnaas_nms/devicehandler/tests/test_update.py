@@ -1,8 +1,8 @@
 import os
 import unittest
+from pathlib import Path
 from typing import Optional
 
-import pkg_resources
 import pytest
 import yaml
 
@@ -21,7 +21,7 @@ class UpdateTests(unittest.TestCase):
         pass
 
     def setUp(self):
-        data_dir = pkg_resources.resource_filename(__name__, "data")
+        data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
 

@@ -5,11 +5,10 @@ services:
   #
 
   cnaas_api:
+    image: cnaas-api
     build:
-      context: ./api/
-      args:
-        - BUILDBRANCH=develop
-        - GITREPO_BASE=https://github.com/SUNET/cnaas-nms.git
+      context: ..
+      dockerfile: docker/api/Dockerfile
     ports:
       - 443:1443
     networks:
@@ -55,6 +54,7 @@ services:
   #
 
   cnaas_postgres:
+    image: cnaas-postgres-test
     build:
       context: ./postgres/
       args:
@@ -69,6 +69,7 @@ services:
       - cnaas
 
   cnaas_redis:
+    image: cnaas-redis
     build: ./redis/
     networks:
       - cnaas

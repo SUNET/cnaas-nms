@@ -68,7 +68,7 @@ def get_settings_model(
 
     if model not in valid_models:
         logger.error(f"Model: '{model}' is not valid, valid options: {valid_models}")
-        raise ModuleNotFoundError(name=model)
+        raise ValueError(f"Invalid model '{model}'. Valid options are: {valid_models}")
 
     try:
         settings_fields_path = os.getenv("PLUGIN_SETTINGS_FIELDS_MODULE", "cnaas_nms.plugins.settings_fields")

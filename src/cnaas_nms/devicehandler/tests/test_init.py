@@ -1,8 +1,8 @@
 import os
 import time
 import unittest
+from pathlib import Path
 
-import pkg_resources
 import yaml
 from nornir.core.inventory import ConnectionOptions
 from nornir_napalm.plugins.tasks import napalm_configure
@@ -18,7 +18,7 @@ from cnaas_nms.scheduler.scheduler import Scheduler
 
 class InitTests(unittest.TestCase):
     def setUp(self):
-        data_dir = pkg_resources.resource_filename(__name__, "data")
+        data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
             self.testdata = yaml.safe_load(f_testdata)
 
@@ -67,7 +67,7 @@ class InitTests(unittest.TestCase):
             ConnectionOptions(extras={"timeout": 5})
         )
 
-        data_dir = pkg_resources.resource_filename(__name__, "data")
+        data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "access_reset.j2"), "r") as f_reset_config:
             print(self.testdata["init_access_new_hostname"])
             config = f_reset_config.read()

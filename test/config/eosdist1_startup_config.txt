@@ -1,0 +1,44 @@
+! File: eosdist1_startup_config.txt
+hostname eosdist1
+username admin privilege 15 role network-admin secret abc123abc123
+vrf instance MGMT
+interface Ethernet1
+   no switchport
+   vrf MGMT
+   ip address 10.100.2.101/24
+   no lldp transmit
+   no lldp receive
+interface Ethernet2
+   description DOWNLINK
+   switchport mode trunk
+   channel-group 3 mode active
+!
+interface Port-Channel3
+   description DOWNLINK
+   switchport mode trunk
+   port-channel lacp fallback individual
+   port-channel lacp fallback timeout 3
+!
+interface Loopback1
+   vrf MGMT
+   ip address 10.100.3.101/32
+!
+interface Vlan1
+   description ZTP DHCP
+   vrf MGMT
+   ip address 192.168.0.1/24
+   ip helper-address 10.100.2.2
+!
+vlan 600
+!
+interface Vlan600
+ vrf MGMT
+ ip address virtual 10.0.6.1/24
+ arp aging timeout 180
+!
+ip routing vrf MGMT
+management api http-commands
+   no shutdown
+   !
+   vrf MGMT
+      no shutdown

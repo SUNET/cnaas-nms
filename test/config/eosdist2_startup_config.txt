@@ -1,0 +1,21 @@
+! File: eosdist2_startup_config.txt
+hostname eosdist2
+username admin privilege 15 role network-admin secret abc123abc123
+vrf instance MGMT
+interface Ethernet1
+   no switchport
+   vrf MGMT
+   ip address 10.100.2.102/24
+   no lldp transmit
+   no lldp receive
+!
+interface Loopback1
+   vrf MGMT
+   ip address 10.100.3.102/32
+!
+ip routing vrf MGMT
+management api http-commands
+   no shutdown
+   !
+   vrf MGMT
+      no shutdown

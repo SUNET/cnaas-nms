@@ -2,7 +2,7 @@
 
 services:
   cnaas_init:
-    image: docker-cnaas_api
+    image: cnaas-api
     user: root
     entrypoint: ["bash", "-c"]
     volumes:

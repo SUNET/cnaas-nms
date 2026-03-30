@@ -75,6 +75,12 @@ Use the token:
 - **Swagger UI**: Click "Authorize", enter `Bearer <token>`, then click "Authorize"
 - **curl**: `curl -ks -H "Authorization: Bearer <token>" https://localhost/api/v1.0/devices`
 
+Tear down containers when done:
+
+```sh
+docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.dev.yaml down
+```
+
 ### Venv
 
 Install locally by creating a virtualenv and activate the environment, then:
@@ -88,24 +94,18 @@ Edit db_config.yml to point to your SQL and Redis database.
 
 ## Test
 
-```
-cd src/
-pytest
+### Local with Docker
+
+Run tests locally with pre-provisioned test data:
+
+```sh
+./docker/run-tests-local.sh
 ```
 
-Two marks can be used for pytest: `integration` and `equipment`, that can be be used to do a subset of all tests. Eg
-
-```
-pytest -m "not integration and not equipment"
-```
-
-Note that `and` must be used to apply filters at the same time.
-
-If the tests should not spin up any containers at all, set the environment variable `EXTERNAL_TEST_CONTAINERS`, eg
-
-```
-EXTERNAL_TEST_CONTAINERS=1 pytest -m "not equipment"
-```
+This script:
+- Starts PostgreSQL and Redis containers if not running
+- Clones test templates/settings to `.test-data/` (once, reused on subsequent runs)
+- Runs unit tests first, then integration tests
 
 ## Authorization
 

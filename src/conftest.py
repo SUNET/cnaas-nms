@@ -7,7 +7,6 @@ from contextlib import closing
 import pkg_resources
 import pytest
 import yaml
-from git import Repo
 
 import cnaas_nms.api.app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper

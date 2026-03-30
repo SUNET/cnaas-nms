@@ -2,7 +2,6 @@ import os
 import re
 import shutil
 import unittest
-from pathlib import Path
 
 import pytest
 

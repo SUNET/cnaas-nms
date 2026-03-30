@@ -19,6 +19,7 @@ from cnaas_nms.db.settings import (
     check_bgp_neighbor_routemaps,
     check_system_access_lists,
     check_vlan_collisions,
+    f_root,
     get_device_primary_groups,
     get_generated_access_lists,
     get_group_settings,
@@ -27,7 +28,7 @@ from cnaas_nms.db.settings import (
     rebuild_settings_cache,
     verify_dir_structure,
 )
-from cnaas_nms.db.settings_fields import f_group, f_groups, f_root
+from cnaas_nms.db.settings_fields import f_group, f_groups
 
 
 class SettingsTests(unittest.TestCase):

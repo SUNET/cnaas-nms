@@ -7,6 +7,7 @@ from flask.testing import FlaskClient
 
 from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
+from cnaas_nms.db.settings import FILE_MODEL_MAP
 
 
 @pytest.fixture
@@ -35,28 +36,6 @@ def test_valid_setting(testclient: FlaskClient):
     assert result.status_code == 200
 
 
-@pytest.mark.integration
-def test_invalid_system_access_list_setting(testclient: FlaskClient):
-    # System ACL not in access_lists.
-    settings_data = {
-        "system_access_lists": ["ACLTEST2"],
-        "access_lists": {"ACLTEST": {"terms": [{"name": "term_name", "action": "accept"}]}},
-    }
-    result = testclient.post("/api/v1.0/settings/model", json=settings_data)
-    assert result.status_code == 400
-
-
-@pytest.mark.integration
-def test_valid_system_access_list_setting(testclient: FlaskClient):
-    # System ACL in access_lists.
-    settings_data = {
-        "system_access_lists": ["ACLTEST"],
-        "access_lists": {"ACLTEST": {"terms": [{"name": "term_name", "action": "accept"}]}},
-    }
-    result = testclient.post("/api/v1.0/settings/model", json=settings_data)
-    assert result.status_code == 200
-
-
 def test_invalid_access_list_setting(testclient: FlaskClient):
     settings_data = {
         "access_lists": {"ACLTEST": {"terms": [{"action": "accept"}]}},
@@ -79,6 +58,35 @@ def test_settings_model(testclient: FlaskClient):
     assert result.status_code == 200
     assert result.content_type == "application/json"
     assert "$defs" in result.json
+
+
+def test_settings_model_name_good_filenames(testclient: FlaskClient):
+    for filename in FILE_MODEL_MAP.keys():
+        result = testclient.get(f"/api/v1.0/settings/model/{filename}")
+        assert result.status_code == 200
+        assert result.content_type == "application/json"
+        assert "$defs" in result.json
+
+
+def test_settings_model_name_bad_filename(testclient: FlaskClient):
+    result = testclient.get("/api/v1.0/settings/model/some_other_file.yml")
+    assert result.status_code == 400
+    assert result.content_type == "application/json"
+
+
+def test_settings_model_base_system_valid_setting(testclient: FlaskClient):
+    settings_data = {"ntp_servers": [{"host": "10.0.0.50"}]}  # noqa: S1313
+    result = testclient.post("/api/v1.0/settings/model/base_system.yml", json=settings_data)
+    assert result.status_code == 200
+
+
+def test_settings_model_base_system_invalid_setting(testclient: FlaskClient):
+    settings_data = {
+        "ntp_server": [{"host": "10.0.0.50"}],  # noqa: S1313
+        "some_other_invalid_setting": [{"a": "b"}],
+    }
+    result = testclient.post("/api/v1.0/settings/model/base_system.yml", json=settings_data)
+    assert result.status_code == 400
 
 
 def test_settings_server(testclient: FlaskClient):

@@ -229,7 +229,7 @@ def test_create_permission_with_excludes(client):
         "role_id": role_id,
         "methods": ["GET", "POST", "PUT", "DELETE"],
         "endpoints": ["/api/v1.0/*"],
-        "exclude_endpoints": ["/api/v1.0/system*", "/api/v1.0/rbac*"],
+        "exclude_endpoints": ["/system*", "/rbac*"],
         "pages": ["devices", "jobs", "settings"],
         "rights": ["read", "write"],
     }
@@ -239,7 +239,7 @@ def test_create_permission_with_excludes(client):
     assert response.json["status"] == "success"
 
     created_permission = response.json["data"]
-    assert created_permission["exclude_endpoints"] == ["/api/v1.0/system*", "/api/v1.0/rbac*"]
+    assert created_permission["exclude_endpoints"] == ["/system*", "/rbac*"]
     permission_id = created_permission["id"]
 
     # Delete the permission

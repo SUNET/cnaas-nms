@@ -106,6 +106,7 @@ def get_all_user_db_permissions(
                 perm_model = PermissionModel(
                     methods=role_permission.methods,
                     endpoints=role_permission.endpoints,
+                    exclude_endpoints=role_permission.exclude_endpoints,
                     pages=role_permission.pages,
                     rights=role_permission.rights,
                 )

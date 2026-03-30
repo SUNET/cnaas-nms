@@ -70,6 +70,72 @@ class CheckRoleRBACTests(unittest.TestCase):
         is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
         self.assertFalse(is_allowed)
 
+    def test_excluded_endpoint_is_denied(self):
+        request = JsonRequest("GET", self.prefix + "/admin")
+        permissions_of_user = [
+            PermissionModel(methods=["GET"], endpoints=["/*"], exclude_endpoints=["/admin"]),
+        ]
+        is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
+        self.assertFalse(is_allowed)
+
+    def test_excluded_glob_is_denied(self):
+        request = JsonRequest("GET", self.prefix + "/admin/settings")
+        permissions_of_user = [
+            PermissionModel(methods=["GET"], endpoints=["/**"], exclude_endpoints=["/admin*"]),
+        ]
+        is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
+        self.assertFalse(is_allowed)
+
+    def test_non_excluded_endpoint_still_allowed(self):
+        request = JsonRequest("GET", self.prefix + "/devices")
+        permissions_of_user = [
+            PermissionModel(methods=["GET"], endpoints=["/*"], exclude_endpoints=["/admin*"]),
+        ]
+        is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
+        self.assertTrue(is_allowed)
+
+    def test_exclude_with_double_glob(self):
+        """Double glob exclude denies nested paths but allows non-excluded ones"""
+        permissions_of_user = [
+            PermissionModel(methods=["GET"], endpoints=["/**"], exclude_endpoints=["/system/**"]),
+        ]
+
+        request_denied = JsonRequest("GET", self.prefix + "/system/config/dns")
+        self.assertFalse(check_if_api_call_is_permitted(request_denied, permissions_of_user))
+
+        request_allowed = JsonRequest("GET", self.prefix + "/devices/1")
+        self.assertTrue(check_if_api_call_is_permitted(request_allowed, permissions_of_user))
+
+    def test_exclude_is_per_permission_entry(self):
+        """Exclude in one entry does not block access granted by another entry"""
+        request = JsonRequest("GET", self.prefix + "/rbac/roles")
+        permissions_of_user = [
+            PermissionModel(methods=["GET"], endpoints=["/**"], exclude_endpoints=["/rbac*"]),
+            PermissionModel(methods=["GET"], endpoints=["/rbac**"]),
+        ]
+        is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
+        self.assertTrue(is_allowed)
+
+    def test_exclude_empty_list_has_no_effect(self):
+        request = JsonRequest("GET", self.prefix + "/anything")
+        permissions_of_user = [
+            PermissionModel(methods=["GET"], endpoints=["/*"], exclude_endpoints=[]),
+        ]
+        is_allowed = check_if_api_call_is_permitted(request, permissions_of_user)
+        self.assertTrue(is_allowed)
+
+    def test_exclude_with_star_wildcard_endpoints(self):
+        """When endpoints is ['*'] (allow all), excludes should still work"""
+        permissions_of_user = [
+            PermissionModel(methods=["GET"], endpoints=["*"], exclude_endpoints=["/system*"]),
+        ]
+
+        request_denied = JsonRequest("GET", self.prefix + "/system/config")
+        self.assertFalse(check_if_api_call_is_permitted(request_denied, permissions_of_user))
+
+        request_allowed = JsonRequest("GET", self.prefix + "/devices")
+        self.assertTrue(check_if_api_call_is_permitted(request_allowed, permissions_of_user))
+
 
 class GetPremissionsRoleYamlTests(unittest.TestCase):
     permissions_rules_with_default = PermissionsModel(

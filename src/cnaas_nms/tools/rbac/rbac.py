@@ -52,6 +52,16 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
     return permissions_of_user
 
 
+def _uri_matches_any_pattern(uri: str, patterns: list[str]) -> bool:
+    """Check if a URI matches any of the given fnmatch patterns."""
+    if uri in patterns:
+        return True
+    for pattern in patterns:
+        if fnmatch.filter([uri], pattern):
+            return True
+    return False
+
+
 def check_if_api_call_is_permitted(request: FlaskJsonRequest, permissions_of_user: list[PermissionModel]):
     """Checks if the user has permission to execute the API call"""
     for permission in permissions_of_user:
@@ -70,13 +80,16 @@ def check_if_api_call_is_permitted(request: FlaskJsonRequest, permissions_of_use
         short_uri = request.uri.split(prefix, 1)[1].split("?", 1)[0]
 
         # check if you're permitted to make api call based on uri
-        if "*" in allowed_endpoints or short_uri in allowed_endpoints:
-            return True
+        endpoint_matched = "*" in allowed_endpoints or _uri_matches_any_pattern(short_uri, allowed_endpoints)
 
-        # added the glob patterns so it's easier to add a bunch of api calls (like all /device api calls)
-        for allowed_api_call in allowed_endpoints:
-            matches = fnmatch.filter([short_uri], allowed_api_call)
-            if len(matches) > 0:
-                return True
+        if not endpoint_matched:
+            continue
+
+        # check if the endpoint is excluded by this permission entry
+        exclude_endpoints = permission.exclude_endpoints or []
+        if exclude_endpoints and _uri_matches_any_pattern(short_uri, exclude_endpoints):
+            continue
+
+        return True
 
     return False

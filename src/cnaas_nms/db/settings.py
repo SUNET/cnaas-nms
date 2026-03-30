@@ -621,14 +621,16 @@ def read_settings(
     # Defaults to f_root if the filename does not map to any specific model.
     f_model = FILE_MODEL_MAP.get(filename, f_root)
     # Check if there is any fields not meant to go in this file.
-    for key in yamldata:
-        if key not in f_model.model_fields:
-            logger.error(
-                f"""Key '{key}' in file: '{filename}' is not a valid key for this file.
-                Valid keys are: {", ".join(f_model.model_fields.keys())}.
-                This key will be ignored, please move this setting to the correct file.
-                """
-            )
+    invalid_keys = [key for key in yamldata if key not in f_model.model_fields]
+    if invalid_keys:
+        logger.error(
+            "Invalid key(s) %s in settings file '%s' (path '%s'). Valid keys: %s. "
+            "These keys will be ignored; please move these settings to the correct file.",
+            ", ".join(sorted(invalid_keys)),
+            filename,
+            filepath,
+            ", ".join(sorted(f_model.model_fields.keys())),
+        )
     # Filter dict
     settings_from_file: dict = f_model.model_construct(**yamldata).model_dump(exclude_unset=True)
     if groups or hostname:

@@ -5,7 +5,7 @@ import os
 import re
 import types
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union
+from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union, overload
 
 import yaml
 from absl import logging as absl_logging
@@ -15,7 +15,7 @@ from aerleon.lib import naming
 from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyFilterTermsOnly, TermsList
 from aerleon.lib.yaml import PolicyTypeError
 from netutils.lib_mapper import AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from redis import StrictRedis
 from redis_lru import RedisLRU
 from sqlalchemy import inspect
@@ -26,28 +26,80 @@ from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.git_worktrees import refresh_templates_worktree
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import redis_session, sqla_session
-from cnaas_nms.db.settings_fields import f_access_list, f_group, f_group_device_filter, f_groups
+from cnaas_nms.db.settings_fields import (
+    f_access_list,
+    f_group,
+    f_group_device_filter,
+    f_groups,
+)
+from cnaas_nms.db.settings_fields import (
+    f_access_lists as f_access_lists_model,
+)
+from cnaas_nms.db.settings_fields import (
+    f_base_system as f_base_system_model,
+)
+from cnaas_nms.db.settings_fields import (
+    f_interfaces as f_interfaces_model,
+)
+from cnaas_nms.db.settings_fields import (
+    f_routing as f_routing_model,
+)
+from cnaas_nms.db.settings_fields import f_vxlans as f_vxlans_model
 from cnaas_nms.tools.log import CaptureHandler, get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
 
 
-def get_settings_root():
+@overload
+def get_settings_model(model: Literal["f_access_lists"]) -> type[f_access_lists_model]: ...
+@overload
+def get_settings_model(model: Literal["f_base_system"]) -> type[f_base_system_model]: ...
+@overload
+def get_settings_model(model: Literal["f_interfaces"]) -> type[f_interfaces_model]: ...
+@overload
+def get_settings_model(model: Literal["f_routing"]) -> type[f_routing_model]: ...
+@overload
+def get_settings_model(model: Literal["f_vxlans"]) -> type[f_vxlans_model]: ...
+def get_settings_model(
+    model: str,
+) -> type[BaseModel]:
     logger = get_logger()
+
+    valid_models = ["f_access_lists", "f_base_system", "f_interfaces", "f_routing", "f_vxlans"]
+
+    if model not in valid_models:
+        logger.error(f"Model: '{model}' is not valid, valid options: {valid_models}")
+        raise ModuleNotFoundError(name=model)
+
     try:
         settings_fields_path = os.getenv("PLUGIN_SETTINGS_FIELDS_MODULE", "cnaas_nms.plugins.settings_fields")
         settings_fields = importlib.import_module(settings_fields_path)
-        f_root_ret = settings_fields.f_root
+        f_setting_ret = getattr(settings_fields, model)
         logger.debug("Loaded settings_fields module from plugin: {}".format(settings_fields_path))
     except ModuleNotFoundError:
-        f_root_ret = importlib.import_module("cnaas_nms.db.settings_fields").f_root
+        f_setting_ret = getattr(importlib.import_module("cnaas_nms.db.settings_fields"), model)
         logger.debug("Loaded settings_fields module from bundled cnaas-nms")
     except Exception as e:
         logger.error("Unable to load plugin module for settings_fields: {}".format(e))
-        f_root_ret = importlib.import_module("cnaas_nms.db.settings_fields").f_root
-    return f_root_ret
+        f_setting_ret = getattr(importlib.import_module("cnaas_nms.db.settings_fields"), model)
+    return f_setting_ret
 
 
-f_root = get_settings_root()
+f_access_lists = get_settings_model("f_access_lists")
+f_base_system = get_settings_model("f_base_system")
+f_interfaces = get_settings_model("f_interfaces")
+f_routing = get_settings_model("f_routing")
+f_vxlans = get_settings_model("f_vxlans")
+
+
+class f_root(
+    f_access_lists,  # type: ignore
+    f_base_system,  # type: ignore
+    f_interfaces,  # type: ignore
+    f_routing,  # type: ignore
+    f_vxlans,  # type: ignore
+):
+    pass
+
 
 redis_client = StrictRedis(
     host=app_settings.REDIS_HOSTNAME,
@@ -136,6 +188,15 @@ DIR_STRUCTURE: dict[str, Any] = {
     "access": {"base_system.yml": "file"},
     "devices": {Device: DIR_STRUCTURE_HOST},
     "groups": {"group": DIR_STRUCTURE_HOST},
+}
+
+FILE_MODEL_MAP: dict[str, type[BaseModel]] = {
+    "access_lists.yml": f_access_lists,
+    "base_system.yml": f_base_system,
+    "groups.yml": f_groups,
+    "interfaces.yml": f_interfaces,
+    "routing.yml": f_routing,
+    "vxlans.yml": f_vxlans,
 }
 
 MODEL_IF_REGEX = re.compile(r"^interfaces_(.*)\.yml$")
@@ -548,14 +609,28 @@ def read_settings(
         merged_settings, merged_settings_origin
     """
     logger = get_logger()
-    filename = get_setting_filename(local_repo_path, path)
-    yamldata = read_settings_file(filename)
+    filepath = get_setting_filename(local_repo_path, path)
+    filename = path[-1]
+    yamldata = read_settings_file(filepath)
     if not yamldata:
         return merged_settings, merged_settings_origin
     elif not isinstance(yamldata, dict):
-        logger.info("Invalid yaml file ignored: {}".format(filename))
+        logger.info("Invalid yaml file ignored: {}".format(filepath))
         return merged_settings, merged_settings_origin
-    settings_from_file: dict = yamldata
+    # Filter yamldata with the associated pydantic model and log any fields not meant in this file.
+    # Defaults to f_root if the filename does not map to any specific model.
+    f_model = FILE_MODEL_MAP.get(filename, f_root)
+    # Check if there is any fields not meant to go in this file.
+    for key in yamldata:
+        if key not in f_model.model_fields:
+            logger.error(
+                f"""Key '{key}' in file: '{filename}' is not a valid key for this file.
+                Valid keys are: {", ".join(f_model.model_fields.keys())}.
+                This key will be ignored, please move this setting to the correct file.
+                """
+            )
+    # Filter dict
+    settings_from_file: dict = f_model.model_construct(**yamldata).model_dump(exclude_unset=True)
     if groups or hostname:
         syntax_dict, syntax_dict_origin = merge_dict_origin({}, settings_from_file, {}, origin)
         check_settings_syntax(syntax_dict, syntax_dict_origin)

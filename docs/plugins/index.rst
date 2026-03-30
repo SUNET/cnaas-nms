@@ -71,14 +71,23 @@ override the settings_fields module which defines the allowed setting "fields".
 The settings_fields module uses pydantic to define allowed data types in a model.
 It's possible to just extend the existing model or to redefine it altogether.
 
-Example settingns_fields.py module to extend existing model::
+Example settings_fields.py module to extend existing model
+
+.. code-block:: python3
 
   from typing import List
 
   from cnaas_nms.db import settings_fields as orig_fields
 
-  class f_root(orig_fields.f_root):
+  class f_base_system(orig_fields.f_base_system):
       my_new_field: List[str] = []
+
+Models that can be overridden:
+  - f_access_lists
+  - f_base_system
+  - f_interfaces
+  - f_routing
+  - f_vxlans
 
 Save it as settings_fields.py in src/cnaas_nms/plugins or use environment
 variables to define a custom name: :ref:`configuration_environment_ref`

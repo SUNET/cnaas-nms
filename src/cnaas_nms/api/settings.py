@@ -116,7 +116,7 @@ class SettingsModelFilenameApi(Resource):
         if not_valid_keys:
             return empty_result(
                 status="error",
-                data=f"Key{'s' if len(not_valid_keys) > 1 else ''}: '{', '.join(not_valid_keys)}' cannot be used in this file and will be filtered, please move them to the correct settings file.'",
+                data=f"Key{'s' if len(not_valid_keys) > 1 else ''}: '{', '.join(sorted(not_valid_keys))}' cannot be used in this file and will be filtered, please move them to the correct settings file.",
             ), 400
         return validate_json_to_model(json_data)
 

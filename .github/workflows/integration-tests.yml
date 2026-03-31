@@ -40,7 +40,7 @@ jobs:
 
       - name: Docker build
         working-directory: ./docker
-        run: docker compose build --build-arg BUILDBRANCH=${{ env.BRANCH_NAME }} cnaas_api
+        run: docker compose build cnaas_api
 
       - name: Start VMs
         run: ~/start-vms.sh

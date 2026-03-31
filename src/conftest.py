@@ -3,13 +3,11 @@ import socket
 import subprocess
 import time
 from contextlib import closing
+from pathlib import Path
 
-import pkg_resources
 import pytest
 import yaml
 
-import cnaas_nms.api.app
-from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.scheduler.scheduler import Scheduler
 
 
@@ -184,6 +182,9 @@ def client(app, redis, postgresql, settings_directory):
 
 @pytest.fixture
 def app(jwt_auth_token):
+    import cnaas_nms.api.app
+    from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
+
     the_app = cnaas_nms.api.app.app
     the_app.wsgi_app = TestAppWrapper(the_app.wsgi_app, jwt_auth_token)
     return the_app
@@ -196,6 +197,6 @@ def jwt_auth_token(testdata):
 
 @pytest.fixture
 def testdata(scope="session"):
-    data_dir = pkg_resources.resource_filename(__name__, "cnaas_nms/api/tests/data")
-    with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
+    data_dir = Path(__file__).parent / "cnaas_nms" / "api" / "tests" / "data"
+    with open(data_dir / "testdata.yml", "r") as f_testdata:
         return yaml.safe_load(f_testdata)

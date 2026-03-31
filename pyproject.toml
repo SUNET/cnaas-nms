@@ -33,7 +33,7 @@ dependencies = [
   "gitpython==3.1.44",
   "greenlet==3.2.1",
   "markupsafe==3.0.2",
-  "napalm==5.0",
+  "napalm==5.1",
   "netmiko==4.5",
   "nornir==3.5",
   "nornir-jinja2==0.2",

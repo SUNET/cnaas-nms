@@ -1,6 +1,7 @@
 name: Run CNaaS-NMS integration tests
 permissions:
   contents: read
+  pull-requests: read
 on:
   push:
   workflow_dispatch:
@@ -8,8 +9,6 @@ on:
 jobs:
   docker-tests:
     name: "Run integration tests"
-    contents: read
-    pull-requests: read
     runs-on: norpan-kvm
 
     steps:

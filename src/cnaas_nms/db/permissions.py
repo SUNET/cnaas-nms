@@ -82,7 +82,6 @@ class RoleMappings(cnaas_nms.db.base.Base):
         }
 
 
-#
 def get_all_user_db_permissions(
     session, user_info: dict, user_info_attributes_in_db: list[str]
 ) -> list[PermissionModel]:

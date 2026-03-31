@@ -67,7 +67,6 @@ class RoleApi(Resource):
         with sqla_session() as session:  # type: ignore
             roles = session.query(Roles).all()
             for role in roles:
-                print(role.as_dict())
                 ret.append(role.as_dict())
         return empty_result(status="success", data=ret)
 

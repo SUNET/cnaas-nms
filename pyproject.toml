@@ -9,12 +9,12 @@ license = { text = "BSD-2-Clause" }
 authors = [
   { name = "SUNET" },
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 classifiers = [
   "License :: OSI Approved :: BSD License",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.13",
 ]
 dynamic = [ "version" ]
 dependencies = [
@@ -33,7 +33,7 @@ dependencies = [
   "gitpython==3.1.44",
   "greenlet==3.2.1",
   "markupsafe==3.0.2",
-  "napalm==5.0",
+  "napalm==5.1",
   "netmiko==4.5",
   "nornir==3.5",
   "nornir-jinja2==0.2",
@@ -154,7 +154,7 @@ where = [ "src" ]
 exclude = [ "tests" ]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py313"
 line-length = 120
 exclude = [
   ".eggs",

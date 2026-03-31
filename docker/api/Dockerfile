@@ -1,5 +1,5 @@
 # Stage 1: Builder - install dependencies
-FROM python:3.11-slim-bookworm AS builder
+FROM python:3.13-slim-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libpq-dev libpcre2-dev libpcre3-dev libssl-dev git \
@@ -26,7 +26,8 @@ RUN /opt/cnaas/venv/bin/pip install --no-cache-dir -U pip && \
 # - swaggeruirequestintercept.patch: allows Swagger UI request interceptor
 #   to include credentials from browser local storage during manual API testing
 COPY docker/api/pull2167.patch docker/api/swaggeruirequestintercept.patch /tmp/
-RUN cd /opt/cnaas/venv/lib/python3.11/site-packages && \
+RUN SITE_PACKAGES="$(/opt/cnaas/venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" && \
+    cd "$SITE_PACKAGES" && \
     patch -p1 < /tmp/pull2167.patch || true && \
     patch -p1 < /tmp/swaggeruirequestintercept.patch || true
 
@@ -37,7 +38,7 @@ COPY alembic.ini /opt/cnaas/venv/cnaas-nms/
 
 
 # Stage 2: Runtime - minimal production image
-FROM python:3.11-slim-bookworm AS runtime
+FROM python:3.13-slim-bookworm AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 nginx supervisor ssh-client \

@@ -44,7 +44,7 @@ class ReservedIP(cnaas_nms.db.base.Base):
             if device and rip.device == device:
                 logger.debug("Clearing reservation of ip {} for device {}".format(rip.ip, device.hostname))
                 session.delete(rip)
-            elif rip.last_seen < datetime.datetime.utcnow() - expiry_time:
+            elif rip.last_seen < datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - expiry_time:
                 logger.debug(
                     "Clearing expired reservation of ip {} for device {} from {}".format(
                         rip.ip, rip.device.hostname, rip.last_seen

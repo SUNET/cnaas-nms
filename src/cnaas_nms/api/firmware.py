@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 import requests
@@ -273,7 +273,7 @@ class FirmwareUpgradeApi(Resource):
         if "start_at" in json_data:
             try:
                 time_start = datetime.strptime(json_data["start_at"], date_format)
-                time_now = datetime.utcnow()
+                time_now = datetime.now(UTC).replace(tzinfo=None)
 
                 if time_start < time_now:
                     return empty_result(status="error", data="start_at must be in the future")

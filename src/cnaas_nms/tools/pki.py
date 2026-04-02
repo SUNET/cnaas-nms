@@ -75,8 +75,8 @@ def generate_device_cert(hostname: str, ipv4_address: IPv4Address):
         .issuer_name(root_cert.issuer)
         .public_key(cert_key.public_key())
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.utcnow())
-        .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=7300))
+        .not_valid_before(datetime.datetime.now(datetime.UTC).replace(tzinfo=None))
+        .not_valid_after(datetime.datetime.now(datetime.UTC).replace(tzinfo=None) + datetime.timedelta(days=7300))
         .add_extension(
             x509.SubjectAlternativeName([x509.IPAddress(ipv4_address)]),
             critical=False,

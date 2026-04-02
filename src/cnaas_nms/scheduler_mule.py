@@ -104,7 +104,9 @@ def main_loop() -> None:
             elif data["scheduler_action"] == "shutdown_mule":
                 action = "shutdown_mule"
         if "when" in data and isinstance(data["when"], int):
-            data["run_date"] = datetime.datetime.utcnow() + datetime.timedelta(seconds=data["when"])
+            data["run_date"] = datetime.datetime.now(datetime.UTC).replace(tzinfo=None) + datetime.timedelta(
+                seconds=data["when"]
+            )
             del data["when"]
         kwargs = {}
         for k, v in data.items():

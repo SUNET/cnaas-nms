@@ -153,9 +153,9 @@ class Linknet(cnaas_nms.db.base.Base):
             )
 
         new_linknet: Linknet = Linknet()
-        new_linknet.device_a = dev_a
+        new_linknet.device_a_id = dev_a.id
         new_linknet.device_a_port = interface_a
-        new_linknet.device_b = dev_b
+        new_linknet.device_b_id = dev_b.id
         new_linknet.device_b_port = interface_b
         if ipv4_network:
             if not isinstance(ipv4_network, ipaddress.IPv4Network) or ipv4_network.prefixlen != 31:

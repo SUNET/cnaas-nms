@@ -228,7 +228,7 @@ def md5(s: str, encoding: str = "utf-8") -> str:
 
 @template_filter()
 def get_config_section(config: str, section: str, parser: str) -> str:
-    """
+    r"""
     Get the configuration block for a specific section.
 
     Args:
@@ -241,7 +241,7 @@ def get_config_section(config: str, section: str, parser: str) -> str:
 
     test:
         get_config_section(config=firewall_config, section="firewall", parser="junos")
-    """  # noqa: W605
+    """
     if parser.lower() == "junos":
         parser_obj: type[BaseSpaceConfigParser] = JunosConfigParser
     elif parser.lower() == "eos":

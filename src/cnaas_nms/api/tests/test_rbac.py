@@ -3,6 +3,8 @@ import pytest
 from cnaas_nms.db.permissions import RoleMappings, RolePermissions, Roles
 from cnaas_nms.db.session import sqla_session
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture(autouse=True)
 def cleanup_rbac_test_data():

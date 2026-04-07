@@ -1,3 +1,4 @@
+import pytest
 from authlib.oauth2 import JsonRequest
 
 from cnaas_nms.db.permissions import (
@@ -11,6 +12,8 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.models.permissions import PermissionModel
 from cnaas_nms.tools.rbac.rbac import check_if_api_call_is_permitted
 from cnaas_nms.version import __api_version__
+
+pytestmark = pytest.mark.integration
 
 prefix = "/api/{}".format(__api_version__)
 

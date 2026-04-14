@@ -43,10 +43,10 @@ def get_permissions_user(permissions_rules: PermissionsModel, user_info: dict):
     for relevant_role in relevant_roles:
         permissions_of_user.extend(permissions_rules.roles[relevant_role].permissions)
 
-    if permissions_rules.config and permissions_rules.config.userinfo_attributes_in_db:
+    if permissions_rules.config and permissions_rules.config.user_info_db_attr:
         with sqla_session() as session:
             permissions_of_user.extend(
-                get_all_user_db_permissions(session, user_info, permissions_rules.config.userinfo_attributes_in_db)
+                get_all_user_db_permissions(session, user_info, permissions_rules.config.user_info_db_attr)
             )
 
     return permissions_of_user

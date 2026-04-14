@@ -69,6 +69,8 @@ Define parameters for the authentication:
 - verify_audience: Set to False to disable aud check. Defaults to True
 - permissions_disabled: set True to disable permissions. Default False
 
+.. _etc-cnaas-nms-permissions-yml:
+
 /etc/cnaas-nms/permissions.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -13,6 +13,7 @@ API Reference
    repository
    settings
    plugins
+   rbac
    syncto
    interfaces
    firmware

@@ -1,17 +1,27 @@
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class PemissionConfig(BaseModel):
     default_permissions: str
+    user_info_db_attr: list[str] = ["sub", "username", "preferred_username", "email"]
 
 
 class PermissionModel(BaseModel):
     methods: Optional[list[str]] = []
     endpoints: Optional[list[str]] = []
+    exclude_endpoints: Optional[list[str]] = []
     pages: Optional[list[str]] = []
     rights: Optional[list[str]] = []
+
+    @field_validator("methods")
+    def validate_methods(cls, v):
+        valid_methods = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "*"}
+        for method in v:
+            if method not in valid_methods:
+                raise ValueError(f"Invalid HTTP method: {method}")
+        return v
 
 
 class RoleModel(BaseModel):

@@ -31,6 +31,8 @@ roles:
       - methods: ["*"]
         endpoints:
           - "*"
+        exclude_endpoints:
+          - "/rbac/**"
   default:
     permissions:
       - methods: ["GET"]

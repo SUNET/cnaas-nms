@@ -504,77 +504,6 @@ class f_access_list(BaseModel):
 f_access_list.model_rebuild()
 
 
-class f_root(BaseModel):
-    ntp_servers: List[f_ntp_server] = []
-    radius_servers: List[f_radius_server] = []
-    syslog_servers: List[f_syslog_server] = []
-    snmp_servers: List[f_snmp_server] = []
-    dns_servers: List[f_dns_server] = []
-    flow_collectors: List[f_flow_collector] = []
-    dhcp_relays: Optional[List[f_dhcp_relay]] = None
-    interfaces: List[f_interface] = []
-    vrfs: List[f_vrf] = []
-    vxlans: Dict[str, f_vxlan] = {}
-    underlay: Optional[f_underlay] = None
-    evpn_peers: List[f_evpn_peer] = []
-    extroute_static: Optional[f_extroute_static] = None
-    extroute_ospfv3: Optional[f_extroute_ospfv3] = None
-    extroute_bgp: Optional[f_extroute_bgp] = None
-    internal_vlans: Optional[f_internal_vlans] = None
-    dot1x_fail_vlan: Optional[int] = vlan_id_schema_optional
-    cli_prepend_str: str = ""
-    cli_append_str: str = ""
-    organization_name: str = ""
-    domain_name: Optional[str] = domain_name_schema
-    users: List[f_user] = []
-    dot1x_multi_host: bool = False
-    poe_reboot_maintain: bool = False
-    prefix_sets: Dict[str, f_prefixset] = {}
-    routing_policies: Dict[str, f_routingpolicy] = {}
-    external_routing_policies: List[str] = []
-    interface_tag_options: Dict[str, f_interface_tag] = {}
-    port_template_options: Dict[str, f_port_template] = {}
-    vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
-    arista_models_32bit: Optional[List[str]] = None
-    upgrade_post_waittime: Dict[str, int] = {"default": 600}
-    network_definitions: Dict[str, List[Union[f_network_definition | f_network_definition_include]]] = {}
-    service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
-    access_lists: Dict[access_list_name, f_access_list] = {}
-    system_access_lists: List[access_list_name] = []
-
-    @field_validator("access_lists", mode="after")
-    @classmethod
-    def validate_access_lists_includes(
-        cls, access_lists: Dict[access_list_name, f_access_list]
-    ) -> Dict[access_list_name, f_access_list]:
-        """Raise an error if some term include is not pointing to a valid access_list"""
-        acl_names = access_lists.keys()
-        for access_list in access_lists.values():
-            for term in access_list.terms:
-                include_acl = term.get("include")
-                if include_acl and include_acl not in acl_names:
-                    raise ValueError(f"Included access-list: {include_acl} must be defined.")
-        return access_lists
-
-    @field_validator("access_lists", mode="after")
-    @classmethod
-    def validate_access_lists_included_terms(
-        cls, access_lists: Dict[access_list_name, f_access_list]
-    ) -> Dict[access_list_name, f_access_list]:
-        """Validates an access-list + included access-lists have unique term-names"""
-        for access_list in access_lists.values():
-            all_term_names = [t.get("name") for t in access_list.terms if t.get("name")]
-            for term in access_list.terms:
-                include_acl = term.get("include")
-
-                if include_acl and isinstance(include_acl, str):
-                    all_term_names.extend([t.get("name") for t in access_lists[include_acl].terms if t.get("name")])
-
-            if len(all_term_names) != len(set(all_term_names)):
-                raise ValueError("All term names in an access-list + included access-lists must be unique.")
-        return access_lists
-
-
 class f_group_device_filter(BaseModel):
     hostname: Optional[str] = None
     device_type: Optional[str] = None
@@ -711,3 +640,89 @@ def validate_groups(groups: List[f_group]):
 
 class f_groups(BaseModel):
     groups: Annotated[Optional[List[f_group]], AfterValidator(validate_groups)] = None
+
+
+class f_access_lists(BaseModel):
+    network_definitions: Dict[str, List[Union[f_network_definition | f_network_definition_include]]] = {}
+    service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
+    access_lists: Dict[access_list_name, f_access_list] = {}
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
+    def validate_access_lists_includes(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
+        """Raise an error if some term include is not pointing to a valid access_list"""
+        acl_names = access_lists.keys()
+        for access_list in access_lists.values():
+            for term in access_list.terms:
+                include_acl = term.get("include")
+                if include_acl and include_acl not in acl_names:
+                    raise ValueError(f"Included access-list: {include_acl} must be defined.")
+        return access_lists
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
+    def validate_access_lists_included_terms(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
+        """Validates an access-list + included access-lists have unique term-names"""
+        for access_list in access_lists.values():
+            all_term_names = [t.get("name") for t in access_list.terms if t.get("name")]
+            for term in access_list.terms:
+                include_acl = term.get("include")
+
+                if include_acl and isinstance(include_acl, str):
+                    all_term_names.extend([t.get("name") for t in access_lists[include_acl].terms if t.get("name")])
+
+            if len(all_term_names) != len(set(all_term_names)):
+                raise ValueError("All term names in an access-list + included access-lists must be unique.")
+        return access_lists
+
+
+class f_base_system(BaseModel):
+    ntp_servers: List[f_ntp_server] = []
+    radius_servers: List[f_radius_server] = []
+    syslog_servers: List[f_syslog_server] = []
+    snmp_servers: List[f_snmp_server] = []
+    dns_servers: List[f_dns_server] = []
+    flow_collectors: List[f_flow_collector] = []
+    dhcp_relays: Optional[List[f_dhcp_relay]] = None
+    internal_vlans: Optional[f_internal_vlans] = None
+    dot1x_fail_vlan: Optional[int] = vlan_id_schema_optional
+    cli_prepend_str: str = ""
+    cli_append_str: str = ""
+    organization_name: str = ""
+    domain_name: Optional[str] = domain_name_schema
+    users: List[f_user] = []
+    dot1x_multi_host: bool = False
+    poe_reboot_maintain: bool = False
+    interface_tag_options: Dict[str, f_interface_tag] = {}
+    port_template_options: Dict[str, f_port_template] = {}
+    vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
+    arista_models_32bit: Optional[List[str]] = None
+    upgrade_post_waittime: Dict[str, int] = {"default": 600}
+    system_access_lists: List[access_list_name] = []
+    # This is defined both in f_base_system and f_routing
+    external_routing_policies: List[str] = []
+
+
+class f_interfaces(BaseModel):
+    interfaces: List[f_interface] = []
+
+
+class f_routing(BaseModel):
+    vrfs: List[f_vrf] = []
+    underlay: Optional[f_underlay] = None
+    evpn_peers: List[f_evpn_peer] = []
+    extroute_static: Optional[f_extroute_static] = None
+    extroute_ospfv3: Optional[f_extroute_ospfv3] = None
+    extroute_bgp: Optional[f_extroute_bgp] = None
+    prefix_sets: Dict[str, f_prefixset] = {}
+    routing_policies: Dict[str, f_routingpolicy] = {}
+    # This is defined both in f_base_system and f_routing
+    external_routing_policies: List[str] = []
+
+
+class f_vxlans(BaseModel):
+    vxlans: Dict[str, f_vxlan] = {}

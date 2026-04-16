@@ -1,8 +1,8 @@
 # Stage 1: Builder - install dependencies
-FROM python:3.13-slim-bookworm AS builder
+FROM python:3.13-slim-trixie AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev libpcre2-dev libpcre3-dev libssl-dev git \
+    build-essential libpq-dev libpcre2-dev libssl-dev git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -38,7 +38,7 @@ COPY alembic.ini /opt/cnaas/venv/cnaas-nms/
 
 
 # Stage 2: Runtime - minimal production image
-FROM python:3.13-slim-bookworm AS runtime
+FROM python:3.13-slim-trixie AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 nginx supervisor ssh-client \
@@ -50,6 +50,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy venv from builder
 COPY --chmod=555 --from=builder --chown=root:www-data /opt/cnaas/venv /opt/cnaas/venv
+
+# Copy over .git folder to get git commit hash in the UI.
+# Should be changed later to another method
+COPY .git /opt/cnaas/venv/cnaas-nms/.git
 
 # Copy nginx/supervisor configs
 COPY docker/api/config/supervisord_app.conf /etc/supervisor/supervisord.conf

@@ -59,8 +59,8 @@ on_err() {
 	$COMPOSE_COMMAND logs -n 100 cnaas_api
 }
 
-# trap on_exit EXIT
-# trap on_err ERR
+trap on_exit EXIT
+trap on_err ERR
 
 docker volume create cnaas-templates
 docker volume create cnaas-settings
@@ -142,7 +142,7 @@ MULE_PID="$($COMPOSE_COMMAND logs cnaas_api | awk '/spawned uWSGI mule/{print $6
 echo "Found mule at pid $MULE_PID"
 # Allow for code coverage files to be saved
 $COMPOSE_COMMAND exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
-curl -ks -H "Authorization: Bearer $JWT_AUTH_TOKEN" "https://localhost/api/v1.0/system/shutdown" -d "{}" -X POST -H "Content-Type: application/json"
+curl -m 5 -ks -H "Authorization: Bearer $JWT_AUTH_TOKEN" "https://localhost/api/v1.0/system/shutdown" -d "{}" -X POST -H "Content-Type: application/json"
 sleep 3
 
 echo "Starting unit tests..."

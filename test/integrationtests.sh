@@ -59,8 +59,8 @@ on_err() {
 	$COMPOSE_COMMAND logs -n 100 cnaas_api
 }
 
-# trap on_exit EXIT
-# trap on_err ERR
+trap on_exit EXIT
+trap on_err ERR
 
 docker volume create cnaas-templates
 docker volume create cnaas-settings

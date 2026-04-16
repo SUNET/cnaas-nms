@@ -51,6 +51,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy venv from builder
 COPY --chmod=555 --from=builder --chown=root:www-data /opt/cnaas/venv /opt/cnaas/venv
 
+# Copy over .git folder to get git commit hash in the UI.
+# Should be changed later to another method
+COPY .git /opt/cnaas/venv/cnaas-nms/.git
+
 # Copy nginx/supervisor configs
 COPY docker/api/config/supervisord_app.conf /etc/supervisor/supervisord.conf
 COPY docker/api/config/nginx_app.conf /etc/nginx/sites-available/

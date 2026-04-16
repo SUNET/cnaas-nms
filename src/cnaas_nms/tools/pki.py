@@ -32,6 +32,8 @@ def get_ssl_context():
         logger.debug("Using system default CAs")
         new_ssl_context = ssl.create_default_context()
 
+    new_ssl_context.verify_flags &= ~(ssl.VERIFY_X509_STRICT | ssl.VERIFY_X509_PARTIAL_CHAIN)
+
     return new_ssl_context
 
 

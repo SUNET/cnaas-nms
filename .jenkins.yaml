@@ -31,8 +31,10 @@ extra_jobs:
       branch: develop
     builders:
       - docker
+    pre_build_script:
+      - cp docker/dhcpd/Dockerfile .
     docker_name: cnaas/dhcpd
-    docker_context_dir: docker/dhcpd
+    docker_context_dir: .
     docker_tags:
       - "v1.0"
 
@@ -41,8 +43,10 @@ extra_jobs:
       branch: develop
     builders:
       - docker
+    pre_build_script:
+      - cp docker/api/Dockerfile .
     docker_name: cnaas/api
-    docker_context_dir: docker/api
+    docker_context_dir: .
     docker_tags:
       - "v1.9"
       - "develop"

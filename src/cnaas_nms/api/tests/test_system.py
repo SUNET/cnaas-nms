@@ -33,7 +33,7 @@ def test_system_version(testclient: FlaskClient):
     assert commit.name_rev in data["git_version"]
 
 
-def test_system_with_env_overrides(testclient: FlaskClient, monkeypatch):
+def test_system_with_overrides(testclient: FlaskClient, monkeypatch):
     monkeypatch.setattr(app_settings, "GIT_BRANCH", "custom_branch")
     monkeypatch.setattr(app_settings, "GIT_COMMIT", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
     monkeypatch.setattr(app_settings, "GIT_DATE", "2026-04-16 18:31:05+02:00")

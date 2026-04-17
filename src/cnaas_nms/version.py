@@ -7,7 +7,18 @@ __version_info__ = tuple([field for field in __version__.split(".")])
 __api_version__ = "v1.0"
 
 
-def get_git_version():
+def get_git_version() -> str:
+    """
+    Retrieve the current git version information.
+    This function attempts to get git version details from environment variables first,
+    which are typically set in CI/CD environments. If those are not available, it falls
+    back to reading version information from the local git repository.
+    Returns:
+        str:  "Git commit {commit} {branch} ({date})"
+    Raises:
+        No exceptions are raised; errors are caught and returned as strings.
+    """
+
     git_branch = app_settings.GIT_BRANCH
     git_commit = app_settings.GIT_COMMIT
     git_date = app_settings.GIT_DATE

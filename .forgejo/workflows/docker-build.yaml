@@ -20,9 +20,16 @@ jobs:
           registry: platform.sunet.se
           username: ci-sunet-cnaas
           password: ${{ secrets.CI_SUNET_CNAAS }}
+      - name: Set build args
+        run: |
+          echo "GIT_DATE=$(git log -1 --format=%cI HEAD)" >> $GITHUB_ENV
       - name: Build and Push
         uses: https://platform.sunet.se/actions/build-push-action@v6
         with:
           push: true
           file: docker/api/Dockerfile
           tags: platform.sunet.se/cnaas/nms_api:latest
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            GIT_DATE=${{ env.GIT_DATE }}
+            GIT_BRANCH=${{ github.ref_name }}

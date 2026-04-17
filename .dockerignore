@@ -1,7 +1,5 @@
 # Version control
-# API need to see the git repo to display the latest commit hash in the UI.
-# Can be changed later to some docker build step instead.
-#.git
+.git
 .github
 .git-blame-ignore-revs
 

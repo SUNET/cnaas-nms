@@ -32,6 +32,9 @@ class AppSettings(BaseSettings):
     TEMPLATES_LOCAL: str = "/opt/cnaas/templates"
     SETTINGS_REMOTE: str = "/opt/git/cnaas-settings-origin.git"
     SETTINGS_LOCAL: str = "/opt/cnaas/settings"
+    GIT_BRANCH: Optional[str] = None
+    GIT_COMMIT: Optional[str] = None
+    GIT_DATE: Optional[str] = None
 
 
 class ApiSettings(BaseSettings):

@@ -2,7 +2,6 @@
 hostname localhost
 !
 service unsupported-transceiver 20160802Nordunet ba726d9d
-aaa authorization exec default local
 management api http-commands
  no shutdown
 aaa authorization exec default local

@@ -25,21 +25,8 @@ topology:
       image: ceos:${ARISTA_VERSION:=4.32.5.1M}
       startup-config: config/eosaccess_startup_config.txt
       mgmt-ipv4: 10.100.2.13
-      stages:
-        # Remove the default management interface.
-        # This needs to be done after the node set to health and after the configure stage.
-        # Otherwise the management interface will have an ip from containerlab and messes up the deviceinit step.
-        configure:
-          exec:
-            - command: |
-                Cli -p 15 -c "
-                conf t
-                default int ma0 
-                int ma0
-                shut
-                "
-              target: container
-              phase: on-exit
+      # Disable management interface
+      network-mode: none
     h1:
       # Autosetup static routes on host
       kind: host

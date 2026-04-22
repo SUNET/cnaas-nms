@@ -107,21 +107,3 @@ Run integrationtests within the test folder.
 Run with script to save output to a log-file.
 
 `script -c './integrationtests.sh' out.log`
-
-
-## Test environment
-
-For local testing and frontend development a full test environment can be setup by using containerlab together with a helper script.
-
-### Start containerlab
-
-`sudo ARISTA_VERSION=4.33.6M containerlab -t cnaas-integration-ceos.clab.yml deploy`
-
-### Initialize the NMS components
-`start_test_environment.sh`
-
-### Stop the test environment
-
-`docker compose -f ../docker/docker-compose.yaml down -v`
-
-`sudo ARISTA_VERSION=4.33.6M containerlab -t cnaas-integration-ceos.clab.yml destroy`

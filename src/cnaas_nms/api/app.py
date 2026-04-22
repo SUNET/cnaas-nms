@@ -1,5 +1,4 @@
 import sys
-from typing import Optional
 
 import werkzeug.exceptions
 from authlib.integrations.flask_client import OAuth
@@ -10,9 +9,10 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager, decode_token
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
-from flask_socketio import SocketIO, join_room
+from flask_socketio import SocketIO, join_room, emit
 from jwt import decode
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidKeyError, InvalidSignatureError, InvalidTokenError
+from pydantic import ValidationError
 
 from cnaas_nms.api.auth import api as auth_api
 from cnaas_nms.api.device import (
@@ -34,6 +34,7 @@ from cnaas_nms.api.jobs import job_api, joblock_api, jobs_api
 from cnaas_nms.api.json import CNaaSJSONEncoder
 from cnaas_nms.api.linknet import linknet_api, linknets_api
 from cnaas_nms.api.mgmtdomain import mgmtdomain_api, mgmtdomains_api
+from cnaas_nms.api.models.socket import SocketSubscription
 from cnaas_nms.api.plugins import api as plugins_api
 from cnaas_nms.api.rbac import rbac_api
 from cnaas_nms.api.repository import api as repository_api
@@ -177,7 +178,7 @@ api.add_namespace(rbac_api)
 # SocketIO on connect
 @socketio.on("connect")
 def socketio_on_connect():
-    # get te token string
+    # get the token string
     token_string = request.args.get("jwt")
     if not token_string:
         return False
@@ -207,18 +208,14 @@ def socketio_on_connect():
 
 # SocketIO join event rooms
 @socketio.on("events")
-def socketio_on_events(data):
-    room: Optional[str] = None
-    if "loglevel" in data and data["loglevel"] in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
-        room = data["loglevel"]
-    elif "update" in data and data["update"] in ["device", "job"]:
-        room = "update_{}".format(data["update"])
-    elif "sync" in data and data["sync"] == "all":
-        room = "sync"
-    else:
-        return False  # TODO: how to send error message to client?
+def socketio_on_events(data: dict):
+    try:
+        sub = SocketSubscription(**data)
+    except ValidationError as e:
+        emit("error", {"message": str(e)})
+        return False
 
-    join_room(room)
+    join_room(sub.to_room())
 
 
 # Log all requests, include username etc

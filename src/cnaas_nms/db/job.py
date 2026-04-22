@@ -103,7 +103,7 @@ class Job(cnaas_nms.db.base.Base):
         except Exception:  # noqa: S110
             pass
 
-    def finish_success(self, res: dict, next_job_id: Optional[int]):
+    def finish_success(self, res: dict, next_job_id: int | None):
         try:
             if isinstance(res, NornirJobResult) and isinstance(res.nrresult, AggregatedResult):
                 self.result = {"devices": nr_result_serialize(res.nrresult)}
@@ -128,7 +128,11 @@ class Job(cnaas_nms.db.base.Base):
             # TODO: check if this exists in the db?
             self.next_job_id = next_job_id
         try:
-            event_data = {"job_id": self.id, "status": self.status.name}
+            event_data = {
+                "job_id": self.id,
+                "scheduled_by": self.scheduled_by,
+                "status": self.status.name,
+            }
             if next_job_id:
                 event_data["next_job_id"] = next_job_id
             json_data = json.dumps(event_data)
@@ -153,6 +157,7 @@ class Job(cnaas_nms.db.base.Base):
             json_data = json.dumps(
                 {
                     "job_id": self.id,
+                    "scheduled_by": self.scheduled_by,
                     "status": "EXCEPTION",
                     "exception": str(e),
                 }
@@ -170,6 +175,7 @@ class Job(cnaas_nms.db.base.Base):
             json_data = json.dumps(
                 {
                     "job_id": self.id,
+                    "scheduled_by": self.scheduled_by,
                     "status": "ABORTED",
                     "message": message,
                 }

@@ -2,12 +2,12 @@ import atexit
 import os
 import signal
 import threading
-from typing import List
 
 from gevent import monkey
 from gevent import signal as gevent_signal
 
 from cnaas_nms.app_settings import api_settings
+from cnaas_nms.api.models.socket import LogLevel, SyncRoom, UpdateRoom, LOG_LEVELS
 
 # Do late imports for anything cnaas/flask related so we can do gevent monkey patch, see below
 
@@ -81,26 +81,31 @@ def get_app():
     return app.app
 
 
-def socketio_emit(message: str, rooms: List[str]):
+def socketio_emit(message: str, rooms: list[LogLevel | UpdateRoom | SyncRoom]):
     if not app.socketio:
         return
     for room in rooms:
         app.socketio.emit("events", message, room=room)
 
 
-def loglevel_to_rooms(levelname: str) -> List[str]:
-    if levelname == "DEBUG":
-        return ["DEBUG"]
-    elif levelname == "INFO":
-        return ["DEBUG", "INFO"]
-    elif levelname == "WARNING":
-        return ["DEBUG", "INFO", "WARNING"]
-    elif levelname == "ERROR":
-        return ["DEBUG", "INFO", "WARNING", "ERROR"]
-    elif levelname == "CRITICAL":
-        return ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-    else:
-        raise Exception("Invalid levelname given")
+def loglevel_to_rooms(levelname: str) -> list[LogLevel]:
+    try:
+        idx = LOG_LEVELS.index(LogLevel(levelname))
+        return LOG_LEVELS[: idx + 1]
+    except ValueError:
+        raise ValueError(f"Invalid levelname: {levelname}")
+
+
+def emit_redis_event(event):
+    try:
+        if event["type"] == "log":
+            socketio_emit(event["message"], loglevel_to_rooms(event["level"]))
+        elif event["type"] == "update":
+            socketio_emit(json.loads(event["json"]), [UpdateRoom("update_{}".format(event["update_type"]))])
+        elif event["type"] == "sync":
+            socketio_emit(json.loads(event["json"]), [SyncRoom.ALL])
+    except Exception:  # noqa: S110
+        pass
 
 
 def parse_redis_event(event):
@@ -110,18 +115,6 @@ def parse_redis_event(event):
             return event[1][0][1]
     except Exception:  # noqa: S110
         return None
-
-
-def emit_redis_event(event):
-    try:
-        if event["type"] == "log":
-            socketio_emit(event["message"], loglevel_to_rooms(event["level"]))
-        elif event["type"] == "update":
-            socketio_emit(json.loads(event["json"]), ["update_{}".format(event["update_type"])])
-        elif event["type"] == "sync":
-            socketio_emit(json.loads(event["json"]), ["sync"])
-    except Exception:  # noqa: S110
-        pass
 
 
 def thread_websocket_events():

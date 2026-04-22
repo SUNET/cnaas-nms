@@ -24,7 +24,6 @@ topology:
       kind: arista_ceos
       image: ceos:${ARISTA_VERSION:=4.32.5.1M}
       startup-config: config/eosaccess_startup_config.txt
-      mgmt-ipv4: 10.100.2.13
       # Disable management interface
       network-mode: none
     h1:

@@ -66,7 +66,7 @@ dev = [
   "pre-commit",
   "pytest==8.3.5",
   "pytest-cov==6.1.1",
-  "pytest-docker==3.2.2",
+  "pytest-docker==3.2.5",
   "pytest-env==1.1.5",
   "types-pytz==2025.2.0.20250326",
   "types-PyYAML==6.0.12.20250915",

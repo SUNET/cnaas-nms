@@ -164,6 +164,7 @@ exclude = [
   ".tox",
   ".venv",
   "venv",
+  "alembic",
 ]
 lint.select = [
     "E4",     # pycodestyle errors

@@ -1,0 +1,17 @@
+! File: eosaccess_startup_config.txt
+hostname localhost
+!
+management api http-commands
+ no shutdown
+aaa authorization exec default local
+aaa authorization commands all default local
+username admin privilege 15 secret abc123abc123
+interface vlan1
+ ip address dhcp
+ dhcp client accept default-route
+! dhcp on all ifs or vlan1
+! lldp enable
+!
+! this is required for dist/core since it requires reboot and therefore
+! must be done before init step1
+service routing protocols model multi-agent

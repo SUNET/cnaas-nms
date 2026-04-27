@@ -8,7 +8,9 @@ Follow the guide found here: https://containerlab.dev/install.
 ### Install Arista cEOS image
 Follow the guide found here https://containerlab.dev/manual/kinds/ceos.
 
-### Install Arista vEOS image
+### Install Arista vEOS image (Optional)
+
+*This part can be skipped when running the ceos-only containerlab.*
 
 Follow the guide found here: https://containerlab.dev/manual/kinds/vr-veos and here: https://github.com/srl-labs/vrnetlab/tree/master/arista/veos
 
@@ -53,10 +55,22 @@ Follow the README guide to place the vEOS.vmdk in the correct place.
 
 ## Run containerlab
 
+### Full containerlab including ztp with veos-image
 `sudo containerlab -t cnaas-integration.clab.yml deploy`
 
+### cEOS-only containerlab
+
+This containerlab topology skips the ztp init step and preconfigures the access-switch with the configuration it will have after ztp have completed.
+
+This will complete faster than the full ztp and only needs one type of arista ceos image and needs no nested virtualization.
+
+`sudo containerlab -t cnaas-integration-ceos.clab.yml deploy`
+
+---
 If you need to reconfigure the lab from the beginning.  
-`sudo containerlab -t cnaas-integration.clab.yml deploy --reconfigure`
+`sudo containerlab -t cnaas-integration.clab.yml deploy --reconfigure`  
+or  
+`sudo containerlab -t cnaas-integration-ceos.clab.yml deploy --reconfigure`
 
 Containerlab adds some static routes on the host machine during the test.
 - 10.0.6.0/24 mgmt domain
@@ -64,13 +78,21 @@ Containerlab adds some static routes on the host machine during the test.
 - 10.100.3.101/32 eosdist1 mgmt loopback
 - 10.100.3.102/32 eosdist2 mgmt loopback
 
-Console access to eosaccess-switch to follow ztp progress.  
-`telnet 10.100.2.13 5000`
-
 Run containerlab with a specific Arista version by using environment variable: `ARISTA_VERSION`.  
 Like:
 
 `sudo ARISTA_VERSION=4.33.6M containerlab -t cnaas-integration.clab.yml deploy`
+
+### Console access
+
+#### vEOS
+Console access to vEOS eosaccess-switch.  
+`telnet 10.100.2.13 5000`
+
+#### cEOS
+Console access to cEOS eosaccess-switch.  
+`docker exec -it clab-cnaas-integration-ceos-eosaccess Cli`
+
 
 ## Run integrationtests
 
@@ -82,5 +104,6 @@ Run integrationtests within the test folder.
 
 `./integrationtests.sh`
 
-Run with script to save output to a log-file.  
+Run with script to save output to a log-file.
+
 `script -c './integrationtests.sh' out.log`

@@ -26,7 +26,6 @@ jobs:
         run: ruff check ./
 
       - name: Run ruff format check
-        run: ruff format --check src/
         run: ruff format --check ./
 
 

@@ -184,7 +184,7 @@ def reset_repo(local_repo: Repo, remote_repo_path: str):
     else:
         remote_head_name = next(
             ref for ref in local_repo.remotes.origin.refs if ref.name == "origin/HEAD"
-        ).ref.name.split("/")[-1]
+        ).ref.name.split("/")[-1]  # type: ignore[attr-defined]
         new_head = next(h for h in local_repo.heads if h.name == remote_head_name)
 
     local_repo.head.reference = new_head  # type: ignore
@@ -317,11 +317,11 @@ def _refresh_repo_task(local_repo_path, remote_repo_path) -> Tuple[str, Set[str]
             except Exception:
                 logger.exception("Git repo had detached head and repo reset failed: {}".format(remote_repo_path))
                 reset_head_failed = True
-        if reset_head_failed or current_repo_url != url or (branch and local_repo.head.ref.name != branch):
+        if reset_head_failed or current_repo_url != url or (branch and local_repo.head.ref.name != branch):  # type: ignore[attr-defined]
             if reset_head_failed:
                 current_branch = "detached"  # unable to get head.ref.name if head was detached
             else:
-                current_branch = local_repo.head.ref.name
+                current_branch = local_repo.head.ref.name  # type: ignore[attr-defined]
             logger.info(
                 "Repo URL has changed from {}#{} to {}#{}, hard reset repo clone".format(
                     current_repo_url,

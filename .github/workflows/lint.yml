@@ -10,40 +10,36 @@ jobs:
     name: Ruff linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8
         with:
           python-version: "3.13"
 
-      - name: Install dev dependencies from pyproject
-        run: |
-          pip install --upgrade pip
-          pip install --group dev
+      - name: Install dev dependencies
+        run: uv sync --group dev
 
       - name: Run ruff check
-        run: ruff check ./
+        run: uv run ruff check ./
 
       - name: Run ruff format check
-        run: ruff format --check ./
+        run: uv run ruff format --check ./
 
 
   mypy:
     name: Mypy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
-      - name: Install dev dependencies from pyproject
-        run: |
-          pip install --upgrade pip
-          pip install --group dev
+      - name: Install dev dependencies
+        run: uv sync --group dev
 
       - name: Run mypy
-        run: pre-commit run mypy --all-files
+        run: uv run pre-commit run mypy --all-files

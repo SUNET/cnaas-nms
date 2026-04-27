@@ -8,17 +8,15 @@ jobs:
     name: "Run unit tests"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8
         with:
           python-version: '3.13'
 
       - name: Install dependencies
-        run: |
-          pip install pip==26.0.1
-          pip install . --group dev
+        run: uv sync --group dev
 
       - name: Start test databases
         run: docker compose -f docker/docker-compose_pytest.yaml up -d
@@ -35,8 +33,7 @@ jobs:
           EXTERNAL_TEST_CONTAINERS: "1"
           JWT_SECRET_KEY: unittestsharedsecret
           PERMISSIONS_DISABLED: "True"
-        run: |
-          pytest -vv --showlocals -m "not equipment and not integration"
+        run: uv run pytest -vv --showlocals -m "not equipment and not integration"
 
       - name: Check logs
         if: always()
@@ -46,17 +43,15 @@ jobs:
     name: "Run integration tests"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8
         with:
           python-version: '3.13'
 
       - name: Install dependencies
-        run: |
-          pip install pip==26.0.1
-          pip install . --group dev
+        run: uv sync --group dev
 
       - name: Clone test data
         run: |
@@ -80,8 +75,7 @@ jobs:
           PERMISSIONS_DISABLED: "True"
           TEMPLATES_LOCAL: ${{ github.workspace }}/.test-data/templates
           SETTINGS_LOCAL: ${{ github.workspace }}/.test-data/settings
-        run: |
-          pytest -vv --showlocals -m "integration and not equipment"
+        run: uv run pytest -vv --showlocals -m "integration and not equipment"
 
       - name: Check logs
         if: always()

@@ -9,7 +9,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager, decode_token
 from flask_jwt_extended.exceptions import InvalidHeaderError, NoAuthorizationError
 from flask_restx import Api
-from flask_socketio import SocketIO, join_room, emit
+from flask_socketio import SocketIO, emit, join_room
 from jwt import decode
 from jwt.exceptions import DecodeError, ExpiredSignatureError, InvalidKeyError, InvalidSignatureError, InvalidTokenError
 from pydantic import ValidationError

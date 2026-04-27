@@ -6,8 +6,8 @@ import threading
 from gevent import monkey
 from gevent import signal as gevent_signal
 
+from cnaas_nms.api.models.socket import LOG_LEVELS, LogLevel, SyncRoom, UpdateRoom
 from cnaas_nms.app_settings import api_settings
-from cnaas_nms.api.models.socket import LogLevel, SyncRoom, UpdateRoom, LOG_LEVELS
 
 # Do late imports for anything cnaas/flask related so we can do gevent monkey patch, see below
 

@@ -58,7 +58,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-  "pytest >=8.1.1,<9",
   "ruff==0.14.14",
   "coverage==7.8",
   "mypy==1.15",
@@ -69,7 +68,6 @@ dev = [
   "pytest-cov==6.1.1",
   "pytest-docker==3.2.2",
   "pytest-env==1.1.5",
-  "ruff",
   "types-pytz==2025.2.0.20250326",
   "types-PyYAML==6.0.12.20250915",
   "types-requests==2.32.0.20250328",

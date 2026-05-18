@@ -14,7 +14,7 @@ from aerleon.api import Generate
 from aerleon.lib import naming
 from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyFilterTermsOnly, TermsList
 from aerleon.lib.yaml import PolicyTypeError
-from netutils.lib_mapper import AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
+from netutils.lib_mapper import AERLEON_LIB_MAPPER, AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
 from pydantic import BaseModel, ValidationError
 from redis import StrictRedis
 from redis_lru import RedisLRU
@@ -1067,15 +1067,20 @@ def _build_aerleon_definitions(settings: dict) -> naming.Naming:
     return aerleon_definitions
 
 
-def napalm_to_aerleon(platform: str) -> str:
+def napalm_to_aerleon(platform: str, device_model: Optional[str] = None) -> str:
     """
     Translates napalm platform to aerleon
     If not found it will return the platform as is
     """
+    # There is no direct translation between napalm juniper and srx
+    # So we manually handle it here
+    if device_model and platform == "junos" and device_model.lower().startswith("srx"):
+        return "srx"
+
     return AERLEON_LIB_MAPPER_REVERSE.get(NAPALM_LIB_MAPPER.get(platform, ""), platform)
 
 
-def _get_aerleon_translated_terms(terms: TermsList) -> TermsList:
+def _get_aerleon_translated_terms(terms: TermsList, device_model: Optional[str] = None) -> TermsList:
     """
     Convert Napalm platform names (e.g. 'ios', 'eos') inside term dictionaries
     into their corresponding Aerleon generator names (e.g. 'cisco_ios',
@@ -1087,7 +1092,7 @@ def _get_aerleon_translated_terms(terms: TermsList) -> TermsList:
 
     def translate(value):
         if isinstance(value, str):
-            return napalm_to_aerleon(value)
+            return napalm_to_aerleon(value, device_model)
         if isinstance(value, dict):
             return {translate(k): translate(v) for k, v in value.items()}
         if isinstance(value, list):
@@ -1097,7 +1102,7 @@ def _get_aerleon_translated_terms(terms: TermsList) -> TermsList:
     return [translate(term) for term in terms]
 
 
-def _get_aerleon_inet(platform: str, inet_family: Literal["ipv4", "ipv6"]) -> str:
+def _get_aerleon_inet(aerleon_platform: str, inet_family: Literal["ipv4", "ipv6"]) -> str:
     """
     Maps ipv4 or ipv6 to aerleon inet-format.
     Differs between different types of devices.
@@ -1106,13 +1111,23 @@ def _get_aerleon_inet(platform: str, inet_family: Literal["ipv4", "ipv6"]) -> st
     To get support for other platforms define a custom header_map in f_access_list for that platform.
     """
     inet_family_map = {
-        "eos": {"ipv4": "extended", "ipv6": "inet6"},
-        "ios": {"ipv4": "extended", "ipv6": "inet6"},
-        "iosxr": {"ipv4": "", "ipv6": "inet6"},
-        "junos": {"ipv4": "inet", "ipv6": "inet6"},
-        "nxos": {"ipv4": "extended", "ipv6": "inet6"},
+        # Arista
+        # napalm eos
+        "arista": {"ipv4": "extended", "ipv6": "inet6"},
+        # Cisco
+        # napalm ios
+        "cisco": {"ipv4": "extended", "ipv6": "inet6"},
+        # napalm nxos
+        "cisconx": {"ipv4": "extended", "ipv6": "inet6"},
+        # napalm iosxr
+        "ciscoxr": {"ipv4": "", "ipv6": "inet6"},
+        # Juniper
+        # napalm junos
+        "juniper": {"ipv4": "inet", "ipv6": "inet6"},
+        # juniper srx, no direct napalm -> aerleon translation
+        "srx": {"ipv4": "inet", "ipv6": "inet6"},
     }
-    return inet_family_map.get(platform, {}).get(inet_family, inet_family)
+    return inet_family_map.get(aerleon_platform, {}).get(inet_family, inet_family)
 
 
 def _get_all_access_lists(data: List[Dict[str, str]]) -> Iterator[str]:
@@ -1175,13 +1190,15 @@ def get_generated_access_lists(
     # Fix for mypy to understand settings is not dict | None but only dict
     assert settings is not None
 
+    device_model = dev.model if dev else None
+
     # Get aerleon platform name from NMS napalm platform
-    aerleon_platform = napalm_to_aerleon(platform)
+    aerleon_platform = napalm_to_aerleon(platform, device_model)
     # Could not get a valid aerleon platform
-    if aerleon_platform not in AERLEON_LIB_MAPPER_REVERSE.values():
+    if aerleon_platform not in AERLEON_LIB_MAPPER.keys():
         logger = get_logger()
         logger.error(
-            f"Platform: {platform} is not supported for access_list generation, no access-lists will be generated."
+            f"Platform: {platform} (Aerleon platform: {aerleon_platform}) is not supported for access_list generation, no access-lists will be generated."
         )
         return {}
 
@@ -1207,19 +1224,24 @@ def get_generated_access_lists(
         access_list: f_access_list = f_access_list.model_construct(**access_list_dict)
 
         # Get aerleon header format, defaults to "{ACL_NAME} {INET_FAMILY}"
-        header = access_list.header_map.get(platform, "{ACL_NAME} {INET_FAMILY}")
+        # Try first to get the aerleon specific platform and fallback to napalm
+        header = access_list.header_map.get(
+            aerleon_platform, access_list.header_map.get(platform, "{ACL_NAME} {INET_FAMILY}")
+        )
 
         inside_policies = []
-        acl_terms = _get_aerleon_translated_terms(access_list.terms)
+        acl_terms = _get_aerleon_translated_terms(access_list.terms, device_model)
 
         # Add all access_lists to includes
-        # Only needs to be done once as terms are inet-agnistic
+        # Only needs to be done once as terms are inet-agnostic
         included_list: PolicyFilterTermsOnly = {"terms": acl_terms}
         includes.update({access_list_name: included_list})
 
         for inet_family in access_list.inet_families:
             # Format acl_header for the specific inet_family
-            acl_header = header.format(ACL_NAME=access_list_name, INET_FAMILY=_get_aerleon_inet(platform, inet_family))
+            acl_header = header.format(
+                ACL_NAME=access_list_name, INET_FAMILY=_get_aerleon_inet(aerleon_platform, inet_family)
+            )
             inside_policy_dict: PolicyFilter = {
                 "header": {"targets": {aerleon_platform: acl_header}, "comment": access_list.comment},
                 "terms": acl_terms,

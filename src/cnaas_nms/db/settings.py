@@ -4,9 +4,11 @@ import logging
 import os
 import re
 import types
+from ipaddress import ip_interface
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union, overload
 
+import jmespath
 import yaml
 from absl import logging as absl_logging
 from aerleon.aclgen import Error as ACLGenError
@@ -1054,12 +1056,37 @@ def _build_aerleon_definitions(settings: dict) -> naming.Naming:
     Builds Aerleon Naming from settings network_definitions and service_definitions.
     Returns a naming.Naming object.
     """
+    logger = get_logger()
+
     aerleon_definitions = naming.Naming()
 
     networks_dict = {}
     services_dict = {}
     for network_name, networks in settings.get("network_definitions", {}).items():
-        networks_dict[network_name] = {"values": networks}
+        network_list = []
+        for network in networks:
+            # This is a jmespath reference.
+            if "path" in network.keys():
+                addresses = jmespath.search(network["path"], settings)
+
+                if not isinstance(addresses, list):
+                    raise AccessListGenerationError(
+                        f"Expected a list from jmespath search, got {type(addresses).__name__}."
+                    )
+
+                for address in addresses:
+                    try:
+                        ip_interface(address)
+                    except ValueError:
+                        raise AccessListGenerationError(
+                            f"Expected an IP address or network from jmespath search, got {address} (type {type(address).__name__}) in network definition {network_name}."
+                        )
+                    network_list.append({"address": address})
+            else:
+                # Normal aerleon network definition
+                network_list.append(network.get("value"))
+
+        networks_dict[network_name] = {"values": network_list}
     for service_name, services in settings.get("service_definitions", {}).items():
         services_dict[service_name] = services
 

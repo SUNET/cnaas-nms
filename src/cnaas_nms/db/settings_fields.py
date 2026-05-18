@@ -5,6 +5,7 @@ from functools import cached_property
 from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Network
 from typing import Annotated, Dict, List, Literal, Optional, Self, Union
 
+import jmespath
 from aerleon.lib.policy_builder import TermsList
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, NAPALM_LIB_MAPPER
 from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
@@ -423,7 +424,7 @@ class f_port_template(BaseModel):
 
 
 class f_network_definition(BaseModel):
-    address: Union[IPv4Address | IPv6Address | IPv4Network | IPv6Network]
+    address: Union[IPv4Address, IPv6Address, IPv4Network, IPv6Network]
     comment: str = ""
 
     # Convert address to string.
@@ -435,6 +436,24 @@ class f_network_definition(BaseModel):
 
 class f_network_definition_include(BaseModel):
     name: str
+
+
+class f_network_definition_reference(BaseModel):
+    path: str
+
+    @field_validator("path", mode="after")
+    @classmethod
+    def validate_jmespath(cls, v: str) -> str:
+        jmespath.compile(v)
+
+        return v
+
+    @cached_property
+    def jmespath(self) -> jmespath.parser.ParsedResult:
+        """
+        Returns a compiled jmespath expression.
+        """
+        return jmespath.compile(self.path)
 
 
 class f_service_definition(BaseModel):
@@ -655,8 +674,10 @@ class f_groups(BaseModel):
 
 
 class f_access_lists(BaseModel):
-    network_definitions: Dict[str, List[Union[f_network_definition | f_network_definition_include]]] = {}
-    service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
+    network_definitions: Dict[
+        str, List[Union[f_network_definition, f_network_definition_include, f_network_definition_reference]]
+    ] = {}
+    service_definitions: Dict[str, List[Union[f_service_definition, f_service_definition_include]]] = {}
     access_lists: Dict[access_list_name, f_access_list] = {}
 
     @field_validator("access_lists", mode="after")

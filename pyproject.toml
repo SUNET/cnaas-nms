@@ -32,6 +32,7 @@ dependencies = [
   "gevent==25.4.2",
   "gitpython==3.1.50",
   "greenlet==3.2.1",
+  "jmespath>=1.1.0",
   "markupsafe==3.0.2",
   "napalm==5.1",
   "netmiko==4.5",

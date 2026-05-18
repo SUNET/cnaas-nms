@@ -448,13 +448,6 @@ class f_network_definition_reference(BaseModel):
 
         return v
 
-    @cached_property
-    def jmespath(self) -> jmespath.parser.ParsedResult:
-        """
-        Returns a compiled jmespath expression.
-        """
-        return jmespath.compile(self.path)
-
 
 class f_service_definition(BaseModel):
     port: int | str

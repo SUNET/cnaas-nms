@@ -28,7 +28,7 @@ from cnaas_nms.db.settings import (
     rebuild_settings_cache,
     verify_dir_structure,
 )
-from cnaas_nms.db.settings_fields import f_group, f_groups
+from cnaas_nms.db.settings_fields import f_access_list, f_group, f_groups
 
 
 class SettingsTests(unittest.TestCase):
@@ -601,6 +601,77 @@ class SettingsTests(unittest.TestCase):
 
             self.assertIn("SOME_INTF_IN", acls.keys())
             self.assertEqual(len(acls), 1)
+
+    def test_acl_juniper_srx(self):
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "interfaces": [
+                {
+                    "name": "Ethernet1",
+                    "ifclass": "custom",
+                    "vrf": "SOME_VRF",
+                    "ipv4_address": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "ALL_TO_ALL",
+                }
+            ],
+            "access_lists": {
+                "ALL_TO_ALL": {
+                    "header_map": {"srx": "from-zone all to-zone all {INET_FAMILY}"},
+                    "terms": [{"name": "permit-any", "action": "accept"}],
+                }
+            },
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        firewall_device = Device(
+            hostname="test-fw1", platform="junos", device_type=DeviceType.FIREWALL, model="SRX380-POE-AC"
+        )
+        acls = get_generated_access_lists(firewall_device, settings=settings)
+        self.assertIn("ALL_TO_ALL", acls.keys())
+        self.assertEqual(len(acls), 1)
+
+    def test_acl_juniper_srx_error(self):
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "interfaces": [
+                {
+                    "name": "Ethernet1",
+                    "ifclass": "custom",
+                    "vrf": "SOME_VRF",
+                    "ipv4_address": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "ALL_TO_ALL",
+                }
+            ],
+            "access_lists": {"ALL_TO_ALL": {"terms": [{"name": "permit-any", "action": "accept"}]}},
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        firewall_device = Device(
+            hostname="test-fw1", platform="junos", device_type=DeviceType.FIREWALL, model="SRX380-POE-AC"
+        )
+
+        # Cannot render SRX acl without a custom header map
+        with self.assertRaises(AccessListGenerationError):
+            get_generated_access_lists(firewall_device, settings=settings)
+
+    def test_acl_f_access_list_header_map(self):
+        """Verify f_access_list header_map, can be in napalm or aerleon platform syntax."""
+        data = {
+            "header_map": {"ios": "", "eos": "", "srx": "", "nxos": "", "cisconx": ""},
+            "terms": [{"name": "permit-any", "action": "accept"}],
+        }
+        f_access_list(**data)
+
+    def test_acl_f_access_list_header_map_error(self):
+        """Verify f_access_list header_map error"""
+        # Invalid header_map key
+        data = {"header_map": {"abc": "abc"}, "terms": [{"name": "permit-any", "action": "accept"}]}
+        with self.assertRaises(ValidationError):
+            f_access_list(**data)
 
 
 if __name__ == "__main__":

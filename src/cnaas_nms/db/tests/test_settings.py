@@ -673,6 +673,106 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             f_access_list(**data)
 
+    def test_acl_network_reference(self):
+        """Test that network references work and that they are generated correctly"""
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "network_definitions": {"VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.[ipv4_gw]"}]},
+            "access_lists": {
+                "SOME_ACL": {"terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}]}
+            },
+            "system_access_lists": ["SOME_ACL"],
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        acls = get_generated_access_lists(
+            Device(hostname="testdevice-x1", platform="eos", device_type=DeviceType.DIST), settings=settings
+        )
+
+        self.assertIn("SOME_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
+        self.assertIn("192.168.0.0/24", acls["SOME_ACL"])
+
+    def test_acl_network_reference_invalid(self):
+        settings = {
+            "network_definitions": {
+                "VXLAN_REF": [{"path": "vxlans.*.."}]  # Not a valid jmespath
+            }
+        }
+
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
+
+    def test_acl_network_reference_no_list(self):
+        settings = {
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "network_definitions": {"VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.ipv4_gw"}]},
+            "access_lists": {
+                "SOME_ACL": {"terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}]}
+            },
+            "system_access_lists": ["SOME_ACL"],
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        # No address = cannot render acl
+        with self.assertRaises(AccessListGenerationError):
+            get_generated_access_lists(
+                Device(hostname="testdevice-x1", platform="eos", device_type=DeviceType.DIST), settings=settings
+            )
+
+    def test_acl_network_reference_list_no_address(self):
+        settings = {
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "network_definitions": {"VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.acl_ipv4_in"}]},
+            "access_lists": {
+                "SOME_ACL": {"terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}]}
+            },
+            "system_access_lists": ["SOME_ACL"],
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        with self.assertRaises(AccessListGenerationError):
+            get_generated_access_lists(
+                Device(hostname="testdevice-x1", platform="eos", device_type=DeviceType.DIST), settings=settings
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

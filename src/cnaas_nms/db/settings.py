@@ -1056,8 +1056,6 @@ def _build_aerleon_definitions(settings: dict) -> naming.Naming:
     Builds Aerleon Naming from settings network_definitions and service_definitions.
     Returns a naming.Naming object.
     """
-    logger = get_logger()
-
     aerleon_definitions = naming.Naming()
 
     networks_dict = {}

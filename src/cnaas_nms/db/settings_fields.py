@@ -470,7 +470,7 @@ class f_access_list(BaseModel):
 
     @field_validator("header_map", mode="after")
     @classmethod
-    def verify_header_map(cls, v: Dict[str, str]) -> Dict[str, str]:
+    def validate_header_map(cls, v: Dict[str, str]) -> Dict[str, str]:
         """Make sure header_map only contains valid options"""
         valid_platforms = list(NAPALM_LIB_MAPPER.keys()) + list(AERLEON_LIB_MAPPER.keys())
         for k in v.keys():

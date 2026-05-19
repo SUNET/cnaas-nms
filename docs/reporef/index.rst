@@ -172,14 +172,32 @@ access_lists.yml
 
     Here are some example jmespath strings:
 
-    All IPv4 and IPv6 gateways of VXLANs in the STUDENT VRF:
-    :code:`vxlans.*[] | [?vrf=='STUDENT'].[ipv4_gw, ipv6_gw][]`
+    All IPv4 and IPv6 addresses from VXLANs in the STUDENT VRF:
+    :code:`vxlans.* | [?vrf=='STUDENT'].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]`
+
+    All IPv4 and IPv6 addresses for vlan name: student2:
+    :code:`vxlans.student2.[ipv4_gw, ipv4_secondaries, ipv6_gw][]`
+
+    All IPv4 and IPv6 addresses for vlans student1 and student2:
+    :code:`vxlans.[student1, student2][].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]`
+
+    All IPv4 and IPv6 addresses for vlans with vlan_id between 500 and 600:
+    :code:`vxlans.* | [?vlan_id >= \`500\` && vlan_id <= \`600\`].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]`
+
+    All IPv4 and IPv6 addresses across all vxlans:
+    :code:`vxlans.*.[ipv4_gw, ipv4_secondaries, ipv6_gw][][]`
 
     All ntp servers:
     :code:`ntp_servers[].host`
 
-    Underlay loopback network:
+    Underlay infra loopback network:
     :code:`underlay.[infra_lo_net]`
+
+    Underlay infra link network:
+    :code:`underlay.[infra_link_net]`
+
+    Underlay management loopback network:
+    :code:`underlay.[mgmt_lo_net]`
 
     All interface IP addresses in the MGMT VRF:
     :code:`interfaces[?vrf == 'MGMT'].[ipv4_address, ipv6_address][]`
@@ -190,6 +208,8 @@ access_lists.yml
     All BGP IPv4 neighbors:
     :code:`extroute_bgp.vrfs[].neighbor_v4[].peer_ipv4`
 
+    All BGP IPv4 and IPv6 neighbors
+    :code:`extroute_bgp.vrfs[].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]`
 
 - service_definitions: Dictionary of {<name>, [entries]}:
 

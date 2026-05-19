@@ -704,7 +704,7 @@ class SettingsTests(unittest.TestCase):
 
         self.assertIn("SOME_ACL", acls.keys())
         self.assertEqual(len(acls), 1)
-        self.assertIn("192.168.0.0/24", acls["SOME_ACL"])
+        self.assertIn("192.168.0.0/24", acls["SOME_ACL"])  # noqa: S1313
 
     def test_acl_network_reference_invalid(self):
         settings = {

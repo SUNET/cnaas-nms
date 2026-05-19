@@ -171,7 +171,7 @@ access_lists.yml
     The result of the jmespath search must be a list of addresses or networks, otherwise an error will be raised during access list generation.
 
     Here are some example jmespath strings:
-    
+
     All IPv4 and IPv6 gateways of VXLANs in the STUDENT VRF:
     :code:`vxlans.*[] | [?vrf=='STUDENT'].[ipv4_gw, ipv6_gw][]`
 

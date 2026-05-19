@@ -272,7 +272,14 @@ Access list examples
       - address: 10.0.0.0/8
       - address: 172.16.0.0/12
       - address: 192.168.0.0/16
+    "BGP_PEERS":
+      # This will contain all BGP neighbors for a device.
+      - path: extroute_bgp.vrfs[].neighbor_v4[].peer_ipv4
+      - path: extroute_bgp.vrfs[].neighbor_v6[].peer_ipv6
   service_definitions:
+    "BGP":
+      - port: 179
+        protocol: tcp
     "DNS":
       - port: 53
         protocol: "udp"
@@ -354,6 +361,16 @@ Access list examples
       terms:
         - name: "allow-all"
           action: "accept"
+    "ALLOW-BGP":
+      terms:
+       - name: "allow-bgp-traffic-inbound"
+         protocol: tcp
+         source-address: BGP_PEERS
+         destination-port: BGP
+       - name: "allow-bgp-traffic-outbound"
+         protocol: tcp
+         destination-address: BGP_PEERS
+         destination-port: BGP
 
 groups.yml
 ----------

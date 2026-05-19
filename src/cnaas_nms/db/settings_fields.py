@@ -444,8 +444,10 @@ class f_network_definition_reference(BaseModel):
     @field_validator("path", mode="after")
     @classmethod
     def validate_jmespath(cls, v: str) -> str:
-        jmespath.compile(v)
-
+        try:
+            jmespath.compile(v)
+        except jmespath.exceptions.ParseError as e:
+            raise ValueError(str(e))
         return v
 
 

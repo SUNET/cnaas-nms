@@ -185,7 +185,11 @@ access_lists.yml
     :code:`interfaces[?vrf == 'MGMT'].[ipv4_address, ipv6_address][]`
 
     All BGP IPv4 and IPv6 neighbors in the STUDENT VRF:
-    :code:`extroute_bgp.vrfs[?name=='STUDENT'].[neighbor_v4[][].peer_ipv4, neighbor_v6[][].peer_ipv6][][]`
+    :code:`extroute_bgp.vrfs[?name=='STUDENT'].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]`
+
+    All BGP IPv4 neighbors:
+    :code:`extroute_bgp.vrfs[].neighbor_v4[].peer_ipv4`
+
 
 - service_definitions: Dictionary of {<name>, [entries]}:
 

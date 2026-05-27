@@ -127,8 +127,8 @@ class DeviceTests(unittest.TestCase):
     def test_add_device_error(self):
         device_data = {
             "hostname": "testpanosaccess",
-            "management_ip": "10.1.3.5",
-            "dhcp_ip": "11.1.3.5",
+            "management_ip": "10.1.3.5",  # noqa: S1313
+            "dhcp_ip": "11.1.3.5",  # noqa: S1313
             "ztp_mac": "0800275C0999",
             "platform": "panos",
             "state": "MANAGED",
@@ -140,8 +140,8 @@ class DeviceTests(unittest.TestCase):
     def test_add_device_no_platform(self):
         device_data = {
             "hostname": "testnoaccess",
-            "management_ip": "10.1.3.6",
-            "dhcp_ip": "11.1.3.6",
+            "management_ip": "10.1.3.6",  # noqa: S1313
+            "dhcp_ip": "11.1.3.6",  # noqa: S1313
             "ztp_mac": "0800275C0999",
             "state": "MANAGED",
             "device_type": "ACCESS",

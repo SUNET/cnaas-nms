@@ -5,6 +5,9 @@ from typing import Any, List, Optional
 
 from flask import make_response, request
 from flask_restx import Namespace, Resource, fields, marshal
+from napalm import get_network_driver
+from napalm._SUPPORTED_DRIVERS import SUPPORTED_DRIVERS
+from napalm.base.exceptions import ModuleImportError
 from pydantic import ValidationError
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
@@ -452,7 +455,6 @@ class DeviceApi(Resource):
     def post(self):
         """Add a device"""
         json_data = request.get_json()
-        supported_platforms = ["eos", "junos", "ios", "iosxr", "nxos", "nxos_ssh"]
         data = {}
         errors = []
         data, errors = Device.validate(**json_data)
@@ -463,10 +465,12 @@ class DeviceApi(Resource):
             if instance:
                 errors.append("Device already exists")
                 return empty_result(status="error", data=errors), 400
-            if "platform" not in data or data["platform"] not in supported_platforms:
+            try:
+                get_network_driver(data.get("platform"))
+            except ModuleImportError as e:
                 errors.append(
-                    "Device platform not specified or not known (must be any of: {})".format(
-                        ", ".join(supported_platforms)
+                    "Device platform not specified or not known (must be any of: {}), napalm driver error: {}".format(
+                        ", ".join(SUPPORTED_DRIVERS), str(e)
                     )
                 )
                 return empty_result(status="error", data=errors), 400

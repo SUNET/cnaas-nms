@@ -124,6 +124,31 @@ class DeviceTests(unittest.TestCase):
         result = self.client.post("/api/v1.0/device", json=device_data)
         self.assertEqual(result.status_code, 200)
 
+    def test_add_device_error(self):
+        device_data = {
+            "hostname": "testpanosaccess",
+            "management_ip": "10.1.3.5",
+            "dhcp_ip": "11.1.3.5",
+            "ztp_mac": "0800275C0999",
+            "platform": "panos",
+            "state": "MANAGED",
+            "device_type": "ACCESS",
+        }
+        result = self.client.post("/api/v1.0/device", json=device_data)
+        self.assertEqual(result.status_code, 400)
+
+    def test_add_device_no_platform(self):
+        device_data = {
+            "hostname": "testnoaccess",
+            "management_ip": "10.1.3.6",
+            "dhcp_ip": "11.1.3.6",
+            "ztp_mac": "0800275C0999",
+            "state": "MANAGED",
+            "device_type": "ACCESS",
+        }
+        result = self.client.post("/api/v1.0/device", json=device_data)
+        self.assertEqual(result.status_code, 400)
+
     def test_get_device(self):
         result = self.client.get(f"/api/v1.0/device/{self.hostname}")
         self.assertEqual(result.status_code, 200)

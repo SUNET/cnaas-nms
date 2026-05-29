@@ -1082,7 +1082,7 @@ def _build_aerleon_definitions(settings: dict) -> naming.Naming:
                     network_list.append({"address": address})
             else:
                 # Normal aerleon network definition
-                network_list.append(network.get("value"))
+                network_list.append(network)
 
         networks_dict[network_name] = {"values": network_list}
     for service_name, services in settings.get("service_definitions", {}).items():

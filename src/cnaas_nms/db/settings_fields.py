@@ -7,6 +7,7 @@ from typing import Annotated, Dict, List, Literal, Optional, Self, Union
 
 import jmespath
 from aerleon.lib.policy_builder import TermsList
+from jmespath.exceptions import ParseError
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, NAPALM_LIB_MAPPER
 from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
@@ -446,7 +447,7 @@ class f_network_definition_reference(BaseModel):
     def validate_jmespath(cls, v: str) -> str:
         try:
             jmespath.compile(v)
-        except jmespath.exceptions.ParseError as e:
+        except ParseError as e:
             raise ValueError(str(e))
         return v
 

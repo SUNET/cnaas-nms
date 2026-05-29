@@ -19,7 +19,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "absl-py==2.3.1",
-  "aerleon==1.14.1",
+  "aerleon==1.16.0",
   "alembic==1.15.2",
   "apscheduler==3.11",
   "async-timeout>=4.0.2",

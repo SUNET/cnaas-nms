@@ -298,6 +298,15 @@ Access list examples
          protocol: [tcp, udp]
          option: "established"
          action: "accept"
+    "JUNIPER-SRX-ACL":
+      comment: |
+        Shows how to create a Juniper SRX access-list
+        Must have a custom header_map for srx otherwise it will not be able to render
+      header_map:
+        srx: "from-zone all to-zone all {INET_FAMILY}"
+      terms:
+        - name: "allow-all"
+          action: "accept"
 
 groups.yml
 ----------

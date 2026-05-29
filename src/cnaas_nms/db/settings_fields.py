@@ -6,6 +6,7 @@ from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network
 from typing import Annotated, Dict, List, Literal, Optional, Self, Union
 
 from aerleon.lib.policy_builder import TermsList
+from netutils.lib_mapper import AERLEON_LIB_MAPPER, NAPALM_LIB_MAPPER
 from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
 
@@ -466,6 +467,17 @@ class f_access_list(BaseModel):
     def unique_sorted_inet_families(cls, v: List[Literal["ipv4", "ipv6"]]) -> List[Literal["ipv4", "ipv6"]]:
         """Make sure inet_families are unique and sorted"""
         return sorted(set(v))
+
+    @field_validator("header_map", mode="after")
+    @classmethod
+    def validate_header_map(cls, v: Dict[str, str]) -> Dict[str, str]:
+        """Make sure header_map only contains valid options"""
+        valid_platforms = list(NAPALM_LIB_MAPPER.keys()) + list(AERLEON_LIB_MAPPER.keys())
+        for k in v.keys():
+            if k not in valid_platforms:
+                raise ValueError(f"{k} must be a valid napalm or aerleon platform")
+
+        return v
 
     @field_validator("terms", mode="after")
     def validate_term_names(cls, v):

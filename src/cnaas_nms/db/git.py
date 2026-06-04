@@ -194,7 +194,7 @@ def reset_repo(local_repo: Repo, remote_repo_path: str):
 def get_peer_with_mirror_interfaces(session, dev: Device) -> Optional[Device]:
     """Returns peer device of management domain if it has any ifclass mirror interfaces"""
     logger = get_logger()
-    if dev.device_type == DeviceType.ACCESS:
+    if dev.device_type != DeviceType.DIST:
         return None
     try:
         peer_device = find_mgmtdomain_peer(session, dev)

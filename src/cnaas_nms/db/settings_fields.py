@@ -3,7 +3,7 @@ import re
 from enum import Enum, StrEnum, auto
 from functools import cached_property
 from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Network
-from typing import Annotated, Dict, List, Literal, Optional, Self, Union
+from typing import Annotated, Dict, List, Literal, Optional, Self
 
 import jmespath
 from aerleon.lib.policy_builder import TermsList
@@ -196,7 +196,7 @@ class f_interface(BaseModel):
     untagged_vlan: Optional[int] = vlan_id_schema_optional
     # tagged vlan list can be list of vlans IDs or ranges of VLAN IDs ("1-10")
     tagged_vlan_list: Optional[
-        List[Union[Annotated[int, Field(ge=1, le=4095)], Annotated[str, AfterValidator(vlan_range_check)]]]
+        List[Annotated[int, Field(ge=1, le=4095)] | Annotated[str, AfterValidator(vlan_range_check)]]
     ] = None
     aggregate_id: Optional[int] = None
     tags: Optional[List[str]] = None
@@ -425,7 +425,7 @@ class f_port_template(BaseModel):
 
 
 class f_network_definition(BaseModel):
-    address: Union[IPv4Address, IPv6Address, IPv4Network, IPv6Network]
+    address: IPv4Address | IPv6Address | IPv4Network | IPv6Network
     comment: str = ""
 
     # Convert address to string.
@@ -671,9 +671,9 @@ class f_groups(BaseModel):
 
 class f_access_lists(BaseModel):
     network_definitions: Dict[
-        str, List[Union[f_network_definition, f_network_definition_include, f_network_definition_reference]]
+        str, List[f_network_definition | f_network_definition_include | f_network_definition_reference]
     ] = {}
-    service_definitions: Dict[str, List[Union[f_service_definition, f_service_definition_include]]] = {}
+    service_definitions: Dict[str, List[f_service_definition | f_service_definition_include]] = {}
     access_lists: Dict[access_list_name, f_access_list] = {}
 
     @field_validator("access_lists", mode="after")

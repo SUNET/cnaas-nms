@@ -36,6 +36,9 @@ def validate_json_to_model(json_data):
             ret_copy = ret.copy()
             ret_copy["system_access_lists"] = list(ret_copy.get("access_lists", {}).keys())
 
+            # Remove any keys without any value
+            ret_copy = {k: v for k, v in ret_copy.items() if v}
+
             # Check if we can build aerleon definitions with the provided settings
             try:
                 _build_aerleon_definitions(ret_copy)

@@ -103,6 +103,37 @@ def test_access_list_reference_no_data(testclient: FlaskClient):
     assert "No IP addresses found for network: BGP_PEERS" in result.json["message"]
 
 
+def test_access_list_reference_vxlans(testclient: FlaskClient):
+    """Test that reference to vxlans falls back to standard values instead of being empty"""
+    settings_data = {
+        "network_definitions": {
+            "students_gws": [
+                {"path": "vxlans.* | [?vrf=='STUDENT'].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]"},
+            ]
+        },
+        "access_lists": {
+            "ACLTEST": {"terms": [{"name": "allow_bgp", "destination-address": "students_gws", "action": "accept"}]}
+        },
+    }
+
+    result = testclient.post("/api/v1.0/settings/model", json=settings_data)
+    assert result.status_code == 200
+
+
+def test_access_list_invalid_jmespath(testclient: FlaskClient):
+    """Test that invalid jmespath triggers on /settings/model api"""
+    settings_data = {
+        "network_definitions": {
+            "invalid_path": [
+                {"path": "vxlans]"},
+            ]
+        }
+    }
+
+    result = testclient.post("/api/v1.0/settings/model", json=settings_data)
+    assert result.status_code == 400
+
+
 def test_settings_model(testclient: FlaskClient):
     result = testclient.get("/api/v1.0/settings/model")
     assert result.status_code == 200

@@ -91,13 +91,13 @@ class FirmwareApi(Resource):
         kwargs = dict()
 
         if "url" not in json_data:
-            return empty_result(status="error", data="Missing parameter url")
+            return empty_result(status="error", data="Missing parameter url"), 400
 
         if "checksum" not in json_data and "sha1" not in json_data:
-            return empty_result(status="error", data="Missing parameter checksum")
+            return empty_result(status="error", data="Missing parameter checksum"), 400
 
         if "verify_tls" not in json_data:
-            return empty_result(status="error", data="Missing parameter verify_tls")
+            return empty_result(status="error", data="Missing parameter verify_tls"), 400
 
         kwargs["url"] = json_data["url"]
 
@@ -183,7 +183,7 @@ class FirmwareUpgradeApi(Resource):
         if "url" not in json_data and url == "":
             return empty_result(
                 status="error", data='No external address configured for HTTPD, please specify one with "url"'
-            )
+            ), 400
 
         if "url" not in json_data:
             kwargs["url"] = url
@@ -191,49 +191,49 @@ class FirmwareUpgradeApi(Resource):
             if isinstance(json_data["url"], str):
                 kwargs["url"] = json_data["url"]
             else:
-                return empty_result(status="error", data="url should be a string")
+                return empty_result(status="error", data="url should be a string"), 400
 
         if "activate" in json_data:
             if isinstance(json_data["activate"], bool):
                 kwargs["activate"] = json_data["activate"]
             else:
-                return empty_result(status="error", data="activate should be a boolean")
+                return empty_result(status="error", data="activate should be a boolean"), 400
 
         if "download" in json_data:
             if isinstance(json_data["download"], bool):
                 kwargs["download"] = json_data["download"]
             else:
-                return empty_result(status="error", data="download should be a boolean")
+                return empty_result(status="error", data="download should be a boolean"), 400
 
         if "reboot" in json_data:
             if isinstance(json_data["reboot"], bool):
                 kwargs["reboot"] = json_data["reboot"]
             else:
-                return empty_result(status="error", data="reboot should be a boolean")
+                return empty_result(status="error", data="reboot should be a boolean"), 400
 
         if "pre_flight" in json_data:
             if isinstance(json_data["pre_flight"], bool):
                 kwargs["pre_flight"] = json_data["pre_flight"]
             else:
-                return empty_result(status="error", data="pre_flight should be a boolean")
+                return empty_result(status="error", data="pre_flight should be a boolean"), 400
 
         if "post_flight" in json_data:
             if isinstance(json_data["post_flight"], bool):
                 kwargs["post_flight"] = json_data["post_flight"]
             else:
-                return empty_result(status="error", data="post_flight should be a boolean")
+                return empty_result(status="error", data="post_flight should be a boolean"), 400
 
         if "post_waittime" in json_data:
             if isinstance(json_data["post_waittime"], int):
                 kwargs["post_waittime"] = json_data["post_waittime"]
             else:
-                return empty_result(status="error", data="post_waittime should be an integer")
+                return empty_result(status="error", data="post_waittime should be an integer"), 400
 
         if "filename" in json_data:
             if isinstance(json_data["filename"], str):
                 kwargs["filename"] = json_data["filename"]
             else:
-                return empty_result(status="error", data="filename should be a string")
+                return empty_result(status="error", data="filename should be a string"), 400
 
         total_count: Optional[int] = None
         nr = cnaas_init()
@@ -252,7 +252,7 @@ class FirmwareUpgradeApi(Resource):
         elif "group" in json_data:
             group_name = str(json_data["group"])
             if group_name not in get_groups():
-                return empty_result(status="error", data="Could not find a group with name {}".format(group_name))
+                return empty_result(status="error", data="Could not find a group with name {}".format(group_name)), 400
             kwargs["group"] = group_name
             _, total_count, _ = inventory_selector(nr, group=group_name)
             kwargs["group"] = group_name
@@ -268,7 +268,7 @@ class FirmwareUpgradeApi(Resource):
             if isinstance(json_data["staggered_upgrade"], bool):
                 kwargs["staggered_upgrade"] = json_data["staggered_upgrade"]
             else:
-                return empty_result(status="error", data="staggered_upgrade should be a boolean")
+                return empty_result(status="error", data="staggered_upgrade should be a boolean"), 400
 
         if "start_at" in json_data:
             try:
@@ -276,12 +276,12 @@ class FirmwareUpgradeApi(Resource):
                 time_now = datetime.now(UTC).replace(tzinfo=None)
 
                 if time_start < time_now:
-                    return empty_result(status="error", data="start_at must be in the future")
+                    return empty_result(status="error", data="start_at must be in the future"), 400
                 time_diff = time_start - time_now
                 seconds = int(time_diff.total_seconds())
             except Exception as e:
                 logger.exception(f"Exception when scheduling job: {e}")
-                return empty_result(status="error", data=f"Invalid date format, should be: {date_format}")
+                return empty_result(status="error", data=f"Invalid date format, should be: {date_format}"), 400
 
         scheduler: Scheduler = Scheduler()
         job_id = scheduler.add_onetime_job(

@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 import yaml
 from pydantic import ValidationError
-from redis_lru import RedisLRU
 
 import cnaas_nms.db.settings as db_settings_module
 from cnaas_nms.db.device import Device, DeviceType
@@ -13,6 +12,7 @@ from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import (
     DIR_STRUCTURE,
     AccessListGenerationError,
+    NMSRedisLRU,
     SettingsSyntaxError,
     VerifyPathException,
     VlanConflictError,
@@ -49,7 +49,7 @@ class SettingsTests(unittest.TestCase):
 
     def cleandb(self):
         with redis_session() as redis:  # type: ignore
-            cache = RedisLRU(redis)
+            cache = NMSRedisLRU(redis)
             cache.clear_all_cache()
         with sqla_session() as session:  # type: ignore
             for hostname in ["testgroup_dev1"]:
@@ -106,7 +106,7 @@ class SettingsTests(unittest.TestCase):
         """
         # Clear redis_cache
         with redis_session() as redis:  # type: ignore
-            cache = RedisLRU(redis)
+            cache = NMSRedisLRU(redis)
             cache.clear_all_cache()
 
         # Counter to track actual executions
@@ -120,7 +120,7 @@ class SettingsTests(unittest.TestCase):
             call_count["count"] += 1
             return original_func(*args, **kwargs)
 
-        # Reapply RedisLRU decorator to the spy
+        # Reapply NMSRedisLRU decorator to the spy
         db_settings_module.get_settings = db_settings_module.redis_lru_cache(spy_get_settings)
 
         # First call, executes get_settings
@@ -501,7 +501,7 @@ class SettingsTests(unittest.TestCase):
         """
         # Clear redis_cache
         with redis_session() as redis:  # type: ignore
-            cache = RedisLRU(redis)
+            cache = NMSRedisLRU(redis)
             cache.clear_all_cache()
 
         # Counter to track actual executions
@@ -515,7 +515,7 @@ class SettingsTests(unittest.TestCase):
             call_count["count"] += 1
             return original_func(*args, **kwargs)
 
-        # Reapply RedisLRU decorator to the spy
+        # Reapply NMSRedisLRU decorator to the spy
         db_settings_module._generate_acl = db_settings_module.redis_lru_cache(spy_generate_acl)
 
         # First call, executes get_settings

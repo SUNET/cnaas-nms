@@ -367,10 +367,12 @@ Access list examples
          protocol: tcp
          source-address: BGP_PEERS
          destination-port: BGP
+         action: "accept"
        - name: "allow-bgp-traffic-outbound"
          protocol: tcp
          destination-address: BGP_PEERS
          destination-port: BGP
+         action: "accept"
 
 groups.yml
 ----------

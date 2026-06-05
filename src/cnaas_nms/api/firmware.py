@@ -84,7 +84,7 @@ def download_firmware_to_nms(**kwargs: dict) -> str:
 class FirmwareApi(Resource):
     @login_required
     @api.expect(firmware_model)
-    def post(self) -> dict[str, Any]:
+    def post(self) -> dict[str, Any] | tuple[dict[str, Any], int]:
         """Download new firmware"""
         json_data = request.get_json()
 

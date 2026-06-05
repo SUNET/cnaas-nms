@@ -5,6 +5,7 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
         exclude: "(docker/.*patch)"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit

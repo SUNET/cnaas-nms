@@ -124,7 +124,7 @@ class DeviceTests(unittest.TestCase):
         result = self.client.post("/api/v1.0/device", json=device_data)
         self.assertEqual(result.status_code, 200)
 
-    def test_add_device_error(self):
+    def test_add_device_unsupported_platform_error(self):
         device_data = {
             "hostname": "testpanosaccess",
             "management_ip": "10.1.3.5",  # noqa: S1313

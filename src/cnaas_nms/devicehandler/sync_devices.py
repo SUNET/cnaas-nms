@@ -23,6 +23,7 @@ from cnaas_nms.db.joblock import Joblock, JoblockError
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_generated_access_lists, get_settings
 from cnaas_nms.devicehandler.changescore import calculate_score
+from cnaas_nms.devicehandler.fencing import FencingError, create_syncto_fencing_token, get_fencing_token
 from cnaas_nms.devicehandler.get import calc_config_hash
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, get_jinja_env, inventory_selector
 from cnaas_nms.devicehandler.sync_history import add_sync_event, remove_sync_events
@@ -908,6 +909,7 @@ def sync_devices(
     scheduled_by: str = "",
     resync: bool = False,
     confirm_mode_override: Optional[int] = None,
+    fencing_token: Optional[str] = None,
 ) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
@@ -927,6 +929,7 @@ def sync_devices(
                 database, a device selected by hostname is always re-synced
         confirm_mode_override: Override settings commit confirm mode, optional int
                                with value 0, 1 or 2
+        fencing_token: Optional job id string to check for fencing before live run
 
     Returns:
         NornirJobResult
@@ -965,6 +968,12 @@ def sync_devices(
                     time.sleep(2)
             if not lock_ok:
                 raise JoblockError("Unable to acquire lock for configuring devices")
+
+    if not dry_run and fencing_token:
+        if get_fencing_token(fencing_token):
+            logger.info("Fencing token {} is valid, proceeding with live run".format(fencing_token))
+        else:
+            raise FencingError("Fencing token {} is invalid or expired".format(fencing_token))
 
     try:
         nrresult = nr_filtered.run(
@@ -1048,6 +1057,10 @@ def sync_devices(
                 time.sleep(api_settings.COMMIT_CONFIRMED_TIMEOUT)
             logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
             Joblock.release_lock(session, job_id=job_id)
+
+    # Save fencing token after successful dry run
+    if dry_run and job_id:
+        create_syncto_fencing_token(job_id)
 
     if len(device_list) == 0:
         total_change_score = 0

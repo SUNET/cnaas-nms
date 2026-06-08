@@ -13,6 +13,7 @@ from cnaas_nms.db.settings import (
     FILE_MODEL_MAP,
     AccessListGenerationError,
     SettingsSyntaxError,
+    _build_aerleon_definitions,
     check_settings_syntax,
     f_root,
     get_generated_access_lists,
@@ -34,6 +35,27 @@ def validate_json_to_model(json_data):
             # Try to generate all access_lists and return any errors
             ret_copy = ret.copy()
             ret_copy["system_access_lists"] = list(ret_copy.get("access_lists", {}).keys())
+
+            # Remove any keys without any value
+            ret_copy = {k: v for k, v in ret_copy.items() if v}
+
+            # Check if we can build aerleon definitions with the provided settings
+            try:
+                _build_aerleon_definitions(ret_copy)
+            except AccessListGenerationError:
+                # Default jmespath network reference if building definitions fails.
+                # We just want to validate the access list generation and not the network definitions themselves.
+                # TODO: Provide default values for the entire settings model so jmespath references can be properly validated.
+                for net_name, net_defs in ret_copy["network_definitions"].items():
+                    for net_def in net_defs:
+                        if "path" in net_def.keys():
+                            # Default to some random ips that should be valid for any network definition path.
+                            ret_copy["network_definitions"][net_name] = [
+                                {"address": "10.0.0.1"},  # noqa: S1313
+                                {"address": "2001:db8::1"},  # noqa: S1313
+                            ]
+                            break
+
             get_generated_access_lists(platform="eos", settings=ret_copy)
     except SettingsSyntaxError as e:
         return empty_result(status="error", data=str(e)), 400

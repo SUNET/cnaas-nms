@@ -3,9 +3,11 @@ import re
 from enum import Enum, StrEnum, auto
 from functools import cached_property
 from ipaddress import AddressValueError, IPv4Address, IPv4Interface, IPv4Network, IPv6Address, IPv6Network
-from typing import Annotated, Dict, List, Literal, Optional, Self, Union
+from typing import Annotated, Dict, List, Literal, Optional, Self
 
+import jmespath
 from aerleon.lib.policy_builder import TermsList
+from jmespath.exceptions import ParseError
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, NAPALM_LIB_MAPPER
 from pydantic import BaseModel, Field, TypeAdapter, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
@@ -194,7 +196,7 @@ class f_interface(BaseModel):
     untagged_vlan: Optional[int] = vlan_id_schema_optional
     # tagged vlan list can be list of vlans IDs or ranges of VLAN IDs ("1-10")
     tagged_vlan_list: Optional[
-        List[Union[Annotated[int, Field(ge=1, le=4095)], Annotated[str, AfterValidator(vlan_range_check)]]]
+        List[Annotated[int, Field(ge=1, le=4095)] | Annotated[str, AfterValidator(vlan_range_check)]]
     ] = None
     aggregate_id: Optional[int] = None
     tags: Optional[List[str]] = None
@@ -423,7 +425,7 @@ class f_port_template(BaseModel):
 
 
 class f_network_definition(BaseModel):
-    address: Union[IPv4Address | IPv6Address | IPv4Network | IPv6Network]
+    address: IPv4Address | IPv6Address | IPv4Network | IPv6Network
     comment: str = ""
 
     # Convert address to string.
@@ -435,6 +437,20 @@ class f_network_definition(BaseModel):
 
 class f_network_definition_include(BaseModel):
     name: str
+
+
+class f_network_definition_reference(BaseModel):
+    path: str
+    strip_cidr: Optional[bool] = False
+
+    @field_validator("path", mode="after")
+    @classmethod
+    def validate_jmespath(cls, v: str) -> str:
+        try:
+            jmespath.compile(v)
+        except ParseError as e:
+            raise ValueError(str(e))
+        return v
 
 
 class f_service_definition(BaseModel):
@@ -655,8 +671,10 @@ class f_groups(BaseModel):
 
 
 class f_access_lists(BaseModel):
-    network_definitions: Dict[str, List[Union[f_network_definition | f_network_definition_include]]] = {}
-    service_definitions: Dict[str, List[Union[f_service_definition | f_service_definition_include]]] = {}
+    network_definitions: Dict[
+        str, List[f_network_definition | f_network_definition_include | f_network_definition_reference]
+    ] = {}
+    service_definitions: Dict[str, List[f_service_definition | f_service_definition_include]] = {}
     access_lists: Dict[access_list_name, f_access_list] = {}
 
     @field_validator("access_lists", mode="after")

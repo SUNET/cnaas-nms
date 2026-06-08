@@ -373,13 +373,13 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     @pytest.mark.usefixtures("settings_directory")
-    def test_acl(self):
+    def test_access_list(self):
         """Generate global acls from integration-test repo"""
         for platform in ["ios", "eos", "junos"]:
             device = Device(hostname=self.testdata["testdevice"], platform=platform)
             get_generated_access_lists(device)
 
-    def test_acl_option(self):
+    def test_access_list_option(self):
         """Test validate and generate access list option"""
         settings = {
             "access_lists": {
@@ -411,7 +411,7 @@ class SettingsTests(unittest.TestCase):
         acls = get_generated_access_lists(platform="eos", settings=settings)
         self.assertEqual(len(acls.keys()), 2)
 
-    def test_acl_invalid_definition(self):
+    def test_access_list_invalid_definition(self):
         """Test invalid network definitions"""
         settings = {
             "network_definitions": {
@@ -427,7 +427,7 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(AccessListGenerationError):
             get_generated_access_lists(platform="eos", settings=settings)
 
-    def test_acl_no_terms(self):
+    def test_access_list_no_terms(self):
         """Test acl no terms"""
         settings = {
             "access_lists": {"TEST_ACL": {"terms": []}},
@@ -435,7 +435,7 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             f_root(**settings)
 
-    def test_acl_non_unique_terms(self):
+    def test_access_list_non_unique_terms(self):
         """Test acl non unique terms"""
         settings = {
             "access_lists": {"TEST_ACL": {"terms": [{"name": "same"}, {"name": "same"}]}},
@@ -443,7 +443,7 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             f_root(**settings)
 
-    def test_acl_include_not_found(self):
+    def test_access_list_include_not_found(self):
         """Test include acl not found"""
         settings = {
             "access_lists": {"TEST_ACL": {"terms": [{"include": "NOT-FOUND-ACL"}]}},
@@ -451,7 +451,7 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             f_root(**settings)
 
-    def test_acl_include(self):
+    def test_access_list_include(self):
         """Test include acl"""
         settings = {
             "access_lists": {
@@ -465,7 +465,7 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("TEST_ACL", acls.keys())
         self.assertEqual(len(acls), 1)
 
-    def test_acl_nested_include(self):
+    def test_access_list_nested_include(self):
         """Test include acl"""
         settings = {
             "access_lists": {
@@ -482,7 +482,7 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("TEST_ACL", acls.keys())
         self.assertEqual(len(acls), 1)
 
-    def test_acl_include_non_unique(self):
+    def test_access_list_include_non_unique(self):
         """Test include acl where the included terms are not unique together with the parent term names"""
         settings = {
             "access_lists": {
@@ -495,7 +495,7 @@ class SettingsTests(unittest.TestCase):
 
     @pytest.mark.integration
     @pytest.mark.usefixtures("settings_directory")
-    def test_acl_redis_hit(self):
+    def test_access_list_redis_hit(self):
         """
         Run get_generated_access_lists twice with the same device should execute get_settings only once
         """
@@ -530,7 +530,7 @@ class SettingsTests(unittest.TestCase):
         # Assert results are identical
         assert acls1 == acls2
 
-    def test_acl_system_acl(self):
+    def test_access_list_system_acl(self):
         system_acls = ["ACL-TEST"]
         acls = {"ACL-TEST": {"terms": [{"name": "permit-any", "action": "accept"}]}}
         # Works because the system_access_list is defined in access_lists
@@ -539,7 +539,7 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(SettingsSyntaxError):
             check_system_access_lists({"system_access_lists": system_acls, "access_lists": {}})
 
-    def test_acl_auto_from_vxlans(self):
+    def test_access_list_auto_from_vxlans(self):
         """vxlan that is allocated to a DeviceType.DIST will be auto included to be generated"""
         settings = {
             "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
@@ -575,7 +575,7 @@ class SettingsTests(unittest.TestCase):
         self.assertNotIn("SOME_VXLAN_IN", access_acls.keys())
         self.assertEqual(len(access_acls), 0)
 
-    def test_acl_auto_from_interfaces(self):
+    def test_access_list_auto_from_interfaces(self):
         """interfaces that is allocated to a device will be auto included to be generated"""
         settings = {
             "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
@@ -602,7 +602,7 @@ class SettingsTests(unittest.TestCase):
             self.assertIn("SOME_INTF_IN", acls.keys())
             self.assertEqual(len(acls), 1)
 
-    def test_acl_juniper_srx(self):
+    def test_access_list_juniper_srx(self):
         settings = {
             "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
             "interfaces": [
@@ -632,7 +632,7 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("ALL_TO_ALL", acls.keys())
         self.assertEqual(len(acls), 1)
 
-    def test_acl_juniper_srx_error(self):
+    def test_access_list_juniper_srx_error(self):
         settings = {
             "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
             "interfaces": [
@@ -658,7 +658,7 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(AccessListGenerationError):
             get_generated_access_lists(firewall_device, settings=settings)
 
-    def test_acl_f_access_list_header_map(self):
+    def test_access_list_f_access_list_header_map(self):
         """Verify f_access_list header_map, can be in napalm or aerleon platform syntax."""
         data = {
             "header_map": {"ios": "", "eos": "", "srx": "", "nxos": "", "cisconx": ""},
@@ -666,12 +666,152 @@ class SettingsTests(unittest.TestCase):
         }
         f_access_list(**data)
 
-    def test_acl_f_access_list_header_map_error(self):
+    def test_access_list_f_access_list_header_map_error(self):
         """Verify f_access_list header_map error"""
         # Invalid header_map key
         data = {"header_map": {"abc": "abc"}, "terms": [{"name": "permit-any", "action": "accept"}]}
         with self.assertRaises(ValidationError):
             f_access_list(**data)
+
+    def test_access_list_network_reference(self):
+        """Test that network references work and that they are generated correctly"""
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "network_definitions": {"VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.[ipv4_gw]"}]},
+            "access_lists": {
+                "SOME_ACL": {"terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}]}
+            },
+            "system_access_lists": ["SOME_ACL"],
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        acls = get_generated_access_lists(
+            Device(hostname="testdevice-x1", platform="eos", device_type=DeviceType.DIST), settings=settings
+        )
+
+        self.assertIn("SOME_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
+        self.assertIn("192.168.0.0/24", acls["SOME_ACL"])  # noqa: S1313
+
+    def test_access_list_network_reference_invalid(self):
+        settings = {
+            "network_definitions": {
+                "VXLAN_REF": [{"path": "vxlans.*.."}]  # Not a valid jmespath
+            }
+        }
+
+        with self.assertRaises(ValidationError):
+            f_root(**settings)
+
+    def test_access_list_network_reference_no_list(self):
+        settings = {
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "network_definitions": {"VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.ipv4_gw"}]},
+            "access_lists": {
+                "SOME_ACL": {"terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}]}
+            },
+            "system_access_lists": ["SOME_ACL"],
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        # No address = cannot render acl
+        with self.assertRaises(AccessListGenerationError):
+            get_generated_access_lists(
+                Device(hostname="testdevice-x1", platform="eos", device_type=DeviceType.DIST), settings=settings
+            )
+
+    def test_access_list_network_reference_list_no_address(self):
+        settings = {
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "network_definitions": {"VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.acl_ipv4_in"}]},
+            "access_lists": {
+                "SOME_ACL": {"terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}]}
+            },
+            "system_access_lists": ["SOME_ACL"],
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        with self.assertRaises(AccessListGenerationError):
+            get_generated_access_lists(
+                Device(hostname="testdevice-x1", platform="eos", device_type=DeviceType.DIST), settings=settings
+            )
+
+    def test_access_list_network_reference_strip_cidr(self):
+        """Test that network references work and that they are generated correctly with stripped cidr"""
+        settings = {
+            "vrfs": [{"name": "SOME_VRF", "vrf_id": 101}],
+            "vxlans": {
+                "SOME_VXLAN": {
+                    "vni": 100101,
+                    "vrf": "SOME_VRF",
+                    "vlan_id": 101,
+                    "vlan_name": "SOME_VXLAN",
+                    "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "ipv6_gw": "2001:db8::1/64",  # noqa: S1313
+                    "acl_ipv4_in": "SOME_VXLAN_IN",
+                    "devices": ["testdevice-d1"],
+                }
+            },
+            "network_definitions": {
+                "VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.[ipv4_gw, ipv4_secondaries, ipv6_gw][]", "strip_cidr": True}]
+            },
+            "access_lists": {
+                "SOME_ACL": {
+                    "inet_families": ["ipv4", "ipv6"],
+                    "terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}],
+                }
+            },
+            "system_access_lists": ["SOME_ACL"],
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        acls = get_generated_access_lists(
+            Device(hostname="testdevice-x1", platform="eos", device_type=DeviceType.DIST), settings=settings
+        )
+
+        self.assertIn("SOME_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
+        self.assertIn("host 192.168.0.1", acls["SOME_ACL"])  # noqa: S1313
+        self.assertIn("2001:db8::1", acls["SOME_ACL"])  # noqa: S1313
 
 
 if __name__ == "__main__":

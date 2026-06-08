@@ -154,7 +154,7 @@ access_lists.yml
 
 - network_definitions: Dictionary of {<name>, [entries]}:
 
-  | A network entry can be one of: an address or an include.
+  | A network entry can be one of: an address, an include or a reference.
   | Address:
 
   * address: A IPv4 address, IPv6 address, IPv4 network or IPv6 network.
@@ -163,6 +163,55 @@ access_lists.yml
   Include:
 
   * name: Name of another network object to include in this network definition
+
+  Reference:
+
+  * strip_cidr: Removes CIDR and treats all referenced IPs as host addresses. Useful for example in cases where only gateway-addresses are needed in an access list.
+  
+  * path: A jmespath string that will be used to get references from other device settings.
+    Use a site like: `<https://play.jmespath.org/>`_ to test your jmespath string.
+    The result of the jmespath search must be a list of addresses or networks, otherwise an error will be raised during access list generation.
+
+    Here are some example jmespath strings:
+
+    All IPv4 and IPv6 addresses from VXLANs in the STUDENT VRF:
+    :code:`vxlans.* | [?vrf=='STUDENT'].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]`
+
+    All IPv4 and IPv6 addresses for vlan name: student2:
+    :code:`vxlans.student2.[ipv4_gw, ipv4_secondaries, ipv6_gw][]`
+
+    All IPv4 and IPv6 addresses for vlans student1 and student2:
+    :code:`vxlans.[student1, student2][].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]`
+
+    All IPv4 and IPv6 addresses for vlans with vlan_id between 500 and 600:
+    :code:`vxlans.* | [?vlan_id >= \`500\` && vlan_id <= \`600\`].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]`
+
+    All IPv4 and IPv6 addresses across all vxlans:
+    :code:`vxlans.*.[ipv4_gw, ipv4_secondaries, ipv6_gw][][]`
+
+    All ntp servers:
+    :code:`ntp_servers[].host`
+
+    Underlay infra loopback network:
+    :code:`underlay.[infra_lo_net]`
+
+    Underlay infra link network:
+    :code:`underlay.[infra_link_net]`
+
+    Underlay management loopback network:
+    :code:`underlay.[mgmt_lo_net]`
+
+    All interface IP addresses in the MGMT VRF:
+    :code:`interfaces[?vrf == 'MGMT'].[ipv4_address, ipv6_address][]`
+
+    All BGP IPv4 and IPv6 neighbors in the STUDENT VRF:
+    :code:`extroute_bgp.vrfs[?name=='STUDENT'].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]`
+
+    All BGP IPv4 neighbors:
+    :code:`extroute_bgp.vrfs[].neighbor_v4[].peer_ipv4`
+
+    All BGP IPv4 and IPv6 neighbors
+    :code:`extroute_bgp.vrfs[].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]`
 
 - service_definitions: Dictionary of {<name>, [entries]}:
 
@@ -225,7 +274,18 @@ Access list examples
       - address: 10.0.0.0/8
       - address: 172.16.0.0/12
       - address: 192.168.0.0/16
+    "BGP_PEERS":
+      # This will contain all BGP neighbors for a device.
+      - path: extroute_bgp.vrfs[].neighbor_v4[].peer_ipv4
+      - path: extroute_bgp.vrfs[].neighbor_v6[].peer_ipv6
+    "STUDENT_GWS":
+      # This will only have host ips of the actual gateway.
+      - path: vxlans.* | [?vrf=='STUDENT'].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]
+        strip_cidr: true
   service_definitions:
+    "BGP":
+      - port: 179
+        protocol: tcp
     "DNS":
       - port: 53
         protocol: "udp"
@@ -307,6 +367,18 @@ Access list examples
       terms:
         - name: "allow-all"
           action: "accept"
+    "ALLOW-BGP":
+      terms:
+       - name: "allow-bgp-traffic-inbound"
+         protocol: tcp
+         source-address: BGP_PEERS
+         destination-port: BGP
+         action: "accept"
+       - name: "allow-bgp-traffic-outbound"
+         protocol: tcp
+         destination-address: BGP_PEERS
+         destination-port: BGP
+         action: "accept"
 
 groups.yml
 ----------

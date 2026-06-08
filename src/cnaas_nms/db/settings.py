@@ -4,9 +4,11 @@ import logging
 import os
 import re
 import types
+from ipaddress import ip_interface
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union, overload
 
+import jmespath
 import yaml
 from absl import logging as absl_logging
 from aerleon.aclgen import Error as ACLGenError
@@ -1049,6 +1051,33 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     return group_dict
 
 
+def _resolve_jmespath_networks(network: dict, settings: dict, network_name: str) -> list[dict]:
+    """Resolves and validates a JMESPath network reference into a list of address dictionaries."""
+    addresses = jmespath.search(network["path"], settings)
+
+    if not isinstance(addresses, list):
+        raise AccessListGenerationError(f"Expected a list from jmespath search, got {type(addresses).__name__}.")
+
+    resolved_networks = []
+    for address in addresses:
+        try:
+            interface = ip_interface(address)
+        except ValueError:
+            raise AccessListGenerationError(
+                f"Expected an IP address or network from jmespath search, got {address} "
+                f"(type {type(address).__name__}) in network definition {network_name}."
+            )
+
+        if network.get("strip_cidr"):
+            formatted_address = str(interface.ip)
+        else:
+            formatted_address = str(interface.network)
+
+        resolved_networks.append({"address": formatted_address})
+
+    return resolved_networks
+
+
 def _build_aerleon_definitions(settings: dict) -> naming.Naming:
     """
     Builds Aerleon Naming from settings network_definitions and service_definitions.
@@ -1059,7 +1088,16 @@ def _build_aerleon_definitions(settings: dict) -> naming.Naming:
     networks_dict = {}
     services_dict = {}
     for network_name, networks in settings.get("network_definitions", {}).items():
-        networks_dict[network_name] = {"values": networks}
+        network_list = []
+        for network in networks:
+            if "path" in network:
+                resolved_addrs = _resolve_jmespath_networks(network, settings, network_name)
+                network_list.extend(resolved_addrs)
+            else:
+                # Normal aerleon network definition
+                network_list.append(network)
+
+        networks_dict[network_name] = {"values": network_list}
     for service_name, services in settings.get("service_definitions", {}).items():
         services_dict[service_name] = services
 

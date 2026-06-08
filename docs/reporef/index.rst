@@ -166,6 +166,8 @@ access_lists.yml
 
   Reference:
 
+  * strip_cidr: Removes CIDR and treats all referenced IPs as host addresses. Useful for example in cases where only gateway-addresses are needed in an access list.
+  
   * path: A jmespath string that will be used to get references from other device settings.
     Use a site like: `<https://play.jmespath.org/>`_ to test your jmespath string.
     The result of the jmespath search must be a list of addresses or networks, otherwise an error will be raised during access list generation.
@@ -276,6 +278,10 @@ Access list examples
       # This will contain all BGP neighbors for a device.
       - path: extroute_bgp.vrfs[].neighbor_v4[].peer_ipv4
       - path: extroute_bgp.vrfs[].neighbor_v6[].peer_ipv6
+    "STUDENT_GWS":
+      # This will only have host ips of the actual gateway.
+      - path: vxlans.* | [?vrf=='STUDENT'].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]
+        strip_cidr: true
   service_definitions:
     "BGP":
       - port: 179

@@ -441,6 +441,7 @@ class f_network_definition_include(BaseModel):
 
 class f_network_definition_reference(BaseModel):
     path: str
+    strip_cidr: Optional[bool] = False
 
     @field_validator("path", mode="after")
     @classmethod

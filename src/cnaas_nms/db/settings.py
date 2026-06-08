@@ -1074,7 +1074,11 @@ def _build_aerleon_definitions(settings: dict) -> naming.Naming:
 
                 for address in addresses:
                     try:
-                        ip_interface(address)
+                        # Strip cidr and treat address as a host ip.
+                        if network.get("strip_cidr"):
+                            address = str(ip_interface(address).ip)
+                        else:
+                            address = str(ip_interface(address).network)
                     except ValueError:
                         raise AccessListGenerationError(
                             f"Expected an IP address or network from jmespath search, got {address} (type {type(address).__name__}) in network definition {network_name}."

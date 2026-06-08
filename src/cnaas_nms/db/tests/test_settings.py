@@ -784,13 +784,19 @@ class SettingsTests(unittest.TestCase):
                     "vlan_id": 101,
                     "vlan_name": "SOME_VXLAN",
                     "ipv4_gw": "192.168.0.1/24",  # noqa: S1313
+                    "ipv6_gw": "2001:db8::1/64",  # noqa: S1313
                     "acl_ipv4_in": "SOME_VXLAN_IN",
                     "devices": ["testdevice-d1"],
                 }
             },
-            "network_definitions": {"VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.[ipv4_gw]", "strip_cidr": True}]},
+            "network_definitions": {
+                "VXLAN_REF": [{"path": "vxlans.SOME_VXLAN.[ipv4_gw, ipv4_secondaries, ipv6_gw][]", "strip_cidr": True}]
+            },
             "access_lists": {
-                "SOME_ACL": {"terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}]}
+                "SOME_ACL": {
+                    "inet_families": ["ipv4", "ipv6"],
+                    "terms": [{"name": "permit-any", "destination-address": "VXLAN_REF", "action": "accept"}],
+                }
             },
             "system_access_lists": ["SOME_ACL"],
         }
@@ -805,6 +811,7 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("SOME_ACL", acls.keys())
         self.assertEqual(len(acls), 1)
         self.assertIn("host 192.168.0.1", acls["SOME_ACL"])  # noqa: S1313
+        self.assertIn("2001:db8::1", acls["SOME_ACL"])  # noqa: S1313
 
 
 if __name__ == "__main__":

@@ -1051,6 +1051,33 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     return group_dict
 
 
+def _resolve_jmespath_networks(network: dict, settings: dict, network_name: str) -> list[dict]:
+    """Resolves and validates a JMESPath network reference into a list of address dictionaries."""
+    addresses = jmespath.search(network["path"], settings)
+
+    if not isinstance(addresses, list):
+        raise AccessListGenerationError(f"Expected a list from jmespath search, got {type(addresses).__name__}.")
+
+    resolved_networks = []
+    for address in addresses:
+        try:
+            interface = ip_interface(address)
+        except ValueError:
+            raise AccessListGenerationError(
+                f"Expected an IP address or network from jmespath search, got {address} "
+                f"(type {type(address).__name__}) in network definition {network_name}."
+            )
+
+        if network.get("strip_cidr"):
+            formatted_address = str(interface.ip)
+        else:
+            formatted_address = str(interface.network)
+
+        resolved_networks.append({"address": formatted_address})
+
+    return resolved_networks
+
+
 def _build_aerleon_definitions(settings: dict) -> naming.Naming:
     """
     Builds Aerleon Naming from settings network_definitions and service_definitions.
@@ -1063,30 +1090,9 @@ def _build_aerleon_definitions(settings: dict) -> naming.Naming:
     for network_name, networks in settings.get("network_definitions", {}).items():
         network_list = []
         for network in networks:
-            # This is a jmespath reference.
-            if "path" in network.keys():
-                addresses = jmespath.search(network["path"], settings)
-
-                if not isinstance(addresses, list):
-                    raise AccessListGenerationError(
-                        f"Expected a list from jmespath search, got {type(addresses).__name__}."
-                    )
-
-                for address in addresses:
-                    try:
-                        ip_interface(address)
-                    except ValueError:
-                        raise AccessListGenerationError(
-                            f"Expected an IP address or network from jmespath search, got {address} (type {type(address).__name__}) in network definition {network_name}."
-                        )
-
-                    # Strip cidr and treat address as a host ip.
-                    if network.get("strip_cidr"):
-                        address = str(ip_interface(address).ip)
-                    else:
-                        address = str(ip_interface(address).network)
-
-                    network_list.append({"address": address})
+            if "path" in network:
+                resolved_addrs = _resolve_jmespath_networks(network, settings, network_name)
+                network_list.extend(resolved_addrs)
             else:
                 # Normal aerleon network definition
                 network_list.append(network)

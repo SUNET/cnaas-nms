@@ -1089,7 +1089,7 @@ def sync_devices(
                 "cnaas_nms.devicehandler.sync_devices:sync_devices",
                 when=0,
                 scheduled_by=scheduled_by,
-                kwargs={"hostnames": hostnames, "dry_run": False, "force": force},
+                kwargs={"hostnames": hostnames, "dry_run": False, "force": force, "fencing_token": str(job_id)},
             )
             logger.info(f"Auto-push scheduled live-run of commit as job id {next_job_id}")
         else:

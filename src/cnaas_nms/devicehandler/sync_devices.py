@@ -909,7 +909,7 @@ def sync_devices(
     scheduled_by: str = "",
     resync: bool = False,
     confirm_mode_override: Optional[int] = None,
-    fencing_token: Optional[str] = None,
+    fencing_token: Optional[int] = None,
 ) -> NornirJobResult:
     """Synchronize devices to their respective templates. If no arguments
     are specified then synchronize all devices that are currently out
@@ -1060,7 +1060,7 @@ def sync_devices(
 
     # Save fencing token after successful dry run
     if dry_run and job_id:
-        create_syncto_fencing_token(job_id)
+        create_syncto_fencing_token(job_id, device_list)
 
     if len(device_list) == 0:
         total_change_score = 0

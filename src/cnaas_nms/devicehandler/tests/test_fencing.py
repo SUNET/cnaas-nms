@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +8,7 @@ from cnaas_nms.devicehandler.fencing import (
     FencingError,
     create_syncto_fencing_token,
     delete_all_fencing_tokens,
+    delete_fencing_token,
     get_fencing_token,
 )
 
@@ -22,68 +24,137 @@ def mock_redis():
 
 
 class TestCreateSynctoFencingToken:
-    def test_creates_token_in_redis_set(self, mock_redis):
-        create_syncto_fencing_token(42)
+    def test_creates_token_in_redis_hash(self, mock_redis):
+        create_syncto_fencing_token(42, ["host1", "host2"])
 
-        mock_redis.sadd.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "42")
+        mock_redis.hset.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "42", json.dumps(["host1", "host2"]))
 
     def test_sets_ttl_on_key(self, mock_redis):
-        create_syncto_fencing_token(42)
+        create_syncto_fencing_token(42, ["host1"])
 
         mock_redis.expire.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, 7200)
 
     def test_converts_job_id_to_string(self, mock_redis):
-        create_syncto_fencing_token(12345)
+        create_syncto_fencing_token(12345, ["host1"])
 
-        mock_redis.sadd.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "12345")
+        mock_redis.hset.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "12345", json.dumps(["host1"]))
+
+    def test_stores_empty_device_list(self, mock_redis):
+        create_syncto_fencing_token(42, [])
+
+        mock_redis.hset.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "42", json.dumps([]))
 
     def test_raises_on_redis_error(self):
         from redis.exceptions import RedisError
 
         with patch("cnaas_nms.devicehandler.fencing.redis_session") as mock_session:
             mock_client = MagicMock()
-            mock_client.sadd.side_effect = RedisError("connection failed")
+            mock_client.hset.side_effect = RedisError("connection failed")
             mock_session.return_value.__enter__ = MagicMock(return_value=mock_client)
             mock_session.return_value.__exit__ = MagicMock(return_value=False)
 
             with pytest.raises(RedisError):
-                create_syncto_fencing_token(42)
+                create_syncto_fencing_token(42, ["host1"])
 
 
 class TestGetFencingToken:
     def test_returns_true_when_token_exists(self, mock_redis):
-        mock_redis.sismember.return_value = True
+        mock_redis.hexists.return_value = True
 
-        result = get_fencing_token("42")
+        result = get_fencing_token(42)
 
         assert result is True
-        mock_redis.sismember.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "42")
+        mock_redis.hexists.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "42")
 
     def test_returns_false_when_token_missing(self, mock_redis):
-        mock_redis.sismember.return_value = False
+        mock_redis.hexists.return_value = False
 
-        result = get_fencing_token("99")
+        result = get_fencing_token(99)
 
         assert result is False
 
-    def test_converts_input_to_string(self, mock_redis):
-        mock_redis.sismember.return_value = True
+    def test_converts_int_to_string_for_redis(self, mock_redis):
+        mock_redis.hexists.return_value = True
 
-        get_fencing_token("123")
+        get_fencing_token(123)
 
-        mock_redis.sismember.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "123")
+        mock_redis.hexists.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "123")
 
     def test_raises_on_redis_error(self):
         from redis.exceptions import RedisError
 
         with patch("cnaas_nms.devicehandler.fencing.redis_session") as mock_session:
             mock_client = MagicMock()
-            mock_client.sismember.side_effect = RedisError("connection failed")
+            mock_client.hexists.side_effect = RedisError("connection failed")
             mock_session.return_value.__enter__ = MagicMock(return_value=mock_client)
             mock_session.return_value.__exit__ = MagicMock(return_value=False)
 
             with pytest.raises(RedisError):
-                get_fencing_token("42")
+                get_fencing_token(42)
+
+
+class TestDeleteFencingToken:
+    def test_deletes_token_containing_hostname(self, mock_redis):
+        mock_redis.hgetall.return_value = {
+            "42": json.dumps(["host1", "host2"]),
+            "43": json.dumps(["host3"]),
+        }
+
+        delete_fencing_token("host1")
+
+        mock_redis.hdel.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "42")
+
+    def test_deletes_multiple_tokens_containing_hostname(self, mock_redis):
+        mock_redis.hgetall.return_value = {
+            "42": json.dumps(["host1", "host2"]),
+            "43": json.dumps(["host1", "host3"]),
+            "44": json.dumps(["host4"]),
+        }
+
+        delete_fencing_token("host1")
+
+        assert mock_redis.hdel.call_count == 2
+        mock_redis.hdel.assert_any_call(REDIS_FENCING_TOKENS_KEY, "42")
+        mock_redis.hdel.assert_any_call(REDIS_FENCING_TOKENS_KEY, "43")
+
+    def test_does_not_delete_tokens_without_hostname(self, mock_redis):
+        mock_redis.hgetall.return_value = {
+            "42": json.dumps(["host1", "host2"]),
+            "43": json.dumps(["host3"]),
+        }
+
+        delete_fencing_token("host3")
+
+        mock_redis.hdel.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "43")
+
+    def test_does_nothing_when_no_tokens_exist(self, mock_redis):
+        mock_redis.hgetall.return_value = {}
+
+        delete_fencing_token("host1")
+
+        mock_redis.hdel.assert_not_called()
+
+    def test_does_nothing_when_hostname_not_in_any_token(self, mock_redis):
+        mock_redis.hgetall.return_value = {
+            "42": json.dumps(["host1", "host2"]),
+        }
+
+        delete_fencing_token("host99")
+
+        mock_redis.hdel.assert_not_called()
+
+    def test_does_not_raise_on_redis_error(self):
+        """delete_fencing_token logs but does not re-raise Redis errors."""
+        from redis.exceptions import RedisError
+
+        with patch("cnaas_nms.devicehandler.fencing.redis_session") as mock_session:
+            mock_client = MagicMock()
+            mock_client.hgetall.side_effect = RedisError("connection failed")
+            mock_session.return_value.__enter__ = MagicMock(return_value=mock_client)
+            mock_session.return_value.__exit__ = MagicMock(return_value=False)
+
+            # Should not raise - delete_fencing_token only logs the error
+            delete_fencing_token("host1")
 
 
 class TestDeleteAllFencingTokens:
@@ -129,31 +200,41 @@ class TestFencingTokenWorkflow:
     """Integration-style tests verifying the complete fencing token workflow."""
 
     def test_create_then_get_returns_true(self, mock_redis):
-        mock_redis.sismember.return_value = True
+        mock_redis.hexists.return_value = True
 
-        create_syncto_fencing_token(42)
-        result = get_fencing_token("42")
+        create_syncto_fencing_token(42, ["host1"])
+        result = get_fencing_token(42)
 
         assert result is True
 
-    def test_create_then_delete_then_get_returns_false(self, mock_redis):
-        mock_redis.sismember.return_value = False
-        mock_redis.delete.return_value = 1
+    def test_create_then_delete_by_hostname_invalidates_token(self, mock_redis):
+        mock_redis.hexists.return_value = False
+        mock_redis.hgetall.return_value = {"42": json.dumps(["host1", "host2"])}
 
-        create_syncto_fencing_token(42)
-        delete_all_fencing_tokens()
-        result = get_fencing_token("42")
+        create_syncto_fencing_token(42, ["host1", "host2"])
+        delete_fencing_token("host1")
+        result = get_fencing_token(42)
 
         assert result is False
+        mock_redis.hdel.assert_called_once_with(REDIS_FENCING_TOKENS_KEY, "42")
 
-    def test_multiple_tokens_all_deleted(self, mock_redis):
-        """Verifying that delete_all removes tokens for all job_ids."""
+    def test_unrelated_hostname_does_not_invalidate_token(self, mock_redis):
+        mock_redis.hexists.return_value = True
+        mock_redis.hgetall.return_value = {"42": json.dumps(["host1", "host2"])}
+
+        create_syncto_fencing_token(42, ["host1", "host2"])
+        delete_fencing_token("host99")
+        result = get_fencing_token(42)
+
+        assert result is True
+        mock_redis.hdel.assert_not_called()
+
+    def test_delete_all_removes_all_tokens(self, mock_redis):
         mock_redis.delete.return_value = 1
 
-        create_syncto_fencing_token(1)
-        create_syncto_fencing_token(2)
-        create_syncto_fencing_token(3)
+        create_syncto_fencing_token(1, ["host1"])
+        create_syncto_fencing_token(2, ["host2"])
+        create_syncto_fencing_token(3, ["host3"])
         delete_all_fencing_tokens()
 
-        # Single DEL call removes the entire SET (all tokens at once)
         mock_redis.delete.assert_called_once_with(REDIS_FENCING_TOKENS_KEY)

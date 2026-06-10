@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from redis.exceptions import RedisError
 
 from cnaas_nms.db.session import redis_session
-from cnaas_nms.devicehandler.fencing import delete_all_fencing_tokens
+from cnaas_nms.devicehandler.fencing import delete_fencing_token
 from cnaas_nms.tools.event import add_event
 from cnaas_nms.tools.log import get_logger
 
@@ -50,8 +50,8 @@ class SyncHistory:
 def add_sync_event(
     hostname: str, cause: str, by: Optional[str] = None, job_id: Optional[int] = None, timestamp: Optional[float] = None
 ):
-    # Invalidate all fencing tokens since device state may have changed
-    delete_all_fencing_tokens()
+    # Invalidate fencing tokens that include this hostname
+    delete_fencing_token(hostname)
     try:
         if not by:
             by = "unknown"

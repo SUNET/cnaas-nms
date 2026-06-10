@@ -973,6 +973,10 @@ def sync_devices(
         if get_fencing_token(fencing_token):
             logger.info("Fencing token {} is valid, proceeding with live run".format(fencing_token))
         else:
+            logger.error("Fencing token {} is invalid or expired, aborting live run".format(fencing_token))
+            with sqla_session() as session:  # type: ignore
+                logger.info("Releasing lock for devices from syncto job: {}".format(job_id))
+                Joblock.release_lock(session, job_id=job_id)
             raise FencingError("Fencing token {} is invalid or expired".format(fencing_token))
 
     try:

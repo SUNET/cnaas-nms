@@ -1455,7 +1455,7 @@ def rebuild_settings_cache() -> None:
     logger.debug("Clearing redis-lru cache for settings")
     with redis_session() as redis_db:  # type: ignore
         mem_stats_before = redis_db.memory_stats()
-        cache = RedisLRU(redis_db)
+        cache = NMSRedisLRU(redis_db)
         cache.clear_all_cache()
         mem_stats_after = redis_db.memory_stats()
         try:

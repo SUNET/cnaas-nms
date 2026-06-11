@@ -3,7 +3,6 @@ import os
 import re
 from typing import Dict, List, Optional, Set
 
-import yaml
 from netutils.config import compliance
 from netutils.lib_mapper import NAPALM_LIB_MAPPER
 from nornir.core.filter import F
@@ -18,6 +17,7 @@ from cnaas_nms.db.git import get_template_repo_path
 from cnaas_nms.db.interface import Interface, InterfaceConfigType, InterfaceError
 from cnaas_nms.tools.jinja_filters import get_config_section
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 def get_inventory():
@@ -66,7 +66,7 @@ def get_unmanaged_config_sections(hostname: str, platform: str, devtype: DeviceT
     if not os.path.isfile(mapfile):
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, "r") as f:
-        mapping = yaml.safe_load(f)
+        mapping = yaml_safe_load(f)
         if (
             "unmanaged_config_sections" in mapping[devtype.name]
             and type(mapping[devtype.name]["unmanaged_config_sections"]) is list

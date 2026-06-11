@@ -6,9 +6,9 @@ from contextlib import closing
 from pathlib import Path
 
 import pytest
-import yaml
 
 from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 def pytest_configure(config):
@@ -199,4 +199,4 @@ def jwt_auth_token(testdata):
 def testdata(scope="session"):
     data_dir = Path(__file__).parent / "cnaas_nms" / "api" / "tests" / "data"
     with open(data_dir / "testdata.yml", "r") as f_testdata:
-        return yaml.safe_load(f_testdata)
+        return yaml_safe_load(f_testdata)

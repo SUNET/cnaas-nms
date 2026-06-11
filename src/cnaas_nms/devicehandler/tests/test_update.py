@@ -4,13 +4,13 @@ from pathlib import Path
 from typing import Optional
 
 import pytest
-import yaml
 
 from cnaas_nms.db.device import Device, DeviceType
 from cnaas_nms.db.interface import InterfaceError
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.init_device import InitVerificationError, pre_init_check_neighbors
 from cnaas_nms.devicehandler.update import update_linknets
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 @pytest.mark.integration
@@ -23,7 +23,7 @@ class UpdateTests(unittest.TestCase):
     def setUp(self):
         data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-            self.testdata = yaml.safe_load(f_testdata)
+            self.testdata = yaml_safe_load(f_testdata)
 
     # maybe ar tge type of dict
     def get_linknets(self, session, neighbors_data: Optional[dict] = None, hostname: str = "eosaccess"):

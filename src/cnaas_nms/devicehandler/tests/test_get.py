@@ -4,12 +4,12 @@ import unittest
 from pathlib import Path
 
 import pytest
-import yaml
 
 import cnaas_nms.devicehandler.get
 import cnaas_nms.devicehandler.update
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 @pytest.mark.integration
@@ -22,7 +22,7 @@ class GetTests(unittest.TestCase):
     def setUp(self):
         data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-            self.testdata = yaml.safe_load(f_testdata)
+            self.testdata = yaml_safe_load(f_testdata)
 
     @classmethod
     def create_test_device(cls, hostname="unittest"):

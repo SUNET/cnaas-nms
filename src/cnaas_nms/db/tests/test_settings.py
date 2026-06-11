@@ -3,7 +3,6 @@ import unittest
 from pathlib import Path
 
 import pytest
-import yaml
 from pydantic import ValidationError
 
 import cnaas_nms.db.settings as db_settings_module
@@ -29,6 +28,7 @@ from cnaas_nms.db.settings import (
     verify_dir_structure,
 )
 from cnaas_nms.db.settings_fields import f_access_list, f_group, f_groups
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 class SettingsTests(unittest.TestCase):
@@ -40,7 +40,7 @@ class SettingsTests(unittest.TestCase):
     def setUp(self):
         data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-            self.testdata = yaml.safe_load(f_testdata)
+            self.testdata = yaml_safe_load(f_testdata)
         self.required_setting_keys = ["ntp_servers", "radius_servers"]
         self.cleandb()
 

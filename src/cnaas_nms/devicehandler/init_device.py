@@ -4,7 +4,6 @@ from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import Any, List, Optional
 
 import napalm.base.exceptions
-import yaml
 from apscheduler.job import Job
 from netmiko.exceptions import ReadTimeout as NMReadTimeout
 from nornir.core.exceptions import NornirSubTaskError
@@ -41,6 +40,7 @@ from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
 from cnaas_nms.tools.pki import generate_device_cert
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 class ConnectionCheckError(Exception):
@@ -69,7 +69,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
     if not os.path.isfile(mapfile):
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, "r") as f:
-        mapping = yaml.safe_load(f)
+        mapping = yaml_safe_load(f)
         template = mapping[devtype.name]["entrypoint"]
 
     # TODO: install device certificate, using new hostname and reserved IP.

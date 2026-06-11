@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union, overload
 
 import jmespath
-import yaml
 from absl import logging as absl_logging
 from aerleon.aclgen import Error as ACLGenError
 from aerleon.api import Generate
@@ -49,6 +48,7 @@ from cnaas_nms.db.settings_fields import (
 from cnaas_nms.db.settings_fields import f_vxlans as f_vxlans_model
 from cnaas_nms.tools.log import CaptureHandler, get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 @overload
@@ -584,7 +584,7 @@ def read_settings_file(filename):
     if not os.path.isfile(filename):
         return {}
     with open(filename, "r") as f:
-        return yaml.safe_load(f)
+        return yaml_safe_load(f)
 
 
 def read_settings(
@@ -708,7 +708,7 @@ def recursive_filter_yamldata(
 ) -> Union[List, dict, None]:
     """Filter data and remove dictionary items if they have a key that specifies
     a list of groups, but none of those groups are included in the groups argument.
-    Should only be called with yaml.safe_load:ed data.
+    Should only be called with yaml_safe_load:ed data.
 
     Args:
         data: yaml safe_load:ed data
@@ -729,14 +729,11 @@ def recursive_filter_yamldata(
         return data
 
 
-def get_downstream_dependencies(hostname: str, settings: dict) -> dict:
+def get_downstream_dependencies(device: Device, settings: dict) -> dict:
+    if device.device_type != DeviceType.DIST:
+        return settings
     with sqla_session() as session:  # type: ignore
-        dev: Optional[Device] = session.query(Device).filter(Device.hostname == hostname).one_or_none()
-        if not dev:
-            return settings
-        if dev.device_type != DeviceType.DIST:
-            return settings
-        neighbor_devices = dev.get_neighbors(session)
+        neighbor_devices = device.get_neighbors(session)
         # Downstream device hostnames
         for neighbor_dev in neighbor_devices:
             if neighbor_dev.device_type != DeviceType.ACCESS:
@@ -768,7 +765,7 @@ def get_settings(
     # 1. Get CNaaS-NMS default settings
     data_dir = Path(__file__).parent / "data"
     with open(os.path.join(data_dir, "default_settings.yml"), "r") as f_default_settings:
-        settings: dict = yaml.safe_load(f_default_settings)
+        settings: dict = yaml_safe_load(f_default_settings)
 
     settings_origin = {}
     for k in settings.keys():
@@ -849,7 +846,7 @@ def get_settings(
             settings_origin,
             groups,
         )
-        settings = get_downstream_dependencies(device.hostname, settings)
+        settings = get_downstream_dependencies(device, settings)
 
         # 5. Get settings repo group specific settings
         primary_group = None
@@ -1000,7 +997,7 @@ def get_group_settings() -> Tuple[f_groups, dict]:
 
     data_dir = Path(__file__).parent / "data"
     with open(os.path.join(data_dir, "default_groups.yml"), "r") as f_default_settings:
-        default_settings: dict = yaml.safe_load(f_default_settings)
+        default_settings: dict = yaml_safe_load(f_default_settings)
 
     settings, settings_origin = read_settings(
         local_repo_path, ["global", "groups.yml"], "global", settings, settings_origin

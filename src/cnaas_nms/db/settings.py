@@ -1,3 +1,4 @@
+import hashlib
 import importlib
 import json
 import logging
@@ -110,6 +111,42 @@ redis_client = StrictRedis(
     socket_keepalive=True,
 )
 
+_DEVICE_FILTER_FIELDS = frozenset(f_group_device_filter.model_fields)
+
+
+def _make_hashable(obj: Any) -> Any:
+    """Recursively convert objects into hashable objects."""
+    if type(obj) in (int, str, float, bool, type(None)):
+        return obj
+
+    elif isinstance(obj, dict):
+        return tuple((k, _make_hashable(obj[k])) for k in sorted(obj))
+
+    elif isinstance(obj, (list, tuple)):
+        return tuple(_make_hashable(v) for v in obj)
+
+    elif isinstance(obj, set):
+        # Sets must be sorted to guarantee stable representations across runs
+        try:
+            return tuple(sorted(_make_hashable(v) for v in obj))
+        except TypeError:
+            # Fallback if set contains mixed, unorderable types
+            return frozenset(_make_hashable(v) for v in obj)
+
+    elif isinstance(obj, Device):
+        # If device use only the fields that are relevant
+        device_dict = obj.as_dict()
+        return tuple((k, _make_hashable(device_dict[k])) for k in sorted(device_dict) if k in _DEVICE_FILTER_FIELDS)
+
+    elif isinstance(obj, (naming.Naming, naming._ItemUnit)):
+        return tuple((k, _make_hashable(obj.__dict__[k])) for k in sorted(obj.__dict__))
+
+    elif hasattr(obj, "as_dict"):
+        obj_dict = obj.as_dict()
+        return tuple((k, _make_hashable(obj_dict[k])) for k in sorted(obj_dict))
+
+    return obj
+
 
 class NMSRedisLRU(RedisLRU):
     def _decorator_key(self, func: types.FunctionType, *args, **kwargs):
@@ -117,37 +154,13 @@ class NMSRedisLRU(RedisLRU):
         Generate a hashable cache key for RedisLRU,
         even when passing dicts, lists, sets, or custom objects.
         """
-
-        def make_hashable(obj):
-            """Recursively convert objects into hashable objects."""
-            if isinstance(obj, dict):
-                # Sort keys to ensure consistent ordering
-                return tuple((k, make_hashable(v)) for k, v in sorted(obj.items()))
-            elif isinstance(obj, (list, tuple)):
-                return tuple(make_hashable(v) for v in obj)
-            elif isinstance(obj, set):
-                return frozenset(make_hashable(v) for v in obj)
-            elif isinstance(obj, Device):
-                # If device use only the fields that are relevant
-                device_filter_fields = f_group_device_filter.model_fields
-                return tuple(
-                    (k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()) if k in device_filter_fields
-                )
-            elif isinstance(obj, naming.Naming) or isinstance(obj, naming._ItemUnit):
-                # Use __dict__ for Naming object
-                return tuple((k, make_hashable(v)) for k, v in sorted(obj.__dict__.items()))
-            elif hasattr(obj, "as_dict"):
-                # Use the dictionary representation for caching
-                return tuple((k, make_hashable(v)) for k, v in sorted(obj.as_dict().items()))
-            else:
-                return obj
-
         # Convert args & kwargs into stable, hashable forms
-        hashed_args = tuple(hash(make_hashable(arg)) for arg in args)
-        hashed_kwargs = {k: hash(make_hashable(v)) for k, v in kwargs.items()}
+        safe_args = tuple(_make_hashable(arg) for arg in args)
+        safe_kwargs = tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items()))
 
-        # Call the parent class' key generator with transformed arguments
-        return super()._decorator_key(func, *hashed_args, **hashed_kwargs)
+        raw_key = f"{self.key_prefix}:{func.__module__}:{func.__qualname__}:{safe_args!r}:{safe_kwargs!r}"
+
+        return hashlib.md5(raw_key.encode("utf-8")).hexdigest()
 
 
 redis_lru_cache = NMSRedisLRU(redis_client, default_ttl=24 * 3600)

@@ -160,7 +160,10 @@ class NMSRedisLRU(RedisLRU):
 
         raw_key = f"{self.key_prefix}:{func.__module__}:{func.__qualname__}:{safe_args!r}:{safe_kwargs!r}"
 
-        return hashlib.md5(raw_key.encode("utf-8")).hexdigest()
+        # We want a fast hash here, don't care about a secure one.
+        # We hash the string so it is not too long for redis to handle.
+        # Shorter keys in redis improves performance and reduces memory usage.
+        return hashlib.md5(raw_key.encode("utf-8")).hexdigest() # noqa: S4790
 
 
 redis_lru_cache = NMSRedisLRU(redis_client, default_ttl=24 * 3600)

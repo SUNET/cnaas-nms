@@ -47,6 +47,7 @@ class DeviceTests(unittest.TestCase):
                 "access-old-name",
                 "access-new-name",
                 "discovered_device",
+                "mac-000000000000",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
@@ -504,6 +505,35 @@ class DeviceTests(unittest.TestCase):
         json_data = json.loads(result.data.decode())
         #        self.assertEqual(json_data['data']['compatible'], False)
         self.assertEqual(json_data["status"], "error")
+
+    def test_init_access_hostname_collision(self):
+        """
+        Test that the api returns an error when trying to
+        init a device with the same hostname as another switch
+        """
+        with sqla_session() as session:  # type: ignore
+            device = Device(
+                hostname="mac-000000000000",
+                platform="eos",
+                dhcp_ip=IPv4Address("10.0.1.22"),
+                state=DeviceState.DISCOVERED,
+                device_type=DeviceType.UNKNOWN,
+            )
+            session.add(device)
+            session.commit()
+            session.refresh(device)
+            device_id = device.id
+
+        # Check for both device_initcheck and device_init that the error shows up.
+        for endpoint in ["device_initcheck", "device_init"]:
+            device_data = {"hostname": "eosaccess", "device_type": "ACCESS"}
+            result = self.client.post(f"/api/v1.0/{endpoint}/{device_id}", json=device_data)
+
+            json_data = result.json
+            self.assertIsNotNone(json_data)
+
+            self.assertEqual(result.status_code, 400)
+            self.assertIn("Hostname eosaccess is already used for device with id:", result.json.get("message"))
 
     def test_get_stackmembers_invalid_device(self):
         result = self.client.get(f"/api/v1.0/device/{'nonexisting'}/stackmember")

@@ -638,13 +638,24 @@ class DeviceInitApi(Resource):
                 parsed_args["neighbors"] = json_data["neighbors"]
             else:
                 raise ValueError(
-                    "Neighbors must be specified as either a list of hostnames,an empty list, or not specified at all"
+                    "Neighbors must be specified as either a list of hostnames, an empty list, or not specified at all"
                 )
         else:
             parsed_args["neighbors"] = None
 
         if "replace_hostname" in json_data and json_data["replace_hostname"] is not None:
             parsed_args["replace_hostname"] = json_data["replace_hostname"]
+        else:
+            # Check for hostname collision only when not replacing device
+            with sqla_session() as session:  # type: ignore
+                used_dev: Optional[Device] = (
+                    session.query(Device).filter(Device.hostname == parsed_args["new_hostname"]).one_or_none()
+                )
+
+                if used_dev:
+                    raise ValueError(
+                        f"Hostname {parsed_args['new_hostname']} is already used for device with id: {used_dev.id}"
+                    )
 
         return parsed_args
 

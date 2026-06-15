@@ -116,7 +116,7 @@ class InitDeviceTests(unittest.TestCase):
                     session.query(Interface).filter(Interface.device_id == device.id).delete()
                     session.delete(device)
 
-            res_ip = session.query(ReservedIP).filter(ReservedIP.ip == "10.0.6.101").one_or_none()
+            res_ip = session.query(ReservedIP).filter(ReservedIP.ip == "10.0.6.101").one_or_none()  # noqa: S1313
             if res_ip:
                 session.delete(res_ip)
 
@@ -154,7 +154,7 @@ class InitDeviceTests(unittest.TestCase):
 
         mock_mgmtdomain_instance.is_dual_stack = False
 
-        mock_mgmtdomain_instance.find_free_primary_mgmt_ip.return_value = IPv4Address("10.0.6.101")
+        mock_mgmtdomain_instance.find_free_primary_mgmt_ip.return_value = IPv4Address("10.0.6.101")  # noqa: S1313
 
         mock_find_mgmtdomain.return_value = mock_mgmtdomain_instance
 
@@ -171,7 +171,7 @@ class InitDeviceTests(unittest.TestCase):
         # Prepare test data.
         with sqla_session() as session:  # type: ignore
             uplink_dev = Device(
-                management_ip="10.0.6.100",
+                management_ip="10.0.6.100",  # noqa: S1313
                 hostname="uplink_a1",
                 platform="eos",
                 state=DeviceState.MANAGED,
@@ -214,7 +214,7 @@ class InitDeviceTests(unittest.TestCase):
             session.add(uplink_interface)
 
             # Add Reserved IP to dev1
-            res_ip = ReservedIP(device_id=dev1.id, ip="10.0.6.101")
+            res_ip = ReservedIP(device_id=dev1.id, ip="10.0.6.101")  # noqa: S1313
             session.add(res_ip)
             session.commit()
 

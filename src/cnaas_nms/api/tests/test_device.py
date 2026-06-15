@@ -664,12 +664,12 @@ class DeviceTests(unittest.TestCase):
             discovered_device = Device(
                 hostname="discovered_device",
                 platform="eos",
-                dhcp_ip=IPv4Address("10.0.1.44"),
+                dhcp_ip=IPv4Address("10.0.1.44"),  # noqa: S1313
                 state=DeviceState.DISCOVERED,
                 device_type=DeviceType.UNKNOWN,
             )
             # Add a bunch of running jobs so the delay will be very noticable
-            for i in range(30):
+            for _ in range(30):
                 session.add(
                     Job(status=JobStatus.RUNNING, function_name="init_access_device_step1", scheduled_by="pytest")
                 )

@@ -449,6 +449,7 @@ def init_access_device_step1(
     Raises:
         DeviceStateException
         ValueError
+        sqlalchemy.exc.IntegrityError
     """
     logger = get_logger()
     with sqla_session() as session:  # type: ignore

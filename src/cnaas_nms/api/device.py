@@ -23,7 +23,7 @@ from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface
-from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError
+from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError, JobStatus
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import (
@@ -524,6 +524,9 @@ class DeviceInitApi(Resource):
         except ValueError as e:
             return empty_result(status="error", data=str(e)), 400
 
+        # Set default delay for init_jobs
+        init_delay_seconds = 1
+
         # If device init is already in progress, reschedule a new step2 (connectivity check)
         # instead of trying to restart initialization
         with sqla_session() as session:  # type: ignore
@@ -537,7 +540,7 @@ class DeviceInitApi(Resource):
                 scheduler = Scheduler()
                 job_id = scheduler.add_onetime_job(
                     "cnaas_nms.devicehandler.init_device:init_device_step2",
-                    when=1,
+                    when=init_delay_seconds,
                     scheduled_by=get_identity(),
                     kwargs={"device_id": device_id, "iteration": 1},
                 )
@@ -547,13 +550,30 @@ class DeviceInitApi(Resource):
                 res["job_id"] = job_id
                 return res
 
+            # Check if there are any other running or scheduled init jobs
+            other_job_count = (
+                session.query(func.count(Job.id))
+                .filter(
+                    Job.function_name.in_(["init_access_device_step1", "init_fabric_device_step1"]),
+                    Job.status.in_([JobStatus.RUNNING, JobStatus.SCHEDULED]),
+                )
+                .scalar()
+            )
+            if other_job_count > 0:
+                init_delay_seconds = other_job_count * 2
+                logger.debug(
+                    "Found {} running or scheduled init jobs, delaying this init job by {} seconds.".format(
+                        other_job_count, init_delay_seconds
+                    )
+                )
+
         if job_kwargs["device_type"] == DeviceType.ACCESS.name:
             del job_kwargs["device_type"]
             del job_kwargs["neighbors"]
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
                 "cnaas_nms.devicehandler.init_device:init_access_device_step1",
-                when=1,
+                when=init_delay_seconds,
                 scheduled_by=get_identity(),
                 kwargs=job_kwargs,
             )
@@ -561,7 +581,7 @@ class DeviceInitApi(Resource):
             scheduler = Scheduler()
             job_id = scheduler.add_onetime_job(
                 "cnaas_nms.devicehandler.init_device:init_fabric_device_step1",
-                when=1,
+                when=init_delay_seconds,
                 scheduled_by=get_identity(),
                 kwargs=job_kwargs,
             )

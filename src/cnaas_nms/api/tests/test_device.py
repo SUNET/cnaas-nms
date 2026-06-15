@@ -515,7 +515,7 @@ class DeviceTests(unittest.TestCase):
             device = Device(
                 hostname="mac-000000000000",
                 platform="eos",
-                dhcp_ip=IPv4Address("10.0.1.22"),
+                dhcp_ip=IPv4Address("10.0.1.22"),  # noqa: S1313
                 state=DeviceState.DISCOVERED,
                 device_type=DeviceType.UNKNOWN,
             )

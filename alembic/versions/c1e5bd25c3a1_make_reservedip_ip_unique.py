@@ -1,4 +1,4 @@
-"""Make ReserveIP IP unique
+"""Make ReservedIP IP unique
 
 Revision ID: c1e5bd25c3a1
 Revises: 7bd40f19727f

@@ -2,18 +2,18 @@ import os
 import unittest
 from pathlib import Path
 
-import yaml
 from nornir_utils.plugins.functions import print_result
 
 from cnaas_nms.devicehandler.cert import arista_copy_cert
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 class CertTests(unittest.TestCase):
     def setUp(self):
         data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-            self.testdata = yaml.safe_load(f_testdata)
+            self.testdata = yaml_safe_load(f_testdata)
 
     def copy_cert(self):
         nr = cnaas_init()

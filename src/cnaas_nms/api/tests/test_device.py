@@ -5,7 +5,6 @@ from ipaddress import IPv4Address
 from pathlib import Path
 
 import pytest
-import yaml
 from sqlalchemy import or_
 
 from cnaas_nms.api import app
@@ -15,6 +14,7 @@ from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 @pytest.mark.integration
@@ -58,7 +58,7 @@ class DeviceTests(unittest.TestCase):
         self.jwt_auth_token = None
         data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-            self.testdata = yaml.safe_load(f_testdata)
+            self.testdata = yaml_safe_load(f_testdata)
             if "jwt_auth_token" in self.testdata:
                 self.jwt_auth_token = self.testdata["jwt_auth_token"]
         self.app = app.app

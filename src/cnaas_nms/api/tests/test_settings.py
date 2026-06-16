@@ -2,19 +2,19 @@ import os
 from pathlib import Path
 
 import pytest
-import yaml
 from flask.testing import FlaskClient
 
 from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.db.settings import FILE_MODEL_MAP
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 @pytest.fixture
 def testdata(scope="module") -> dict:
     data_dir = Path(__file__).parent / "data"
     with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-        return yaml.safe_load(f_testdata)
+        return yaml_safe_load(f_testdata)
 
 
 @pytest.fixture

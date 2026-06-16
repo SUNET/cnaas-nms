@@ -6,13 +6,13 @@ from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 from pathlib import Path
 
 import pytest
-import yaml
 
 import cnaas_nms.db.helper
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.tests.test_device import DeviceTests
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 @pytest.mark.integration
@@ -26,7 +26,7 @@ class MgmtdomainTests(unittest.TestCase):
     def get_testdata():
         data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-            return yaml.safe_load(f_testdata)
+            return yaml_safe_load(f_testdata)
 
     def setUp(self):
         self.testdata = self.get_testdata()

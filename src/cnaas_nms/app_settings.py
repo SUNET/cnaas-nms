@@ -1,11 +1,11 @@
 from pathlib import Path
 from typing import Any, List, Optional
 
-import yaml
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 from cnaas_nms.models.permissions import PermissionsModel
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 class AppSettings(BaseSettings):
@@ -92,7 +92,7 @@ def construct_api_settings() -> ApiSettings:
 
     if api_config.is_file():
         with open(api_config, "r") as api_file:
-            config = yaml.safe_load(api_file)
+            config = yaml_safe_load(api_file)
 
         if config.get("firmware_url", False):
             firmware_url = config["firmware_url"]
@@ -147,7 +147,7 @@ def construct_app_settings() -> AppSettings:
 
     if db_config.is_file():
         with open(db_config, "r") as db_file:
-            config = yaml.safe_load(db_file)
+            config = yaml_safe_load(db_file)
         _create_db_config(app_settings, config)
 
     def _create_repo_config(settings: AppSettings, config: dict) -> None:
@@ -158,7 +158,7 @@ def construct_app_settings() -> AppSettings:
 
     if repo_config.is_file():
         with open(repo_config, "r") as repo_file:
-            config = yaml.safe_load(repo_file)
+            config = yaml_safe_load(repo_file)
         _create_repo_config(app_settings, config)
 
     return app_settings
@@ -172,7 +172,7 @@ def construct_auth_settings() -> AuthSettings:
 
     if auth_config.is_file():
         with open(auth_config, "r") as auth_file:
-            config = yaml.safe_load(auth_file)
+            config = yaml_safe_load(auth_file)
         auth_settings.OIDC_ENABLED = config.get("oidc_enabled", AuthSettings().OIDC_ENABLED)
         auth_settings.FRONTEND_CALLBACK_URL = config.get("frontend_callback_url", AuthSettings().FRONTEND_CALLBACK_URL)
         auth_settings.OIDC_CONF_WELL_KNOWN_URL = config.get(
@@ -202,7 +202,7 @@ def construct_auth_settings() -> AuthSettings:
     elif permission_config.is_file():
         """Load the file with role permission"""
         with open(permission_config, "r") as permission_file:
-            permissions_rules = yaml.safe_load(permission_file)
+            permissions_rules = yaml_safe_load(permission_file)
         auth_settings.PERMISSIONS = PermissionsModel(**permissions_rules)
     else:
         raise FileNotFoundError(f"{permission_config} not found")

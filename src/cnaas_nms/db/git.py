@@ -8,7 +8,6 @@ from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urldefrag
 
 import git.remote
-import yaml
 from git import InvalidGitRepositoryError, Repo
 from git.exc import GitCommandError, NoSuchPathError
 
@@ -38,6 +37,7 @@ from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.tools.event import add_event
 from cnaas_nms.tools.githelpers import parse_git_changed_files
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 class RepoType(enum.Enum):
@@ -384,7 +384,7 @@ def template_syncstatus(updated_templates: set) -> Set[Tuple[DeviceType, str]]:
             raise RepoStructureException("File mapping.yml not found in template repo {}".format(path))
         try:
             with open(mapfile, "r") as f:
-                mapping = yaml.safe_load(f)
+                mapping = yaml_safe_load(f)
         except Exception as e:
             logger.exception("Could not parse {}/mapping.yml in template repo: {}".format(path, str(e)))
             raise RepoStructureException("Could not parse {}/mapping.yml in template repo: {}".format(path, str(e)))

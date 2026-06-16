@@ -51,7 +51,7 @@ ENV GIT_BRANCH=$GIT_BRANCH
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 nginx supervisor ssh-client \
     bind9-host iputils-ping net-tools netcat-openbsd procps psmisc \
-    curl uwsgi-plugin-python3 git openssl \
+    curl uwsgi-plugin-python3 git openssl libyaml-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/cnaas/templates /opt/cnaas/settings /etc/cnaas-nms /tmp/devicecerts \
     && chown -R www-data:www-data /opt/cnaas /etc/cnaas-nms /tmp/devicecerts

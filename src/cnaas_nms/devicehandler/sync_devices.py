@@ -3,7 +3,6 @@ import time
 from ipaddress import IPv4Address, IPv4Interface, ip_interface
 from typing import Any, List, Optional, Tuple
 
-import yaml
 from napalm.eos import EOSDriver as NapalmEOSDriver
 from napalm.junos import JunOSDriver as NapalmJunOSDriver
 from nornir.core import Nornir
@@ -32,6 +31,7 @@ from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.jinja_helpers import get_environment_secrets
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 AUTOPUSH_MAX_SCORE = 10
 PRIVATE_ASN_START = 4200000000
@@ -412,7 +412,7 @@ def populate_device_vars(
     if not os.path.isfile(mapfile):
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, "r") as f:
-        mapping = yaml.safe_load(f)
+        mapping = yaml_safe_load(f)
         if (
             devtype.name in mapping
             and "unmanaged_config_sections" in mapping[devtype.name]
@@ -594,7 +594,7 @@ def push_sync_device(
     if not os.path.isfile(mapfile):
         raise RepoStructureException("File {} not found in template repo".format(mapfile))
     with open(mapfile, "r") as f:
-        mapping = yaml.safe_load(f)
+        mapping = yaml_safe_load(f)
         template = mapping[devtype.name]["entrypoint"]
 
     logger.debug("Generate config for host: {}".format(task.host.name))

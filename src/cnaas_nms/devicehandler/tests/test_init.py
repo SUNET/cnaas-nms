@@ -3,7 +3,6 @@ import time
 import unittest
 from pathlib import Path
 
-import yaml
 from nornir.core.inventory import ConnectionOptions
 from nornir_napalm.plugins.tasks import napalm_configure
 from nornir_utils.plugins.functions import print_result
@@ -14,13 +13,14 @@ from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.update import reset_interfacedb
 from cnaas_nms.scheduler.scheduler import Scheduler
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 class InitTests(unittest.TestCase):
     def setUp(self):
         data_dir = Path(__file__).parent / "data"
         with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-            self.testdata = yaml.safe_load(f_testdata)
+            self.testdata = yaml_safe_load(f_testdata)
 
         scheduler = Scheduler()
         scheduler.start()

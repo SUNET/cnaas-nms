@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # flake8: noqa
 
-import yaml
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 with open("/etc/cnaas-nms/db_config.yml", "r") as db_file:
-    db_data = yaml.safe_load(db_file)
+    db_data = yaml_safe_load(db_file)
 
 print(db_data)
 conn_str = f"postgresql://{db_data['username']}:{db_data['password']}@{db_data['hostname']}:{db_data['port']}"

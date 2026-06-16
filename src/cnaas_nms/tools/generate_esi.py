@@ -9,8 +9,9 @@ from jinja_helpers import get_environment_secrets
 try:
     import jinja2
     import requests
-    import yaml
     from jinja2.meta import find_undeclared_variables
+
+    from cnaas_nms.tools.yaml import yaml_safe_load
 except ModuleNotFoundError as e:
     print("Please install python modules requests, jinja2 and (ruamel.)yaml: {}".format(e))
     print("Optionally install netutils for more filters")
@@ -30,7 +31,7 @@ def get_entrypoint(platform, device_type):
     if not os.path.isfile(mapfile):
         raise Exception("File {} not found".format(mapfile))
     with open(mapfile, "r") as f:
-        mapping = yaml.safe_load(f)
+        mapping = yaml_safe_load(f)
         template_file = mapping[device_type]["entrypoint"]
     return template_file
 

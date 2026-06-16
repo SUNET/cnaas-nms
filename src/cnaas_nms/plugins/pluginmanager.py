@@ -1,11 +1,11 @@
 import importlib
 
 import pluggy
-import yaml
 
 from cnaas_nms.app_settings import api_settings
 from cnaas_nms.plugins.pluginspec import CnaasPluginSpec
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 logger = get_logger()
 
@@ -28,7 +28,7 @@ class PluginManagerHandler(object, metaclass=SingletonType):
     def get_plugindata(cls):
         if api_settings.PLUGIN_FILE.is_file():
             with open(api_settings.PLUGIN_FILE, "r") as plugins_file:
-                data = yaml.safe_load(plugins_file)
+                data = yaml_safe_load(plugins_file)
                 if "plugins" in data and isinstance(data["plugins"], list):
                     return data
                 else:

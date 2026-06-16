@@ -4,16 +4,16 @@ import os
 from pathlib import Path
 
 import pytest
-import yaml
 
 from cnaas_nms.db.device_vars import expand_interface_settings
+from cnaas_nms.tools.yaml import yaml_safe_load
 
 
 @pytest.fixture
 def testdata(scope="session"):
     data_dir = Path(__file__).parent / "data"
     with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
-        return yaml.safe_load(f_testdata)
+        return yaml_safe_load(f_testdata)
 
 
 def test_expand_interface_settings_norange(testdata):

@@ -143,6 +143,7 @@ device_syncto_model = device_syncto_api.model(
         "auto_push": fields.Boolean(required=False),
         "resync": fields.Boolean(required=False),
         "confirm_mode": fields.Integer(required=False, min=0, max=2),
+        "fencing_token": fields.String(required=False),
     },
 )
 
@@ -154,6 +155,7 @@ device_syncto_hostname_model = device_syncto_api.model(
         "auto_push": fields.Boolean(required=False),
         "resync": fields.Boolean(required=False),
         "confirm_mode": fields.Integer(required=False, min=0, max=2),
+        "fencing_token": fields.String(required=False),
     },
 )
 
@@ -775,8 +777,14 @@ def parse_syncto_args(json_data: dict):
         kwargs["job_comment"] = json_data["comment"]
     if "ticket_ref" in json_data and isinstance(json_data["ticket_ref"], str):
         kwargs["job_ticket_ref"] = json_data["ticket_ref"]
-    if "confirm_mode" in json_data and isinstance(json_data["confirm_mode"], int):
+    if "confirm_mode" in json_data:
+        if not isinstance(json_data["confirm_mode"], int):
+            raise ValueError("confirm_mode must be an integer")
         kwargs["confirm_mode_override"] = json_data["confirm_mode"]
+    if "fencing_token" in json_data:
+        if not isinstance(json_data["fencing_token"], str):
+            raise ValueError("fencing_token must be a string")
+        kwargs["fencing_token"] = int(json_data["fencing_token"])
 
     return kwargs
 

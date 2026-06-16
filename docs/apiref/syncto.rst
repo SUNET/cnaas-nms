@@ -80,6 +80,12 @@ that setting for a specific job using the API argument confirm_mode (see below).
    This should be a string with max 32 characters.
  - confirm_mode: Optionally override the default commit confirm mode (see above) for this job.
    Must be an integer 0, 1 or 2 if specified.
+ - fencing_token: Optional string that can be provided when doing dry_run=False to prevent
+   unintended configuration changes in case of multiple users working on the same device at
+   the same time. String should consist of a job_id from previous dry_run=True job which
+   generated the intended configuration changes. If the device configuration has changed since
+   that dry run job was executed the syncto job will fail instead of pushing the new configuration
+   to the device.
 
 If neither hostname or device_type is specified all devices that needs to be sycnhronized
 will be selected.

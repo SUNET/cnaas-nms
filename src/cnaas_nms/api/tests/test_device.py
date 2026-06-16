@@ -680,6 +680,7 @@ class DeviceTests(unittest.TestCase):
 
             device_data = {"hostname": "manageddevice-a1", "device_type": "ACCESS"}
 
+            # Schedule device init and get back job_id
             result = self.client.post(f"/api/v1.0/device_init/{discovered_device.id}", json=device_data)
 
             job_id = result.json.get("job_id")
@@ -697,7 +698,7 @@ class DeviceTests(unittest.TestCase):
 
             target_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None) + datetime.timedelta(seconds=50)
 
-            # Make sure scheduled_time is greater than 50 seconds because of 60 other running jobs.
+            # Make sure scheduled_time is greater than 50 seconds because of 30 other running jobs (30*2 seconds delay).
             self.assertGreater(parsed_scheduled_time, target_time)
 
 

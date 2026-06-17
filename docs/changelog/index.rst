@@ -51,6 +51,13 @@ Breaking changes:
    See: https://cnaas-nms.readthedocs.io/en/latest/plugins/index.html#settings-fields for more information.
    Internal custom pydantic schemas have also been rebuilt to types so if your plugins use internal schemas they will need to be updated to the custom types instead.
 
+Version 1.8.1
+-------------
+
+Bug fixes:
+
+  - Fix refresh settings error when interface configuration on core device has been updated
+
 Version 1.8.0
 -------------
 

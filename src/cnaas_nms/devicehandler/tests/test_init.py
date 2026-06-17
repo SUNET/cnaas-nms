@@ -256,7 +256,6 @@ class InitDeviceTests(unittest.TestCase):
                 state=DeviceState.UNMANAGED,  # UNMANAGED
                 device_type=DeviceType.ACCESS,
             )
-
             mlag_a2 = Device(
                 hostname="mlag_a2",
                 platform="eos",
@@ -367,7 +366,6 @@ class InitDeviceTests(unittest.TestCase):
                 state=DeviceState.MANAGED,
                 device_type=DeviceType.ACCESS,
             )
-
             dev = Device(
                 hostname="replaced_switch_with_orphaned_uplink",
                 platform="eos",

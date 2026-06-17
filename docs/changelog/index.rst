@@ -1,6 +1,13 @@
 Changelog
 =========
 
+Version 1.8.1
+-------------
+
+Bug fixes:
+
+  - Fix refresh settings error when interface configuration on core device has been updated
+
 Version 1.8.0
 -------------
 

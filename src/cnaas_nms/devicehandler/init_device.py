@@ -438,7 +438,8 @@ def init_access_device_step1(
         mlag_peer_id: Device ID of MLAG peer device (optional)
         mlag_peer_new_hostname: Hostname to configure on peer device (optional)
         uplink_hostnames_arg: List of hostnames of uplink peer devices (optional)
-                              Used when initializing MLAG peer device
+                              Used when initializing MLAG peer device'
+        replace_hostname: Hostname of the switch that will be replaced
         job_id: job_id provided by scheduler when adding job
         scheduled_by: Username from JWT.
 
@@ -472,6 +473,13 @@ def init_access_device_step1(
                 raise DeviceStateError(f"Device {new_hostname} not found")
             if replace_dev.state != DeviceState.UNMANAGED:
                 raise DeviceStateError(f"Device {new_hostname} not in UNMANAGED state")
+
+            if replace_dev.stack_members:
+                raise Exception("Replacing a stacked switch is not supported")
+
+            # When changing platform check if the replace device is in a MLAG or not
+            if dev.platform != replace_dev.platform and replace_dev.get_mlag_peer(session):
+                raise Exception("Replacing a MLAG switch with a different platform is not supported")
 
         linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None
@@ -596,7 +604,9 @@ def init_access_device_step1(
                     linknet["device_a_id"] = dev.id
                 if linknet["device_b_id"] == ztp_device_id:
                     linknet["device_b_id"] = dev.id
-            update_interfacedb_worker(session, dev, replace=True, delete_all=False, linknets=linknets)
+            update_interfacedb_worker(
+                session, dev, replace=True, delete_all=False, linknets=linknets, replacing_device=True
+            )
 
         try:
             update_linknets(

@@ -12,7 +12,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 import cnaas_nms.devicehandler.init_device
-from cnaas_nms.db.device import Device, DeviceState, DeviceType
+from cnaas_nms.db.device import Device, DeviceError, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.linknet import Linknet
@@ -238,7 +238,7 @@ class InitDeviceTests(unittest.TestCase):
         self,
         mock_pre_init,
     ):
-        """Test that when trying to replacing a mlag switch with another platform it raises an exception"""
+        """Test that when trying to replacing a mlag switch with another platform it raises an DeviceError"""
 
         def mocked_pre_init(session, device_id: int) -> Device:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
@@ -297,7 +297,7 @@ class InitDeviceTests(unittest.TestCase):
 
             session.commit()
 
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(DeviceError) as context:
             init_func(device_id=mlag_replacement_id, new_hostname="mlag_a1", replace_hostname="mlag_a1")
 
         self.assertEqual("Replacing a MLAG switch with a different platform is not supported", str(context.exception))
@@ -344,7 +344,7 @@ class InitDeviceTests(unittest.TestCase):
             session.add(Stackmember(device_id=stack_a1.id, hardware_id="00:11:22:33:44:55", member_no=1, priority=10))
             session.commit()
 
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(DeviceError) as context:
             init_func(device_id=stack_replacement_id, new_hostname="stack_a1", replace_hostname="stack_a1")
 
         self.assertEqual("Replacing a stacked switch is not supported", str(context.exception))

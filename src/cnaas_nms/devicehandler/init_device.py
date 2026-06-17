@@ -448,6 +448,7 @@ def init_access_device_step1(
         Nornir result object
 
     Raises:
+        DeviceError
         DeviceStateException
         ValueError
         sqlalchemy.exc.IntegrityError
@@ -476,11 +477,11 @@ def init_access_device_step1(
                 raise DeviceStateError(f"Device {new_hostname} not in UNMANAGED state")
 
             if replace_dev.stack_members:
-                raise Exception("Replacing a stacked switch is not supported")
+                raise DeviceError("Replacing a stacked switch is not supported")
 
             # When changing platform check if the replace device is in a MLAG or not
             if dev.platform != replace_dev.platform and replace_dev.get_mlag_peer(session):
-                raise Exception("Replacing a MLAG switch with a different platform is not supported")
+                raise DeviceError("Replacing a MLAG switch with a different platform is not supported")
 
         linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None

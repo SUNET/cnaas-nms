@@ -34,6 +34,7 @@ def update_interfacedb_worker(
     delete_all: bool,
     mlag_peer_hostname: Optional[str] = None,
     linknets: List[dict] = [],
+    replacing_device: bool = False,
 ) -> List[dict]:
     """Perform actual work of updating database for update_interfacedb.
     If replace is set to true, configtype and data will get overwritten.
@@ -107,7 +108,11 @@ def update_interfacedb_worker(
 
     # Remove interfaces that no longer exist on device
     for unmatched_intf in unmatched_iflist:
-        protected_interfaces = [InterfaceConfigType.ACCESS_UPLINK, InterfaceConfigType.MLAG_PEER]
+        # When replacing a device only preserve MLAG_PEER ports.
+        if replacing_device:
+            protected_interfaces = [InterfaceConfigType.MLAG_PEER]
+        else:
+            protected_interfaces = [InterfaceConfigType.ACCESS_UPLINK, InterfaceConfigType.MLAG_PEER]
         if unmatched_intf.configtype in protected_interfaces:
             logger.warn(
                 "Interface of protected type disappeared from {} ignoring: {}".format(dev.hostname, unmatched_intf.name)

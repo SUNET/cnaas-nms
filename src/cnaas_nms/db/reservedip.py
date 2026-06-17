@@ -20,7 +20,7 @@ class ReservedIP(cnaas_nms.db.base.Base):
     device: Mapped["cnaas_nms.db.device.Device"] = relationship(
         back_populates="reserved_ips",
     )
-    ip: Mapped[IPAddressType] = mapped_column(IPAddressType)
+    ip: Mapped[IPAddressType] = mapped_column(IPAddressType, unique=True)
     last_seen: Mapped[DateTime] = mapped_column(DateTime, default=datetime.datetime.now)
 
     def as_dict(self) -> dict:

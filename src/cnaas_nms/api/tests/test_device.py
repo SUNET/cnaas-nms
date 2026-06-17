@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import unittest
@@ -11,6 +12,7 @@ from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
+from cnaas_nms.db.job import Job, JobStatus
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.stackmember import Stackmember
@@ -44,6 +46,7 @@ class DeviceTests(unittest.TestCase):
                 "test-dist2",
                 "access-old-name",
                 "access-new-name",
+                "discovered_device",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
@@ -52,7 +55,15 @@ class DeviceTests(unittest.TestCase):
                     ).delete()
                     session.query(Interface).filter(Interface.device_id == device.id).delete()
                     session.delete(device)
-                    session.commit()
+
+            # Remove any test jobs
+            session.query(Job).filter(
+                Job.function_name.in_(["init_access_device_step1"]),
+                Job.status == JobStatus.RUNNING,
+                Job.scheduled_by == "pytest",
+            ).delete()
+
+            session.commit()
 
     def setUp(self):
         self.jwt_auth_token = None
@@ -646,6 +657,49 @@ class DeviceTests(unittest.TestCase):
         hostname = self.testdata["managed_dist"]
         result = self.client.get(f"/api/v1.0/device/{hostname}/lldp_neighbors_detail")
         self.assertEqual(result.status_code, 200, "Get LLDP neighbors detail failed")
+
+    def test_device_init_reschedule(self):
+        """Test that overlapping init jobs are delayed"""
+        with sqla_session() as session:  # type: ignore
+            discovered_device = Device(
+                hostname="discovered_device",
+                platform="eos",
+                dhcp_ip=IPv4Address("10.0.1.44"),  # noqa: S1313
+                state=DeviceState.DISCOVERED,
+                device_type=DeviceType.UNKNOWN,
+            )
+            # Add a bunch of running jobs so the delay will be very noticable
+            for _ in range(30):
+                session.add(
+                    Job(status=JobStatus.RUNNING, function_name="init_access_device_step1", scheduled_by="pytest")
+                )
+            session.add(discovered_device)
+
+            session.commit()
+            session.refresh(discovered_device)
+
+            device_data = {"hostname": "manageddevice-a1", "device_type": "ACCESS"}
+
+            # Schedule device init and get back job_id
+            result = self.client.post(f"/api/v1.0/device_init/{discovered_device.id}", json=device_data)
+
+            job_id = result.json.get("job_id")
+
+            self.assertIsNotNone(job_id)
+
+            # Get job_id data
+            job_id_data = self.client.get(f"/api/v1.0/job/{job_id}")
+
+            scheduled_time = job_id_data.json.get("data", {}).get("jobs", [])[0].get("scheduled_time")
+
+            self.assertIsNotNone(scheduled_time)
+
+            parsed_scheduled_time = datetime.datetime.fromisoformat(scheduled_time)
+
+            target_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None) + datetime.timedelta(seconds=50)
+
+            # Make sure scheduled_time is greater than 50 seconds because of 30 other running jobs (30*2 seconds delay).
+            self.assertGreater(parsed_scheduled_time, target_time)
 
 
 if __name__ == "__main__":

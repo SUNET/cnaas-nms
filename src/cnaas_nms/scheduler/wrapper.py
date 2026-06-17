@@ -1,3 +1,4 @@
+import functools
 import threading
 import traceback
 from typing import Optional
@@ -48,6 +49,7 @@ def update_device_progress_thread(stop_event: threading.Event, job_id: int):
 def job_wrapper(func):
     """Decorator to save job status in job tracker database."""
 
+    @functools.wraps(func)
     def wrapper(job_id: int, scheduled_by: str, kwargs={}):
         if not job_id or type(job_id) is not int:
             errmsg = "Missing job_id when starting job for {}".format(func.__name__)

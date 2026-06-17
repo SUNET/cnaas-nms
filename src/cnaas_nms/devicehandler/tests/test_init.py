@@ -18,7 +18,8 @@ from cnaas_nms.db.job import Job
 from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.devicehandler.update import reset_interfacedb
+from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.devicehandler.update import reset_interfacedb, update_interfacedb_worker
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.yaml import yaml_safe_load
 
@@ -107,6 +108,13 @@ class InitDeviceTests(unittest.TestCase):
                 "uplink_a1",
                 "discovered_a1",
                 "discovered_a2",
+                "mlag_a1",
+                "mlag_a2",
+                "mlag_replacement",
+                "stack_a1",
+                "stack_replacement",
+                "uplink_a2",
+                "replaced_switch_with_orphaned_uplink",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
@@ -114,6 +122,7 @@ class InitDeviceTests(unittest.TestCase):
                         or_(Linknet.device_a_id == device.id, Linknet.device_b_id == device.id)
                     ).delete()
                     session.query(Interface).filter(Interface.device_id == device.id).delete()
+                    session.query(Stackmember).filter(Stackmember.device_id == device.id).delete()
                     session.delete(device)
 
             res_ip = session.query(ReservedIP).filter(ReservedIP.ip == "10.0.6.101").one_or_none()  # noqa: S1313
@@ -223,6 +232,191 @@ class InitDeviceTests(unittest.TestCase):
                 init_func(device_id=dev2.id, new_hostname="managed_a1")
 
             self.assertIn("psycopg2.errors.UniqueViolation", str(context.exception))
+
+    @patch("cnaas_nms.devicehandler.init_device.pre_init_checks")
+    def test_init_access_mlag_wrong_platform(
+        self,
+        mock_pre_init,
+    ):
+        """Test that when trying to replacing a mlag switch with another platform it raises an exception"""
+
+        def mocked_pre_init(session, device_id: int) -> Device:
+            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            return dev
+
+        mock_pre_init.side_effect = mocked_pre_init
+
+        init_func = cnaas_nms.devicehandler.init_device.init_access_device_step1.__wrapped__
+
+        # Prepare test data.
+        with sqla_session() as session:  # type: ignore
+            mlag_a1 = Device(
+                hostname="mlag_a1",
+                platform="eos",
+                state=DeviceState.UNMANAGED,  # UNMANAGED
+                device_type=DeviceType.ACCESS,
+            )
+
+            mlag_a2 = Device(
+                hostname="mlag_a2",
+                platform="eos",
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.ACCESS,
+            )
+            mlag_replacement = Device(
+                hostname="mlag_replacement",
+                platform="ios",  # wrong platform
+                state=DeviceState.DISCOVERED,
+                device_type=DeviceType.UNKNOWN,
+            )
+            session.add(mlag_a1)
+            session.add(mlag_a2)
+            session.add(mlag_replacement)
+            session.commit()
+            session.refresh(mlag_a1)
+            session.refresh(mlag_a2)
+            session.refresh(mlag_replacement)
+
+            mlag_replacement_id = mlag_replacement.id
+
+            # Add MLAG ports
+            # Interfaces
+            interface_a1 = Interface(device_id=mlag_a1.id, name="Ethernet1", configtype=InterfaceConfigType.MLAG_PEER)
+            interface_a2 = Interface(device_id=mlag_a2.id, name="Ethernet1", configtype=InterfaceConfigType.MLAG_PEER)
+            session.add(interface_a1)
+            session.add(interface_a2)
+
+            # Linknet
+            session.add(
+                Linknet(
+                    device_a=mlag_a1,
+                    device_a_port=interface_a1.name,
+                    device_b=mlag_a2,
+                    device_b_port=interface_a2.name,
+                )
+            )
+
+            session.commit()
+
+        with self.assertRaises(Exception) as context:
+            init_func(device_id=mlag_replacement_id, new_hostname="mlag_a1", replace_hostname="mlag_a1")
+
+        self.assertEqual("Replacing a MLAG switch with a different platform is not supported", str(context.exception))
+
+    @patch("cnaas_nms.devicehandler.init_device.pre_init_checks")
+    def test_init_access_stack_error(
+        self,
+        mock_pre_init,
+    ):
+        """Test that when trying to replacing a stacked switch it raises an exception"""
+
+        def mocked_pre_init(session, device_id: int) -> Device:
+            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            return dev
+
+        mock_pre_init.side_effect = mocked_pre_init
+
+        init_func = cnaas_nms.devicehandler.init_device.init_access_device_step1.__wrapped__
+
+        # Prepare test data.
+        with sqla_session() as session:  # type: ignore
+            stack_a1 = Device(
+                hostname="stack_a1",
+                platform="ios",
+                state=DeviceState.UNMANAGED,  # UNMANAGED
+                device_type=DeviceType.ACCESS,
+            )
+            stack_replacement = Device(
+                management_ip=None,
+                hostname="stack_replacement",
+                platform="ios",
+                state=DeviceState.DISCOVERED,
+                device_type=DeviceType.UNKNOWN,
+            )
+            session.add(stack_a1)
+            session.add(stack_replacement)
+            session.commit()
+            session.refresh(stack_a1)
+            session.refresh(stack_replacement)
+
+            stack_replacement_id = stack_replacement.id
+
+            # Add stack member
+            session.add(Stackmember(device_id=stack_a1.id, hardware_id="00:11:22:33:44:55", member_no=1, priority=10))
+            session.commit()
+
+        with self.assertRaises(Exception) as context:
+            init_func(device_id=stack_replacement_id, new_hostname="stack_a1", replace_hostname="stack_a1")
+
+        self.assertEqual("Replacing a stacked switch is not supported", str(context.exception))
+
+    @patch("cnaas_nms.devicehandler.update.get_interfaces_names")
+    def test_init_access_uplink_removed(self, mock_get_interfaces_names):
+        """
+        Test that when replacing a switch with another switch with other uplink ports the original uplink ports are removed
+        """
+
+        # Override nornir get_interfaces
+        mock_get_interfaces_names.return_value = ["Ethernet25"]
+
+        # Prepare test data.
+        with sqla_session() as session:  # type: ignore
+            uplink_dev = Device(
+                hostname="uplink_a2",
+                platform="eos",
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.ACCESS,
+            )
+
+            dev = Device(
+                hostname="replaced_switch_with_orphaned_uplink",
+                platform="eos",
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.ACCESS,
+            )
+
+            session.add(uplink_dev)
+            session.add(dev)
+            session.commit()
+            session.refresh(uplink_dev)
+            session.refresh(dev)
+
+            # Add Downlink ports to uplink_dev
+            downlink_interface = Interface(
+                device_id=uplink_dev.id, name="Ethernet1", configtype=InterfaceConfigType.ACCESS_DOWNLINK
+            )
+            session.add(downlink_interface)
+
+            # Add orphaned uplink port
+            # Interfaces
+            interface = Interface(
+                device_id=dev.id,
+                name="TenGigabitEthernet1/1/1",  # Orphaned port
+                configtype=InterfaceConfigType.ACCESS_UPLINK,
+            )
+            session.add(interface)
+            session.commit()
+
+            # New uplink port will be part of this linknets
+            linknets = [
+                {
+                    "device_a_id": dev.id,
+                    "device_a_port": "Ethernet25",
+                    "device_b_id": uplink_dev.id,
+                    "device_b_port": "Ethernet1",
+                }
+            ]
+
+            update_interfacedb_worker(
+                session, dev, replace=True, delete_all=False, linknets=linknets, replacing_device=True
+            )
+
+            interfaces = list(session.query(Interface).filter(Interface.device_id == dev.id))
+
+            self.assertEqual(1, len(interfaces))
+
+            self.assertEqual("Ethernet25", interfaces[0].name)
+            self.assertEqual(InterfaceConfigType.ACCESS_UPLINK, interfaces[0].configtype)
 
 
 if __name__ == "__main__":

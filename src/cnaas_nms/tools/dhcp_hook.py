@@ -7,8 +7,7 @@ from typing import Optional
 
 import netaddr
 import requests
-
-from cnaas_nms.tools.yaml import yaml_safe_load
+import yaml
 
 logger = logging.getLogger("dhcp-hook")
 if not logger.handlers:
@@ -22,7 +21,7 @@ logger.setLevel(logging.DEBUG)
 
 def get_apidata(configfile="/etc/cnaas-nms/apiclient.yml"):
     with open(configfile, "r") as apiclient_file:
-        return yaml_safe_load(apiclient_file)
+        return yaml.safe_load(apiclient_file)
 
 
 def get_jwt_token():

@@ -2,11 +2,14 @@ import unittest
 from typing import Set, Tuple
 
 import pytest
+from git import Repo
 
+from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import DeviceType
 from cnaas_nms.db.git import (
     RepoType,
     _is_device_type_update_required,
+    commits_out_of_sync,
     repo_checkout_working,
     repo_save_working_commit,
     template_syncstatus,
@@ -58,6 +61,24 @@ class GitTests(unittest.TestCase):
         repo_save_working_commit(RepoType.TEMPLATES, "bd5e1f70f52037e8e2a451b2968a9ca8160a7cba")
         self.assertTrue(repo_checkout_working(RepoType.SETTINGS, dry_run=True), "Working commit not saved in redis")
         self.assertTrue(repo_checkout_working(RepoType.TEMPLATES, dry_run=True), "Working commit not saved in redis")
+
+    def test_commits_out_of_sync(self):
+        """Test commits_out_of_sync"""
+        # Check if the repo is behind or ahead before test is run
+        pre_ahead, pre_behind = commits_out_of_sync(RepoType.TEMPLATES)
+
+        if not pre_ahead or not pre_behind:
+            pre_ahead = 0
+            pre_behind = 0
+
+        # Force template repo back one commit
+        repo = Repo(app_settings.TEMPLATES_LOCAL)
+        repo.git.reset("--hard", "HEAD~1")
+
+        ahead, behind = commits_out_of_sync(RepoType.TEMPLATES)
+
+        self.assertEqual(ahead, pre_ahead + 0)
+        self.assertEqual(behind, pre_behind + 1)
 
 
 if __name__ == "__main__":

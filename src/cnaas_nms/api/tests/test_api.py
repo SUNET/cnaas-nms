@@ -157,6 +157,9 @@ def test_repository_get(client):
     assert result.json["status"] == "success"
     # Exactly one result
     assert result.json["data"] == "Repository is not yet cloned from remote"
+    # commits_head and commits_behind is None
+    assert result.json["commits_ahead"] is None
+    assert result.json["commits_behind"] is None
 
     # Refresh repo
     data = {"action": "refresh"}
@@ -170,6 +173,9 @@ def test_repository_get(client):
     assert result.json["status"] == "success"
     # Exactly one result
     assert re.match(r"[Cc]ommit", result.json["data"])
+    # commits_ahead and commits_behind is 0
+    assert result.json["commits_ahead"] == 0
+    assert result.json["commits_behind"] == 0
 
 
 def test_settings_hostname(client):

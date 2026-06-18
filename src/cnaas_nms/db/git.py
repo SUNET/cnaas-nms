@@ -70,6 +70,43 @@ def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         return "Repository is not yet cloned from remote"
 
 
+def commits_out_of_sync(repo_type: RepoType = RepoType.TEMPLATES) -> tuple[Optional[int], Optional[int]]:
+    """
+    Returns a tuple of (ahead commits, behind commits)
+    """
+    if repo_type == RepoType.TEMPLATES:
+        local_repo_path = app_settings.TEMPLATES_LOCAL
+    elif repo_type == RepoType.SETTINGS:
+        local_repo_path = app_settings.SETTINGS_LOCAL
+    else:
+        raise ValueError("Invalid repository")
+
+    try:
+        local_repo = Repo(local_repo_path)
+
+        # Make sure we have up-to-date remote refs
+        local_repo.remote().fetch()
+
+        branch_name = local_repo.active_branch.name
+
+        local_branch = local_repo.heads[branch_name]
+        remote_branch = local_repo.remote().refs[branch_name]
+
+        local_commit = local_branch.commit.hexsha
+        remote_commit = remote_branch.commit.hexsha
+
+        # Commits local has that remote doesn't (ahead)
+        ahead = list(local_repo.iter_commits(f"{remote_commit}..{local_commit}"))
+
+        # Commits remote has that local doesn't (behind)
+        behind = list(local_repo.iter_commits(f"{local_commit}..{remote_commit}"))
+
+        return len(ahead), len(behind)
+
+    except (InvalidGitRepositoryError, NoSuchPathError):  # noqa: S110
+        return None, None
+
+
 def refresh_repo(repo_type: RepoType = RepoType.TEMPLATES, scheduled_by: str = "") -> str:
     """Refresh the repository for repo_type
 

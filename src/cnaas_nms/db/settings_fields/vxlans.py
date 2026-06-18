@@ -48,9 +48,8 @@ class f_vxlan(BaseModel):
     @field_validator("ipv6_gw")
     @classmethod
     def vrf_required_if_ipv6_gw_set(cls, v: str, info: ValidationInfo):
-        if v:
-            if "vrf" not in info.data or not info.data["vrf"]:
-                raise ValueError("VRF is required when specifying ipv6_gw")
+        if v and ("vrf" not in info.data or not info.data["vrf"]):
+            raise ValueError("VRF is required when specifying ipv6_gw")
         return v
 
 

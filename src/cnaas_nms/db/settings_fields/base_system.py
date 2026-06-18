@@ -54,9 +54,8 @@ class f_internal_vlans(BaseModel):
     @field_validator("vlan_id_high")
     @classmethod
     def vlan_id_high_greater_than_low(cls, v: int, info: ValidationInfo):
-        if v:
-            if info.data["vlan_id_low"] >= v:
-                raise ValueError("vlan_id_high must be greater than vlan_id_low")
+        if v and info.data["vlan_id_low"] >= v:
+            raise ValueError("vlan_id_high must be greater than vlan_id_low")
         return v
 
 

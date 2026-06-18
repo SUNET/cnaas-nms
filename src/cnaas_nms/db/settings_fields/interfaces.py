@@ -47,7 +47,7 @@ class f_interface(BaseModel):
         if v:
             validate_ipv4_if(v)
             if "vrf" not in info.data or not info.data["vrf"]:
-                raise ValueError("VRF is required when specifying ipv4_gw")
+                raise ValueError("VRF is required when specifying ipv4_address")
         return v
 
 

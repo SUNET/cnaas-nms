@@ -11,6 +11,7 @@ from cnaas_nms.db.settings_fields.shared import (
     tcpudp_port_schema,
     vlan_id_schema,
     vlan_id_schema_optional,
+    vni_range_required_check,
 )
 
 
@@ -43,26 +44,6 @@ class f_dns_server(BaseModel):
 
 class f_dhcp_relay(BaseModel):
     host: str = host_schema
-
-
-def vlan_range_check(v: str) -> str:
-    if "-" in v:
-        start, end = v.split("-")
-        assert int(start) < int(end), "Start of range must be less than end of range"
-        assert int(start) >= 1 and int(end) <= 4095, "VLAN IDs in range must be between 1-4095"
-    else:
-        assert 1 <= int(v) <= 4095, "VLAN IDs in range must be between 1-4095"
-    return v
-
-
-def vni_range_required_check(v: str) -> str:
-    if "-" in v:
-        start, end = v.split("-")
-        assert int(start) < int(end), "Start of range must be less than end of range"
-        assert int(start) >= 1 and int(end) <= 16777215, "VNI IDs in range must be between 1-16777215"
-    else:
-        raise ValueError("Range must be specified, ex '10000-99999'")
-    return v
 
 
 class f_internal_vlans(BaseModel):

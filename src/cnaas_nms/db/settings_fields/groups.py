@@ -22,6 +22,8 @@ class f_group_device_filter(BaseModel):
     @classmethod
     def validate_regex(cls, v):
         """Validate that the value is a valid regex pattern."""
+        if v is None:
+            return v
         try:
             # Try compiling regex
             re.compile(v)

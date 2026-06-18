@@ -158,12 +158,15 @@ class NMSRedisLRU(RedisLRU):
         safe_args = tuple(_make_hashable(arg) for arg in args)
         safe_kwargs = tuple((k, _make_hashable(v)) for k, v in sorted(kwargs.items()))
 
-        raw_key = f"{self.key_prefix}:{func.__module__}:{func.__qualname__}:{safe_args!r}:{safe_kwargs!r}"
+        raw_key_data = f"{safe_args!r}:{safe_kwargs!r}"
 
         # We want a fast hash here, don't care about a secure one.
         # We hash the string so it is not too long for redis to handle.
         # Shorter keys in redis improves performance and reduces memory usage.
-        return hashlib.md5(raw_key.encode("utf-8")).hexdigest()  # noqa: S4790
+        # Encode only the args and kwargs
+        hashed_args = hashlib.md5(raw_key_data.encode("utf-8")).hexdigest()  # noqa: S4790
+
+        return f"{self.key_prefix}:{func.__module__}:{func.__qualname__}:{hashed_args!r}"
 
 
 redis_lru_cache = NMSRedisLRU(redis_client, default_ttl=24 * 3600)

@@ -105,15 +105,13 @@ class SettingsTests(unittest.TestCase):
         Run get_settings twice with the same device should execute get_settings only once
         """
         # Clear redis_cache
-        with redis_session() as redis:  # type: ignore
-            cache = NMSRedisLRU(redis)
-            cache.clear_all_cache()
+        db_settings_module.redis_lru_cache.clear_all_cache()
 
         # Counter to track actual executions
         call_count = {"count": 0}
 
         # Save the original undecorated logic
-        original_func = db_settings_module.get_settings
+        original_func = db_settings_module.get_settings.__wrapped__
 
         # Define a spy wrapper
         def spy_get_settings(*args, **kwargs):
@@ -500,15 +498,13 @@ class SettingsTests(unittest.TestCase):
         Run get_generated_access_lists twice with the same device should execute get_settings only once
         """
         # Clear redis_cache
-        with redis_session() as redis:  # type: ignore
-            cache = NMSRedisLRU(redis)
-            cache.clear_all_cache()
+        db_settings_module.redis_lru_cache.clear_all_cache()
 
         # Counter to track actual executions
         call_count = {"count": 0}
 
         # Save the original undecorated logic
-        original_func = db_settings_module._generate_acl
+        original_func = db_settings_module._generate_acl.__wrapped__
 
         # Define a spy wrapper
         def spy_generate_acl(*args, **kwargs):

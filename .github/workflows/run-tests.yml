@@ -55,7 +55,7 @@ jobs:
 
       - name: Clone test data
         run: |
-          git clone --depth 1 --no-single-branch https://github.com/SUNET/cnaas-integrationtest-templates.git .test-data/templates
+          git clone --depth 2 --no-single-branch https://github.com/SUNET/cnaas-integrationtest-templates.git .test-data/templates
           git clone --depth 1 https://github.com/SUNET/cnaas-integrationtest-settings.git .test-data/settings
 
       - name: Start test databases

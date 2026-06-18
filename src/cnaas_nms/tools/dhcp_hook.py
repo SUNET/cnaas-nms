@@ -21,7 +21,7 @@ logger.setLevel(logging.DEBUG)
 
 def get_apidata(configfile="/etc/cnaas-nms/apiclient.yml"):
     with open(configfile, "r") as apiclient_file:
-        return yaml.safe_load(apiclient_file)
+        return yaml.safe_load(apiclient_file)  # type: ignore[attr-defined]
 
 
 def get_jwt_token():

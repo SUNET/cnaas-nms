@@ -166,7 +166,7 @@ class NMSRedisLRU(RedisLRU):
         # Encode only the args and kwargs
         hashed_args = hashlib.md5(raw_key_data.encode("utf-8")).hexdigest()  # noqa: S4790
 
-        return f"{self.key_prefix}:{func.__module__}:{func.__qualname__}:{hashed_args!r}"
+        return f"{self.key_prefix}:{func.__module__}:{func.__qualname__}:{hashed_args}"
 
 
 redis_lru_cache = NMSRedisLRU(redis_client, default_ttl=24 * 3600)

@@ -62,6 +62,15 @@ class RepositoryApi(Resource):
 
         return result
 
+    @api.doc(
+        params={
+            "repo": {
+                "description": "Repository type",
+                "type": "string",
+                "enum": [r.name.lower() for r in RepoType],
+            }
+        }
+    )
     @login_required
     @api.expect(repository_model)
     def put(self, repo):

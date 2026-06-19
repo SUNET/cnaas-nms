@@ -238,7 +238,7 @@ class InitDeviceTests(unittest.TestCase):
         self,
         mock_pre_init,
     ):
-        """Test that when trying to replacing a mlag switch with another platform it raises an exception"""
+        """Test that when trying to replace a mlag switch with another platform it raises an exception"""
 
         def mocked_pre_init(session, device_id: int) -> Device:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
@@ -307,7 +307,7 @@ class InitDeviceTests(unittest.TestCase):
         self,
         mock_pre_init,
     ):
-        """Test that when trying to replacing a stacked switch it raises an exception"""
+        """Test that when trying to replace a stacked switch it raises an exception"""
 
         def mocked_pre_init(session, device_id: int) -> Device:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()

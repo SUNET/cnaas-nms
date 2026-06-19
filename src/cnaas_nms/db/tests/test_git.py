@@ -1,5 +1,6 @@
 import unittest
 from typing import Set, Tuple
+from unittest.mock import MagicMock, patch
 
 import pytest
 from git import Repo
@@ -64,21 +65,33 @@ class GitTests(unittest.TestCase):
 
     def test_commits_out_of_sync(self):
         """Test commits_out_of_sync"""
-        # Check if the repo is behind or ahead before test is run
-        pre_ahead, pre_behind = commits_out_of_sync(RepoType.TEMPLATES)
-
-        if not pre_ahead or not pre_behind:
-            pre_ahead = 0
-            pre_behind = 0
-
         # Force template repo back one commit
         repo = Repo(app_settings.TEMPLATES_LOCAL)
-        repo.git.reset("--hard", "HEAD~1")
+        # Make sure the repo is up to date
+        repo.remote().pull()
+        repo.git.reset("--hard", "HEAD~1")  # Force back one step
 
         ahead, behind = commits_out_of_sync(RepoType.TEMPLATES)
 
-        self.assertEqual(ahead, pre_ahead + 0)
-        self.assertEqual(behind, pre_behind + 1)
+        self.assertEqual(ahead, 0)
+        self.assertEqual(behind, 1)
+
+    @patch("cnaas_nms.db.git.Repo")
+    def test_commits_out_of_sync_error(self, mock_repo):
+        """Test commits_out_of_sync error"""
+        mock_repo_instance = MagicMock()
+
+        mock_repo_instance.active_branch.name.return_value = "master"
+
+        # Some error happened in this call
+        mock_repo_instance.remote.return_value.refs.__getitem__.side_effect = IndexError("this is a IndexError")
+
+        mock_repo.return_value = mock_repo_instance
+
+        ahead, behind = commits_out_of_sync(RepoType.TEMPLATES)
+
+        self.assertIsNone(ahead)
+        self.assertIsNone(behind)
 
 
 if __name__ == "__main__":

@@ -103,7 +103,9 @@ def commits_out_of_sync(repo_type: RepoType = RepoType.TEMPLATES) -> tuple[Optio
 
         return len(ahead), len(behind)
 
-    except (InvalidGitRepositoryError, NoSuchPathError):  # noqa: S110
+    except Exception as e:
+        logger = get_logger()
+        logger.error("Could not fetch out of sync commits, error: {}".format(str(e)))
         return None, None
 
 

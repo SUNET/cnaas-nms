@@ -568,6 +568,7 @@ def init_access_device_step1(
             new_serial = dev.serial
             new_model = dev.model
             new_dhcp_ip = dev.dhcp_ip
+            new_platform = dev.platform
             ztp_hostname = dev.hostname
             ztp_device_id = dev.id
             logger.info(
@@ -586,6 +587,7 @@ def init_access_device_step1(
             dev.model = new_model
             dev.hostname = ztp_hostname
             dev.dhcp_ip = new_dhcp_ip
+            dev.platform = new_platform
             dev.state = DeviceState.DISCOVERED
             mgmt_ip = dev.management_ip
             secondary_mgmt_ip = dev.secondary_management_ip

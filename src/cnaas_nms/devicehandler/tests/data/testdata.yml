@@ -60,22 +60,22 @@ mlag_dev_a: mlagpeer1
 mlag_dev_b: mlagpeer2
 mlag_dev_nonpeer: nonpeer
 linknets_mlag_peers:
-- description: null
-  device_a_ip: null
-  device_a_port: Ethernet25
-  device_b_ip: null
-  device_b_port: Ethernet51
-  ipv4_network: null
-  redundant_link: true
-  site_id: null
-- description: null
-  device_a_ip: null
-  device_a_port: Ethernet26
-  device_b_ip: null
-  device_b_port: Ethernet52
-  ipv4_network: null
-  redundant_link: true
-  site_id: null
+  - description: null
+    device_a_ip: null
+    device_a_port: Ethernet25
+    device_b_ip: null
+    device_b_port: Ethernet51
+    ipv4_network: null
+    redundant_link: true
+    site_id: null
+  - description: null
+    device_a_ip: null
+    device_a_port: Ethernet26
+    device_b_ip: null
+    device_b_port: Ethernet52
+    ipv4_network: null
+    redundant_link: true
+    site_id: null
 linknets_mlag_nonpeers:
   - description: null
     device_a_ip: null
@@ -89,3 +89,4 @@ syncto_device_hostnames:
   - "eosdist1"
 syncto_settings_override:
   cli_append_str: "interface Management1\ndescription test"
+jwt_auth_token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE1NzEwNTk2MTgsIm5iZiI6MTU3MTA1OTYxOCwianRpIjoiNTQ2MDk2YTUtZTNmOS00NzFlLWE2NTctZWFlYTZkNzA4NmVhIiwic3ViIjoiYWRtaW4iLCJmcmVzaCI6ZmFsc2UsInR5cGUiOiJhY2Nlc3MifQ.Sfffg9oZg_Kmoq7Oe8IoTcbuagpP6nuUXOQzqJpgDfqDq_GM_4zGzt7XxByD4G0q8g4gZGHQnV14TpDer2hJXw"

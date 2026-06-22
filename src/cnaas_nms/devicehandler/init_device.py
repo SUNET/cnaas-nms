@@ -475,12 +475,13 @@ def init_access_device_step1(
             if replace_dev.state != DeviceState.UNMANAGED:
                 raise DeviceStateError(f"Device {new_hostname} not in UNMANAGED state")
 
+            # Not supported replacing a stacked switch
             if replace_dev.stack_members:
                 raise DeviceError("Replacing a stacked switch is not supported")
 
-            # When changing platform check if the replace device is in a MLAG or not
-            if dev.platform != replace_dev.platform and replace_dev.get_mlag_peer(session):
-                raise DeviceError("Replacing a MLAG switch with a different platform is not supported")
+            # Not supported replacing a MLAG switch
+            if replace_dev.get_mlag_peer(session):
+                raise DeviceError("Replacing a MLAG switch is not supported")
 
         linknets_all = dev.get_linknets_as_dict(session)
         mlag_peer_dev: Optional[Device] = None

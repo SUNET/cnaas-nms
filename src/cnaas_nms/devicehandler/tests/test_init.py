@@ -12,6 +12,8 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 import cnaas_nms.devicehandler.init_device
+from cnaas_nms.api import app
+from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.db.device import Device, DeviceError, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.job import Job
@@ -105,16 +107,16 @@ class InitDeviceTests(unittest.TestCase):
     def cleandb(self):
         with sqla_session() as session:  # type: ignore
             for hostname in [
-                "uplink_a1",
-                "discovered_a1",
-                "discovered_a2",
-                "mlag_a1",
-                "mlag_a2",
-                "mlag_replacement",
-                "stack_a1",
-                "stack_replacement",
-                "uplink_a2",
-                "replaced_switch_with_orphaned_uplink",
+                "uplink-a1",
+                "discovered-a1",
+                "discovered-a2",
+                "mlag-a1",
+                "mlag-a2",
+                "mlag-replacement",
+                "stack-a1",
+                "stack-replacement",
+                "uplink-a2",
+                "replaced-switch-with-orphaned-uplink",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
                 if device:
@@ -133,6 +135,16 @@ class InitDeviceTests(unittest.TestCase):
 
     def setUp(self):
         self.cleandb()
+
+        self.jwt_auth_token = None
+        data_dir = Path(__file__).parent / "data"
+        with open(os.path.join(data_dir, "testdata.yml"), "r") as f_testdata:
+            self.testdata = yaml_safe_load(f_testdata)
+            if "jwt_auth_token" in self.testdata:
+                self.jwt_auth_token = self.testdata["jwt_auth_token"]
+        self.app = app.app
+        self.app.wsgi_app = TestAppWrapper(self.app.wsgi_app, self.jwt_auth_token)
+        self.client = self.app.test_client()
 
     def tearDown(self):
         self.cleandb()
@@ -171,7 +183,7 @@ class InitDeviceTests(unittest.TestCase):
 
         mock_update_interfacedb_worker.return_value = None
 
-        mock_pre_init_check_neighbors.return_value = ["uplink_a1"]
+        mock_pre_init_check_neighbors.return_value = ["uplink-a1"]
 
         mock_check_neighbor_sync.return_value = MagicMock()
 
@@ -181,7 +193,7 @@ class InitDeviceTests(unittest.TestCase):
         with sqla_session() as session:  # type: ignore
             uplink_dev = Device(
                 management_ip="10.0.6.100",  # noqa: S1313
-                hostname="uplink_a1",
+                hostname="uplink-a1",
                 platform="eos",
                 state=DeviceState.MANAGED,
                 device_type=DeviceType.ACCESS,
@@ -190,7 +202,7 @@ class InitDeviceTests(unittest.TestCase):
             # Add 2 Discovered Device
             dev1 = Device(
                 management_ip=None,
-                hostname="discovered_a1",
+                hostname="discovered-a1",
                 platform="eos",
                 state=DeviceState.DISCOVERED,
                 device_type=DeviceType.UNKNOWN,
@@ -198,7 +210,7 @@ class InitDeviceTests(unittest.TestCase):
 
             dev2 = Device(
                 management_ip=None,
-                hostname="discovered_a2",
+                hostname="discovered-a2",
                 platform="eos",
                 state=DeviceState.DISCOVERED,
                 device_type=DeviceType.UNKNOWN,
@@ -234,11 +246,11 @@ class InitDeviceTests(unittest.TestCase):
             self.assertIn("psycopg2.errors.UniqueViolation", str(context.exception))
 
     @patch("cnaas_nms.devicehandler.init_device.pre_init_checks")
-    def test_init_access_mlag_wrong_platform(
+    def test_init_access_mlag_error(
         self,
         mock_pre_init,
     ):
-        """Test that when trying to replace a mlag switch with another platform it raises an exception"""
+        """Test that when trying to replace a mlag switch it raises an exception"""
 
         def mocked_pre_init(session, device_id: int) -> Device:
             dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
@@ -251,20 +263,20 @@ class InitDeviceTests(unittest.TestCase):
         # Prepare test data.
         with sqla_session() as session:  # type: ignore
             mlag_a1 = Device(
-                hostname="mlag_a1",
+                hostname="mlag-a1",
                 platform="eos",
                 state=DeviceState.UNMANAGED,  # UNMANAGED
                 device_type=DeviceType.ACCESS,
             )
             mlag_a2 = Device(
-                hostname="mlag_a2",
+                hostname="mlag-a2",
                 platform="eos",
                 state=DeviceState.MANAGED,
                 device_type=DeviceType.ACCESS,
             )
             mlag_replacement = Device(
-                hostname="mlag_replacement",
-                platform="ios",  # wrong platform
+                hostname="mlag-replacement",
+                platform="eos",
                 state=DeviceState.DISCOVERED,
                 device_type=DeviceType.UNKNOWN,
             )
@@ -297,10 +309,19 @@ class InitDeviceTests(unittest.TestCase):
 
             session.commit()
 
-        with self.assertRaises(DeviceError) as context:
-            init_func(device_id=mlag_replacement_id, new_hostname="mlag_a1", replace_hostname="mlag_a1")
+        # Test initcheck api
+        response = self.client.post(
+            f"/api/v1.0/device_initcheck/{mlag_replacement_id}",
+            json={"hostname": "mlag-a1", "device_type": "ACCESS", "replace_hostname": True},
+        )
+        self.assertEqual(response.status_code, 400)
 
-        self.assertEqual("Replacing a MLAG switch with a different platform is not supported", str(context.exception))
+        self.assertEqual(response.json.get("message"), "Replacing a MLAG switch is not supported")
+
+        with self.assertRaises(DeviceError) as context:
+            init_func(device_id=mlag_replacement_id, new_hostname="mlag-a1", replace_hostname="mlag-a1")
+
+        self.assertEqual("Replacing a MLAG switch is not supported", str(context.exception))
 
     @patch("cnaas_nms.devicehandler.init_device.pre_init_checks")
     def test_init_access_stack_error(
@@ -320,14 +341,14 @@ class InitDeviceTests(unittest.TestCase):
         # Prepare test data.
         with sqla_session() as session:  # type: ignore
             stack_a1 = Device(
-                hostname="stack_a1",
+                hostname="stack-a1",
                 platform="ios",
                 state=DeviceState.UNMANAGED,  # UNMANAGED
                 device_type=DeviceType.ACCESS,
             )
             stack_replacement = Device(
                 management_ip=None,
-                hostname="stack_replacement",
+                hostname="stack-replacement",
                 platform="ios",
                 state=DeviceState.DISCOVERED,
                 device_type=DeviceType.UNKNOWN,
@@ -344,8 +365,17 @@ class InitDeviceTests(unittest.TestCase):
             session.add(Stackmember(device_id=stack_a1.id, hardware_id="00:11:22:33:44:55", member_no=1, priority=10))
             session.commit()
 
+        # Test initcheck api
+        response = self.client.post(
+            f"/api/v1.0/device_initcheck/{stack_replacement_id}",
+            json={"hostname": "stack-a1", "device_type": "ACCESS", "replace_hostname": True},
+        )
+        self.assertEqual(response.status_code, 400)
+
+        self.assertEqual(response.json.get("message"), "Replacing a stacked switch is not supported")
+
         with self.assertRaises(DeviceError) as context:
-            init_func(device_id=stack_replacement_id, new_hostname="stack_a1", replace_hostname="stack_a1")
+            init_func(device_id=stack_replacement_id, new_hostname="stack-a1", replace_hostname="stack-a1")
 
         self.assertEqual("Replacing a stacked switch is not supported", str(context.exception))
 
@@ -361,13 +391,13 @@ class InitDeviceTests(unittest.TestCase):
         # Prepare test data.
         with sqla_session() as session:  # type: ignore
             uplink_dev = Device(
-                hostname="uplink_a2",
+                hostname="uplink-a2",
                 platform="eos",
                 state=DeviceState.MANAGED,
                 device_type=DeviceType.ACCESS,
             )
             dev = Device(
-                hostname="replaced_switch_with_orphaned_uplink",
+                hostname="replaced-switch-with-orphaned-uplink",
                 platform="eos",
                 state=DeviceState.MANAGED,
                 device_type=DeviceType.ACCESS,

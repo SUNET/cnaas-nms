@@ -108,9 +108,9 @@ def update_interfacedb_worker(
 
     # Remove interfaces that no longer exist on device
     for unmatched_intf in unmatched_iflist:
-        # When replacing a device only preserve MLAG_PEER ports.
+        # When replacing a device do not protect any ports.
         if replacing_device:
-            protected_interfaces = [InterfaceConfigType.MLAG_PEER]
+            protected_interfaces = []
         else:
             protected_interfaces = [InterfaceConfigType.ACCESS_UPLINK, InterfaceConfigType.MLAG_PEER]
         if unmatched_intf.configtype in protected_interfaces:

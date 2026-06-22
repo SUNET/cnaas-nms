@@ -672,6 +672,19 @@ class DeviceInitCheckApi(Resource):
             return empty_result(status="error", data="Error parsing arguments: {}".format(e)), 400
 
         with sqla_session() as session:  # type: ignore
+            # Check for replace device mlag
+            if parsed_args["replace_hostname"]:
+                replace_dev: Optional[Device] = (
+                    session.query(Device).filter(Device.hostname == parsed_args.get("new_hostname")).one_or_none()
+                )
+
+                if replace_dev:
+                    if replace_dev.stack_members:
+                        return empty_result(status="error", data="Replacing a stacked switch is not supported"), 400
+
+                    if replace_dev.get_mlag_peer(session):
+                        return empty_result(status="error", data="Replacing a MLAG switch is not supported"), 400
+
             try:
                 dev: Device = cnaas_nms.devicehandler.init_device.pre_init_checks(session, device_id)
                 linknets_all = dev.get_linknets_as_dict(session)

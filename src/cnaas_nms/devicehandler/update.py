@@ -33,7 +33,7 @@ def update_interfacedb_worker(
     replace: bool,
     delete_all: bool,
     mlag_peer_hostname: Optional[str] = None,
-    linknets: List[dict] = [],
+    linknets: Optional[List[dict]] = None,
     replacing_device: bool = False,
 ) -> List[dict]:
     """Perform actual work of updating database for update_interfacedb.

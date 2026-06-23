@@ -439,7 +439,7 @@ def init_access_device_step1(
         mlag_peer_new_hostname: Hostname to configure on peer device (optional)
         uplink_hostnames_arg: List of hostnames of uplink peer devices (optional)
                               Used when initializing MLAG peer device
-        replace_hostname: Hostname of the switch that will be replaced
+        replace_hostname: Boolean when true will replace the provided hostname
         job_id: job_id provided by scheduler when adding job
         scheduled_by: Username from JWT.
 

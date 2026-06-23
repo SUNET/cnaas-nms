@@ -319,7 +319,7 @@ class InitDeviceTests(unittest.TestCase):
         self.assertEqual(response.json.get("message"), "Replacing a MLAG switch is not supported")
 
         with self.assertRaises(DeviceError) as context:
-            init_func(device_id=mlag_replacement_id, new_hostname="mlag-a1", replace_hostname="mlag-a1")
+            init_func(device_id=mlag_replacement_id, new_hostname="mlag-a1", replace_hostname=True)
 
         self.assertEqual("Replacing a MLAG switch is not supported", str(context.exception))
 

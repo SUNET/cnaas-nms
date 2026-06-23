@@ -375,7 +375,7 @@ class InitDeviceTests(unittest.TestCase):
         self.assertEqual(response.json.get("message"), "Replacing a stacked switch is not supported")
 
         with self.assertRaises(DeviceError) as context:
-            init_func(device_id=stack_replacement_id, new_hostname="stack-a1", replace_hostname="stack-a1")
+            init_func(device_id=stack_replacement_id, new_hostname="stack-a1", replace_hostname=True)
 
         self.assertEqual("Replacing a stacked switch is not supported", str(context.exception))
 

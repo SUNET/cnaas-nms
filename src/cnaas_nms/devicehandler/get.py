@@ -196,7 +196,7 @@ def get_uplinks(
     return uplinks
 
 
-def get_local_ifnames(local_devid: int, peer_devid: int, linknets: List[dict]) -> List[str]:
+def get_local_ifnames(local_devid: int, peer_devid: int, linknets: Optional[List[dict]] = None) -> List[str]:
     ifnames: List[str] = []
     if not linknets:
         return ifnames
@@ -208,7 +208,9 @@ def get_local_ifnames(local_devid: int, peer_devid: int, linknets: List[dict]) -
     return ifnames
 
 
-def get_mlag_ifs(session, dev: Device, mlag_peer_hostname: str, linknets: List[dict] = []) -> Dict[str, int]:
+def get_mlag_ifs(
+    session, dev: Device, mlag_peer_hostname: str, linknets: Optional[List[dict]] = None
+) -> Dict[str, int]:
     """Returns dict with mapping of interface -> neighbor id
     Return id instead of hostname since mlag peer will change hostname during init"""
     logger = get_logger()

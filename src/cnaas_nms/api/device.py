@@ -527,9 +527,20 @@ class DeviceInitApi(Resource):
         # Set default delay for init_jobs
         init_delay_seconds = 1
 
-        # If device init is already in progress, reschedule a new step2 (connectivity check)
-        # instead of trying to restart initialization
         with sqla_session() as session:  # type: ignore
+            # Check for duplicate hostname only when not replacing device
+            if not job_kwargs.get("replace_hostname") and (
+                used_dev := session.query(Device)
+                .filter(Device.hostname == job_kwargs.get("new_hostname", ""))
+                .one_or_none()
+            ):
+                return empty_result(
+                    status="error",
+                    data=f"Hostname {job_kwargs['new_hostname']} is already used for device with id: {used_dev.id}",
+                ), 400
+
+            # If device init is already in progress, reschedule a new step2 (connectivity check)
+            # instead of trying to restart initialization
             dev: Optional[Device] = session.query(Device).filter(Device.id == device_id).one_or_none()
             if (
                 dev
@@ -645,17 +656,6 @@ class DeviceInitApi(Resource):
 
         if "replace_hostname" in json_data and json_data["replace_hostname"] is not None:
             parsed_args["replace_hostname"] = json_data["replace_hostname"]
-        else:
-            # Check for hostname collision only when not replacing device
-            with sqla_session() as session:  # type: ignore
-                used_dev: Optional[Device] = (
-                    session.query(Device).filter(Device.hostname == parsed_args["new_hostname"]).one_or_none()
-                )
-
-                if used_dev:
-                    raise ValueError(
-                        f"Hostname {parsed_args['new_hostname']} is already used for device with id: {used_dev.id}"
-                    )
 
         return parsed_args
 
@@ -683,6 +683,17 @@ class DeviceInitCheckApi(Resource):
             return empty_result(status="error", data="Error parsing arguments: {}".format(e)), 400
 
         with sqla_session() as session:  # type: ignore
+            # Check for duplicate hostname only when not replacing device
+            if not parsed_args.get("replace_hostname") and (
+                used_dev := session.query(Device)
+                .filter(Device.hostname == parsed_args.get("new_hostname", ""))
+                .one_or_none()
+            ):
+                return empty_result(
+                    status="error",
+                    data=f"Hostname {parsed_args['new_hostname']} is already used for device with id: {used_dev.id}",
+                ), 400
+
             # Check for replace device mlag/stack
             if parsed_args.get("replace_hostname", False):
                 replace_dev: Optional[Device] = (

@@ -37,7 +37,6 @@ def get_jinja_env(path):
         lstrip_blocks=True,
         keep_trailing_newline=True,
         loader=FileSystemLoader(path),
-        cache_size=0,
     )
     jinja_env.globals.update(jinja_functions.FUNCTIONS)
     jinja_env.filters.update(jinja_filters.FILTERS)

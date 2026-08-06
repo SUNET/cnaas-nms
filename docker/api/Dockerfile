@@ -2,7 +2,7 @@
 FROM python:3.13-slim-trixie AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpcre2-dev libpq-dev libssl-dev git \
+    build-essential git libpcre2-dev libpq-dev libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build

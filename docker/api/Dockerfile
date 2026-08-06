@@ -2,7 +2,7 @@
 FROM python:3.13-slim-trixie AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev libpcre2-dev libssl-dev git \
+    build-essential libpcre2-dev libpq-dev libssl-dev git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -47,9 +47,10 @@ ENV GIT_DATE=$GIT_DATE
 ENV GIT_BRANCH=$GIT_BRANCH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 nginx supervisor ssh-client \
-    bind9-host iputils-ping net-tools netcat-openbsd procps psmisc \
-    curl uwsgi-plugin-python3 git openssl libyaml-dev \
+    bind9-host curl git iputils-ping libpq5 \
+    libyaml-dev net-tools netcat-openbsd nginx \
+    openssl procps psmisc ssh-client \
+    supervisor uwsgi-plugin-python3 \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/cnaas/templates /opt/cnaas/settings /etc/cnaas-nms /tmp/devicecerts \
     && chown -R www-data:www-data /opt/cnaas /etc/cnaas-nms /tmp/devicecerts

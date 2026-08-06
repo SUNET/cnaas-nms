@@ -34,7 +34,7 @@ dependencies = [
   "greenlet==3.2.1",
   "jmespath>=1.1.0",
   "markupsafe==3.0.2",
-  "napalm==5.1",
+  "napalm==5.2",
   "netmiko==4.5",
   "nornir==3.5",
   "nornir-jinja2==0.2",

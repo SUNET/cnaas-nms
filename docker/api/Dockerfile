@@ -22,13 +22,11 @@ RUN /opt/cnaas/venv/bin/pip install --no-cache-dir -U pip && \
     fi
 
 # Apply patches.
-# - pull2167.patch: Napalm EOS 4.32 config-session compatibility fix
 # - swaggeruirequestintercept.patch: allows Swagger UI request interceptor
 #   to include credentials from browser local storage during manual API testing
-COPY docker/api/pull2167.patch docker/api/swaggeruirequestintercept.patch /tmp/
+COPY docker/api/swaggeruirequestintercept.patch /tmp/
 RUN SITE_PACKAGES="$(/opt/cnaas/venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" && \
     cd "$SITE_PACKAGES" && \
-    patch -p1 < /tmp/pull2167.patch || true && \
     patch -p1 < /tmp/swaggeruirequestintercept.patch || true
 
 # Copy source code and alembic to venv location

@@ -26,8 +26,7 @@ RUN /opt/cnaas/venv/bin/pip install --no-cache-dir -U pip && \
 #   to include credentials from browser local storage during manual API testing
 COPY docker/api/swaggeruirequestintercept.patch /tmp/
 RUN SITE_PACKAGES="$(/opt/cnaas/venv/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" && \
-    cd "$SITE_PACKAGES" && \
-    patch -p1 < /tmp/swaggeruirequestintercept.patch || true
+    patch -d "$SITE_PACKAGES" -p1 < /tmp/swaggeruirequestintercept.patch || true
 
 # Copy source code and alembic to venv location
 COPY src/ /opt/cnaas/venv/cnaas-nms/src/

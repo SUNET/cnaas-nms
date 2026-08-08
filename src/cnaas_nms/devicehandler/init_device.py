@@ -105,7 +105,6 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
         name="Generate initial device config",
         template=template,
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
-        path=f"{local_repo_path}/{task.host.platform}",
         **device_variables,
     )
 
@@ -1057,7 +1056,6 @@ def set_hostname_task(task, new_hostname: str):
         name="Generate hostname config",
         template="hostname.j2",
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
-        path=f"{local_repo_path}/{task.host.platform}",
         **template_vars,
     )
     task.host["config"] = r.result

@@ -603,7 +603,6 @@ def push_sync_device(
         name="Generate device config",
         template=template,
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
-        path=f"{local_repo_path}/{task.host.platform}",
         **template_vars,
     )
 

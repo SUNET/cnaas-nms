@@ -61,7 +61,6 @@ def bounce_task(task, interfaces: List[str]):
         name="Generate port bounce down config",
         template="bounce-down.j2",
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
-        path=f"{local_repo_path}/{task.host.platform}",
         **template_vars,
     )
     task.host["config"] = r.result
@@ -76,7 +75,6 @@ def bounce_task(task, interfaces: List[str]):
         name="Generate port bounce up config",
         template="bounce-up.j2",
         jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
-        path=f"{local_repo_path}/{task.host.platform}",
         **template_vars,
     )
     task.host["config"] = r.result

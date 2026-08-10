@@ -72,7 +72,7 @@ def resolve_vlanid(vlan_name: str, vxlans: dict) -> Optional[int]:
         return None
     for vxlan_name, vxlan_data in vxlans.items():
         try:
-            if vxlan_data["vlan_name"] == vlan_name:
+            if vxlan_data["vlan_name"] == vlan_name or vxlan_name == vlan_name:
                 return int(vxlan_data["vlan_id"])
         except (KeyError, ValueError) as e:
             logger.error("Could not resolve VLAN ID for VLAN name {}: {}".format(vlan_name, str(e)))

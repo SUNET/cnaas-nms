@@ -148,8 +148,9 @@ class InterfaceApi(Resource):
                         if not device_settings:
                             device_settings, _ = get_settings(dev, dev.device_type)
                         if "vxlan" in if_dict["data"]:
-                            if if_dict["data"]["vxlan"] in device_settings["vxlans"]:
-                                intfdata["vxlan"] = if_dict["data"]["vxlan"]
+                            vlan_id = resolve_vlanid(if_dict["data"]["vxlan"], device_settings["vxlans"])
+                            if vlan_id:
+                                intfdata["vxlan"] = vlan_id
                             else:
                                 errors.append(
                                     "Specified VXLAN {} is not present in {}".format(if_dict["data"]["vxlan"], hostname)

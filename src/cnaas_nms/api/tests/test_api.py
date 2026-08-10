@@ -240,6 +240,13 @@ def test_update_interface_data_untagged(client, testdata):
     result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
     assert result.status_code == 200
     assert result.json["status"] == "success"
+
+    # Test untagged_vlan as an id instead of a name
+    data["interfaces"][ifname]["data"]["untagged_vlan"] = 500
+    result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 200
+    assert result.json["status"] == "success"
+
     #        self.assertEqual(ifname in result.json['data']['updated'], True)
     # Test invalid
     data["interfaces"][ifname]["data"]["untagged_vlan"] = "thisshouldnetexist"
@@ -255,6 +262,13 @@ def test_update_interface_data_tagged(client, testdata):
     result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
     assert result.status_code == 200
     assert result.json["status"] == "success"
+
+    # Test tagged_vlan_list as a list of ids instead of names
+    data["interfaces"][ifname]["data"]["tagged_vlan_list"] = [500]
+    result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 200
+    assert result.json["status"] == "success"
+
     #        self.assertEqual(ifname in result.json['data']['updated'], True)
     # Test invalid
     data["interfaces"][ifname]["data"]["tagged_vlan_list"] = ["thisshouldnetexist"]

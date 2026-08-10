@@ -161,10 +161,10 @@ class InterfaceApi(Resource):
                             else:
                                 vlan_id = resolve_vlanid(if_dict["data"]["untagged_vlan"], device_settings["vxlans"])
                                 if vlan_id:
-                                    intfdata["untagged_vlan"] = if_dict["data"]["untagged_vlan"]
+                                    intfdata["untagged_vlan"] = vlan_id
                                 else:
                                     errors.append(
-                                        "Specified VLAN name {} is not present in {}".format(
+                                        "Specified VLAN name/id {} is not present in {}".format(
                                             if_dict["data"]["untagged_vlan"], hostname
                                         )
                                     )
@@ -174,10 +174,10 @@ class InterfaceApi(Resource):
                                     if_dict["data"]["tagged_vlan_list"], device_settings["vxlans"]
                                 )
                                 if len(vlan_id_list) == len(if_dict["data"]["tagged_vlan_list"]):
-                                    intfdata["tagged_vlan_list"] = if_dict["data"]["tagged_vlan_list"]
+                                    intfdata["tagged_vlan_list"] = vlan_id_list
                                 else:
                                     errors.append(
-                                        "Some VLAN names {} are not present in {}".format(
+                                        "Some VLAN names/ids {} are not present in {}".format(
                                             ", ".join(if_dict["data"]["tagged_vlan_list"]), hostname
                                         )
                                     )

@@ -233,6 +233,27 @@ def test_update_interface_configtype(client, testdata):
     assert ifname in result.json["data"]["updated"]
 
 
+def test_update_interface_data_vxlan(client, testdata):
+    # Test vxlan
+    ifname = testdata["interface_update"]
+    data = {"interfaces": {ifname: {"data": {"vxlan": testdata["untagged_vlan"]}}}}
+    result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 200
+    assert result.json["status"] == "success"
+
+    # Test vxlan as an id instead of a name
+    data["interfaces"][ifname]["data"]["vxlan"] = 500
+    result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 200
+    assert result.json["status"] == "success"
+
+    # Test invalid
+    data["interfaces"][ifname]["data"]["vxlan"] = "thisshouldnetexist"
+    result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 400
+    assert result.json["status"] == "error"
+
+
 def test_update_interface_data_untagged(client, testdata):
     # Test untagged_vlan
     ifname = testdata["interface_update"]

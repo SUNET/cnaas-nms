@@ -165,7 +165,7 @@ class InterfaceApi(Resource):
                                     intfdata["untagged_vlan"] = vlan_id
                                 else:
                                     errors.append(
-                                        "Specified VLAN name/id {} is not present in {}".format(
+                                        "Specified VLAN {} is not present in {}".format(
                                             if_dict["data"]["untagged_vlan"], hostname
                                         )
                                     )
@@ -178,7 +178,7 @@ class InterfaceApi(Resource):
                                     intfdata["tagged_vlan_list"] = vlan_id_list
                                 else:
                                     errors.append(
-                                        "Some VLAN names/ids {} are not present in {}".format(
+                                        "Some VLANs {} are not present in {}".format(
                                             ", ".join(if_dict["data"]["tagged_vlan_list"]), hostname
                                         )
                                     )

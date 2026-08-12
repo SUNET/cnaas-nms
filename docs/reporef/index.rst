@@ -676,7 +676,7 @@ name is the dictionary key and dictionaly values are:
   * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
   * dhcp_relays: DHCP relay address. Optional.
   * mtu: Define custom MTU. Optional.
-  * vxlan_host_route: Set to false to disable host route advertisement, forcing the VXLAN to act as a L2 VLAN. Useful for BGP peering where source MAC addresses must remain intact.
+  * vxlan_host_route: Set to false to disable host route advertisement, forcing the VXLAN to act as a L2 VLAN. Useful for BGP peering where source MAC addresses must remain intact. Default true.
   * acl_ipv4_in: Access control list to apply for ingress IPv4 traffic to routed interface. Optional.
   * acl_ipv4_out: Access control list to apply for egress IPv4 traffic from routed interface. Optional.
   * acl_ipv6_in: Access control list to apply for ingress IPv6 traffic to routed interface. Optional.

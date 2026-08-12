@@ -167,7 +167,7 @@ access_lists.yml
   Reference:
 
   * strip_cidr: Removes CIDR and treats all referenced IPs as host addresses. Useful for example in cases where only gateway-addresses are needed in an access list.
-  
+
   * path: A jmespath string that will be used to get references from other device settings.
     Use a site like: `<https://play.jmespath.org/>`_ to test your jmespath string.
     The result of the jmespath search must be a list of addresses or networks, otherwise an error will be raised during access list generation.
@@ -676,6 +676,7 @@ name is the dictionary key and dictionaly values are:
   * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
   * dhcp_relays: DHCP relay address. Optional.
   * mtu: Define custom MTU. Optional.
+  * vxlan_host_route: Set to false to disable host route advertisement, forcing the VXLAN to act as a L2 VLAN. Useful for BGP peering where source MAC addresses must remain intact.
   * acl_ipv4_in: Access control list to apply for ingress IPv4 traffic to routed interface. Optional.
   * acl_ipv4_out: Access control list to apply for egress IPv4 traffic from routed interface. Optional.
   * acl_ipv6_in: Access control list to apply for ingress IPv6 traffic to routed interface. Optional.

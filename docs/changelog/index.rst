@@ -11,23 +11,23 @@ New features:
  - Added support for reference network definitions (#527)
  - Fencing token added to syncto jobs to make sure no unintended changes are commited in a live run (#535)
  - The repository api now tracks when a repo is out of sync with the origin (#546)
- - Setting files will now be validated individually and must adhere to the defined schema (#459)
 
 Changes:
   
  - Updated to Python 3.13 (#491)
  - Refactored and improved container builds (#481)
- - Updated yaml parsing to use the CSafeLoader for faster performance (#536)
+ - Updated YAML parsing to use the CSafeLoader for faster performance (#536)
  - Bumped nornir_jinja2 to 1.0.0 and readded jinja_env cache for faster performance (#538)
  - Bumped napalm to 3.2 and removed a temporary patch workaround for EOS 4.32 (#533)
- - Added hostname collision check when initializing a device to prevent conflicts (#540)
+ - Added hostname collision check when initializing a device to prevent hostname conflicts (#540)
  - Split settings_fields into a module with smaller components (#545)
+ - Setting files will now be validated individually and must adhere to the defined schema (#459)
 
 Bug fixes:
 
- - Added a unique contraint to reserveip and added a init_step1 delay to fix a race condition when multiple devices was initialized at the same time (#539)
- - Added proper return codes in firmware api (#531)
- - Translate vlan names to ids in interface api to make sure changing VLAN names does not affect access interface configurations (#555)
+ - Added a unique contraint to reserveip and a init_step1 delay to fix a race condition when multiple devices was initialized at the same time (#539)
+ - Updated return codes in firmware api (#531)
+ - Translate VLAN names to ids in interface api to make sure changing VLAN names does not affect access interface configurations (#555)
  - Fixed device replacement bugs, now supports swapping between platforms and changing uplink port, disabled MLAG and Stack device replacement (#543)
 
 Breaking changes:

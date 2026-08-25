@@ -128,18 +128,30 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
         if operator:
             operator = operator.lstrip("[").rstrip("]")
 
+        # Handle list of values for "in" operator, removes empty values
+        filter_value: str | list[str]
+        if operator == "in":
+            filter_value = [v.strip() for v in value.strip().split(",") if v.strip()]
+        else:
+            filter_value = value.strip()
+
         if attribute not in f_class.__table__._columns.keys():
             raise ValueError("{} is not a valid attribute to filter on".format(attribute))
         # Special handling from Enum type, check valid enum names
         allowed_names = None
         if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Enum):
-            value = value.upper()
             allowed_names = set(item.name for item in f_class.__table__._columns[attribute].type.enum_class)
 
-            # If the operator is "in", we need to check each value in the comma-separated list
-            # If it does not contain ","" it will be a single value, so we can just check that as well
-            for val in value.split(","):
-                if val not in allowed_names:
+            # If the filter value is a list, we need to check all values in the list
+            # otherwise we just check the single value
+            if isinstance(filter_value, list):
+                check_value = filter_value
+            else:
+                check_value = [filter_value]
+
+            # Check that all values are valid enum names
+            for val in check_value:
+                if val.upper() not in allowed_names:
                     raise ValueError("{} is not a valid value for {}".format(val, attribute))
 
         f_class_field = getattr(f_class, attribute)
@@ -151,14 +163,13 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
             if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.DateTime):
                 raise ValueError("Cannot use 'contains' operator for datetime types")
             f_class_op = getattr(f_class_field, "ilike")
-            value = "%" + value + "%"
+            filter_value = "%" + filter_value + "%"
         elif operator == "in":
             f_class_op = getattr(f_class_field, "in_")
-            value = value.split(",")  # type: ignore[assignment]
         else:
             f_class_op = getattr(f_class_field, "__eq__")
 
-        query = query.filter(f_class_op(value))
+        query = query.filter(f_class_op(filter_value))
 
     if f_class_order_by_field and order:
         query = query.order_by(order(f_class_order_by_field))

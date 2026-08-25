@@ -154,7 +154,7 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
             value = "%" + value + "%"
         elif operator == "in":
             f_class_op = getattr(f_class_field, "in_")
-            value = value.split(",")
+            value = value.split(",")  # type: ignore[assignment]
         else:
             f_class_op = getattr(f_class_field, "__eq__")
 

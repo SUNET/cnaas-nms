@@ -706,6 +706,7 @@ class DeviceInitCheckApi(Resource):
 
                     if replace_dev.get_mlag_peer(session):
                         return empty_result(status="error", data="Replacing a MLAG switch is not supported"), 400
+
             try:
                 dev: Device = cnaas_nms.devicehandler.init_device.pre_init_checks(session, device_id)
                 linknets_all = dev.get_linknets_as_dict(session)

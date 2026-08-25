@@ -135,8 +135,13 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
         if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.Enum):
             value = value.upper()
             allowed_names = set(item.name for item in f_class.__table__._columns[attribute].type.enum_class)
-            if value not in allowed_names:
-                raise ValueError("{} is not a valid value for {}".format(value, attribute))
+
+            # If the operator is "in", we need to check each value in the comma-separated list
+            # If it does not contain ","" it will be a single value, so we can just check that as well
+            for val in value.split(","):
+                if val not in allowed_names:
+                    raise ValueError("{} is not a valid value for {}".format(val, attribute))
+
         f_class_field = getattr(f_class, attribute)
         if operator == "contains":
             if allowed_names:
@@ -147,6 +152,9 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
                 raise ValueError("Cannot use 'contains' operator for datetime types")
             f_class_op = getattr(f_class_field, "ilike")
             value = "%" + value + "%"
+        elif operator == "in":
+            f_class_op = getattr(f_class_field, "in_")
+            value = value.split(",")
         else:
             f_class_op = getattr(f_class_field, "__eq__")
 

@@ -163,6 +163,7 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
             if isinstance(f_class.__table__._columns[attribute].type, sqlalchemy.DateTime):
                 raise ValueError("Cannot use 'contains' operator for datetime types")
             f_class_op = getattr(f_class_field, "ilike")
+            assert isinstance(filter_value, str)
             filter_value = "%" + filter_value + "%"
         elif operator == "in":
             f_class_op = getattr(f_class_field, "in_")

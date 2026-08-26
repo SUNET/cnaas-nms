@@ -174,7 +174,7 @@ class DeviceTests(unittest.TestCase):
         self.assertTrue(self.hostname in [device["hostname"] for device in json_data["data"]["devices"]])
 
     def test_get_devices_with_filter(self):
-        result = self.client.get("/api/v1.0/devices", query_string={"filter[device_type][in]": "DIST,CORE"})
+        result = self.client.get("/api/v1.0/devices", query_string={"filter[device_type][in]": "dist,core"})
         self.assertEqual(result.status_code, 200)
         json_data = result.json
         self.assertEqual(len(json_data["data"]["devices"]), 3)

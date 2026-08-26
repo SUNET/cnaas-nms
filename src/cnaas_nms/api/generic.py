@@ -146,8 +146,12 @@ def build_filter(f_class, query: sqlalchemy.orm.query.Query):
             # otherwise we just check the single value
             if isinstance(filter_value, list):
                 check_value = filter_value
+                # Make sure we match on UPPER strings for ENUM
+                filter_value = [v.upper() for v in filter_value]
             else:
                 check_value = [filter_value]
+                # Make sure we match on UPPER strings for ENUM
+                filter_value = filter_value.upper()
 
             # Check that all values are valid enum names
             for val in check_value:

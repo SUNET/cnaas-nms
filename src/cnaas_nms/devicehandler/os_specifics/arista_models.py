@@ -70,3 +70,8 @@ models_32bit = [
     "DCS-7280TRA-48C6-F",
     "DCS-7280TRA-48C6-R",
 ]
+
+models_arm = [
+    "CCS-710XP-12TH-2S",
+    "CCS-710XP-28TNH-2S",
+]

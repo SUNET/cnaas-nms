@@ -104,6 +104,7 @@ class f_base_system(BaseModel):
     port_template_options: Dict[str, f_port_template] = {}
     vxlan_vni_range: Optional[Annotated[str, AfterValidator(vni_range_required_check)]] = None
     arista_models_32bit: Optional[List[str]] = None
+    arista_models_arm: Optional[List[str]] = None
     upgrade_post_waittime: Dict[str, int] = {"default": 600}
     system_access_lists: List[access_list_name] = []
     # This is defined both in f_base_system and f_routing

@@ -34,6 +34,12 @@ class DeviceSyncError(DeviceError):
     pass
 
 
+class OsArchitecture(str, enum.Enum):
+    X86_32 = "i686"
+    X86_64 = "x86_64"
+    ARM64 = "aarch64"
+
+
 class DeviceState(enum.Enum):
     UNKNOWN = 0  # Unhandled programming error
     PRE_CONFIGURED = 1  # Pre-populated, not seen yet

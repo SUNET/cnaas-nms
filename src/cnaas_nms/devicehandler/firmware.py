@@ -8,12 +8,12 @@ from nornir.core.task import MultiResult
 from nornir_napalm.plugins.tasks import napalm_cli, napalm_get
 from nornir_netmiko.tasks import netmiko_send_command
 
-from cnaas_nms.db.device import Device, DeviceType
+from cnaas_nms.api.device import detect_arch
+from cnaas_nms.db.device import Device, DeviceType, OsArchitecture
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
-from cnaas_nms.devicehandler.os_specifics import arista_models
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.upgradeorder import determine_upgrade_order
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
@@ -342,23 +342,21 @@ def device_upgrade_task(
         device_model = dev.model
         session.expunge(dev)
 
-    if filename and filename.startswith("detect_arch-"):
-        dev_settings, _ = get_settings(dev, device_type)
-        if dev_settings and "arista_models_32bit" in dev_settings and dev_settings["arista_models_32bit"] is not None:
-            models_32bit: List[str] = dev_settings["arista_models_32bit"]
+    if filename:
+        _, version = filename.split("-", 1)
+        filename = filename.removeprefix("detect_arch-")  #  For backward compitability
+        arch = detect_arch(dev)
+
+        if arch == OsArchitecture.X86_32:
+            filename = "EOS-" + version
+            logger.info("Detected 32-bit device {}, selecting 32-bit version: {}".format(task.host.name, filename))
+        elif arch == OsArchitecture.ARM64:
+            filename = "EOSarm-" + version
+            logger.info("Detected ARM device {}, selecting ARM version: {}".format(task.host.name, filename))
         else:
-            models_32bit = arista_models.models_32bit
-        filename = filename.removeprefix("detect_arch-")
-        if device_model in models_32bit and filename.startswith("EOS64-"):
-            filename = "EOS-" + filename.removeprefix("EOS64-")
-            logger.info(
-                "Detected 32-bit device {}, changing filename to 32-bit version: {}".format(task.host.name, filename)
-            )
-        elif device_model not in models_32bit and filename.startswith("EOS-"):
-            filename = "EOS64-" + filename.removeprefix("EOS-")
-            logger.info(
-                "Detected 64-bit device {}, changing filename to 64-bit version: {}".format(task.host.name, filename)
-            )
+            # Default to 64-bit if architecture is unknown or 64-bit
+            filename = "EOS64-" + version
+            logger.info("Detected 64-bit device {}, selecting 64-bit version: {}".format(task.host.name, filename))
 
     if pre_flight:
         logger.info("Running pre-flight check on {}".format(task.host.name))

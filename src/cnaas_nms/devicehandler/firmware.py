@@ -9,7 +9,7 @@ from nornir_napalm.plugins.tasks import napalm_cli, napalm_get
 from nornir_netmiko.tasks import netmiko_send_command
 
 from cnaas_nms.api.device import detect_arch
-from cnaas_nms.db.device import Device, DeviceType, OsArchitecture
+from cnaas_nms.db.device import Device, DeviceType, CpuArchitecture
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings
@@ -347,10 +347,10 @@ def device_upgrade_task(
         filename = filename.removeprefix("detect_arch-")  #  For backward compitability
         arch = detect_arch(dev)
 
-        if arch == OsArchitecture.X86_32:
+        if arch == CpuArchitecture.X86_32:
             filename = "EOS-" + version
             logger.info("Detected 32-bit device {}, selecting 32-bit version: {}".format(task.host.name, filename))
-        elif arch == OsArchitecture.ARM64:
+        elif arch == CpuArchitecture.ARM64:
             filename = "EOSarm-" + version
             logger.info("Detected ARM device {}, selecting ARM version: {}".format(task.host.name, filename))
         else:

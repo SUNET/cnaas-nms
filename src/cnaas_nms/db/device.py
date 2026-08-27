@@ -94,6 +94,7 @@ class Device(cnaas_nms.db.base.Base):
     serial: Mapped[Optional[str]] = mapped_column(String(64))
     ztp_mac: Mapped[Optional[str]] = mapped_column(String(12))
     platform: Mapped[Optional[str]] = mapped_column(String(64))
+    cpu_arch: Mapped[Optional[CpuArchitecture]] = mapped_column(Enum(CpuArchitecture), default=None)
     vendor: Mapped[Optional[str]] = mapped_column(String(64))
     model: Mapped[Optional[str]] = mapped_column(String(64))
     os_version: Mapped[Optional[str]] = mapped_column(String(64))

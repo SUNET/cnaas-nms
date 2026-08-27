@@ -8,7 +8,7 @@ from nornir.core.task import MultiResult
 from nornir_napalm.plugins.tasks import napalm_cli, napalm_get
 from nornir_netmiko.tasks import netmiko_send_command
 
-from cnaas_nms.db.device import Device, DeviceType, CpuArchitecture
+from cnaas_nms.db.device import CpuArchitecture, Device, DeviceType
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings

@@ -34,7 +34,7 @@ class DeviceSyncError(DeviceError):
     pass
 
 
-class OsArchitecture(str, enum.Enum):
+class CpuArchitecture(str, enum.Enum):
     X86_32 = "i686"
     X86_64 = "x86_64"
     ARM64 = "aarch64"

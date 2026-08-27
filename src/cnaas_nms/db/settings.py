@@ -824,8 +824,6 @@ def get_settings(
 
     # 4. Get settings repo device type settings
     if device_type:
-        print("==> device_type: {}".format(device_type))
-        print("==> device_type: {}".format(device_type))
         get_type = "devicetype {}".format(device_type.name)
         if device_type == DeviceType.UNKNOWN:
             if device is None:

@@ -279,7 +279,6 @@ def device_data_postprocess(device_list: List[Device]) -> List[dict]:
         dev_dict = device.as_dict()
         if device.hostname in device_primary_group.keys():
             dev_dict["primary_group"] = device_primary_group[device.hostname]
-        dev_dict["cpu_arch"] = detect_arch(device)
         ret.append(dev_dict)
     return ret
 
@@ -514,7 +513,6 @@ class DeviceApi(Resource):
             new_device = Device.device_create(**data)
             session.add(new_device)
             session.flush()
-            session.refresh(new_device)
             update_device_primary_groups()
             dev_dict = device_data_postprocess([new_device])[0]
             return empty_result(status="success", data={"added_device": dev_dict}), 200

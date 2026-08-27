@@ -257,12 +257,12 @@ def detect_arch(dev: Device) -> OsArchitecture | None:
     # 32bit in settings?
     models_32bit = arista_models.models_32bit
     if dev_settings and "arista_models_32bit" in dev_settings and dev_settings["arista_models_32bit"] is not None:
-        models_32bit.extend(dev_settings["arista_models_32bit"])
+        models_32bit = models_32bit + dev_settings["arista_models_32bit"]
 
     # ARM in settings?
     models_arm = arista_models.models_arm
     if dev_settings and "arista_models_arm" in dev_settings and dev_settings["arista_models_arm"] is not None:
-        models_arm.extend(dev_settings["arista_models_arm"])
+        models_arm = models_arm + dev_settings["arista_models_arm"]
 
     if dev.model in models_32bit:
         return OsArchitecture.X86_32

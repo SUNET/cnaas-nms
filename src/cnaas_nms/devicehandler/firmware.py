@@ -8,12 +8,12 @@ from nornir.core.task import MultiResult
 from nornir_napalm.plugins.tasks import napalm_cli, napalm_get
 from nornir_netmiko.tasks import netmiko_send_command
 
-from cnaas_nms.api.device import detect_arch
 from cnaas_nms.db.device import Device, DeviceType, CpuArchitecture
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
+from cnaas_nms.devicehandler.os_specifics.arista_models import detect_arch
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.upgradeorder import determine_upgrade_order
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler

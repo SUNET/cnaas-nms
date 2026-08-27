@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from cnaas_nms.db.device import CpuArchitecture
 from cnaas_nms.db.settings import get_settings

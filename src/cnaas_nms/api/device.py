@@ -21,7 +21,7 @@ import cnaas_nms.devicehandler.update
 from cnaas_nms.api.generic import build_filter, empty_result, pagination_headers, parse_pydantic_error
 from cnaas_nms.api.models.stackmembers_model import StackmembersModel
 from cnaas_nms.app_settings import api_settings
-from cnaas_nms.db.device import Device, DeviceState, DeviceType, CpuArchitecture
+from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface
 from cnaas_nms.db.job import InvalidJobError, Job, JobNotFoundError, JobStatus
 from cnaas_nms.db.linknet import Linknet
@@ -38,7 +38,6 @@ from cnaas_nms.db.settings import (
 )
 from cnaas_nms.db.stackmember import Stackmember
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init, inventory_selector
-from cnaas_nms.devicehandler.os_specifics import arista_models
 from cnaas_nms.devicehandler.sync_history import (
     NewSyncEventModel,
     SyncHistory,
@@ -242,34 +241,6 @@ synchistory_event_model = device_synchistory_api.model(
         "by": fields.String(required=True),
     },
 )
-
-
-def detect_arch(dev: Device) -> CpuArchitecture | None:
-    """Get architecture type for an Arista device.
-
-    Appends any additional 32bit or ARM models from device settings to the default lists.
-    """
-    if dev.platform != "eos":
-        return None
-
-    dev_settings, _ = get_settings(dev, dev.device_type)
-
-    # 32bit in settings?
-    models_32bit = arista_models.models_32bit
-    if dev_settings and "arista_models_32bit" in dev_settings and dev_settings["arista_models_32bit"] is not None:
-        models_32bit = models_32bit + dev_settings["arista_models_32bit"]
-
-    # ARM in settings?
-    models_arm = arista_models.models_arm
-    if dev_settings and "arista_models_arm" in dev_settings and dev_settings["arista_models_arm"] is not None:
-        models_arm = models_arm + dev_settings["arista_models_arm"]
-
-    if dev.model in models_32bit:
-        return CpuArchitecture.X86_32
-    elif dev.model in models_arm:
-        return CpuArchitecture.ARM64
-    else:
-        return CpuArchitecture.X86_64
 
 
 def device_data_postprocess(device_list: List[Device]) -> List[dict]:

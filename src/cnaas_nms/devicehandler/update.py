@@ -20,6 +20,7 @@ from cnaas_nms.devicehandler.get import (
     verify_peer_iftype,
 )
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult
+from cnaas_nms.devicehandler.os_specifics.arista_models import detect_arch
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.underlay import find_free_infra_linknet
 from cnaas_nms.scheduler.jobresult import DictJobResult
@@ -188,6 +189,12 @@ def set_facts(dev: Device, facts: dict) -> dict:
         if fact_data and obj_data != fact_data:
             diff[obj_member] = {"old": obj_data, "new": fact_data}
             dev.__setattr__(obj_member, fact_data)
+    # Set cpu_arch if not already set
+    if dev.cpu_arch is None:
+        cpu_arch = detect_arch(dev)
+        if cpu_arch is not None:
+            diff["cpu_arch"] = {"old": None, "new": cpu_arch}
+            dev.cpu_arch = cpu_arch
     return diff
 
 

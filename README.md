@@ -22,19 +22,17 @@ Runtime dependencies are specified in `[project].dependencies` in _pyproject.tom
 Development dependencies are in `[dependency-groups]` with two groups: `dev` and `docs`.
 
 ```sh
-pip install .             # runtime dependencies
-pip install --group dev   # test/lint tools (pytest, mypy, ruff, etc.)
-pip install --group docs  # documentation tools (sphinx)
+uv sync                   # runtime dependencies
+uv sync --group dev       # test/lint tools (pytest, mypy, ruff, etc.)
+uv sync --group docs      # documentation tools (sphinx)
 ```
-
-**Note**: `--group` requires pip 25.1 or later.
 
 ## Requirements
 
 Docker and docker compose or:
 
 1. Python 3.13
-2. `pip install .` (and `pip install --group dev` for development)
+2. `uv sync` (and `uv sync --group dev` for development)
 3. SQL database, Redis
 
 ## Installation
@@ -83,10 +81,10 @@ docker compose -f docker/docker-compose_test.yaml -f docker/docker-compose.dev.y
 
 ### Venv
 
-Install locally by creating a virtualenv and activate the environment, then:
+Install locally with uv, which creates and manages a virtualenv automatically:
 
 ```
-python3 -m pip install .
+uv sync
 cp etc/db_config.yml.sample /etc/cnaas-nms/db_config.yml
 ```
 

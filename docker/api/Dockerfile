@@ -1,25 +1,32 @@
 # Stage 1: Builder - install dependencies
 FROM python:3.13-slim-trixie AS builder
+COPY --from=ghcr.io/astral-sh/uv:0.12.7 /uv /uvx /bin/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential git libpcre2-dev libpq-dev libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
-RUN python -m venv /opt/cnaas/venv
 
-# Copy source code first (needed for dynamic version in pyproject.toml)
-COPY src/ /build/src/
+# Create virtual environment
+RUN uv venv /opt/cnaas/venv
+ENV VIRTUAL_ENV=/opt/cnaas/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Copy version file first (needed for dynamic version in pyproject.toml)
+COPY src/cnaas_nms/version.py /build/src/cnaas_nms/version.py
 COPY pyproject.toml .
 
 # Install Python dependencies
 ARG INCLUDE_INTEGRATION_TOOLS=0
-RUN /opt/cnaas/venv/bin/pip install --no-cache-dir -U pip && \
-    /opt/cnaas/venv/bin/pip install --no-cache-dir . && \
-    /opt/cnaas/venv/bin/pip install --no-cache-dir --group /build/pyproject.toml:api-runtime && \
+RUN uv pip install --no-cache . && \
+    uv pip install --no-cache --group api-runtime && \
     if [ "$INCLUDE_INTEGRATION_TOOLS" = "1" ]; then \
-        /opt/cnaas/venv/bin/pip install --no-cache-dir --group /build/pyproject.toml:integration-tools; \
+        uv pip install --no-cache --group integration-tools; \
     fi
+
+# Copy source code to build directory for patching
+COPY src/ /build/src/
 
 # Apply patches.
 # - swaggeruirequestintercept.patch: allows Swagger UI request interceptor
@@ -32,7 +39,6 @@ RUN SITE_PACKAGES="$(/opt/cnaas/venv/bin/python -c 'import sysconfig; print(sysc
 COPY src/ /opt/cnaas/venv/cnaas-nms/src/
 COPY alembic/ /opt/cnaas/venv/cnaas-nms/alembic/
 COPY alembic.ini /opt/cnaas/venv/cnaas-nms/
-
 
 # Stage 2: Runtime - minimal production image
 FROM python:3.13-slim-trixie AS runtime

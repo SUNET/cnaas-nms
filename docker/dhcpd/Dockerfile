@@ -1,13 +1,18 @@
-FROM debian:trixie-slim
+FROM python:3.13-slim-trixie
+COPY --from=ghcr.io/astral-sh/uv:0.12.7 /uv /uvx /bin/
+
+# Create virtual environment
+RUN uv venv /opt/cnaas/venv
+ENV VIRTUAL_ENV=/opt/cnaas/venv
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    isc-dhcp-server python3-venv supervisor bind9-host git \
+    isc-dhcp-server supervisor bind9-host git \
     iputils-ping procps net-tools curl netcat-openbsd \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/cnaas /etc/cnaas-nms \
-    # Create minimal venv with only required deps
-    && python3 -m venv /opt/cnaas/venv \
-    && /opt/cnaas/venv/bin/pip install --no-cache-dir requests pyyaml netaddr jinja2 \
+    # Install minimal required deps into the venv
+    && uv pip install --no-cache requests pyyaml netaddr jinja2 \
     # Create package directories for dhcp_hook module
     && mkdir -p /opt/cnaas/venv/cnaas-nms/src/cnaas_nms/tools
 

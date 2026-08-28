@@ -3,12 +3,12 @@ name: build-docker
 on:
   push:
     branches:
-      - 'develop'
-    tags-ignore:
-      - '**'
+      - "develop"
+    tags:
+      - "v*"
 
 jobs:
-  build:
+  build_api:
     runs-on: docker
     container: ghcr.io/catthehacker/ubuntu:act-22.04
     steps:
@@ -23,13 +23,36 @@ jobs:
       - name: Set build args
         run: |
           echo "GIT_DATE=$(git log -1 --format=%cI HEAD)" >> $GITHUB_ENV
-      - name: Build and Push
+      - name: Build and Push nms_api
         uses: https://platform.sunet.se/actions/build-push-action@v6
         with:
           push: true
           file: docker/api/Dockerfile
-          tags: platform.sunet.se/cnaas/nms_api:latest
+          tags: |
+            platform.sunet.se/cnaas/nms_api:latest
+            platform.sunet.se/cnaas/nms_api:${{ github.ref_name }}
           build-args: |
             GIT_COMMIT=${{ github.sha }}
             GIT_DATE=${{ env.GIT_DATE }}
             GIT_BRANCH=${{ github.ref_name }}
+
+  build_dhcpd:
+    runs-on: docker
+    container: ghcr.io/catthehacker/ubuntu:act-22.04
+    steps:
+      - name: Checkout the repo
+        uses: https://platform.sunet.se/actions/checkout@v4
+      - name: Login to Container Registry
+        uses: https://platform.sunet.se/actions/login-action@v3
+        with:
+          registry: platform.sunet.se
+          username: ci-sunet-cnaas
+          password: ${{ secrets.CI_SUNET_CNAAS }}
+      - name: Build and Push nms_dhcpd
+        uses: https://platform.sunet.se/actions/build-push-action@v6
+        with:
+          push: true
+          file: docker/dhcpd/Dockerfile
+          tags: |
+            platform.sunet.se/cnaas/nms_dhcpd:latest
+            platform.sunet.se/cnaas/nms_dhcpd:${{ github.ref_name }}

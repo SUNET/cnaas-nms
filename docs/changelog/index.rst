@@ -27,7 +27,6 @@ Bug fixes:
 
  - Added a unique contraint to reserveip and a init_step1 delay to fix a race condition when multiple devices was initialized at the same time (#539)
  - Updated return codes in firmware api (#531)
- - Translate VLAN names to ids in interface api to make sure changing VLAN names does not affect access interface configurations (#555)
  - Fixed device replacement bugs, now supports swapping between platforms and changing uplink port, disabled MLAG and Stack device replacement (#543)
 
 Breaking changes:

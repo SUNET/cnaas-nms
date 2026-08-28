@@ -848,6 +848,8 @@ Contains base system settings like:
   will be used, otherwise if matching platform is found that wait time will be used, otherwise
   default wait time will be used.
 - system_access_lists: List of system access-lists that should be generated and passed to templates.
+- cli_prepend_str: Optional string of CLI commandsthat will be prepended in the generated template.
+- cli_append_str: Optional string of CLI commands that will be appended in the generated template.
 
 Example of base_system.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -878,7 +880,10 @@ Example of base_system.yml
    dot1x_fail_vlan: 13
    system_access_lists:
      - SNMP-ACCESS
-
+   cli_prepend_str: |
+     banner login
+     Unauthorized access is prohibited.
+     EOF
 
 internal_vlans can optionally be specified if you want to manually define
 the range of internal VLANs on L3 switches. You can also specify the option

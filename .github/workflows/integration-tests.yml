@@ -21,6 +21,7 @@ jobs:
           echo "JWT_ENABLED=0" >> $GITHUB_ENV
           echo "OIDC_ENABLED=0" >> $GITHUB_ENV
           echo "COMPOSE_COMPATIBILITY=1" >> $GITHUB_ENV
+          echo "INCLUDE_INTEGRATION_TOOLS=1" >> $GITHUB_ENV
 
       - name: Get branch name (merge)
         shell: bash

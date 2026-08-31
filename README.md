@@ -105,6 +105,18 @@ This script:
 - Clones test templates/settings to `.test-data/` (once, reused on subsequent runs)
 - Runs unit tests first, then integration tests
 
+### Integration tests
+
+Integration tests need Containerlab running, and the `integration-tools` dependency
+group (coverage/pytest), which is not installed by default. Build the api image with
+the build arg to include it:
+
+```sh
+cd docker
+INCLUDE_INTEGRATION_TOOLS=1 docker compose build cnaas_api
+cd ../test && AUTOTEST=1 ./integrationtests.sh
+```
+
 ## Authorization
 
 Currently we can use two styles for the authorization. We can use the original style or use OIDC style. For OIDC we need to define some env variables or add a auth_config.yaml in the config. The needed variables are: OIDC_CONF_WELL_KNOWN_URL, OIDC_CLIENT_SECRET, OIDC_CLIENT_ID, FRONTEND_CALLBACK_URL and OIDC_ENABLED. To use the OIDC style the last variable needs to be set to true.

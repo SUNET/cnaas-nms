@@ -11,9 +11,10 @@ New features:
  - Added support for reference network definitions (#527)
  - Fencing token added to syncto jobs to make sure no unintended changes are commited in a live run (#535)
  - The repository api now tracks when a repo is out of sync with the origin (#546)
+ - Added banner_login and banner_motd settings to base_system (#570)
 
 Changes:
-  
+
  - Updated to Python 3.13 (#491)
  - Refactored and improved container builds (#481)
  - Updated YAML parsing to use the CSafeLoader for faster performance (#536)

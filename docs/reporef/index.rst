@@ -815,6 +815,8 @@ Contains base system settings like:
   * vlan_high: High end of internal VLAN range
   * allocation_order: Allocation order, default "ascending"
 
+- banner_login: Optional string containing the login banner to be displayed on the console.
+- banner_motd: Optional string containing the message of the day banner to be displayed on the console.
 - dot1x_fail_vlan: Numeric ID of authentication fail VLAN
 - dot1x_multi_host: Allow multiple clients behind a dot1x authenticated port. Default false
 - poe_reboot_maintain: Maintain POE supply during reboot of the switch. Default false
@@ -878,13 +880,17 @@ Example of base_system.yml
    internal_vlans:
      vlan_id_low: 3006
      vlan_id_high: 4094
+   banner_login: |
+     Unauthorized access is prohibited.
+   banner_motd: |
+     Welcome to the CNaaS-NMS managed network.
+     All activity is logged and monitored.
    dot1x_fail_vlan: 13
    system_access_lists:
      - SNMP-ACCESS
-   cli_prepend_str: |
-     banner login
-     Unauthorized access is prohibited.
-     EOF
+   cli_append_str: |
+     interface Ethernet1
+        speed forced 10000full
 
 internal_vlans can optionally be specified if you want to manually define
 the range of internal VLANs on L3 switches. You can also specify the option

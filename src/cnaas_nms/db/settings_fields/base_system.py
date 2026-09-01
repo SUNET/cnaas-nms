@@ -92,6 +92,8 @@ class f_base_system(BaseModel):
     flow_collectors: List[f_flow_collector] = []
     dhcp_relays: Optional[List[f_dhcp_relay]] = None
     internal_vlans: Optional[f_internal_vlans] = None
+    banner_login: Optional[str] = None
+    banner_motd: Optional[str] = None
     dot1x_fail_vlan: Optional[int] = vlan_id_schema_optional
     cli_prepend_str: str = ""
     cli_append_str: str = ""

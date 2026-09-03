@@ -16,6 +16,7 @@ from aerleon.api import Generate
 from aerleon.lib import naming
 from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyFilterTermsOnly, TermsList
 from aerleon.lib.yaml import PolicyTypeError
+from jmespath import functions
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
 from pydantic import BaseModel, ValidationError
 from redis import StrictRedis
@@ -1067,9 +1068,22 @@ def get_group_settings_asdict() -> Dict[str, Dict[str, Any]]:
     return group_dict
 
 
+class JMESPathFunctions(functions.Functions):
+    """Normalize functions for JMESPath to force data to object or array types."""
+
+    @functions.signature({"types": ["object", "array", "string", "number", "boolean", "null"]})
+    def _func_obj(self, x):
+        return x if isinstance(x, dict) else {}
+
+    @functions.signature({"types": ["object", "array", "string", "number", "boolean", "null"]})
+    def _func_arr(self, x):
+        return x if isinstance(x, list) else []
+
+
 def _resolve_jmespath_networks(network: dict, settings: dict, network_name: str) -> list[dict]:
     """Resolves and validates a JMESPath network reference into a list of address dictionaries."""
-    addresses = jmespath.search(network["path"], settings)
+    options = jmespath.Options(custom_functions=JMESPathFunctions())
+    addresses = jmespath.search(network["path"], settings, options=options)
 
     if not isinstance(addresses, list):
         raise AccessListGenerationError(
@@ -1313,8 +1327,9 @@ def get_generated_access_lists(
                         try:
                             net_count += len(defs._GetNet(network))
                         except naming.UndefinedAddressError:
-                            # Do nothing for this error, as aerleon will handle it later
-                            pass
+                            raise AccessListGenerationError(
+                                f"Undefined network '{network}' in access list '{access_list_name}' term '{acl_term.get('name')}'"
+                            )
                     if net_count == 0:
                         logger.debug(
                             "Access list '{}' term '{}' has empty network definition for '{}': removing this term as skip_terms_with_empty_network_definitions is True".format(

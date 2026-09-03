@@ -172,6 +172,8 @@ access_lists.yml
     Use a site like: `<https://play.jmespath.org/>`_ to test your jmespath string.
     The result of the jmespath search must be a list of addresses or networks, otherwise an error will be raised during access list generation.
 
+    Two helper functions exist that can normalize null values to empty lists or objects. Use them with :code:`arr` or :code:`obj`.
+
     Here are some example jmespath strings:
 
     All IPv4 and IPv6 addresses from VXLANs in the STUDENT VRF:
@@ -205,13 +207,13 @@ access_lists.yml
     :code:`interfaces[?vrf == 'MGMT'].[ipv4_address, ipv6_address][]`
 
     All BGP IPv4 and IPv6 neighbors in the STUDENT VRF:
-    :code:`extroute_bgp.vrfs[?name=='STUDENT'].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]`
+    :code:`arr(extroute_bgp.vrfs)[?name=='STUDENT'].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]`
 
     All BGP IPv4 neighbors:
-    :code:`extroute_bgp.vrfs[].neighbor_v4[].peer_ipv4`
+    :code:`arr(extroute_bgp.vrfs)[].neighbor_v4[].peer_ipv4`
 
     All BGP IPv4 and IPv6 neighbors
-    :code:`extroute_bgp.vrfs[].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]`
+    :code:`arr(extroute_bgp.vrfs)[].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]`
 
 - service_definitions: Dictionary of {<name>, [entries]}:
 
@@ -229,7 +231,7 @@ access_lists.yml
 
 
 * access_lists: Dictionary of {<name>, access_lists}:
-
+  * skip_terms_with_empty_network_definitions: If enabled, remove an entire ACL term when any referenced network definition is empty.
   * comment: A comment that describes the access list.
   * inet_families: List of ipv4, ipv6 of which inet families the access list should be generated to, defaults to ipv4 only.
   * header_map: A dictionary of {<platform>, <header>} allowing for customization of the aerleon header.
@@ -276,8 +278,8 @@ Access list examples
       - address: 192.168.0.0/16
     "BGP_PEERS":
       # This will contain all BGP neighbors for a device.
-      - path: extroute_bgp.vrfs[].neighbor_v4[].peer_ipv4
-      - path: extroute_bgp.vrfs[].neighbor_v6[].peer_ipv6
+      - path: arr(extroute_bgp.vrfs)[].neighbor_v4[].peer_ipv4
+      - path: arr(extroute_bgp.vrfs)[].neighbor_v6[].peer_ipv6
     "STUDENT_GWS":
       # This will only have host ips of the actual gateway.
       - path: vxlans.* | [?vrf=='STUDENT'].[ipv4_gw, ipv4_secondaries, ipv6_gw][][]

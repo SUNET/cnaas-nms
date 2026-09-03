@@ -836,6 +836,90 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("SOME_ACL", acls.keys())
         self.assertEqual(len(acls), 1)
 
+    def test_access_list_jmespath_functions(self):
+        """Test acl omits terms with empty network references using JMESPath with helper functions"""
+        settings = {
+            "extroute_bgp": None,
+            "network_definitions": {
+                "EMPTY": [
+                    {"path": "arr(extroute_bgp.vrfs)[].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]"}
+                ]  # This will be empty,
+            },
+            "system_access_lists": ["SOME_ACL"],
+            "access_lists": {
+                "SOME_ACL": {
+                    "skip_terms_with_empty_network_definitions": True,
+                    "terms": [
+                        {"name": "permit-empty", "destination-address": "EMPTY", "action": "accept"},
+                        {"name": "permit-any", "action": "accept"},
+                    ],
+                },
+            },
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        dist_device = Device(hostname="test-dist1", platform="eos", device_type=DeviceType.DIST)
+        acls = get_generated_access_lists(dist_device, settings=settings)
+        self.assertIn("SOME_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
+
+    def test_access_list_jmespath_functions_bgp(self):
+        """Test acl network references using JMESPath"""
+        settings = {
+            "extroute_bgp": {
+                "vrfs": [
+                    {
+                        "name": "MGMT",
+                        "local_as": 64551,
+                        "neighbor_v4": [
+                            {
+                                "peer_ipv4": "192.168.0.0",  # noqa: S1313
+                                "peer_as": 65656,
+                                "route_map_in": "ANY",
+                                "route_map_out": "ANY",
+                                "description": "",
+                                "bfd": None,
+                                "graceful_restart": None,
+                                "next_hop_self": None,
+                                "update_source": None,
+                                "ebgp_multihop": None,
+                                "maximum_routes": None,
+                                "auth_type": None,
+                                "auth_string": None,
+                                "remove_private_as": None,
+                                "cli_append_str": "",
+                            }
+                        ],
+                    }
+                ]
+            },
+            "network_definitions": {
+                "BGP_NEIGHBORS": [
+                    {"path": "arr(extroute_bgp.vrfs)[].neighbor_v4[].peer_ipv4"},
+                    {"path": "arr(extroute_bgp.vrfs)[].neighbor_v6[].peer_ipv6"}
+                ]
+            },
+            "system_access_lists": ["SOME_ACL_BGP"],
+            "access_lists": {
+                "SOME_ACL_BGP": {
+                    "terms": [
+                        {"name": "permit-bgp", "destination-address": "BGP_NEIGHBORS", "action": "accept"},
+                        {"name": "permit-any", "action": "accept"},
+                    ],
+                },
+            },
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        dist_device = Device(hostname="test-dist1", platform="eos", device_type=DeviceType.DIST)
+        acls = get_generated_access_lists(dist_device, settings=settings)
+        self.assertIn("SOME_ACL_BGP", acls.keys())
+        self.assertEqual(len(acls), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -534,7 +534,8 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
     for hostname, settings in devices_dict.items():
         if "vxlans" not in settings:
             continue
-        for vxlan_name, vxlan_data in settings["vxlans"].items():
+        vxlans = settings["vxlans"]
+        for vxlan_name, vxlan_data in vxlans.items():
             # VXLAN VNI checks
             if "vni" not in vxlan_data or not isinstance(vxlan_data["vni"], int):
                 logger.error("VXLAN {} is missing vni".format(vxlan_name))
@@ -583,6 +584,14 @@ def check_vlan_collisions(devices_dict: Dict[str, dict], mgmt_vlans: Set[int], u
             if "vlan_name" not in vxlan_data or not isinstance(vxlan_data["vlan_name"], str):
                 logger.error("VXLAN {} is missing vlan_name".format(vxlan_name))
                 continue
+
+            # Vxlan name cannot be the same as another vxlan key.
+            other_vxlan_keys = set(vxlans.keys()) - {vxlan_name}
+            if vxlan_data.get("vlan_name") in other_vxlan_keys:
+                raise VlanConflictError(
+                    f"Vxlan '{vxlan_name}' name '{vxlan_data['vlan_name']}' cannot be the same as another vxlan key."
+                )
+
             if (
                 hostname in device_vlan_names
                 and vxlan_data["vlan_name"] in device_vlan_names[hostname]

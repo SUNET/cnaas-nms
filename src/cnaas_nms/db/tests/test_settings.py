@@ -256,6 +256,28 @@ class SettingsTests(unittest.TestCase):
         }
         self.assertIsNone(check_vlan_collisions(devices_dict, mgmt_vlans))
 
+    def test_vxlan_name_key_collision(self):
+        """Test that vxlan name cannot be the same as another vxlan key"""
+        settings = {
+            "vxlans": {
+                "vxlan1": {
+                    "vni": 100100,
+                    "vlan_id": 100,
+                    "vlan_name": "vxlan1",  # Ok to have the same name as the key within the same vxlan
+                },
+                "vxlan2": {
+                    "vni": 100200,
+                    "vlan_id": 200,
+                    "vlan_name": "vxlan1",  # Exact name as another vxlan key
+                },
+            }
+        }
+        # Validate
+        f_root(**settings)  # type: ignore
+
+        with self.assertRaises(VlanConflictError):
+            check_vlan_collisions({"eosaccess": settings}, mgmt_vlans=set())
+
     def test_routing_policy(self):
         test_device_name = "policytest"
         test_vrfs = [

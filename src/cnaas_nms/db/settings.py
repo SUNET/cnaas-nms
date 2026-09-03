@@ -1081,7 +1081,9 @@ def _resolve_jmespath_networks(network: dict, settings: dict, network_name: str)
     addresses = jmespath.search(network["path"], settings)
 
     if not isinstance(addresses, list):
-        raise AccessListGenerationError(f"Expected a list from jmespath search, got {type(addresses).__name__}.")
+        raise AccessListGenerationError(
+            f"Expected a list from jmespath search, got {type(addresses).__name__} in network definition {network_name}."
+        )
 
     resolved_networks = []
     for address in addresses:
@@ -1332,7 +1334,6 @@ def get_generated_access_lists(
             else:
                 # If all above checks pass, add the term to filtered_acl_terms
                 filtered_acl_terms.append(acl_term)
-
 
         # Add all access_lists to includes
         # Only needs to be done once as terms are inet-agnostic

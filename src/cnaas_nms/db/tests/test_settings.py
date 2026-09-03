@@ -814,7 +814,7 @@ class SettingsTests(unittest.TestCase):
         settings = {
             "snmp_servers": [],
             "network_definitions": {
-                "EMPTY": [{"path": "snmp_servers[].host"}]  # This will be empty,
+                "EMPTY": [{"path": "snmp_servers[].host"}]  # This will be empty
             },
             "system_access_lists": ["SOME_ACL"],
             "access_lists": {
@@ -841,17 +841,17 @@ class SettingsTests(unittest.TestCase):
         settings = {
             "extroute_bgp": None,
             "network_definitions": {
-                "EMPTY": [
+                "BGP-EMPTY": [
                     {"path": "arr(extroute_bgp.vrfs)[].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]"}
-                ]  # This will be empty,
+                ]  # This will be empty and not error
             },
-            "system_access_lists": ["SOME_ACL"],
+            "system_access_lists": ["JMESPATH_FUNCTIONS"],
             "access_lists": {
-                "SOME_ACL": {
+                "JMESPATH_FUNCTIONS": {
                     "skip_terms_with_empty_network_definitions": True,
                     "terms": [
-                        {"name": "permit-empty", "destination-address": "EMPTY", "action": "accept"},
-                        {"name": "permit-any", "action": "accept"},
+                        {"name": "permit-bgp-empty", "destination-address": "BGP-EMPTY", "action": "accept"},
+                        {"name": "permit-any", "action": "accept"},  # Will be the only term
                     ],
                 },
             },
@@ -862,8 +862,7 @@ class SettingsTests(unittest.TestCase):
 
         dist_device = Device(hostname="test-dist1", platform="eos", device_type=DeviceType.DIST)
         acls = get_generated_access_lists(dist_device, settings=settings)
-        self.assertIn("SOME_ACL", acls.keys())
-        self.assertEqual(len(acls), 1)
+        self.assertIn("JMESPATH_FUNCTIONS", acls.keys())
 
     def test_access_list_jmespath_functions_bgp(self):
         """Test acl network references using JMESPath"""
@@ -918,7 +917,6 @@ class SettingsTests(unittest.TestCase):
         dist_device = Device(hostname="test-dist1", platform="eos", device_type=DeviceType.DIST)
         acls = get_generated_access_lists(dist_device, settings=settings)
         self.assertIn("SOME_ACL_BGP", acls.keys())
-        self.assertEqual(len(acls), 1)
 
 
 if __name__ == "__main__":

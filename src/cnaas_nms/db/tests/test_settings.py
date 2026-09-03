@@ -898,7 +898,7 @@ class SettingsTests(unittest.TestCase):
             "network_definitions": {
                 "BGP_NEIGHBORS": [
                     {"path": "arr(extroute_bgp.vrfs)[].neighbor_v4[].peer_ipv4"},
-                    {"path": "arr(extroute_bgp.vrfs)[].neighbor_v6[].peer_ipv6"}
+                    {"path": "arr(extroute_bgp.vrfs)[].neighbor_v6[].peer_ipv6"},
                 ]
             },
             "system_access_lists": ["SOME_ACL_BGP"],

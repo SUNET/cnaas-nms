@@ -809,6 +809,33 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("host 192.168.0.1", acls["SOME_ACL"])  # noqa: S1313
         self.assertIn("2001:db8::1", acls["SOME_ACL"])  # noqa: S1313
 
+    def test_access_list_empty_network_term_is_skipped(self):
+        """Test acl omits terms with empty network references"""
+        settings = {
+            "snmp_servers": [],
+            "network_definitions": {
+                "EMPTY": [{"path": "snmp_servers[].host"}]  # This will be empty,
+            },
+            "system_access_lists": ["SOME_ACL"],
+            "access_lists": {
+                "SOME_ACL": {
+                    "skip_terms_with_empty_network_definitions": True,
+                    "terms": [
+                        {"name": "permit-empty", "destination-address": "EMPTY", "action": "accept"},
+                        {"name": "permit-any", "action": "accept"},
+                    ]
+                },
+            },
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        dist_device = Device(hostname="test-dist1", platform="eos", device_type=DeviceType.DIST)
+        acls = get_generated_access_lists(dist_device, settings=settings)
+        self.assertIn("SOME_ACL", acls.keys())
+        self.assertEqual(len(acls), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

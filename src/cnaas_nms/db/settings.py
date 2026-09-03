@@ -1229,6 +1229,8 @@ def get_generated_access_lists(
             - If the platform cannot be determined.
             - If Aerleon encounters an error during generation.
     """
+    logger = get_logger()
+
     # Prefer platform argument, otherwise get from device.
     if platform is None:
         if dev is not None:
@@ -1284,11 +1286,48 @@ def get_generated_access_lists(
         )
 
         inside_policies = []
-        acl_terms = _get_aerleon_translated_terms(access_list.terms, device_model)
+
+        # Check if source/destination is empty and remove them with a debug log
+        # As aerleon does not like terms with empty network definitions.
+        filtered_acl_terms = []
+        for acl_term in _get_aerleon_translated_terms(access_list.terms, device_model):
+            # Include terms should always be included
+            if acl_term.get("include"):
+                filtered_acl_terms.append(acl_term)
+                continue
+            # When skip_terms_with_empty_network_definitions is False
+            # Add all terms to filtered_acl_terms, even if they have empty network definitions.
+            if not access_list.skip_terms_with_empty_network_definitions:
+                filtered_acl_terms.append(acl_term)
+                continue
+
+            # Check if terms have empty network definitions and skip them with a debug log
+            for field in ["source", "source-address", "destination", "destination-address"]:
+                if networks := acl_term.get(field):
+                    net_count = 0
+                    if not isinstance(networks, list):
+                        networks = [networks]
+                    for network in networks:
+                        try:
+                            net_count += len(defs._GetNet(network))
+                        except naming.UndefinedAddressError:
+                            # Do nothing for this error, as aerleon will handle it later
+                            pass
+                    if net_count == 0:
+                        logger.debug(
+                            "Access list '{}' term '{}' has empty network definition for '{}': removing this term as skip_terms_with_empty_network_definitions is True".format(
+                                access_list_name, acl_term.get("name"), field
+                            )
+                        )
+                        break
+            else:
+                # If all above checks pass, add the term to filtered_acl_terms
+                filtered_acl_terms.append(acl_term)
+
 
         # Add all access_lists to includes
         # Only needs to be done once as terms are inet-agnostic
-        included_list: PolicyFilterTermsOnly = {"terms": acl_terms}
+        included_list: PolicyFilterTermsOnly = {"terms": filtered_acl_terms}
         includes.update({access_list_name: included_list})
 
         for inet_family in access_list.inet_families:
@@ -1298,7 +1337,7 @@ def get_generated_access_lists(
             )
             inside_policy_dict: PolicyFilter = {
                 "header": {"targets": {aerleon_platform: acl_header}, "comment": access_list.comment},
-                "terms": acl_terms,
+                "terms": filtered_acl_terms,
             }
             inside_policies.append(inside_policy_dict)
 

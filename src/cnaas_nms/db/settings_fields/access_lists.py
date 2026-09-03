@@ -1,13 +1,13 @@
 import datetime  # noqa: F401
 import re
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, IPv6Network
-from typing import Dict, List, Literal, Optional
+from typing import Annotated, Dict, List, Literal, Optional
 
 import jmespath
 from aerleon.lib.policy_builder import TermsList
 from jmespath.exceptions import ParseError
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, NAPALM_LIB_MAPPER
-from pydantic import BaseModel, TypeAdapter, field_validator
+from pydantic import BaseModel, Field, TypeAdapter, field_validator
 
 from cnaas_nms.db.settings_fields.shared import access_list_name
 
@@ -56,6 +56,19 @@ TermsListAdapter.rebuild()
 
 
 class f_access_list(BaseModel):
+    skip_terms_with_empty_network_definitions: Annotated[
+        bool,
+        Field(
+            default=False,
+            description=(
+                "If enabled, remove an entire ACL term when any referenced network "
+                "definition is empty (e.g., source, source-address, destination, "
+                "or destination-address). Use this to avoid downstream rendering/"
+                "compilation failures caused by empty address sets. A debug log "
+                "should be emitted for each removed term."
+            ),
+        ),
+    ]
     comment: str = ""
     inet_families: List[Literal["ipv4", "ipv6"]] = ["ipv4"]
     header_map: Dict[str, str] = {}

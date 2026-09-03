@@ -12,6 +12,7 @@ New features:
  - Fencing token added to syncto jobs to make sure no unintended changes are commited in a live run (#535)
  - The repository api now tracks when a repo is out of sync with the origin (#546)
  - Added banner_login and banner_motd settings to base_system (#570)
+ - Added skip_terms_with_empty_network_definitions to access_lists that will filter out terms with empty network definitions if set to true (#571)
 
 Changes:
 

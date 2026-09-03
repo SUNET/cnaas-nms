@@ -845,7 +845,7 @@ class SettingsTests(unittest.TestCase):
                     "terms": [
                         {"name": "permit-empty", "destination-address": "EMPTY", "action": "accept"},
                         {"name": "permit-any", "action": "accept"},
-                    ]
+                    ],
                 },
             },
         }

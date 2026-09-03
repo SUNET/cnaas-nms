@@ -257,6 +257,8 @@ access_lists.yml
 .. note::
    NMS will substitute napalm platforms to aerleon platforms so for example ios and eos can be used in access list syntax and will be automatically translated to the correct aerleon platform.
 
+   Devices will generate ACLs found in system_access_lists and ACLs fetched dynamically from interfaces and for dist-switches vxlans.
+
 Access list examples
 ^^^^^^^^^^^^^^^^^^^^
 .. code-block:: yaml

@@ -14,7 +14,12 @@ from absl import logging as absl_logging
 from aerleon.aclgen import Error as ACLGenError
 from aerleon.api import Generate
 from aerleon.lib import naming
-from aerleon.lib.policy_builder import PolicyDict, PolicyFilter, PolicyFilterTermsOnly, TermsList
+from aerleon.lib.policy_builder import (
+    PolicyDict,
+    PolicyFilter,
+    PolicyFilterTermsOnly,
+    TermsList,
+)
 from aerleon.lib.yaml import PolicyTypeError
 from jmespath import functions
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
@@ -1225,6 +1230,81 @@ def _get_all_access_lists(data: List[Dict[str, str]]) -> Iterator[str]:
                 yield acl
 
 
+def _process_access_list_terms(
+    access_list: f_access_list, access_list_name: str, defs: naming.Naming, device_model: str | None = None
+) -> TermsList:
+    """
+    Processes an access list terms
+    Translates the terms to the aerleon format.
+    And removes empty network definitions if skip_empty_network_definitions is True.
+
+    Args:
+        access_list: The access list object.
+        access_list_name: The name of the access list.
+        defs: The naming definitions.
+        device_model: The device model, if applicable.
+
+    Returns:
+        A list of filtered access list terms.
+    """
+    logger = get_logger()
+
+    acl_terms = _get_aerleon_translated_terms(access_list.terms, device_model)
+
+    # When skip_empty_network_definitions is False skip
+    if not access_list.skip_empty_network_definitions:
+        return acl_terms
+
+    # Check if source/destination is empty and remove them with a debug log
+    # As aerleon does not like terms with empty network definitions.
+    filtered_acl_terms = []
+    for acl_term in acl_terms:
+        # Include terms should always be included
+        if acl_term.get("include"):
+            filtered_acl_terms.append(acl_term)
+            continue
+
+        # Check if terms have empty network definitions and remove the empty networks with a debug log
+        for field in ["source", "source-address", "destination", "destination-address"]:
+            field_nets = []
+            if networks := acl_term.get(field):
+                if not isinstance(networks, list):
+                    networks = [networks]
+                for network in networks:
+                    try:
+                        if not defs._GetNet(network):
+                            logger.debug(
+                                "Access list '{}' term '{}' has empty network definition for '{}': removing this network as skip_empty_network_definitions is True".format(
+                                    access_list_name, acl_term.get("name"), field
+                                )
+                            )
+                            continue
+                        field_nets.append(network)
+                    except naming.UndefinedAddressError:
+                        raise AccessListGenerationError(
+                            f"Undefined network '{network}' in access list '{access_list_name}' term '{acl_term.get('name')}'"
+                        )
+            # Must check networks as if it is empty the term references ANY
+            if networks and field_nets:
+                # Override the acl_term with the filtered networks
+                acl_term[field] = field_nets  # type: ignore[literal-required]
+            elif networks and not field_nets:
+                logger.debug(
+                    "Access list '{}' term '{}' has no network definitions for '{}': removing entire term skip_empty_network_definitions is True".format(
+                        access_list_name, acl_term.get("name"), field
+                    )
+                )
+                break
+            else:
+                # Do nothing if the field is not defined
+                pass
+        else:
+            # When all networks are either empty or valid, keep the term
+            filtered_acl_terms.append(acl_term)
+
+    return filtered_acl_terms
+
+
 def get_generated_access_lists(
     dev: Optional[Device] = None, platform: Optional[str] = None, settings: Optional[dict] = None
 ) -> Dict[str, str]:
@@ -1312,61 +1392,12 @@ def get_generated_access_lists(
 
         inside_policies = []
 
-        # Check if source/destination is empty and remove them with a debug log
-        # As aerleon does not like terms with empty network definitions.
-        filtered_acl_terms = []
-        for acl_term in _get_aerleon_translated_terms(access_list.terms, device_model):
-            # Include terms should always be included
-            if acl_term.get("include"):
-                filtered_acl_terms.append(acl_term)
-                continue
-
-            # When skip_empty_network_definitions is False skip
-            if not access_list.skip_empty_network_definitions:
-                filtered_acl_terms.append(acl_term)
-                continue
-
-            # Check if terms have empty network definitions and remove the empty networks with a debug log
-            for field in ["source", "source-address", "destination", "destination-address"]:
-                field_nets = []
-                if networks := acl_term.get(field):
-                    if not isinstance(networks, list):
-                        networks = [networks]
-                    for network in networks:
-                        try:
-                            if not defs._GetNet(network):
-                                logger.debug(
-                                    "Access list '{}' term '{}' has empty network definition for '{}': removing this network as skip_empty_network_definitions is True".format(
-                                        access_list_name, acl_term.get("name"), field
-                                    )
-                                )
-                                continue
-                            field_nets.append(network)
-                        except naming.UndefinedAddressError:
-                            raise AccessListGenerationError(
-                                f"Undefined network '{network}' in access list '{access_list_name}' term '{acl_term.get('name')}'"
-                            )
-                # Must check networks as if it is empty the term references ANY
-                if networks and field_nets:
-                    # Override the acl_term with the filtered networks
-                    acl_term[field] = field_nets  # type: ignore[literal-required]
-                elif networks and not field_nets:
-                    logger.debug(
-                        "Access list '{}' term '{}' has no network definitions for '{}': removing entire term skip_empty_network_definitions is True".format(
-                            access_list_name, acl_term.get("name"), field
-                        )
-                    )
-                    break
-                else:
-                    # Do nothing if the field is not defined
-                    pass
-            else:
-                # When all networks are either empty or valid, keep the term
-                filtered_acl_terms.append(acl_term)
+        # Process acl terms
+        acl_terms = _process_access_list_terms(access_list, access_list_name, defs, device_model)
 
         # Add all access_lists to includes
         # Only needs to be done once as terms are inet-agnostic
-        included_list: PolicyFilterTermsOnly = {"terms": filtered_acl_terms}
+        included_list: PolicyFilterTermsOnly = {"terms": acl_terms}
         includes.update({access_list_name: included_list})
 
         for inet_family in access_list.inet_families:
@@ -1376,7 +1407,7 @@ def get_generated_access_lists(
             )
             inside_policy_dict: PolicyFilter = {
                 "header": {"targets": {aerleon_platform: acl_header}, "comment": access_list.comment},
-                "terms": filtered_acl_terms,
+                "terms": acl_terms,
             }
             inside_policies.append(inside_policy_dict)
 

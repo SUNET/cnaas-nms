@@ -230,8 +230,9 @@ access_lists.yml
   * name: Name of another service object to include in this service definition
 
 
-* access_lists: Dictionary of {<name>, access_lists}:
-  * skip_terms_with_empty_network_definitions: If enabled, remove an entire ACL term when any referenced network definition is empty.
+- access_lists: Dictionary of {<name>, access_lists}:
+
+  * skip_empty_network_definitions: If enabled, removes empty network definitions from acl terms and renders the access-list without them. If no network definitions remain, the term will be removed entirely.
   * comment: A comment that describes the access list.
   * inet_families: List of ipv4, ipv6 of which inet families the access list should be generated to, defaults to ipv4 only.
   * header_map: A dictionary of {<platform>, <header>} allowing for customization of the aerleon header.

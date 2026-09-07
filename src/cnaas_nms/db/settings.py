@@ -1311,34 +1311,48 @@ def get_generated_access_lists(
             if acl_term.get("include"):
                 filtered_acl_terms.append(acl_term)
                 continue
-            # When skip_terms_with_empty_network_definitions is False
-            # Add all terms to filtered_acl_terms, even if they have empty network definitions.
-            if not access_list.skip_terms_with_empty_network_definitions:
+
+            # When skip_empty_network_definitions is False skip
+            if not access_list.skip_empty_network_definitions:
                 filtered_acl_terms.append(acl_term)
                 continue
 
-            # Check if terms have empty network definitions and skip them with a debug log
+            # Check if terms have empty network definitions and remove the empty networks with a debug log
             for field in ["source", "source-address", "destination", "destination-address"]:
+                field_nets = []
                 if networks := acl_term.get(field):
-                    net_count = 0
                     if not isinstance(networks, list):
                         networks = [networks]
                     for network in networks:
                         try:
-                            net_count += len(defs._GetNet(network))
+                            if not defs._GetNet(network):
+                                logger.debug(
+                                    "Access list '{}' term '{}' has empty network definition for '{}': removing this network as skip_empty_network_definitions is True".format(
+                                        access_list_name, acl_term.get("name"), field
+                                    )
+                                )
+                                continue
+                            field_nets.append(network)
                         except naming.UndefinedAddressError:
                             raise AccessListGenerationError(
                                 f"Undefined network '{network}' in access list '{access_list_name}' term '{acl_term.get('name')}'"
                             )
-                    if net_count == 0:
-                        logger.debug(
-                            "Access list '{}' term '{}' has empty network definition for '{}': removing this term as skip_terms_with_empty_network_definitions is True".format(
-                                access_list_name, acl_term.get("name"), field
-                            )
+                # Must check networks as if it is empty the term references ANY
+                if networks and field_nets:
+                    # Override the acl_term with the filtered networks
+                    acl_term[field] = field_nets  # type: ignore[literal-required]
+                elif networks and not field_nets:
+                    logger.debug(
+                        "Access list '{}' term '{}' has no network definitions for '{}': removing entire term skip_empty_network_definitions is True".format(
+                            access_list_name, acl_term.get("name"), field
                         )
-                        break
+                    )
+                    break
+                else:
+                    # Do nothing if the field is not defined
+                    pass
             else:
-                # If all above checks pass, add the term to filtered_acl_terms
+                # When all networks are either empty or valid, keep the term
                 filtered_acl_terms.append(acl_term)
 
         # Add all access_lists to includes

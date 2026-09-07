@@ -819,7 +819,7 @@ class SettingsTests(unittest.TestCase):
             "system_access_lists": ["SOME_ACL"],
             "access_lists": {
                 "SOME_ACL": {
-                    "skip_terms_with_empty_network_definitions": True,
+                    "skip_empty_network_definitions": True,
                     "terms": [
                         {"name": "permit-empty", "destination-address": "EMPTY", "action": "accept"},
                         {"name": "permit-any", "action": "accept"},
@@ -848,7 +848,7 @@ class SettingsTests(unittest.TestCase):
             "system_access_lists": ["JMESPATH_FUNCTIONS"],
             "access_lists": {
                 "JMESPATH_FUNCTIONS": {
-                    "skip_terms_with_empty_network_definitions": True,
+                    "skip_empty_network_definitions": True,
                     "terms": [
                         {"name": "permit-bgp-empty", "destination-address": "BGP-EMPTY", "action": "accept"},
                         {"name": "permit-any", "action": "accept"},  # Will be the only term
@@ -863,6 +863,43 @@ class SettingsTests(unittest.TestCase):
         dist_device = Device(hostname="test-dist1", platform="eos", device_type=DeviceType.DIST)
         acls = get_generated_access_lists(dist_device, settings=settings)
         self.assertIn("JMESPATH_FUNCTIONS", acls.keys())
+        # Will not have the term with empty network references
+        self.assertNotIn("permit-bgp-empty", acls["JMESPATH_FUNCTIONS"])
+
+    def test_access_list_jmespath_other(self):
+        """Test acl omits terms with empty network references using JMESPath with helper functions"""
+        settings = {
+            "extroute_bgp": None,
+            "network_definitions": {
+                "SOME_SUBNET": [{"address": "192.168.0.0/24"}],  # noqa: S1313
+                "BGP-EMPTY": [
+                    {"path": "arr(extroute_bgp.vrfs)[].[neighbor_v4[].peer_ipv4, neighbor_v6[].peer_ipv6][][]"}
+                ],  # This will be empty
+            },
+            "system_access_lists": ["JMESPATH_FUNCTIONS_OTHER"],
+            "access_lists": {
+                "JMESPATH_FUNCTIONS_OTHER": {
+                    "skip_empty_network_definitions": True,
+                    "terms": [
+                        {
+                            "name": "permit-bgp-empty",
+                            "destination-address": ["SOME_SUBNET", "BGP-EMPTY"],
+                            "action": "accept",
+                        },
+                        {"name": "permit-any", "action": "accept"},  # Will be the only term
+                    ],
+                },
+            },
+        }
+
+        # Validate settings
+        f_root(**settings)
+
+        dist_device = Device(hostname="test-dist1", platform="eos", device_type=DeviceType.DIST)
+        acls = get_generated_access_lists(dist_device, settings=settings)
+        self.assertIn("JMESPATH_FUNCTIONS_OTHER", acls.keys())
+        # Removes the empty network definition but keeps the entire term
+        self.assertIn("permit-bgp-empty", acls["JMESPATH_FUNCTIONS_OTHER"])
 
     def test_access_list_jmespath_functions_bgp(self):
         """Test acl network references using JMESPath"""
@@ -898,13 +935,17 @@ class SettingsTests(unittest.TestCase):
                 "BGP_NEIGHBORS": [
                     {"path": "arr(extroute_bgp.vrfs)[].neighbor_v4[].peer_ipv4"},
                     {"path": "arr(extroute_bgp.vrfs)[].neighbor_v6[].peer_ipv6"},
-                ]
+                ],
             },
             "system_access_lists": ["SOME_ACL_BGP"],
             "access_lists": {
                 "SOME_ACL_BGP": {
                     "terms": [
-                        {"name": "permit-bgp", "destination-address": "BGP_NEIGHBORS", "action": "accept"},
+                        {
+                            "name": "permit-bgp",
+                            "destination-address": "BGP_NEIGHBORS",
+                            "action": "accept",
+                        },
                         {"name": "permit-any", "action": "accept"},
                     ],
                 },
@@ -917,6 +958,7 @@ class SettingsTests(unittest.TestCase):
         dist_device = Device(hostname="test-dist1", platform="eos", device_type=DeviceType.DIST)
         acls = get_generated_access_lists(dist_device, settings=settings)
         self.assertIn("SOME_ACL_BGP", acls.keys())
+        self.assertIn("permit-bgp", acls["SOME_ACL_BGP"])
 
 
 if __name__ == "__main__":

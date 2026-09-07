@@ -56,16 +56,13 @@ TermsListAdapter.rebuild()
 
 
 class f_access_list(BaseModel):
-    skip_terms_with_empty_network_definitions: Annotated[
+    skip_empty_network_definitions: Annotated[
         bool,
         Field(
             default=False,
             description=(
-                "If enabled, remove an entire ACL term when any referenced network "
-                "definition is empty (e.g., source, source-address, destination, "
-                "or destination-address). Use this to avoid downstream rendering/"
-                "compilation failures caused by empty address sets. A debug log "
-                "should be emitted for each removed term."
+                "If enabled, removes empty network definitions from acl terms and renders the access-list without them. "
+                "If no network definitions remain, the term will be removed entirely."
             ),
         ),
     ]

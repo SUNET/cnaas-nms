@@ -1305,6 +1305,25 @@ def _process_access_list_terms(
     return filtered_acl_terms
 
 
+def get_included_access_lists(setting_acls: Dict[str, dict], generate_access_lists: Set[str]) -> Set[str]:
+    """
+    Recursively identifies all access lists that are included by generate_access_lists.
+    """
+    included_access_lists: Set[str] = set()
+    for acl_name, acl_data in setting_acls.items():
+        # Only check access lists that are in the generate_access_lists list
+        if acl_name not in generate_access_lists:
+            continue
+        for term in acl_data.get("terms", []):
+            include_acl: str
+            # Only check include acls
+            if not (include_acl := term.get("include")):
+                continue
+            included_access_lists.add(include_acl)
+            included_access_lists.update(get_included_access_lists(setting_acls, {include_acl}))
+    return included_access_lists
+
+
 def get_generated_access_lists(
     dev: Optional[Device] = None, platform: Optional[str] = None, settings: Optional[dict] = None
 ) -> Dict[str, str]:
@@ -1378,9 +1397,16 @@ def get_generated_access_lists(
     includes = {}  # A dict with acl_name: policy_dict if another access_list includes another acl.
     setting_acls: Dict[str, dict] = settings.get("access_lists", {})
 
+    # Locate all reference included access lists
+    included_access_lists: Set[str] = get_included_access_lists(setting_acls, generate_access_lists)
+
     defs = _build_aerleon_definitions(settings)
 
     for access_list_name, access_list_dict in setting_acls.items():
+        # Skip access lists that are neither in the generate_access_lists nor included_access_lists
+        if access_list_name not in generate_access_lists and access_list_name not in included_access_lists:
+            continue
+
         # Construct f_access_list object without validation
         access_list: f_access_list = f_access_list.model_construct(**access_list_dict)
 

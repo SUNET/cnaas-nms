@@ -343,8 +343,8 @@ def device_upgrade_task(
         session.expunge(dev)
 
     if filename:
-        _, version = filename.split("-", 1)
         filename = filename.removeprefix("detect_arch-")  #  For backward compitability
+        _, version = filename.split("-", 1)
         arch = detect_arch(dev)
 
         if arch == CpuArchitecture.X86_32:

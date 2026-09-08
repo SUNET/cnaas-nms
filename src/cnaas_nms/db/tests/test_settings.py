@@ -501,6 +501,8 @@ class SettingsTests(unittest.TestCase):
         acls = get_generated_access_lists(platform="eos", settings=settings)
         self.assertIn("TEST_ACL", acls.keys())
         self.assertEqual(len(acls), 1)
+        self.assertIn("remark some-acl", acls["TEST_ACL"])
+        self.assertIn("permit ip any any", acls["TEST_ACL"])
 
     def test_access_list_include_non_unique(self):
         """Test include acl where the included terms are not unique together with the parent term names"""

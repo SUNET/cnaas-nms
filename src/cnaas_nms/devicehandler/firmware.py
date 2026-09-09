@@ -345,7 +345,10 @@ def device_upgrade_task(
     if filename:
         filename = filename.removeprefix("detect_arch-")  #  For backward compitability
         _, version = filename.split("-", 1)
-        arch = detect_arch(dev)
+        # Prefer the persisted cpu_arch (set by update_facts, and possibly
+        # manually overridden in the DB) over re-deriving it from the model,
+        # so a stored value is always respected.
+        arch = dev.cpu_arch if dev.cpu_arch is not None else detect_arch(dev)
 
         if arch == CpuArchitecture.X86_32:
             filename = "EOS-" + version

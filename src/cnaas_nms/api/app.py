@@ -29,6 +29,7 @@ from cnaas_nms.api.device import (
 )
 from cnaas_nms.api.firmware import api as firmware_api
 from cnaas_nms.api.groups import api as groups_api
+from cnaas_nms.api.health import health_bp
 from cnaas_nms.api.interface import api as interfaces_api
 from cnaas_nms.api.jobs import job_api, joblock_api, jobs_api
 from cnaas_nms.api.json import CNaaSJSONEncoder
@@ -147,6 +148,11 @@ api = CnaasApi(
     app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey", doc="/api/doc/"
 )
 
+# Register health blueprint
+# No swagger docs for this endpoint
+# Lives outside the flask_restx API at /api/health
+app.register_blueprint(health_bp)
+
 api.add_namespace(auth_api)
 api.add_namespace(device_api)
 api.add_namespace(devices_api)
@@ -173,7 +179,6 @@ api.add_namespace(settings_api)
 api.add_namespace(plugins_api)
 api.add_namespace(system_api)
 api.add_namespace(rbac_api)
-
 
 # SocketIO on connect
 @socketio.on("connect")

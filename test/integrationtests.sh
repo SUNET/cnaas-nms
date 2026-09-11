@@ -50,14 +50,18 @@ if docker volume ls | egrep -q "cnaas-postgres-data$"; then
 	fi
 fi
 
+# The traps also run after popd returns to the test dir, where docker compose
+# finds no configuration file, so log from the compose dir explicitly.
+COMPOSE_DIR="$PWD"
+
 on_exit() {
-	$COMPOSE_COMMAND logs cnaas_dhcpd
-	$COMPOSE_COMMAND logs cnaas_api
+	$COMPOSE_COMMAND --project-directory "$COMPOSE_DIR" logs cnaas_dhcpd
+	$COMPOSE_COMMAND --project-directory "$COMPOSE_DIR" logs cnaas_api
 	echo "Integrationtests exited (on_exit)"
 }
 
 on_err() {
-	$COMPOSE_COMMAND logs -n 100 cnaas_api
+	$COMPOSE_COMMAND --project-directory "$COMPOSE_DIR" logs -n 100 cnaas_api
 }
 
 trap on_exit EXIT

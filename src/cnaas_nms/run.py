@@ -24,6 +24,9 @@ print("Code coverage collection for worker in pid {}: {}".format(os.getpid(), is
 
 
 if is_coverage_enabled():
+    # The C tracer is the only coverage core that supports gevent concurrency;
+    # sys.monitoring is the default from Python 3.14 on and rejects it.
+    os.environ["COVERAGE_CORE"] = "ctrace"
     import coverage
 
     cov = coverage.coverage(data_file=".coverage-{}".format(os.getpid()), concurrency="gevent")

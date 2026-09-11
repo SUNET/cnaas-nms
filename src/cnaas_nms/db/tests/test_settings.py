@@ -504,6 +504,20 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("remark some-acl", acls["TEST_ACL"])
         self.assertIn("permit ip any any", acls["TEST_ACL"])
 
+    def test_access_list_circular_include(self):
+        """Test include acl when acls are circularly included"""
+        settings = {
+            "access_lists": {
+                "INCLUDE-ACL1": {"terms": [{"include": "INCLUDE-ACL2"}]},
+                "INCLUDE-ACL2": {"terms": [{"name": "some-acl", "action": "accept"}, {"include": "INCLUDE-ACL1"}]},
+                "TEST_ACL": {"terms": [{"include": "INCLUDE-ACL1"}]},
+            },
+            "system_access_lists": ["TEST_ACL"],
+        }
+        with self.assertRaises(ValidationError) as ctx:
+            f_root(**settings)
+        self.assertIn("Infinite recursion detected in access-list includes", str(ctx.exception))
+
     def test_access_list_include_non_unique(self):
         """Test include acl where the included terms are not unique together with the parent term names"""
         settings = {

@@ -95,4 +95,6 @@ RUN chmod 444 /etc/cnaas-nms/api.yml /etc/cnaas-nms/db_config.yml /etc/cnaas-nms
 
 USER www-data
 EXPOSE 1443
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -kfsS https://localhost:1443/api/health/live || exit 1
 ENTRYPOINT ["supervisord", "-c", "/etc/supervisor/supervisord.conf"]

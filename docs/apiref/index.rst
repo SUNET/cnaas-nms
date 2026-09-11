@@ -5,6 +5,7 @@ API Reference
    :maxdepth: 1
 
    Home <self>
+   health
    devices
    groups
    jobs

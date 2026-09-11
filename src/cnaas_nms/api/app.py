@@ -148,9 +148,8 @@ api = CnaasApi(
     app, prefix="/api/{}".format(__api_version__), authorizations=authorizations, security="apikey", doc="/api/doc/"
 )
 
-# Register health blueprint
-# No swagger docs for this endpoint
-# Lives outside the flask_restx API at /api/health
+# Health endpoints live outside the flask_restx API and the versioned prefix, so a probe
+# can read them without a token and they stay out of the swagger docs
 app.register_blueprint(health_bp)
 
 api.add_namespace(auth_api)

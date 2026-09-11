@@ -1,6 +1,10 @@
 import unittest
 from unittest.mock import patch
 
+import pytest
+
+pytestmark = pytest.mark.integration
+
 
 def test_health(client):
     result = client.get("/api/health")

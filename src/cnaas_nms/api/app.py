@@ -180,6 +180,7 @@ api.add_namespace(plugins_api)
 api.add_namespace(system_api)
 api.add_namespace(rbac_api)
 
+
 # SocketIO on connect
 @socketio.on("connect")
 def socketio_on_connect():

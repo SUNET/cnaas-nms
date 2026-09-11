@@ -28,5 +28,6 @@ def test_health_redis_down(client):
     # 503 Service Unavailable
     assert result.status_code == 503
 
+
 if __name__ == "__main__":
     unittest.main()

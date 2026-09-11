@@ -13,7 +13,7 @@ New features:
  - The repository api now tracks when a repo is out of sync with the origin (#546)
  - Added banner_login and banner_motd settings to base_system (#570)
  - Added skip_empty_network_definitions to access_lists that will remove empty network definitions if set to true (#571)
- - /api/health endpoint that provides the current health status of the system, including checks for PostgreSQL and Redis (#576)
+ - /api/health endpoint that provides the current health status of the system, including checks for PostgreSQL and Redis (#578)
 
 Changes:
 

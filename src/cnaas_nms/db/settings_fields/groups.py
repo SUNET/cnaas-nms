@@ -36,7 +36,7 @@ class f_group_device_filter(BaseModel):
         """
         Is a cached property to avoid re-compiling regex patterns
         """
-        fields = set(self.__annotations__.keys())
+        fields = set(type(self).model_fields)
         compiled_patterns = {}
         for field in fields:
             pattern = getattr(self, field, None)

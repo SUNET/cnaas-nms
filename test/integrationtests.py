@@ -68,12 +68,12 @@ class GetTests(unittest.TestCase):
         r = requests.put(
             f"{URL}/api/v1.0/repository/settings", headers=AUTH_HEADER, json={"action": "refresh"}, verify=TLS_VERIFY
         )
-        print("Settings refresh status: {}".format(r.status_code))
+        print("Settings refresh status: {}, body: {}".format(r.status_code, r.text))
         self.assertEqual(r.status_code, 200, "Failed to refresh settings")
         r = requests.put(
             f"{URL}/api/v1.0/repository/templates", headers=AUTH_HEADER, json={"action": "refresh"}, verify=TLS_VERIFY
         )
-        print("Template refresh status: {}".format(r.status_code))
+        print("Template refresh status: {}, body: {}".format(r.status_code, r.text))
         self.assertEqual(r.status_code, 200, "Failed to refresh templates")
 
     def test_01_init_dist(self):

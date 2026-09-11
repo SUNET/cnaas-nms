@@ -1,5 +1,5 @@
 # Stage 1: Builder - install dependencies
-FROM python:3.13-slim-trixie AS builder
+FROM python:3.14-slim-trixie AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.12.7 /uv /uvx /bin/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -41,7 +41,7 @@ COPY alembic/ /opt/cnaas/venv/cnaas-nms/alembic/
 COPY alembic.ini /opt/cnaas/venv/cnaas-nms/
 
 # Stage 2: Runtime - minimal production image
-FROM python:3.13-slim-trixie AS runtime
+FROM python:3.14-slim-trixie AS runtime
 
 ARG GIT_COMMIT
 ARG GIT_DATE

@@ -9,12 +9,12 @@ license = { text = "BSD-2-Clause" }
 authors = [
   { name = "SUNET" },
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 classifiers = [
   "License :: OSI Approved :: BSD License",
   "Operating System :: POSIX :: Linux",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 dynamic = [ "version" ]
 dependencies = [
@@ -29,9 +29,9 @@ dependencies = [
   "flask-jwt-extended==4.7.1",
   "flask-restx==1.3",
   "flask-socketio==5.6.1",
-  "gevent==25.4.2",
+  "gevent==25.8.2",
   "gitpython==3.1.59",
-  "greenlet==3.2.1",
+  "greenlet==3.5.5",
   "jmespath>=1.1.0",
   "markupsafe==3.0.2",
   "napalm==5.2",
@@ -43,8 +43,8 @@ dependencies = [
   "nornir-utils==0.2",
   "pluggy==1.5",
   "portalocker==3.1.1",
-  "psycopg2-binary==2.9.10",
-  "pydantic==2.11.3",
+  "psycopg2-binary==2.9.13",
+  "pydantic==2.12.5",
   "pydantic-settings==2.9.1",
   "python-jose==3.4",
   "pytz==2025.2",
@@ -52,7 +52,7 @@ dependencies = [
   "redis==5.2.1",
   "redis-lru==0.1",
   "requests==2.33.0",
-  "sqlalchemy==2.0.40",
+  "sqlalchemy==2.0.52",
   "sqlalchemy-utils==0.41.2",
   "werkzeug==3.1.6",
 ]
@@ -153,7 +153,7 @@ where = [ "src" ]
 exclude = [ "tests" ]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 line-length = 120
 exclude = [
   ".eggs",

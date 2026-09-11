@@ -153,6 +153,43 @@ class f_access_lists(BaseModel):
 
     @field_validator("access_lists", mode="after")
     @classmethod
+    def validate_access_lists_recursion(
+        cls, access_lists: Dict[access_list_name, f_access_list]
+    ) -> Dict[access_list_name, f_access_list]:
+        """Validates that included access-lists do not cause infinite recursion"""
+        safe_nodes = set()
+
+        def find_cycle(acl_name: str, visited_stack: List[str]) -> Optional[List[str]]:
+            if acl_name in visited_stack:
+                cycle_start = visited_stack.index(acl_name)
+                return visited_stack[cycle_start:] + [acl_name]
+
+            if acl_name in safe_nodes:
+                return None
+
+            acl_obj = access_lists.get(acl_name)
+            if not acl_obj:
+                return None
+
+            visited_stack.append(acl_name)
+            for term in acl_obj.terms:
+                include_acl = term.get("include")
+                if include_acl and isinstance(include_acl, str):
+                    if cycle := find_cycle(include_acl, visited_stack):
+                        return cycle
+            visited_stack.pop()
+            safe_nodes.add(acl_name)
+            return None
+
+        for acl_name in access_lists:
+            if cycle := find_cycle(acl_name, []):
+                cycle_path = " -> ".join(cycle)
+                raise ValueError(f"Infinite recursion detected in access-list includes: {cycle_path}")
+
+        return access_lists
+
+    @field_validator("access_lists", mode="after")
+    @classmethod
     def validate_access_lists_included_terms(
         cls, access_lists: Dict[access_list_name, f_access_list]
     ) -> Dict[access_list_name, f_access_list]:

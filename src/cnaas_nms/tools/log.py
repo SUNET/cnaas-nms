@@ -1,8 +1,8 @@
 import logging
-from typing import List
 
 from flask import current_app
 
+from cnaas_nms.app_settings import app_settings
 from cnaas_nms.scheduler.thread_data import thread_data
 from cnaas_nms.tools.event import add_event
 
@@ -10,7 +10,7 @@ from cnaas_nms.tools.event import add_event
 class CaptureHandler(logging.Handler):
     def __init__(self):
         super().__init__()
-        self.records: List[logging.LogRecord] = []
+        self.records: list[logging.LogRecord] = []
 
     def emit(self, record: logging.LogRecord):
         self.records.append(record)
@@ -62,5 +62,5 @@ def get_logger():
             websocket_handler = WebsocketHandler()
             websocket_handler.setFormatter(formatter)
             logger.addHandler(websocket_handler)
-    logger.setLevel(logging.DEBUG)  # TODO: get from /etc config ?
+    logger.setLevel(app_settings.LOG_LEVEL)
     return logger

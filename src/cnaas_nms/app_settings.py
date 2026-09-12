@@ -1,5 +1,6 @@
+import logging
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
@@ -32,9 +33,22 @@ class AppSettings(BaseSettings):
     TEMPLATES_LOCAL: str = "/opt/cnaas/templates"
     SETTINGS_REMOTE: str = "/opt/git/cnaas-settings-origin.git"
     SETTINGS_LOCAL: str = "/opt/cnaas/settings"
-    GIT_BRANCH: Optional[str] = None
-    GIT_COMMIT: Optional[str] = None
-    GIT_DATE: Optional[str] = None
+    GIT_BRANCH: str | None = None
+    GIT_COMMIT: str | None = None
+    GIT_DATE: str | None = None
+    LOG_LEVEL: str = "INFO"
+
+    @field_validator("LOG_LEVEL")
+    @classmethod
+    def log_level_is_valid(cls, level: str) -> str:
+        valid_levels = ("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG")
+        level = level.upper()
+        if level not in valid_levels:
+            logging.getLogger(__name__).warning(
+                f"Invalid LOG_LEVEL: {level!r}. Must be one of {valid_levels}. Falling back to INFO."
+            )
+            return "INFO"
+        return level
 
 
 class ApiSettings(BaseSettings):
@@ -44,24 +58,24 @@ class ApiSettings(BaseSettings):
     VERIFY_TLS: bool = False
     VERIFY_TLS_DEVICE: bool = False
     JWT_CERT: Path = Path("/opt/cnaas/jwtcert/public.pem")
-    CAFILE: Optional[Path] = Path("/opt/cnaas/cacert/rootCA.crt")
+    CAFILE: Path | None = Path("/opt/cnaas/cacert/rootCA.crt")
     CAKEYFILE: Path = Path("/opt/cnaas/cacert/rootCA.key")
     CERTPATH: Path = Path("/tmp/devicecerts/")
     ALLOW_APPLY_CONFIG_LIVERUN: bool = False
     FIRMWARE_URL: str = HTTPD_URL
     JWT_ENABLED: bool = True
-    JWT_SECRET_KEY: Optional[bytes] = None
+    JWT_SECRET_KEY: bytes | None = None
     PLUGIN_FILE: Path = Path("/etc/cnaas-nms/plugins.yml")
     GLOBAL_UNIQUE_VLANS: bool = True
     INIT_MGMT_TIMEOUT: int = 30
-    SETTINGS_KEYS_TO_MERGE: Optional[List[str]] = ["system_access_lists", "prefix_sets", "routing_policies"]
+    SETTINGS_KEYS_TO_MERGE: list[str] | None = ["system_access_lists", "prefix_sets", "routing_policies"]
     ACCESS_LIST_OPTIMIZE: bool = False
     MGMTDOMAIN_RESERVED_COUNT: int = 5
     MGMTDOMAIN_PRIMARY_IP_VERSION: int = 4
     COMMIT_CONFIRMED_MODE: int = 1
     COMMIT_CONFIRMED_TIMEOUT: int = 300
     COMMIT_CONFIRMED_WAIT: int = 1
-    SETTINGS_OVERRIDE: Optional[dict] = None
+    SETTINGS_OVERRIDE: dict | None = None
     NAPALM_TIMEOUT: int = 60
 
     @field_validator("MGMTDOMAIN_PRIMARY_IP_VERSION")
@@ -80,10 +94,10 @@ class AuthSettings(BaseSettings):
     OIDC_CLIENT_ID: str = "client-id"
     OIDC_ENABLED: bool = False
     OIDC_USERNAME_ATTRIBUTE: str = "email"
-    PERMISSIONS: Optional[PermissionsModel] = None
+    PERMISSIONS: PermissionsModel | None = None
     PERMISSIONS_DISABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
-    AUDIENCE: Optional[str] = None  # = OIDC_CLIENT_ID if not defined
+    AUDIENCE: str | None = None  # = OIDC_CLIENT_ID if not defined
     VERIFY_AUDIENCE: bool = True
 
 

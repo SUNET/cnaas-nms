@@ -38,7 +38,7 @@ def test_expand_interface_settings_range(testdata, caplog):
     if_range["name"] = "Ethernet[1-4]"
 
     expanded = sorted(expand_interface_settings(iflist), key=lambda d: d["name"])
-    with caplog.at_level(logging.DEBUG):
+    with caplog.at_level(logging.DEBUG, logger="cnaas-nms"):
         expanded_range = sorted(expand_interface_settings([if_range]), key=lambda d: d["name"])
     assert expanded == expanded_range
     assert "Expanding interface range" in caplog.text

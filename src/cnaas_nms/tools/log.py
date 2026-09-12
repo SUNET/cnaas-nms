@@ -62,5 +62,8 @@ def get_logger():
             websocket_handler = WebsocketHandler()
             websocket_handler.setFormatter(formatter)
             logger.addHandler(websocket_handler)
-    logger.setLevel(app_settings.LOG_LEVEL)
+    # Only apply the configured default level the first time this logger is set up,
+    # so runtime overrides (e.g. caplog.at_level) aren't clobbered on subsequent calls.
+    if logger.level == logging.NOTSET:
+        logger.setLevel(app_settings.LOG_LEVEL)
     return logger

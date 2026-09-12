@@ -62,7 +62,7 @@ class NeighborError(Exception):
 def push_base_management(task, device_variables: dict, devtype: DeviceType, job_id):
     set_thread_data(job_id)
     logger = get_logger()
-    logger.debug("Push basetemplate for host: {}".format(task.host.name))
+    logger.info("Push basetemplate for host: {}".format(task.host.name))
     local_repo_path = app_settings.TEMPLATES_LOCAL
 
     mapfile = os.path.join(local_repo_path, task.host.platform, "mapping.yml")
@@ -95,7 +95,7 @@ def push_base_management(task, device_variables: dict, devtype: DeviceType, job_
             logger.error("Unable to install device certificate for {}, aborting: {}".format(task.host.name, str(e)))
             raise e
         else:
-            logger.debug("Unable to install device certificate for {}: {}".format(task.host.name, str(e)))
+            logger.info("Unable to install device certificate for {}: {}".format(task.host.name, str(e)))
     except Exception as e:
         logger.exception(e)
         raise e
@@ -185,7 +185,7 @@ def pre_init_check_neighbors(
     logger = get_logger()
     verified_neighbors = []
     if expected_neighbors is not None and len(expected_neighbors) == 0:
-        logger.debug("expected_neighbors explicitly set to empty list, skipping neighbor checks")
+        logger.info("expected_neighbors explicitly set to empty list, skipping neighbor checks")
         return []
     if not linknets:
         raise Exception("No linknets were specified to check_neighbors")
@@ -228,13 +228,13 @@ def pre_init_check_neighbors(
         if len(uplinks) <= 0:
             raise InitVerificationError("No uplink neighbors found for device id: {} ({})".format(dev.id, dev.hostname))
         elif len(uplinks) == 1 and redundant_uplinks == 0:
-            logger.debug(
+            logger.info(
                 "One non-redundant uplink neighbors found for device id {} ({}): {}".format(
                     dev.id, dev.hostname, uplinks
                 )
             )
         elif len(uplinks) % 2 == 0 and redundant_uplinks == len(uplinks):
-            logger.debug(
+            logger.info(
                 "{} redundant uplink neighbors found for device id {} ({}): {}".format(
                     len(uplinks), dev.id, dev.hostname, uplinks
                 )
@@ -281,7 +281,7 @@ def pre_init_check_neighbors(
                 if neighbor_dev.device_type == DeviceType.DIST:
                     verified_neighbors.append(neighbor)
                 else:
-                    logger.warn(
+                    logger.warning(
                         "Neighbor device {} is of unexpected device type {}, ignoring".format(
                             neighbor, neighbor_dev.device_type.name
                         )
@@ -290,7 +290,7 @@ def pre_init_check_neighbors(
                 if neighbor_dev.device_type == DeviceType.CORE:
                     verified_neighbors.append(neighbor)
                 else:
-                    logger.warn(
+                    logger.warning(
                         "Neighbor device {} is of unexpected device type {}, ignoring".format(
                             neighbor, neighbor_dev.device_type.name
                         )
@@ -551,12 +551,12 @@ def init_access_device_step1(
                     linknets,
                     mlag_peer_dev=mlag_peer_dev,
                 )
-                logger.debug(
+                logger.info(
                     "Found valid neighbors for INIT of {}: {}".format(new_hostname, ", ".join(verified_neighbors))
                 )
                 check_neighbor_sync(session, uplink_hostnames)
         except DeviceSyncError as e:
-            logger.warn("Uplink device not in sync during init of {}: {}".format(new_hostname, e))
+            logger.warning("Uplink device not in sync during init of {}: {}".format(new_hostname, e))
         except (Exception, NeighborError) as e:
             session.rollback()
             raise e
@@ -590,6 +590,7 @@ def init_access_device_step1(
             dev.dhcp_ip = new_dhcp_ip
             dev.platform = new_platform
             dev.state = DeviceState.DISCOVERED
+            logger.info(f"Device {new_hostname} entered state {dev.state.name} (replacing previous device)")
             mgmt_ip = dev.management_ip
             secondary_mgmt_ip = dev.secondary_management_ip
             dev.management_ip = None
@@ -743,6 +744,7 @@ def init_access_device_step1(
         if secondary_mgmt_ip:
             dev.secondary_management_ip = secondary_mgmt_ip
         dev.state = DeviceState.INIT
+        logger.info(f"Device {hostname} entered state {dev.state.name}")
         dev.device_type = DeviceType.ACCESS
         # Remove the reserved IP since it's now saved in the device database instead
         reserved_ips = session.query(ReservedIP).filter(ReservedIP.device == dev).all()
@@ -854,7 +856,7 @@ def init_fabric_device_step1(
 
         try:
             verified_neighbors = pre_init_check_neighbors(session, dev, devtype, linknets, neighbors)
-            logger.debug("Found valid neighbors for INIT of {}: {}".format(new_hostname, ", ".join(verified_neighbors)))
+            logger.info("Found valid neighbors for INIT of {}: {}".format(new_hostname, ", ".join(verified_neighbors)))
             check_neighbor_sync(session, verified_neighbors)
         except (Exception, NeighborError) as e:
             raise e
@@ -865,7 +867,7 @@ def init_fabric_device_step1(
         # If neighbor check works, commit new linknets
         # This will also mark neighbors as unsynced
         linknets = update_linknets(session, dev.hostname, devtype, ztp_hostname=new_hostname, dry_run=False)
-        logger.debug("New linknets for INIT of {} created: {}".format(new_hostname, linknets))
+        logger.info("New linknets for INIT of {} created: {}".format(new_hostname, linknets))
 
         # Select and reserve a new management and infra IP for the device
         ReservedIP.clean_reservations(session, device=dev)
@@ -927,6 +929,7 @@ def init_fabric_device_step1(
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.management_ip = mgmt_ip
         dev.state = DeviceState.INIT
+        logger.info(f"Device {hostname} entered state {dev.state.name}")
         # Remove the reserved IP since it's now saved in the device database instead
         reserved_ips = session.query(ReservedIP).filter(ReservedIP.device == dev).all()
         for reserved_ip in reserved_ips:
@@ -1020,6 +1023,7 @@ def init_device_step2(
     with sqla_session() as session:  # type: ignore
         dev = session.query(Device).filter(Device.id == device_id).one()
         dev.state = DeviceState.MANAGED
+        logger.info(f"Device {hostname} entered state {dev.state.name}")
         dev.synchronized = False
         add_sync_event(hostname, "device_init", scheduled_by, job_id)
         set_facts(dev, facts)

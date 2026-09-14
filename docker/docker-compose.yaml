@@ -33,6 +33,8 @@ services:
       - JWT_SECRET_KEY
       - OIDC_ENABLED
       - PERMISSIONS_DISABLED
+      - SENTRY_DSN
+      - SENTRY_ENVIRONMENT
     depends_on:
       - "cnaas_postgres"
       - "cnaas_redis"

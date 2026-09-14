@@ -11,6 +11,7 @@ from cnaas_nms.db.session import sqla_session
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.sentry import sentry_init
 
 logger = get_logger()
 
@@ -77,6 +78,7 @@ def main_loop() -> None:
         return
 
     print("Running scheduler in uwsgi mule")
+    sentry_init("scheduler_mule")
     scheduler = Scheduler()
     scheduler.start()
 

@@ -287,14 +287,14 @@ def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
             repo_save_working_commit(RepoType.SETTINGS, local_repo.head.commit.hexsha)
         except Exception as e:  # noqa: F401
             logger.error("Could not save last working commit: {}".format(e))
-    logger.debug("Files changed in settings repository: {}".format(changed_files or "None"))
+    logger.info("Files changed in settings repository: {}".format(changed_files or "None"))
     updated_devtypes, updated_hostnames = settings_syncstatus(updated_settings=changed_files)
-    logger.debug(
+    logger.info(
         "Devicestypes to be marked unsynced after repo refresh: {}".format(
             (", ".join([dt.name for dt in updated_devtypes])) or "None"
         )
     )
-    logger.debug(
+    logger.info(
         "Devices to be marked unsynced after repo refresh: {}".format((", ".join(updated_hostnames)) or "None")
     )
     with sqla_session() as session:  # type: ignore
@@ -322,10 +322,10 @@ def _refresh_repo_task_templates(job_id: Optional[int] = None) -> str:
     remote_repo_path = app_settings.TEMPLATES_REMOTE
     ret, changed_files = _refresh_repo_task(local_repo_path, remote_repo_path)
 
-    logger.debug("Files changed in template repository: {}".format(changed_files or "None"))
+    logger.info("Files changed in template repository: {}".format(changed_files or "None"))
     updated_devtypes = template_syncstatus(updated_templates=changed_files)
     updated_list = ["{}:{}".format(platform, dt.name) for dt, platform in updated_devtypes]
-    logger.debug(
+    logger.info(
         "Devicestypes to be marked unsynced after repo refresh: {}".format((", ".join(updated_list)) or "None")
     )
     with sqla_session() as session:  # type: ignore
@@ -372,7 +372,7 @@ def _refresh_repo_task(local_repo_path, remote_repo_path) -> Tuple[str, Set[str]
             shutil.rmtree(local_repo_path)
             raise NoSuchPathError
         prev_commit = local_repo.commit().hexsha
-        logger.debug("git pull from {}".format(remote_repo_path))
+        logger.info("git pull from {}".format(remote_repo_path))
 
         diff: List[git.remote.FetchInfo] = local_repo.remotes.origin.pull()
         ret, changed_files = parse_git_changed_files(diff, prev_commit, local_repo)

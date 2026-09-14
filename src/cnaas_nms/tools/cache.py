@@ -22,9 +22,9 @@ def get_token_info_from_cache(token: Token) -> Optional[dict]:
             if cached_token_info:
                 return json.loads(cached_token_info)
     except RedisError as e:
-        logger.debug("Redis cache error: {}".format(str(e)))
+        logger.error("Redis cache error: {}".format(str(e)))
     except (TypeError, KeyError) as e:
-        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
+        logger.error("Error while getting userinfo cache: {}".format(str(e)))
     return None
 
 
@@ -40,7 +40,7 @@ def put_token_info_in_cache(token: Token, token_info) -> bool:
                 redis.expireat(REDIS_OAUTH_TOKEN_INFO_KEY, when=expire_at, lt=True)
                 return True
     except RedisError as e:
-        logger.debug("Redis cache error: {}".format(str(e)))
+        logger.warning("Redis cache error: {}".format(str(e)))
     except (TypeError, KeyError) as e:
-        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
+        logger.warning("Error while getting userinfo cache: {}".format(str(e)))
     return False

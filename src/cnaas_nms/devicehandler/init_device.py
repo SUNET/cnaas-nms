@@ -1136,7 +1136,7 @@ def discover_device(
             )
     except Exception as e:
         logger.exception("Could not update device with ztp_mac {} with new facts: {}".format(ztp_mac, str(e)))
-        logger.debug("nrresult for ztp_mac {}: {}".format(ztp_mac, nrresult))
+        logger.info("nrresult for ztp_mac {}: {}".format(ztp_mac, nrresult))
         raise e
 
     nrresult_hostname = nr_filtered.run(task=set_hostname_task, new_hostname=new_hostname)

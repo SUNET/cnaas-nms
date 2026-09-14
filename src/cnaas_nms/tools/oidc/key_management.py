@@ -37,7 +37,7 @@ def get_key(kid: str):
     jwks_store = JWKSStore()
     key = [k for k in jwks_store.keys if k["kid"] == kid]
     if len(key) == 0:
-        logger.debug("Key not found. Get the keys.")
+        logger.info("Key not found. Get the keys.")
         get_keys()
         if len(jwks_store.keys) == 0:
             logger.error("Keys not downloaded")

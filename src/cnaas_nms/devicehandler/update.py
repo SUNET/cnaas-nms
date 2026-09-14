@@ -49,7 +49,7 @@ def update_interfacedb_worker(
     current_intf: Interface
     for current_intf in current_iflist:
         if delete_all:
-            logger.debug("Deleting interface {} on device {} from interface DB".format(current_intf.name, dev.hostname))
+            logger.info("Deleting interface {} on device {} from interface DB".format(current_intf.name, dev.hostname))
             session.delete(current_intf)
         else:
             unmatched_iflist.append(current_intf)
@@ -99,11 +99,11 @@ def update_interfacedb_worker(
             log_updated_interfaces.append(intf_name)
         ret.append(intf.as_dict())
     if log_new_interfaces:
-        logger.debug(
+        logger.info(
             "New physical interfaces found on device {}: {}".format(dev.hostname, ", ".join(log_new_interfaces))
         )
     if log_updated_interfaces:
-        logger.debug(
+        logger.info(
             "Updated physical interfaces on device {}: {}".format(dev.hostname, ", ".join(log_updated_interfaces))
         )
 
@@ -226,14 +226,14 @@ def update_facts(hostname: str, job_id: Optional[int] = None, scheduled_by: str 
             diff = set_facts(dev, facts)
             dev.last_seen = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
 
-        logger.debug(
+        logger.info(
             "Updating facts for device {}, new values: {}, {}, {}, {}".format(
                 hostname, facts["serial_number"], facts["vendor"], facts["model"], facts["os_version"]
             )
         )
     except Exception as e:
         logger.exception("Could not update device with hostname {} with new facts: {}".format(hostname, str(e)))
-        logger.debug("Get facts nrresult for hostname {}: {}".format(hostname, nrresult))
+        logger.info("Get facts nrresult for hostname {}: {}".format(hostname, nrresult))
         raise e
 
     return DictJobResult(result={"diff": diff})
@@ -273,7 +273,7 @@ def update_linknets(
     ret = []
 
     local_device_inst: Device = session.query(Device).filter(Device.hostname == hostname).one()
-    logger.debug(
+    logger.info(
         "Updating linknets for device id {} ({}) of type {}...".format(
             local_device_inst.id, settings_hostname, devtype.name
         )
@@ -282,22 +282,22 @@ def update_linknets(
     for idx, (local_if, data) in enumerate(neighbors.items()):
         remote_hostname = data[0]["hostname"]
         remote_if = canonical_interface_name(data[0]["port"])
-        logger.debug(f"Local: {local_if}, remote: {remote_hostname} {remote_if}")
+        logger.info(f"Local: {local_if}, remote: {remote_hostname} {remote_if}")
         remote_device_inst: Device = session.query(Device).filter(Device.hostname == remote_hostname).one_or_none()
         if not remote_device_inst:
-            logger.debug(f"Unknown neighbor device, ignoring: {remote_hostname}")
+            logger.info(f"Unknown neighbor device, ignoring: {remote_hostname}")
             continue
         if mlag_peer_dev and remote_device_inst.id == mlag_peer_dev.id:
             # In case of MLAG init the peer does not have the correct devtype set yet,
             # use same devtype as local device instead
             remote_devtype = devtype
         elif remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
-            logger.debug("Neighbor device has invalid state, ignoring: {}".format(remote_hostname))
+            logger.info("Neighbor device has invalid state, ignoring: {}".format(remote_hostname))
             continue
         else:
             remote_devtype = remote_device_inst.device_type
 
-        logger.debug(f"Remote device found, device id: {remote_device_inst.id}")
+        logger.info(f"Remote device found, device id: {remote_device_inst.id}")
 
         local_device_inst_copy = deepcopy(local_device_inst)
         local_device_inst_copy.device_type = devtype
@@ -329,7 +329,7 @@ def update_linknets(
             .one_or_none()
         )
         if check_linknet:
-            logger.debug(f"Found existing linknet id: {check_linknet.id}")
+            logger.info(f"Found existing linknet id: {check_linknet.id}")
             if (
                 check_linknet.device_a_id == local_devid
                 and check_linknet.device_a_port == local_if

@@ -61,7 +61,7 @@ def arista_copy_cert(task, job_id: Optional[int] = None) -> str:
     if res_key.failed or res_crt.failed:
         raise CopyError("Unable to copy cert file to device: {}".format(task.host.name))
     else:
-        logger.debug("Certificate successfully copied to device: {}".format(task.host.name))
+        logger.info("Certificate successfully copied to device: {}".format(task.host.name))
 
     certstore_commands = [
         "copy flash:cnaasnms.crt certificate:",
@@ -77,7 +77,7 @@ def arista_copy_cert(task, job_id: Optional[int] = None) -> str:
             )
             raise CopyError("Unable to copy cert into certstore on device: {}".format(task.host.name))
 
-    logger.debug("Certificate successfully copied to certstore on device: {}".format(task.host.name))
+    logger.info("Certificate successfully copied to certstore on device: {}".format(task.host.name))
     return "Cert copy successful"
 
 

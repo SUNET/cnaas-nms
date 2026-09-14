@@ -572,7 +572,7 @@ class DeviceInitApi(Resource):
             )
             if other_job_count > 0:
                 init_delay_seconds = other_job_count * 2
-                logger.debug(
+                logger.info(
                     "Found {} running or scheduled init jobs, delaying this init job by {} seconds.".format(
                         other_job_count, init_delay_seconds
                     )
@@ -803,7 +803,7 @@ class DeviceDiscoverApi(Resource):
             ztp_mac=ztp_mac, dhcp_ip=dhcp_ip, iteration=1, scheduled_by=get_identity()
         )
 
-        logger.debug(f"Discover device for ztp_mac {ztp_mac} scheduled as ID {job_id}")
+        logger.info(f"Discover device for ztp_mac {ztp_mac} scheduled as ID {job_id}")
 
         res = empty_result(data=f"Scheduled job to discover device for ztp_mac {ztp_mac}")
         res["job_id"] = job_id

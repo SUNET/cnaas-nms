@@ -194,14 +194,14 @@ def socketio_on_connect():
             token_info = get_oauth_token_info(token)
             user = token_info[auth_settings.OIDC_USERNAME_ATTRIBUTE]
         except InvalidTokenError as e:
-            logger.debug("InvalidTokenError: " + format(e))
+            logger.exception(e)
             return False
     # else decode the token and get the sub there
     else:
         try:
             user = decode(token_string, app.config["JWT_PUBLIC_KEY"], algorithms=[app.config["JWT_ALGORITHM"]])["sub"]
         except DecodeError as e:
-            logger.debug("DecodeError: " + format(e))
+            logger.exception(e)
             return False
 
     if user:

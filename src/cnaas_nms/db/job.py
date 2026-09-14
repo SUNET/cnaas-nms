@@ -167,7 +167,7 @@ class Job(cnaas_nms.db.base.Base):
             pass
 
     def finish_abort(self, message: str):
-        logger.debug("Job {} aborted: {}".format(self.id, message))
+        logger.info("Job {} aborted: {}".format(self.id, message))
         self.finish_time = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)  # type: ignore
         self.status = JobStatus.ABORTED
         self.result = {"message": message}

@@ -146,7 +146,7 @@ def get_uplinks(
             except Exception:  # noqa: S110
                 continue
         if 1 <= len(uplinks) <= 2:
-            logger.debug(
+            logger.info(
                 "Existing uplinks for device {} found: {}".format(
                     hostname, ", ".join(["{}: {}".format(ifname, hostname) for ifname, hostname in uplinks.items()])
                 )
@@ -187,7 +187,7 @@ def get_uplinks(
                     )
                 uplinks[local_if[0]] = neighbor_d.hostname
 
-    logger.debug(
+    logger.info(
         "Uplinks for device {} detected: {}".format(
             hostname, ", ".join(["{}: {}".format(ifname, hostname) for ifname, hostname in uplinks.items()])
         )
@@ -221,7 +221,7 @@ def get_mlag_ifs(
         if neighbor_d.hostname == mlag_peer_hostname:
             for local_if in get_local_ifnames(dev.id, neighbor_d.id, linknets):
                 mlag_ifs[local_if] = neighbor_d.id
-    logger.debug(
+    logger.info(
         "MLAG peer interfaces for device {} detected: {}".format(
             dev.hostname, ", ".join(["{}: {}".format(ifname, hostname) for ifname, hostname in mlag_ifs.items()])
         )

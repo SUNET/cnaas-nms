@@ -13,7 +13,7 @@ def expand_interface_settings(interfaces: List[dict]) -> List[dict]:
     for intf_range in interfaces:
         expanded_names = interface_range_expansion(intf_range["name"])
         if len(expanded_names) > 1:
-            logger.debug(
+            logger.info(
                 "Expanding interface range '{}' into parts: {}".format(intf_range["name"], ", ".join(expanded_names))
             )
         for individual_name in expanded_names:

@@ -57,7 +57,7 @@ def refresh_existing_templates_worktrees(job_id: Optional[int], group_settings: 
                     add_sync_event(hostname, "refresh_templates", commit_by, job_id)
                     updated_hostnames.add(hostname)
     if updated_hostnames:
-        logger.debug(
+        logger.info(
             "Devices marked as unsynchronized because git worktree branches were refreshed: {}".format(
                 ", ".join(updated_hostnames)
             )
@@ -86,7 +86,7 @@ def refresh_templates_worktree(branch: str):
         return
     if not os.path.isdir("/tmp/worktrees"):
         os.mkdir("/tmp/worktrees")
-    logger.debug("Adding worktree for templates branch {} in folder {}".format(branch, branch_folder))
+    logger.info("Adding worktree for templates branch {} in folder {}".format(branch, branch_folder))
     try:
         local_repo.git.worktree("prune")
         local_repo.git.worktree("add", branch_folder, branch)

@@ -81,7 +81,7 @@ def job_wrapper(func):
             del thread_data.job_id
         except Exception as e:
             tb = traceback.format_exc()
-            logger.debug("Exception traceback in job_wrapper: {}".format(tb))
+            logger.warning("Exception traceback in job_wrapper: {}".format(tb))
             with sqla_session() as session:  # type: ignore
                 job = session.query(Job).filter(Job.id == job_id).one_or_none()
                 if not job:

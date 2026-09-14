@@ -551,7 +551,7 @@ def napalm_confirm_commit(task, job_id: int, prev_job_id: int):
         n_device.confirm_commit()
     elif isinstance(n_device, NapalmJunOSDriver):
         n_device.confirm_commit()
-    logger.debug("Commit for job {} confirmed on device {}".format(prev_job_id, task.host.name))
+    logger.info("Commit for job {} confirmed on device {}".format(prev_job_id, task.host.name))
     if job_id:
         with redis_session() as db:  # type: ignore
             db.lpush("finished_devices_" + str(job_id), task.host.name)
@@ -597,7 +597,7 @@ def push_sync_device(
         mapping = yaml_safe_load(f)
         template = mapping[devtype.name]["entrypoint"]
 
-    logger.debug("Generate config for host: {}".format(task.host.name))
+    logger.info("Generate config for host: {}".format(task.host.name))
     r = task.run(
         task=template_file,
         name="Generate device config",
@@ -615,7 +615,7 @@ def push_sync_device(
     if generate_only:
         task.host["change_score"] = 0
     else:
-        logger.debug(
+        logger.info(
             "Synchronize device config for host: {} ({}:{})".format(task.host.name, task.host.hostname, task.host.port)
         )
 
@@ -635,7 +635,7 @@ def push_sync_device(
             task_args["task"] = napalm_configure_confirmed
             task_args["job_id"] = job_id
             task_args["confirm_mode_override"] = confirm_mode
-        logger.debug("Commit confirm mode for host {}: {} (dry_run: {})".format(task.host.name, confirm_mode, dry_run))
+        logger.info("Commit confirm mode for host {}: {} (dry_run: {})".format(task.host.name, confirm_mode, dry_run))
         try:
             task.run(**task_args)
         except Exception as e:
@@ -775,7 +775,7 @@ def update_config_hash(task):
     else:
         with sqla_session() as session:  # type: ignore
             Device.set_config_hash(session, task.host.name, new_config_hash)
-            logger.debug("Config hash for {} updated to {}".format(task.host.name, new_config_hash))
+            logger.info("Config hash for {} updated to {}".format(task.host.name, new_config_hash))
 
 
 def confcheck_devices(session, hostnames: List[str], job_id=None):
@@ -880,7 +880,7 @@ def confirm_devices(
     with sqla_session() as session:  # type: ignore
         for host, results in nrresult.items():
             if host in failed_hosts or len(results) != 1:
-                logger.debug("Setting device as unsync for failed commit-confirm on device {}".format(host))
+                logger.info("Setting device as unsync for failed commit-confirm on device {}".format(host))
                 dev: Device = session.query(Device).filter(Device.hostname == host).one()
                 dev.synchronized = False
                 add_sync_event(host, "commit_confirm_failed", scheduled_by, job_id)
@@ -1011,7 +1011,7 @@ def sync_devices(
     # calculate change impact score
     for host, results in nrresult.items():
         if host in failed_hosts or len(results) < 3:
-            logger.debug("Unable to calculate change score for failed device {}".format(host))
+            logger.info("Unable to calculate change score for failed device {}".format(host))
         elif results[2].diff:
             changed_hosts.append(host)
             hostvar = results[0].host
@@ -1019,11 +1019,11 @@ def sync_devices(
                 raise ValueError("Host not found")
             if "change_score" in hostvar:
                 change_scores.append(hostvar["change_score"])
-                logger.debug("Change score for host {}: {:.1f}".format(host, hostvar["change_score"]))
+                logger.info("Change score for host {}: {:.1f}".format(host, hostvar["change_score"]))
         else:
             unchanged_hosts.append(host)
             change_scores.append(0)
-            logger.debug("Empty diff for host {}, 0 change score".format(host))
+            logger.info("Empty diff for host {}, 0 change score".format(host))
 
     if get_confirm_mode(confirm_mode_override) != 2:
         post_sync_update_cofighash(
@@ -1141,7 +1141,7 @@ def push_static_config(task, config: str, dry_run: bool = True, job_id: Optional
     set_thread_data(job_id)
     logger = get_logger()
 
-    logger.debug("Push static config to device: {}".format(task.host.name))
+    logger.info("Push static config to device: {}".format(task.host.name))
 
     task.run(task=napalm_configure, name="Push static config", replace=True, configuration=config, dry_run=dry_run)
 

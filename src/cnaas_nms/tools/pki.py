@@ -29,7 +29,7 @@ def get_ssl_context():
         new_ssl_context = ssl._create_unverified_context()
 
     if not new_ssl_context:
-        logger.debug("Using system default CAs")
+        logger.info("Using system default CAs")
         new_ssl_context = ssl.create_default_context()
 
     # Opt out of strict verification to allow for self-signed certs that don't have a full chain

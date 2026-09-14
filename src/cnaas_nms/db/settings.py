@@ -83,10 +83,10 @@ def get_settings_model(
         settings_fields_path = os.getenv("PLUGIN_SETTINGS_FIELDS_MODULE", "cnaas_nms.plugins.settings_fields")
         settings_fields = importlib.import_module(settings_fields_path)
         f_setting_ret = getattr(settings_fields, model)
-        logger.debug("Loaded settings_fields module from plugin: {}".format(settings_fields_path))
+        logger.info("Loaded settings_fields module from plugin: {}".format(settings_fields_path))
     except ModuleNotFoundError:
         f_setting_ret = getattr(importlib.import_module("cnaas_nms.db.settings_fields"), model)
-        logger.debug("Loaded settings_fields module from bundled cnaas-nms")
+        logger.info("Loaded settings_fields module from bundled cnaas-nms")
     except Exception as e:
         logger.error("Unable to load plugin module for settings_fields: {}".format(e))
         f_setting_ret = getattr(importlib.import_module("cnaas_nms.db.settings_fields"), model)
@@ -428,7 +428,7 @@ def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> 
                 else:
                     pydantic_descr_msg = ""
             except Exception as descr_error:
-                logger.debug(descr_error)
+                logger.exception(descr_error)
                 pydantic_descr_msg = ""
             error_msg += "Message: {}{}\n".format(error["msg"], pydantic_descr_msg)
             msg += error_msg
@@ -473,7 +473,7 @@ def check_settings_collisions(unique_vlans: bool = True):
             dev_settings, _ = get_settings(dev, dev.device_type)
             devices_dict[dev.hostname] = dev_settings
 
-    logger.debug("Memory size of all device settings: {}".format(sizeof_fmt(json.dumps(devices_dict).__sizeof__())))
+    logger.info("Memory size of all device settings: {}".format(sizeof_fmt(json.dumps(devices_dict).__sizeof__())))
 
     check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
     check_routing_policies(devices_dict)
@@ -1273,7 +1273,7 @@ def _process_access_list_terms(
                 for network in networks:
                     try:
                         if not defs._GetNet(network):
-                            logger.debug(
+                            logger.info(
                                 "Access list '{}' term '{}' has empty network definition for '{}': removing this network as skip_empty_network_definitions is True".format(
                                     access_list_name, acl_term.get("name"), field
                                 )
@@ -1289,7 +1289,7 @@ def _process_access_list_terms(
                 # Override the acl_term with the filtered networks
                 acl_term[field] = field_nets  # type: ignore[literal-required]
             elif networks and not field_nets:
-                logger.debug(
+                logger.info(
                     "Access list '{}' term '{}' has no network definitions for '{}': removing entire term skip_empty_network_definitions is True".format(
                         access_list_name, acl_term.get("name"), field
                     )
@@ -1603,14 +1603,14 @@ def rebuild_settings_cache() -> None:
         AccessListGenerationError: There is an error when generating access_lists
     """
     logger = get_logger()
-    logger.debug("Clearing redis-lru cache for settings")
+    logger.info("Clearing redis-lru cache for settings")
     with redis_session() as redis_db:  # type: ignore
         mem_stats_before = redis_db.memory_stats()
         cache = NMSRedisLRU(redis_db)
         cache.clear_all_cache()
         mem_stats_after = redis_db.memory_stats()
         try:
-            logger.debug(
+            logger.info(
                 "Redis allocated before: {} ({} keys), after: {} ({} keys)".format(
                     sizeof_fmt(mem_stats_before["total.allocated"]),
                     mem_stats_before["keys.count"],

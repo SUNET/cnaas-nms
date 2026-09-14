@@ -54,7 +54,7 @@ def filter_job_dict(job_dict: dict, args: dict) -> dict:
                 except KeyError:
                     pass
                 except Exception as e:
-                    logger.debug("job filter_response exception: {}".format(e))
+                    logger.exception(e)
     return job_dict
 
 

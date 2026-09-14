@@ -59,7 +59,7 @@ def pre_schedule_checks(scheduler, kwargs):
                 check_ok = False
 
     if not check_ok:
-        logger.debug(message)
+        logger.info(message)
         with sqla_session() as session:  # type: ignore
             job_entry: Optional[Job] = session.query(Job).filter(Job.id == kwargs["job_id"]).one_or_none()
             if job_entry:

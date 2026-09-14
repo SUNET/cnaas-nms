@@ -62,7 +62,7 @@ def add_sync_event(
             if not redis.exists(REDIS_SYNC_HISTORY_KEYNAME):
                 new_history = SyncHistory(history={hostname: [sync_event]})
                 redis.hset(REDIS_SYNC_HISTORY_KEYNAME, mapping=new_history.redis_dump())
-                logger.debug("New sync_history hash created in redis")
+                logger.info("New sync_history hash created in redis")
             else:
                 current_sync_event_data = redis.hget(REDIS_SYNC_HISTORY_KEYNAME, hostname)
                 current_sync_events: List[SyncEvent] = []

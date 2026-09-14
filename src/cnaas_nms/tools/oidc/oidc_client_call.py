@@ -40,10 +40,10 @@ def get_token_info_from_userinfo(session: requests.Session, token: Token, user_i
     except requests.exceptions.HTTPError as e:
         try:
             body = json.loads(e.response.content)
-            logger.debug("OIDC userinfo endpoint request not successful: " + body["error_description"])
+            logger.warning("OIDC userinfo endpoint request not successful: " + body["error_description"])
             raise e
         except (json.decoder.JSONDecodeError, KeyError):
-            logger.debug("OIDC userinfo endpoint request not successful: {}".format(str(e)))
+            logger.warning("OIDC userinfo endpoint request not successful: {}".format(str(e)))
             raise e
     except requests.exceptions.JSONDecodeError as e:
         raise InvalidTokenError("Invalid JSON in userinfo response: {}".format(str(e)))
@@ -66,10 +66,10 @@ def get_token_info_from_introspect(session: requests.Session, token: Token, intr
     except requests.exceptions.HTTPError as e:
         try:
             body = json.loads(e.response.content)
-            logger.debug("OIDC introspection endpoint request not successful: " + body["error_description"])
+            logger.warning("OIDC introspection endpoint request not successful: " + body["error_description"])
             raise InvalidTokenError(body["error_description"])
         except (json.decoder.JSONDecodeError, KeyError):
-            logger.debug("OIDC introspection endpoint request not successful: {}".format(str(e)))
+            logger.warning("OIDC introspection endpoint request not successful: {}".format(str(e)))
             raise InvalidTokenError(str(e))
     except requests.exceptions.JSONDecodeError as e:
         raise InvalidTokenError("Invalid JSON in introspection response: {}".format(str(e)))

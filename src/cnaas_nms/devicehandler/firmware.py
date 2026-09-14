@@ -135,7 +135,7 @@ def arista_post_flight_check(
                     task.results[-1].failed = False
             else:
                 if isinstance(res, MultiResult) and not res.failed:
-                    logger.debug("Device {} responsive on check attempt {}".format(task.host.name, i + 1))
+                    logger.info("Device {} responsive on check attempt {}".format(task.host.name, i + 1))
                     os_version = res[0].result["facts"]["os_version"]
                     break
             time.sleep(max(60 - (time.time() - start_time), 0))
@@ -201,7 +201,7 @@ def arista_firmware_download(
         if "Copy completed successfully" in res.result:
             return "Firmware download done."
         else:
-            logger.debug(
+            logger.error(
                 "Firmware download failed on {} ('{}'): {}".format(task.host.name, firmware_download_cmd, res.result)
             )
             raise Exception(
@@ -309,7 +309,7 @@ def arista_device_reboot(task, job_id: Optional[int] = None) -> str:  # type: ig
             raise Exception("Could not reboot device {}".format(task.host.name))
 
         if res.result:
-            logger.debug("Error when rebooting device {}: {}".format(task.host.name, res.result))
+            logger.error("Error when rebooting device {}: {}".format(task.host.name, res.result))
     except Exception as e:  # noqa: S110
         logger.exception("Failed to reboot switch {}: {}".format(task.host.name, str(e)))
         raise e
@@ -398,7 +398,7 @@ def device_upgrade_task(
             res = task.run(task=arista_firmware_activate, filename=filename, job_id=job_id)
         except NornirSubTaskError as e:
             subtask_result = e.result[0]
-            logger.debug("Exception while activating firmware for {}: {}".format(task.host.name, subtask_result))
+            logger.error("Exception while activating firmware for {}: {}".format(task.host.name, subtask_result))
             if subtask_result.exception:
                 if isinstance(subtask_result.exception, FirmwareAlreadyActiveException):
                     already_active = True

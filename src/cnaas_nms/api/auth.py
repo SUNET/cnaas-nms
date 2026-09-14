@@ -152,7 +152,7 @@ class PermissionsAPI(Resource):
     def get(self):
         permissions_rules = auth_settings.PERMISSIONS
         if not permissions_rules:
-            logger.debug("No permissions defined, so nobody is permitted to do any api calls.")
+            logger.info("No permissions defined, so nobody is permitted to do any api calls.")
             return []
         user_info = get_oauth_token_info(current_token)
         permissions_of_user = get_permissions_user(permissions_rules, user_info)

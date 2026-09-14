@@ -30,7 +30,7 @@ def create_syncto_fencing_token(job_id: int, device_list: List[str]):
             print_device_list = ", ".join(device_list[:10]) + (
                 f"... ({len(device_list)} total)" if len(device_list) > 10 else ""
             )
-            logger.debug("Created fencing token for job_id {} with devices: {}".format(job_id, print_device_list))
+            logger.info("Created fencing token for job_id {} with devices: {}".format(job_id, print_device_list))
     except RedisError as e:
         logger.exception("Redis Error while creating fencing token: {}".format(e))
         raise
@@ -62,7 +62,7 @@ def delete_fencing_token(hostname: str):
                 device_list = json.loads(device_list_json)
                 if hostname in device_list:
                     redis.hdel(REDIS_FENCING_TOKENS_KEY, token_job_id)
-                    logger.debug(
+                    logger.info(
                         "Deleted fencing token {} because hostname {} is in device list".format(token_job_id, hostname)
                     )
     except RedisError as e:
@@ -78,6 +78,6 @@ def delete_all_fencing_tokens():
         with redis_session() as redis:  # type: ignore
             result = redis.delete(REDIS_FENCING_TOKENS_KEY)
             if result:
-                logger.debug("Deleted all fencing tokens from Redis")
+                logger.info("Deleted all fencing tokens from Redis")
     except RedisError as e:
         logger.exception("Redis Error while deleting fencing tokens: {}".format(e))

@@ -4,6 +4,10 @@ Changelog
 Version 1.9.1
 -------------
 
+New features:
+
+ - Optional error reporting to Sentry, enabled by configuring a DSN (#584)
+
 Bug fixes:
 
  - exec-pre-app runs once in the uWSGI master, before the workers fork, so a half-written repository.yml can no longer leave the API answering 500 (#637)

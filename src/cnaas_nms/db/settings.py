@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import threading
 import types
 from ipaddress import ip_interface
 from pathlib import Path
@@ -68,6 +69,8 @@ def get_settings_model(model: Literal["f_interfaces"]) -> type[f_interfaces_mode
 def get_settings_model(model: Literal["f_routing"]) -> type[f_routing_model]: ...
 @overload
 def get_settings_model(model: Literal["f_vxlans"]) -> type[f_vxlans_model]: ...
+
+
 # Cache of the resolved settings_fields module, so the "where did this come from" message
 # is only logged once per process (this module gets loaded once per required model, and
 # get_settings_model() is also called at import time below, for every model).
@@ -1474,39 +1477,59 @@ def get_generated_access_lists(
     return generated_configs
 
 
+# Serializes access to the root logger handler swap-out/restore in _generate_acl(), since the
+# root logger is shared global state across all threads/greenlets in a worker process.
+_generate_acl_logging_lock = threading.Lock()
+
+
 @redis_lru_cache
 def _generate_acl(
     policies: List[PolicyDict], defs: naming.Naming, includes: dict[str, PolicyFilterTermsOnly]
 ) -> dict[str, str]:
     # Aerleon uses absl as logging.
     # Override logging and set our own capture handler as the only log handler.
-    absl_logging.use_python_logging(quiet=True)
-    aerleon_logger = absl_logging.get_absl_logger()
-    current_root_handlers = aerleon_logger.root.handlers
-    for c_handler in current_root_handlers:
-        aerleon_logger.root.removeHandler(c_handler)
-
-    # Create the new handler and attach to aerleon_logger
-    handler = CaptureHandler()
-    handler.setLevel(logging.WARNING)
-    aerleon_logger.addHandler(handler)
-
-    try:
-        configs = Generate(
-            policies,
-            defs,
-            optimize=api_settings.ACCESS_LIST_OPTIMIZE,
-            # Does not seem to work currently
-            # investigate future use-cases
-            shade_check=False,
-            includes=includes,
-        )
-    finally:
-        # Revert back absl handlers
+    # The root logger is shared, global, mutable state across the whole process (all threads/
+    # greenlets), so this swap-out/restore must be serialized. Without the lock, two concurrent
+    # calls can interleave: one call's in-flight leaked handler (see below) gets captured as a
+    # "pre-existing" handler by another call's snapshot and gets permanently restored, causing
+    # handlers to accumulate on the root logger over the life of the process.
+    with _generate_acl_logging_lock:
+        absl_logging.use_python_logging(quiet=True)
+        aerleon_logger = absl_logging.get_absl_logger()
+        # Take a snapshot copy of the handler list. aerleon_logger.root.handlers is the live list
+        # object, so removing handlers from it below would otherwise also mutate this "saved" copy.
+        current_root_handlers = list(aerleon_logger.root.handlers)
         for c_handler in current_root_handlers:
-            aerleon_logger.root.addHandler(c_handler)
+            aerleon_logger.root.removeHandler(c_handler)
 
-        aerleon_logger.removeHandler(handler)
+        # Create the new handler and attach to aerleon_logger
+        handler = CaptureHandler()
+        handler.setLevel(logging.WARNING)
+        aerleon_logger.addHandler(handler)
+
+        try:
+            configs = Generate(
+                policies,
+                defs,
+                optimize=api_settings.ACCESS_LIST_OPTIMIZE,
+                # Does not seem to work currently
+                # investigate future use-cases
+                shade_check=False,
+                includes=includes,
+            )
+        finally:
+            # Generate() may trigger absl logging calls which, finding an empty root logger
+            # (we just emptied it above), call logging.basicConfig() and leak a plain
+            # StreamHandler onto the root logger. Remove any such handlers before restoring
+            # the original ones, or they accumulate (and duplicate log output) on every call.
+            for c_handler in list(aerleon_logger.root.handlers):
+                aerleon_logger.root.removeHandler(c_handler)
+
+            # Revert back absl handlers
+            for c_handler in current_root_handlers:
+                aerleon_logger.root.addHandler(c_handler)
+
+            aerleon_logger.removeHandler(handler)
 
     if handler.records:
         logger = get_logger()

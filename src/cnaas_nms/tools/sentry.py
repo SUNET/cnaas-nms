@@ -13,10 +13,11 @@ from cnaas_nms.version import __version__
 if TYPE_CHECKING:
     from sentry_sdk._types import Event, Hint
 
-# Names of fields holding a credential: anything ending in "jwt" or "token", plus
-# the OIDC authorization code. Sentry knows "token" but only as an exact match,
-# so "access_token" and friends reach an event untouched.
-SENSITIVE_NAME = r"[\w-]*(?:jwt|token)|code"
+# Names of fields holding a credential: anything containing "jwt" or "token",
+# such as "access_token" and the "token_string" holding a bearer JWT, plus the
+# OIDC authorization code. Sentry knows "token" but only as an exact match, so
+# every other spelling reaches an event untouched.
+SENSITIVE_NAME = r"[\w-]*(?:jwt|token)[\w-]*|code"
 
 SENSITIVE_NAME_RE = re.compile(SENSITIVE_NAME, re.IGNORECASE)
 
@@ -29,15 +30,31 @@ _FILTERED = "[Filtered]"
 # never passes through that scrubbing at all.
 SENSITIVE_QUERY_RE = re.compile(r"\b(?P<param>{})=[^&\s\"'>]+".format(SENSITIVE_NAME), re.IGNORECASE)
 
+# The same credentials inside a serialized mapping, where scrubbing by field name
+# no longer applies: the API logs a request body into its message, so a
+# credential renders as "'fencing_token': 'secret'" inside a single string.
+SENSITIVE_MAPPING_RE = re.compile(
+    r"(?P<name>['\"](?:{})['\"])(?P<separator>\s*:\s*)(?P<value>'[^']*'|\"[^\"]*\"|[^\s,}}\]]+)".format(SENSITIVE_NAME),
+    re.IGNORECASE,
+)
+
 
 def _is_sensitive_name(name: Any) -> bool:
     """Report whether a field name holds a credential."""
     return isinstance(name, str) and SENSITIVE_NAME_RE.fullmatch(name) is not None
 
 
+def _redact_mapping(match: "re.Match[str]") -> str:
+    """Replace a credential value in a serialized mapping, keeping its quoting."""
+    value = match.group("value")
+    quote = value[0] if value[0] in "\"'" else ""
+    return "{}{}{}{}{}".format(match.group("name"), match.group("separator"), quote, _FILTERED, quote)
+
+
 def _redact(value: str) -> str:
-    """Replace credential query parameter values in a string."""
-    return SENSITIVE_QUERY_RE.sub(lambda match: "{}={}".format(match.group("param"), _FILTERED), value)
+    """Replace credential values in a string, both in query parameters and in a serialized mapping."""
+    redacted = SENSITIVE_QUERY_RE.sub(lambda match: "{}={}".format(match.group("param"), _FILTERED), value)
+    return SENSITIVE_MAPPING_RE.sub(_redact_mapping, redacted)
 
 
 def _scrub_event(event: "Event", hint: "Hint") -> "Event":
@@ -85,6 +102,7 @@ def sentry_init(component: str) -> bool:
         send_default_pii=sentry_settings.SENTRY_SEND_DEFAULT_PII,
         event_scrubber=EventScrubber(recursive=True),
         before_send=_scrub_event,
+        before_send_transaction=_scrub_event,
     )
     sentry_sdk.get_global_scope().set_tag("component", component)
     return True

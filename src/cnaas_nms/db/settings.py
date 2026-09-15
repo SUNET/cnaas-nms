@@ -58,19 +58,6 @@ from cnaas_nms.tools.log import CaptureHandler, get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
 from cnaas_nms.tools.yaml import yaml_safe_load
 
-
-@overload
-def get_settings_model(model: Literal["f_access_lists"]) -> type[f_access_lists_model]: ...
-@overload
-def get_settings_model(model: Literal["f_base_system"]) -> type[f_base_system_model]: ...
-@overload
-def get_settings_model(model: Literal["f_interfaces"]) -> type[f_interfaces_model]: ...
-@overload
-def get_settings_model(model: Literal["f_routing"]) -> type[f_routing_model]: ...
-@overload
-def get_settings_model(model: Literal["f_vxlans"]) -> type[f_vxlans_model]: ...
-
-
 # Cache of the resolved settings_fields module, so the "where did this come from" message
 # is only logged once per process (this module gets loaded once per required model, and
 # get_settings_model() is also called at import time below, for every model).
@@ -98,6 +85,16 @@ def _load_settings_fields_module():
     return _settings_fields_module
 
 
+@overload
+def get_settings_model(model: Literal["f_access_lists"]) -> type[f_access_lists_model]: ...
+@overload
+def get_settings_model(model: Literal["f_base_system"]) -> type[f_base_system_model]: ...
+@overload
+def get_settings_model(model: Literal["f_interfaces"]) -> type[f_interfaces_model]: ...
+@overload
+def get_settings_model(model: Literal["f_routing"]) -> type[f_routing_model]: ...
+@overload
+def get_settings_model(model: Literal["f_vxlans"]) -> type[f_vxlans_model]: ...
 def get_settings_model(
     model: str,
 ) -> type[BaseModel]:

@@ -33,6 +33,11 @@ class StdoutHandler(logging.StreamHandler):
         super().emit(record)
 
 
+def sanitize_log_value(value: object) -> str:
+    """Strip newlines from externally-supplied data to prevent log injection/forgery."""
+    return str(value).replace("\r", "").replace("\n", "")
+
+
 def get_logger():
     if hasattr(thread_data, "job_id") and type(thread_data.job_id) is int:
         logger = logging.getLogger("cnaas-nms-{}".format(thread_data.job_id))

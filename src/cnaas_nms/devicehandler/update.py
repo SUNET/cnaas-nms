@@ -25,7 +25,7 @@ from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.underlay import find_free_infra_linknet
 from cnaas_nms.scheduler.jobresult import DictJobResult
 from cnaas_nms.scheduler.wrapper import job_wrapper
-from cnaas_nms.tools.log import get_logger
+from cnaas_nms.tools.log import get_logger, sanitize_log_value
 
 
 def update_interfacedb_worker(
@@ -282,17 +282,21 @@ def update_linknets(
     for idx, (local_if, data) in enumerate(neighbors.items()):
         remote_hostname = data[0]["hostname"]
         remote_if = canonical_interface_name(data[0]["port"])
-        logger.info(f"Local: {local_if}, remote: {remote_hostname} {remote_if}")
+        logger.info(
+            "Local: {}, remote: {} {}".format(
+                sanitize_log_value(local_if), sanitize_log_value(remote_hostname), sanitize_log_value(remote_if)
+            )
+        )
         remote_device_inst: Device = session.query(Device).filter(Device.hostname == remote_hostname).one_or_none()
         if not remote_device_inst:
-            logger.info(f"Unknown neighbor device, ignoring: {remote_hostname}")
+            logger.info("Unknown neighbor device, ignoring: {}".format(sanitize_log_value(remote_hostname)))
             continue
         if mlag_peer_dev and remote_device_inst.id == mlag_peer_dev.id:
             # In case of MLAG init the peer does not have the correct devtype set yet,
             # use same devtype as local device instead
             remote_devtype = devtype
         elif remote_device_inst.state not in [DeviceState.MANAGED, DeviceState.UNMANAGED]:
-            logger.info("Neighbor device has invalid state, ignoring: {}".format(remote_hostname))
+            logger.info("Neighbor device has invalid state, ignoring: {}".format(sanitize_log_value(remote_hostname)))
             continue
         else:
             remote_devtype = remote_device_inst.device_type

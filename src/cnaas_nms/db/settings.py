@@ -58,14 +58,12 @@ from cnaas_nms.tools.log import CaptureHandler, get_logger
 from cnaas_nms.tools.mergedict import merge_dict_origin
 from cnaas_nms.tools.yaml import yaml_safe_load
 
-# Cache of the resolved settings_fields module, so the "where did this come from" message
-# is only logged once per process (this module gets loaded once per required model, and
-# get_settings_model() is also called at import time below, for every model).
+# Cache of the resolved settings_fields module, so it's only resolved (and logged) once per process.
 _settings_fields_module = None
 
 
 def _load_settings_fields_module():
-    """Resolve (and log, once) which settings_fields module is in use: a plugin override or the bundled one."""
+    """Resolve which settings_fields module is in use: a plugin override or the bundled one."""
     global _settings_fields_module
     logger = get_logger()
 
@@ -1474,8 +1472,7 @@ def get_generated_access_lists(
     return generated_configs
 
 
-# Serializes access to the root logger handler swap-out/restore in _generate_acl(), since the
-# root logger is shared global state across all threads/greenlets in a worker process.
+# Serializes root logger handler swap-out/restore in _generate_acl(); root is shared, global state.
 _generate_acl_logging_lock = threading.Lock()
 
 
@@ -1485,16 +1482,10 @@ def _generate_acl(
 ) -> dict[str, str]:
     # Aerleon uses absl as logging.
     # Override logging and set our own capture handler as the only log handler.
-    # The root logger is shared, global, mutable state across the whole process (all threads/
-    # greenlets), so this swap-out/restore must be serialized. Without the lock, two concurrent
-    # calls can interleave: one call's in-flight leaked handler (see below) gets captured as a
-    # "pre-existing" handler by another call's snapshot and gets permanently restored, causing
-    # handlers to accumulate on the root logger over the life of the process.
     with _generate_acl_logging_lock:
         absl_logging.use_python_logging(quiet=True)
         aerleon_logger = absl_logging.get_absl_logger()
-        # Take a snapshot copy of the handler list. aerleon_logger.root.handlers is the live list
-        # object, so removing handlers from it below would otherwise also mutate this "saved" copy.
+        # Copy the handler list: removeHandler() below mutates it in place.
         current_root_handlers = list(aerleon_logger.root.handlers)
         for c_handler in current_root_handlers:
             aerleon_logger.root.removeHandler(c_handler)
@@ -1515,11 +1506,11 @@ def _generate_acl(
                 includes=includes,
             )
         finally:
-            # Generate() may trigger absl logging calls which, finding an empty root logger
-            # (we just emptied it above), call logging.basicConfig() and leak a plain
-            # StreamHandler onto the root logger. Remove any such handlers before restoring
-            # the original ones, or they accumulate (and duplicate log output) on every call.
-            for c_handler in list(aerleon_logger.root.handlers):
+            # Generate() may log via absl, which calls logging.basicConfig() and leaks a
+            # StreamHandler onto root when it's empty (as we just made it). Clear those before
+            # restoring the originals, or they accumulate on every call.
+            leaked_root_handlers = list(aerleon_logger.root.handlers)
+            for c_handler in leaked_root_handlers:
                 aerleon_logger.root.removeHandler(c_handler)
 
             # Revert back absl handlers

@@ -35,6 +35,10 @@ services:
       - PERMISSIONS_DISABLED
       - SENTRY_DSN
       - SENTRY_ENVIRONMENT
+      - SENTRY_RELEASE
+      - SENTRY_TRACES_SAMPLE_RATE
+      - SENTRY_SAMPLE_RATE
+      - SENTRY_SEND_DEFAULT_PII
     depends_on:
       - "cnaas_postgres"
       - "cnaas_redis"

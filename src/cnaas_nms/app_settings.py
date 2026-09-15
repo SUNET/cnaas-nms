@@ -248,14 +248,17 @@ def construct_sentry_settings() -> SentrySettings:
     if sentry_config.is_file():
         with open(sentry_config, "r") as sentry_file:
             config = yaml_safe_load(sentry_file) or {}
-        sentry_settings = SentrySettings(
-            SENTRY_DSN=config.get("dsn", sentry_settings.SENTRY_DSN),
-            SENTRY_ENVIRONMENT=config.get("environment", sentry_settings.SENTRY_ENVIRONMENT),
-            SENTRY_RELEASE=config.get("release", sentry_settings.SENTRY_RELEASE),
-            SENTRY_TRACES_SAMPLE_RATE=config.get("traces_sample_rate", sentry_settings.SENTRY_TRACES_SAMPLE_RATE),
-            SENTRY_SAMPLE_RATE=config.get("sample_rate", sentry_settings.SENTRY_SAMPLE_RATE),
-            SENTRY_SEND_DEFAULT_PII=config.get("send_default_pii", sentry_settings.SENTRY_SEND_DEFAULT_PII),
-        )
+        # The packaged file ships an empty dsn, so an empty value means the
+        # setting is not configured here and the environment value stands.
+        overrides: dict[str, Any] = {
+            "SENTRY_DSN": config.get("dsn"),
+            "SENTRY_ENVIRONMENT": config.get("environment"),
+            "SENTRY_RELEASE": config.get("release"),
+            "SENTRY_TRACES_SAMPLE_RATE": config.get("traces_sample_rate"),
+            "SENTRY_SAMPLE_RATE": config.get("sample_rate"),
+            "SENTRY_SEND_DEFAULT_PII": config.get("send_default_pii"),
+        }
+        sentry_settings = SentrySettings(**{key: value for key, value in overrides.items() if value not in (None, "")})
 
     return sentry_settings
 

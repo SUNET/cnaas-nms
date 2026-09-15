@@ -123,7 +123,7 @@ environment variable.
   and usernames in events. Defaults to False.
 
 Credentials are replaced with ``[Filtered]`` before an event is sent: any field
-or query parameter whose name ends in ``jwt`` or ``token``, plus the OIDC
+or query parameter whose name contains ``jwt`` or ``token``, plus the OIDC
 ``code``. Events are tagged with a ``component`` of either "api" or
 "scheduler_mule" to show which process reported the error.
 
@@ -160,6 +160,10 @@ cnaas_api
   settings_fields, defaults to: cnaas_nms.plugins.settings_fields
 - ``SENTRY_DSN`` -- Sentry DSN to report errors to. Sentry is disabled when unset.
 - ``SENTRY_ENVIRONMENT`` -- environment name reported to Sentry
+- ``SENTRY_RELEASE`` -- release reported to Sentry
+- ``SENTRY_TRACES_SAMPLE_RATE`` -- fraction of transactions sent for performance monitoring
+- ``SENTRY_SAMPLE_RATE`` -- fraction of error events sent
+- ``SENTRY_SEND_DEFAULT_PII`` -- set True to include personal data in events
 
 cnaas_httpd
 

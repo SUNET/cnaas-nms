@@ -1,12 +1,34 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 import sentry_sdk
 
-from cnaas_nms.app_settings import SentrySettings
+from cnaas_nms.app_settings import SentrySettings, construct_sentry_settings
 from cnaas_nms.tools.sentry import _scrub_event, sentry_init
 
 TEST_DSN = "https://publickey@sentry.example.com/1"
+
+
+class SentryConfigTests(unittest.TestCase):
+    def construct_with_config(self, contents: str) -> SentrySettings:
+        with (
+            patch("cnaas_nms.app_settings.Path.is_file", return_value=True),
+            patch("builtins.open", mock_open(read_data=contents)),
+        ):
+            return construct_sentry_settings()
+
+    def test_environment_enables_sentry_when_the_packaged_file_leaves_the_dsn_empty(self):
+        """The container always ships sentry_config.yml, so SENTRY_DSN must still take effect."""
+        with patch.dict("os.environ", {"SENTRY_DSN": TEST_DSN}):
+            settings = self.construct_with_config('dsn: ""\n')
+
+        self.assertEqual(settings.SENTRY_DSN, TEST_DSN)
+
+    def test_configured_file_wins_over_the_environment(self):
+        with patch.dict("os.environ", {"SENTRY_DSN": "https://publickey@sentry.example.com/2"}):
+            settings = self.construct_with_config("dsn: {}\n".format(TEST_DSN))
+
+        self.assertEqual(settings.SENTRY_DSN, TEST_DSN)
 
 
 class SentryInitTests(unittest.TestCase):
@@ -51,6 +73,13 @@ class SentryInitTests(unittest.TestCase):
             sentry_init("api")
 
         self.assertEqual(sentry_sdk.get_client().options["release"], "cnaas-nms@custom")
+
+    def test_transactions_are_scrubbed_like_errors(self):
+        """Performance monitoring sends transactions, which carry the request URL and its query string."""
+        with patch("cnaas_nms.tools.sentry.sentry_settings", SentrySettings(SENTRY_DSN=TEST_DSN)):
+            sentry_init("api")
+
+        self.assertEqual(sentry_sdk.get_client().options["before_send_transaction"], _scrub_event)
 
     def test_personal_data_is_not_sent_by_default(self):
         with patch("cnaas_nms.tools.sentry.sentry_settings", SentrySettings(SENTRY_DSN=TEST_DSN)):
@@ -132,6 +161,28 @@ class ScrubEventTests(unittest.TestCase):
         scrubbed = _scrub_event(event, {})
 
         self.assertEqual(scrubbed["extra"], event["extra"])
+
+    def test_bearer_token_in_a_stacktrace_local_is_not_reported(self):
+        """The API holds a bearer JWT in a local named token_string while it authenticates a request."""
+        event = {"exception": {"values": [{"stacktrace": {"frames": [{"vars": {"token_string": "secret-token"}}]}}]}}
+
+        scrubbed = _scrub_event(event, {})
+
+        self.assertNotIn("secret-token", str(scrubbed))
+
+    def test_credential_in_a_logged_request_body_is_not_reported(self):
+        """The API logs a request body into its message, so a credential arrives as serialized text."""
+        event = {
+            "logentry": {
+                "message": "Method: POST, URL: /api/v1.0/device_syncto, "
+                "JSON: {'hostname': 'eosdist1', 'fencing_token': 'secret-token'}"
+            }
+        }
+
+        scrubbed = _scrub_event(event, {})
+
+        self.assertNotIn("secret-token", str(scrubbed))
+        self.assertIn("'hostname': 'eosdist1'", scrubbed["logentry"]["message"])
 
     def test_token_in_a_log_message_is_not_reported(self):
         event = {"logentry": {"message": "request failed for /api/v1.0/devices?jwt=secret-token"}}

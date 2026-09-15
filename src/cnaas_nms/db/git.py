@@ -294,9 +294,7 @@ def _refresh_repo_task_settings(job_id: Optional[int] = None) -> str:
             (", ".join([dt.name for dt in updated_devtypes])) or "None"
         )
     )
-    logger.info(
-        "Devices to be marked unsynced after repo refresh: {}".format((", ".join(updated_hostnames)) or "None")
-    )
+    logger.info("Devices to be marked unsynced after repo refresh: {}".format((", ".join(updated_hostnames)) or "None"))
     with sqla_session() as session:  # type: ignore
         devtype: DeviceType
         for devtype in updated_devtypes:
@@ -325,9 +323,7 @@ def _refresh_repo_task_templates(job_id: Optional[int] = None) -> str:
     logger.info("Files changed in template repository: {}".format(changed_files or "None"))
     updated_devtypes = template_syncstatus(updated_templates=changed_files)
     updated_list = ["{}:{}".format(platform, dt.name) for dt, platform in updated_devtypes]
-    logger.info(
-        "Devicestypes to be marked unsynced after repo refresh: {}".format((", ".join(updated_list)) or "None")
-    )
+    logger.info("Devicestypes to be marked unsynced after repo refresh: {}".format((", ".join(updated_list)) or "None"))
     with sqla_session() as session:  # type: ignore
         devtype: DeviceType
         for devtype, platform in updated_devtypes:

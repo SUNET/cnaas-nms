@@ -24,7 +24,7 @@ def get_token_info_from_cache(token: Token) -> Optional[dict]:
     except RedisError as e:
         logger.error("Redis cache error: {}".format(str(e)))
     except (TypeError, KeyError) as e:
-        logger.error("Error while getting userinfo cache: {}".format(str(e)))
+        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
     return None
 
 
@@ -42,5 +42,5 @@ def put_token_info_in_cache(token: Token, token_info) -> bool:
     except RedisError as e:
         logger.warning("Redis cache error: {}".format(str(e)))
     except (TypeError, KeyError) as e:
-        logger.warning("Error while getting userinfo cache: {}".format(str(e)))
+        logger.debug("Error while getting userinfo cache: {}".format(str(e)))
     return False

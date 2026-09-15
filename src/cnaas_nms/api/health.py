@@ -1,3 +1,5 @@
+import logging
+import os
 import time
 from typing import Dict, List, Literal, Optional, Tuple
 
@@ -77,3 +79,34 @@ def get_health_live():
 def get_health_ready():
     """Report whether the API can reach the dependencies it needs to answer requests."""
     return health_response(readiness_checks())
+
+
+def _describe_handlers(handlers: List[logging.Handler]) -> List[Dict[str, str]]:
+    return [
+        {"type": type(h).__name__, "id": hex(id(h)), "level": logging.getLevelName(h.level)} for h in handlers
+    ]
+
+
+# TEMPORARY debug endpoint to investigate duplicate log lines. Remove once resolved.
+@health_bp.get("/health/debug/logging")
+def get_health_debug_logging():
+    """Report the current process's logger/handler state, to debug duplicated log lines."""
+    root_logger = logging.getLogger()
+    cnaas_logger = logging.getLogger("cnaas-nms")
+    return (
+        jsonify(
+            {
+                "pid": os.getpid(),
+                "root": {
+                    "handlers": _describe_handlers(root_logger.handlers),
+                    "level": logging.getLevelName(root_logger.level),
+                },
+                "cnaas-nms": {
+                    "handlers": _describe_handlers(cnaas_logger.handlers),
+                    "propagate": cnaas_logger.propagate,
+                    "level": logging.getLevelName(cnaas_logger.level),
+                },
+            }
+        ),
+        200,
+    )

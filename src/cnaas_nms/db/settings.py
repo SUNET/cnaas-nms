@@ -68,6 +68,33 @@ def get_settings_model(model: Literal["f_interfaces"]) -> type[f_interfaces_mode
 def get_settings_model(model: Literal["f_routing"]) -> type[f_routing_model]: ...
 @overload
 def get_settings_model(model: Literal["f_vxlans"]) -> type[f_vxlans_model]: ...
+# Cache of the resolved settings_fields module, so the "where did this come from" message
+# is only logged once per process (this module gets loaded once per required model, and
+# get_settings_model() is also called at import time below, for every model).
+_settings_fields_module = None
+
+
+def _load_settings_fields_module():
+    """Resolve (and log, once) which settings_fields module is in use: a plugin override or the bundled one."""
+    global _settings_fields_module
+    logger = get_logger()
+
+    if _settings_fields_module is not None:
+        return _settings_fields_module
+
+    try:
+        settings_fields_path = os.getenv("PLUGIN_SETTINGS_FIELDS_MODULE", "cnaas_nms.plugins.settings_fields")
+        _settings_fields_module = importlib.import_module(settings_fields_path)
+        logger.debug("Loaded settings_fields module from plugin: {}".format(settings_fields_path))
+    except ModuleNotFoundError:
+        _settings_fields_module = importlib.import_module("cnaas_nms.db.settings_fields")
+        logger.debug("Loaded settings_fields module from bundled cnaas-nms")
+    except Exception as e:
+        logger.error("Unable to load plugin module for settings_fields: {}".format(e))
+        _settings_fields_module = importlib.import_module("cnaas_nms.db.settings_fields")
+    return _settings_fields_module
+
+
 def get_settings_model(
     model: str,
 ) -> type[BaseModel]:
@@ -79,18 +106,8 @@ def get_settings_model(
         logger.error(f"Model: '{model}' is not valid, valid options: {valid_models}")
         raise ValueError(f"Invalid model '{model}'. Valid options are: {valid_models}")
 
-    try:
-        settings_fields_path = os.getenv("PLUGIN_SETTINGS_FIELDS_MODULE", "cnaas_nms.plugins.settings_fields")
-        settings_fields = importlib.import_module(settings_fields_path)
-        f_setting_ret = getattr(settings_fields, model)
-        logger.info("Loaded settings_fields module from plugin: {}".format(settings_fields_path))
-    except ModuleNotFoundError:
-        f_setting_ret = getattr(importlib.import_module("cnaas_nms.db.settings_fields"), model)
-        logger.info("Loaded settings_fields module from bundled cnaas-nms")
-    except Exception as e:
-        logger.error("Unable to load plugin module for settings_fields: {}".format(e))
-        f_setting_ret = getattr(importlib.import_module("cnaas_nms.db.settings_fields"), model)
-    return f_setting_ret
+    settings_fields = _load_settings_fields_module()
+    return getattr(settings_fields, model)
 
 
 f_access_lists = get_settings_model("f_access_lists")

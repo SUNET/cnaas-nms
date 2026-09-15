@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import uuid
 from typing import Dict, List, Literal, Optional, Tuple
 
 from flask import Blueprint, Response, jsonify
@@ -72,6 +73,8 @@ def get_health():
 @health_bp.get("/health/live")
 def get_health_live():
     """Report that the API process runs. Performs no I/O, so a dependency outage never fails it."""
+    # TEMPORARY debug marker to investigate duplicate log lines. Remove once resolved.
+    logger.info("DEBUG_MARKER pid={} req_id={}".format(os.getpid(), uuid.uuid4()))
     return health_response([])
 
 

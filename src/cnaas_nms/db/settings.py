@@ -59,28 +59,32 @@ from cnaas_nms.tools.mergedict import merge_dict_origin
 from cnaas_nms.tools.yaml import yaml_safe_load
 
 # Cache of the resolved settings_fields module, so it's only resolved (and logged) once per process.
-_settings_fields_module = None
+_settings_fields_module = {}
 
 
-def _load_settings_fields_module():
+def _load_settings_fields_module(model: str):
     """Resolve which settings_fields module is in use: a plugin override or the bundled one."""
     global _settings_fields_module
     logger = get_logger()
 
-    if _settings_fields_module is not None:
+    if model in _settings_fields_module:
         return _settings_fields_module
 
     try:
         settings_fields_path = os.getenv("PLUGIN_SETTINGS_FIELDS_MODULE", "cnaas_nms.plugins.settings_fields")
-        _settings_fields_module = importlib.import_module(settings_fields_path)
+        settings_fields_module = importlib.import_module(settings_fields_path)
+        # Check if the model is found in this module
+        # It will generate a ModuleNotFoundError or Exception and fall back to using the db.settings_fields instead.
+        getattr(settings_fields_module, model)
         logger.debug("Loaded settings_fields module from plugin: {}".format(settings_fields_path))
     except ModuleNotFoundError:
-        _settings_fields_module = importlib.import_module("cnaas_nms.db.settings_fields")
+        settings_fields_module = importlib.import_module("cnaas_nms.db.settings_fields")
         logger.debug("Loaded settings_fields module from bundled cnaas-nms")
     except Exception as e:
         logger.error("Unable to load plugin module for settings_fields: {}".format(e))
-        _settings_fields_module = importlib.import_module("cnaas_nms.db.settings_fields")
-    return _settings_fields_module
+        settings_fields_module = importlib.import_module("cnaas_nms.db.settings_fields")
+    _settings_fields_module[model] = settings_fields_module
+    return _settings_fields_module[model]
 
 
 @overload
@@ -104,7 +108,7 @@ def get_settings_model(
         logger.error(f"Model: '{model}' is not valid, valid options: {valid_models}")
         raise ValueError(f"Invalid model '{model}'. Valid options are: {valid_models}")
 
-    settings_fields = _load_settings_fields_module()
+    settings_fields = _load_settings_fields_module(model)
     return getattr(settings_fields, model)
 
 

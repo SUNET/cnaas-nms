@@ -8,6 +8,7 @@ import threading
 import types
 from ipaddress import ip_interface
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Dict, Iterator, List, Literal, Optional, Set, Tuple, Union, overload
 
 import jmespath
@@ -59,16 +60,16 @@ from cnaas_nms.tools.mergedict import merge_dict_origin
 from cnaas_nms.tools.yaml import yaml_safe_load
 
 # Cache of the resolved settings_fields module, so it's only resolved (and logged) once per process.
-_settings_fields_module = {}
+_settings_fields_module: dict[str, ModuleType] = {}
 
 
-def _load_settings_fields_module(model: str):
+def _load_settings_fields_module(model: str) -> ModuleType:
     """Resolve which settings_fields module is in use: a plugin override or the bundled one."""
     global _settings_fields_module
     logger = get_logger()
 
     if model in _settings_fields_module:
-        return _settings_fields_module
+        return _settings_fields_module[model]
 
     try:
         settings_fields_path = os.getenv("PLUGIN_SETTINGS_FIELDS_MODULE", "cnaas_nms.plugins.settings_fields")

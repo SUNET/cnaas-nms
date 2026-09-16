@@ -1,0 +1,2 @@
+# Sentry error reporting. Leave dsn empty to disable Sentry.
+dsn: ""

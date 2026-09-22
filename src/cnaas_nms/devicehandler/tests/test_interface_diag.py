@@ -1,6 +1,10 @@
 import pytest
+from nornir.core import Nornir
+from nornir.core.inventory import Defaults, Groups, Host, Hosts, Inventory
+from nornir.core.task import Result
+from nornir.plugins.runners import SerialRunner
 
-from cnaas_nms.devicehandler.interface_diag import parse_interface_diag
+from cnaas_nms.devicehandler.interface_diag import COMMANDS, interface_diag_task, parse_interface_diag
 
 # Command output requested with XML encoding, as NAPALM hands it back for one
 # command. The structure is recorded from real switches, an EX running Junos 24.4
@@ -469,3 +473,52 @@ def test_a_port_without_dot1x_reports_no_entries_at_all(outputs):
     outputs["dot1x"] = UNKNOWN_INTERFACE_OUTPUTS["dot1x"]
 
     assert parse_interface_diag(outputs)["dot1x"] == []
+
+
+@pytest.fixture
+def read_port(monkeypatch):
+    """Read a port on a switch whose command replies are scripted.
+
+    Returns a callable taking the output each command answers with, which runs
+    the real task so a switch that answers nothing is told apart from a port
+    that has nothing to report.
+    """
+
+    def fake_napalm_cli(task, commands, **kwargs):
+        reply = replies[len(seen)]
+        seen.append(commands[0])
+        if reply is None:
+            raise ConnectionError("Unable to connect to {}".format(task.host.name))
+        return Result(host=task.host, result={commands[0]: reply})
+
+    seen: list = []
+    replies: list = []
+    monkeypatch.setattr("cnaas_nms.devicehandler.interface_diag.napalm_cli", fake_napalm_cli)
+
+    def run(command_replies):
+        replies.extend(command_replies)
+        host = Host(name="junosaccess", platform="junos")
+        inventory = Inventory(hosts=Hosts({"junosaccess": host}), groups=Groups(), defaults=Defaults())
+        nornir = Nornir(inventory=inventory, runner=SerialRunner())
+        return nornir.run(task=interface_diag_task, ifname="ge-0/0/23")["junosaccess"]
+
+    return run
+
+
+def test_a_switch_that_answers_nothing_is_not_reported_as_a_quiet_port(read_port):
+    # An unreachable switch answers no command at all. Reporting that as empty
+    # sections reads exactly like a healthy port with nothing on it, which is
+    # the situation this API exists to tell apart.
+    result = read_port([None] * len(COMMANDS))
+
+    assert result.failed
+
+
+def test_one_section_the_switch_cannot_answer_leaves_the_rest_readable(read_port):
+    # PoE on a link aggregate is refused while the port still has VLANs and
+    # MACs worth reporting.
+    result = read_port([None, DOT1X_XML, VLANS_XML, MAC_XML, DHCP_XML])
+
+    assert not result.failed
+    assert result[0].result["poe"] is None
+    assert result[0].result["dot1x"] and result[0].result["vlans"]

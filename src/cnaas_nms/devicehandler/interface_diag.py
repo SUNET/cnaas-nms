@@ -204,6 +204,11 @@ def interface_diag_task(task, ifname: str) -> dict:
             outputs[section] = ""
         else:
             outputs[section] = next(iter(res.result.values()))
+    if not any(outputs.values()):
+        # A section the switch refuses still answers, with an error reply, so
+        # nothing at all means no command ran and the port is unread rather
+        # than quiet.
+        raise Exception("Could not read any diagnostics from {}".format(task.host.name))
     return parse_interface_diag(outputs)
 
 
@@ -216,7 +221,8 @@ def get_interface_diag(hostname: str, ifname: str) -> dict:
         raise ValueError(f"Hostname {hostname} not found in inventory")
     nrresult = nr_filtered.run(task=interface_diag_task, ifname=ifname)
     if nrresult.failed or nrresult[hostname].failed:
-        raise Exception(
-            "Could not get interface diagnostics for {} {}: {}".format(hostname, ifname, nrresult[hostname].exception)
-        )
+        exception = nrresult[hostname].exception
+        if isinstance(exception, ValueError):
+            raise exception
+        raise Exception("Could not get interface diagnostics for {} {}: {}".format(hostname, ifname, exception))
     return nrresult[hostname][0].result

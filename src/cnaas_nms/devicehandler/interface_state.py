@@ -1,13 +1,23 @@
+import re
 from typing import List, Optional
 
 from nornir_jinja2.plugins.tasks import template_file
-from nornir_napalm.plugins.tasks import napalm_configure, napalm_get
+from nornir_napalm.plugins.tasks import napalm_cli, napalm_configure, napalm_get
 
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init, get_jinja_env
+
+# Junos accepts an interval of 1 to 30 seconds between the down and the up.
+BOUNCE_INTERVAL_MIN = 1
+BOUNCE_INTERVAL_MAX = 30
+
+# How a Junos switch confirms it started a bounce: "Bounce operation on
+# interface ge-0/0/1 started with interval 10 secs." for the link, and "PoE
+# bounce request received for ge-0/0/1 with interval 5s" for the power.
+BOUNCE_CONFIRMED_REGEX = re.compile(r"[Bb]ounce (operation|request)", re.MULTILINE)
 
 
 def get_interface_states(hostname) -> dict:
@@ -53,6 +63,48 @@ def pre_bounce_check(hostname: str, interfaces: List[str]):
     # Check3: config hash?
 
 
+def bounce_command(ifname: str, interval: Optional[int] = None, poe: bool = False) -> str:
+    """The Junos operational command that bounces one interface.
+
+    Bouncing the PoE supply is a separate command from bouncing the link, so a
+    caller that wants the attached device to reboot asks for the PoE one. Both
+    take an interval in seconds to stay down, which is what makes an access
+    point come back up: the default bounce is too short for that.
+    """
+    if interval is not None and not BOUNCE_INTERVAL_MIN <= interval <= BOUNCE_INTERVAL_MAX:
+        raise ValueError(
+            "Bounce interval must be between {} and {} seconds, got {}".format(
+                BOUNCE_INTERVAL_MIN, BOUNCE_INTERVAL_MAX, interval
+            )
+        )
+    command = "request interface bounce{} {}".format(" poe" if poe else "", ifname)
+    if interval is not None:
+        command += " interval {}".format(interval)
+    return command
+
+
+def junos_bounce_task(task, interfaces: List[str], interval: Optional[int], poe: bool):
+    """Bounce interfaces with the operational command Junos has for it.
+
+    This changes no configuration, so it leaves the device synchronized and
+    needs no commit, unlike the template route the other platforms take.
+    """
+    for ifname in interfaces:
+        res = task.run(
+            task=napalm_cli,
+            name="Bounce {}".format(ifname),
+            commands=[bounce_command(ifname, interval, poe)],
+        )
+        # A refused command comes back as ordinary output rather than as an
+        # exception ("PoE not supported on ge-0/0/1", "Port bounce: IFD object
+        # ge-0/0/1 doesn't exist"), and those refusals share no marker word. The
+        # confirmations do have a fixed shape, so a bounce counts as done only
+        # when the switch confirms it.
+        output = next(iter(res.result.values()), "")
+        if not BOUNCE_CONFIRMED_REGEX.search(output):
+            raise ValueError("Could not bounce {} on {}: {}".format(ifname, task.host.name, output.strip()))
+
+
 def bounce_task(task, interfaces: List[str]):
     template_vars = {"interfaces": interfaces}
     local_repo_path = app_settings.TEMPLATES_LOCAL
@@ -86,15 +138,34 @@ def bounce_task(task, interfaces: List[str]):
     )
 
 
-def bounce_interfaces(hostname: str, interfaces: List[str]) -> bool:
+def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[int] = None, poe: bool = False) -> bool:
     """Returns true if the device changed config down and then up.
     Returns false if config did not change, and raises Exception if an
-    error was encountered."""
+    error was encountered.
+
+    Args:
+        hostname: device to bounce interfaces on
+        interfaces: names of the interfaces to bounce
+        interval: seconds to stay down before coming back up, Junos only
+        poe: bounce the PoE supply instead of the link, Junos only
+
+    On Junos this is an operational command, which leaves the configuration
+    untouched and so reports no change; it returns true because the bounce did
+    run.
+    """
     pre_bounce_check(hostname, interfaces)
     nr = cnaas_init()
     nr_filtered = nr.filter(name=hostname).filter(managed=True)
     if len(nr_filtered.inventory) != 1:
         raise ValueError(f"Hostname {hostname} not found in inventory")
+    platform = next(iter(nr_filtered.inventory.hosts.values())).platform
+    if platform == "junos":
+        nrresult = nr_filtered.run(task=junos_bounce_task, interfaces=interfaces, interval=interval, poe=poe)
+        if nrresult.failed or nrresult[hostname].failed:
+            raise Exception("Could not bounce interfaces on {}: {}".format(hostname, nrresult[hostname].exception))
+        return True
+    if interval is not None or poe:
+        raise ValueError("Bounce interval and PoE are only supported on junos, {} runs {}".format(hostname, platform))
     nrresult = nr_filtered.run(task=bounce_task, interfaces=interfaces)
     # 5 results: bounce_task, gen down config, push down config, gen up config, push up config
     if not len(nrresult[hostname]) == 5:

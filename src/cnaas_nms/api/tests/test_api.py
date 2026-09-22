@@ -420,6 +420,30 @@ def test_bounce_interface(client, testdata):
     assert result.json["status"] == "success"
 
 
+def test_bounce_interface_rejects_an_interval_the_switch_would_refuse(client, testdata):
+    # Junos accepts 1-30 seconds, so a longer wait is refused here rather than
+    # on the device, and nothing is bounced.
+    data = {"bounce_interfaces": [testdata["interface_update"]], "interval": 60}
+    result = client.put("/api/v1.0/device/{}/interface_status".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 400
+    assert result.json["status"] == "error"
+
+
+def test_bounce_interface_rejects_a_poe_flag_that_is_not_a_bool(client, testdata):
+    data = {"bounce_interfaces": [testdata["interface_update"]], "poe": "yes"}
+    result = client.put("/api/v1.0/device/{}/interface_status".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 400
+    assert result.json["status"] == "error"
+
+
+@pytest.mark.equipment
+def test_bounce_interface_with_poe_and_an_interval(client, testdata):
+    data = {"bounce_interfaces": [testdata["interface_update"]], "interval": 20, "poe": True}
+    result = client.put("/api/v1.0/device/{}/interface_status".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 200
+    assert result.json["status"] == "success"
+
+
 def test_get_groups(client, testdata):
     groupname = testdata["groupname"]
     result = client.get("/api/v1.0/groups")

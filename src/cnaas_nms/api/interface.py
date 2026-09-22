@@ -9,7 +9,12 @@ from cnaas_nms.db.device import Device
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_settings
-from cnaas_nms.devicehandler.interface_state import bounce_interfaces, get_interface_states
+from cnaas_nms.devicehandler.interface_state import (
+    BOUNCE_INTERVAL_MAX,
+    BOUNCE_INTERVAL_MIN,
+    bounce_interfaces,
+    get_interface_states,
+)
 from cnaas_nms.devicehandler.sync_devices import resolve_vlanid, resolve_vlanid_list
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.tools.security import get_identity, login_required
@@ -60,6 +65,25 @@ interfaces_model = api.model(
     "interfaces",
     {
         "interfaces": fields.Nested(interfacename_model, required=True),
+    },
+)
+
+bounce_model = api.model(
+    "bounce",
+    {
+        "bounce_interfaces": fields.List(
+            fields.String(), required=True, description="List of interface names", example=["Ethernet1"]
+        ),
+        "interval": fields.Integer(
+            required=False,
+            description="Seconds to stay down before coming back up, {}-{}, junos only".format(
+                BOUNCE_INTERVAL_MIN, BOUNCE_INTERVAL_MAX
+            ),
+            example=20,
+        ),
+        "poe": fields.Boolean(
+            required=False, description="Bounce the PoE supply instead of the link, junos only", example=True
+        ),
     },
 )
 
@@ -350,14 +374,31 @@ class InterfaceStatusApi(Resource):
         return result
 
     @login_required
+    @api.expect(bounce_model)
     def put(self, hostname):
-        """Bounce selected interfaces by appling bounce-down/bounce-up template"""
+        """Bounce selected interfaces, optionally cutting PoE and for a given interval"""
         json_data = request.get_json()
 
         if "bounce_interfaces" in json_data and isinstance(json_data["bounce_interfaces"], list):
             interfaces: List[str] = json_data["bounce_interfaces"]
+            interval = json_data.get("interval")
+            if interval is not None and (
+                type(interval) is not int or not BOUNCE_INTERVAL_MIN <= interval <= BOUNCE_INTERVAL_MAX
+            ):
+                return (
+                    empty_result(
+                        status="error",
+                        data="interval must be an integer between {} and {} seconds".format(
+                            BOUNCE_INTERVAL_MIN, BOUNCE_INTERVAL_MAX
+                        ),
+                    ),
+                    400,
+                )
+            poe = json_data.get("poe", False)
+            if type(poe) is not bool:
+                return empty_result(status="error", data="poe must be a bool, true or false"), 400
             try:
-                bounce_success = bounce_interfaces(hostname, interfaces)
+                bounce_success = bounce_interfaces(hostname, interfaces, interval=interval, poe=poe)
             except ValueError as e:
                 return empty_result(status="error", data=str(e)), 400
             except Exception as e:

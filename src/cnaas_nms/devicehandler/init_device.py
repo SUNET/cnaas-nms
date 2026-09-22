@@ -225,27 +225,27 @@ def pre_init_check_neighbors(
                 uplinks.append(neighbor)
                 neighbors.append(neighbor)
 
-            # Check that a mlag member is not cross-connected to multiple uplink devices
-            if mlag_peer_dev:
-                for d in [dev, mlag_peer_dev]:
-                    device_uplink_devices = set()
-                    for linknet in linknets:
-                        if (linknet["device_a_hostname"] == d.hostname and linknet["device_b_hostname"] in uplinks) or (
-                            linknet["device_b_hostname"] == d.hostname and linknet["device_a_hostname"] in uplinks
-                        ):
-                            neighbor = (
-                                linknet["device_b_hostname"]
-                                if linknet["device_a_hostname"] == d.hostname
-                                else linknet["device_a_hostname"]
-                            )
-                            if neighbor not in device_uplink_devices:
-                                device_uplink_devices.add(neighbor)
-                    # We only expect a MLAG member to be connected to a single uplink device during device_init
-                    if len(device_uplink_devices) > 1:
-                        raise InitVerificationError(
-                            f"MLAG member {d.hostname} is cross-connected to multiple uplink devices, which is not supported during device init."
-                            "Init the MLAG pair with 1 uplink to each uplink device and add the redundant links after device init have completed."
+        # Check that a mlag member is not cross-connected to multiple uplink devices
+        if mlag_peer_dev:
+            for d in [dev, mlag_peer_dev]:
+                device_uplink_devices = set()
+                for linknet in linknets:
+                    if (linknet["device_a_hostname"] == d.hostname and linknet["device_b_hostname"] in uplinks) or (
+                        linknet["device_b_hostname"] == d.hostname and linknet["device_a_hostname"] in uplinks
+                    ):
+                        neighbor = (
+                            linknet["device_b_hostname"]
+                            if linknet["device_a_hostname"] == d.hostname
+                            else linknet["device_a_hostname"]
                         )
+                        if neighbor not in device_uplink_devices:
+                            device_uplink_devices.add(neighbor)
+                # We only expect a MLAG member to be connected to a single uplink device during device_init
+                if len(device_uplink_devices) > 1:
+                    raise InitVerificationError(
+                        f"MLAG member {d.hostname} is cross-connected to multiple uplink devices, which is not supported during device init."
+                        "Init the MLAG pair with 1 uplink to each uplink device and add the redundant links after device init have completed."
+                    )
 
         if len(uplinks) <= 0:
             raise InitVerificationError("No uplink neighbors found for device id: {} ({})".format(dev.id, dev.hostname))

@@ -53,37 +53,46 @@ def pre_bounce_check(hostname: str, interfaces: List[str]):
     # Check3: config hash?
 
 
+BOUNCE_HALVES = ("down", "up")
+
+
 def bounce_task(task, interfaces: List[str]):
+    """Take the interfaces down and bring them back up with two config pushes.
+
+    Both halves are rendered before either is pushed. A bounce that pushes the
+    down config and only then finds it cannot produce an up config leaves the
+    interface disabled, with a config hash that no longer matches, so
+    device_syncto refuses the device afterwards and a second bounce cannot
+    repair it either because pre_bounce_check requires an enabled interface.
+    """
     template_vars = {"interfaces": interfaces}
     local_repo_path = app_settings.TEMPLATES_LOCAL
-    r = task.run(
-        task=template_file,
-        name="Generate port bounce down config",
-        template="bounce-down.j2",
-        jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
-        **template_vars,
-    )
-    task.host["config"] = r.result
-    task.run(
-        task=napalm_configure,
-        name="Port bounce down",
-        replace=False,
-        configuration=task.host["config"],
-    )
-    r = task.run(
-        task=template_file,
-        name="Generate port bounce up config",
-        template="bounce-up.j2",
-        jinja_env=get_jinja_env(f"{local_repo_path}/{task.host.platform}"),
-        **template_vars,
-    )
-    task.host["config"] = r.result
-    task.run(
-        task=napalm_configure,
-        name="Port bounce up",
-        replace=False,
-        configuration=task.host["config"],
-    )
+    jinja_env = get_jinja_env(f"{local_repo_path}/{task.host.platform}")
+    configs = []
+    for half in BOUNCE_HALVES:
+        r = task.run(
+            task=template_file,
+            name="Generate port bounce {} config".format(half),
+            template="bounce-{}.j2".format(half),
+            jinja_env=jinja_env,
+            **template_vars,
+        )
+        if not r.result.strip():
+            raise ValueError(
+                "Template bounce-{}.j2 for platform {} renders an empty config, so bouncing {} "
+                "would leave the interface in the state the other half put it in".format(
+                    half, task.host.platform, ", ".join(interfaces)
+                )
+            )
+        configs.append(r.result)
+    for half, config in zip(BOUNCE_HALVES, configs):
+        task.host["config"] = config
+        task.run(
+            task=napalm_configure,
+            name="Port bounce {}".format(half),
+            replace=False,
+            configuration=task.host["config"],
+        )
 
 
 def bounce_interfaces(hostname: str, interfaces: List[str]) -> bool:
@@ -96,10 +105,10 @@ def bounce_interfaces(hostname: str, interfaces: List[str]) -> bool:
     if len(nr_filtered.inventory) != 1:
         raise ValueError(f"Hostname {hostname} not found in inventory")
     nrresult = nr_filtered.run(task=bounce_task, interfaces=interfaces)
-    # 5 results: bounce_task, gen down config, push down config, gen up config, push up config
+    # 5 results: bounce_task, gen down config, gen up config, push down config, push up config
     if not len(nrresult[hostname]) == 5:
         raise Exception("Not all steps of port bounce completed")
-    if nrresult[hostname][2].changed and nrresult[hostname][4].changed:
+    if nrresult[hostname][3].changed and nrresult[hostname][4].changed:
         return True
     else:
         return False

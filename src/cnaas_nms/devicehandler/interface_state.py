@@ -8,6 +8,7 @@ from cnaas_nms.app_settings import app_settings
 from cnaas_nms.db.device import Device, DeviceState, DeviceType
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
+from cnaas_nms.db.settings_fields.shared import IFNAME_REGEX
 from cnaas_nms.devicehandler.nornir_helper import cnaas_init, get_jinja_env
 
 # Junos accepts an interval of 1 to 30 seconds between the down and the up.
@@ -16,8 +17,10 @@ BOUNCE_INTERVAL_MAX = 30
 
 # How a Junos switch confirms it started a bounce: "Bounce operation on
 # interface ge-0/0/1 started with interval 10 secs." for the link, and "PoE
-# bounce request received for ge-0/0/1 with interval 5s" for the power.
-BOUNCE_CONFIRMED_REGEX = re.compile(r"[Bb]ounce (operation|request)", re.MULTILINE)
+# bounce request received for ge-0/0/1 with interval 5s" for the power. The
+# interface name is part of the confirmation, so a refusal that happens to use
+# the same two words does not read as one.
+BOUNCE_CONFIRMED_REGEX = re.compile(r"[Bb]ounce (operation on interface \S+ started|request received for \S+)")
 
 
 def get_interface_states(hostname) -> dict:
@@ -71,6 +74,8 @@ def bounce_command(ifname: str, interval: Optional[int] = None, poe: bool = Fals
     take an interval in seconds to stay down, which is what makes an access
     point come back up: the default bounce is too short for that.
     """
+    if not re.fullmatch(IFNAME_REGEX, ifname):
+        raise ValueError(f"Invalid interface name {ifname}")
     if interval is not None and not BOUNCE_INTERVAL_MIN <= interval <= BOUNCE_INTERVAL_MAX:
         raise ValueError(
             "Bounce interval must be between {} and {} seconds, got {}".format(
@@ -81,6 +86,11 @@ def bounce_command(ifname: str, interval: Optional[int] = None, poe: bool = Fals
     if interval is not None:
         command += " interval {}".format(interval)
     return command
+
+
+def bounce_confirmed(output: str) -> bool:
+    """Whether the switch answered that it started the bounce."""
+    return BOUNCE_CONFIRMED_REGEX.search(output) is not None
 
 
 def junos_bounce_task(task, interfaces: List[str], interval: Optional[int], poe: bool):
@@ -101,7 +111,7 @@ def junos_bounce_task(task, interfaces: List[str], interval: Optional[int], poe:
         # confirmations do have a fixed shape, so a bounce counts as done only
         # when the switch confirms it.
         output = next(iter(res.result.values()), "")
-        if not BOUNCE_CONFIRMED_REGEX.search(output):
+        if not bounce_confirmed(output):
             raise ValueError("Could not bounce {} on {}: {}".format(ifname, task.host.name, output.strip()))
 
 
@@ -162,7 +172,10 @@ def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[i
     if platform == "junos":
         nrresult = nr_filtered.run(task=junos_bounce_task, interfaces=interfaces, interval=interval, poe=poe)
         if nrresult.failed or nrresult[hostname].failed:
-            raise Exception("Could not bounce interfaces on {}: {}".format(hostname, nrresult[hostname].exception))
+            exception = nrresult[hostname].exception
+            if isinstance(exception, ValueError):
+                raise exception
+            raise Exception("Could not bounce interfaces on {}: {}".format(hostname, exception))
         return True
     if interval is not None or poe:
         raise ValueError("Bounce interval and PoE are only supported on junos, {} runs {}".format(hostname, platform))

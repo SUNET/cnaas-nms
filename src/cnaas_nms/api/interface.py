@@ -76,9 +76,9 @@ bounce_model = api.model(
         ),
         "interval": fields.Integer(
             required=False,
-            description="Seconds to stay down before coming back up, {}-{}, junos only".format(
-                BOUNCE_INTERVAL_MIN, BOUNCE_INTERVAL_MAX
-            ),
+            min=BOUNCE_INTERVAL_MIN,
+            max=BOUNCE_INTERVAL_MAX,
+            description="Seconds to stay down before coming back up, junos only",
             example=20,
         ),
         "poe": fields.Boolean(

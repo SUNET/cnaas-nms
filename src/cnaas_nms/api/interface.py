@@ -9,6 +9,7 @@ from cnaas_nms.db.device import Device
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_settings
+from cnaas_nms.devicehandler.interface_diag import get_interface_diag
 from cnaas_nms.devicehandler.interface_state import bounce_interfaces, get_interface_states
 from cnaas_nms.devicehandler.sync_devices import resolve_vlanid, resolve_vlanid_list
 from cnaas_nms.devicehandler.sync_history import add_sync_event
@@ -336,6 +337,19 @@ class InterfaceExportApi(Resource):
         return response
 
 
+class InterfaceDiagnosticsApi(Resource):
+    @login_required
+    def get(self, hostname, ifname):
+        """Get live diagnostics for one Junos interface"""
+        try:
+            diagnostics = get_interface_diag(hostname, ifname)
+        except ValueError as e:
+            return empty_result(status="error", data=str(e)), 400
+        except Exception as e:
+            return empty_result(status="error", data=str(e)), 500
+        return empty_result(status="success", data={"interface_diagnostics": diagnostics})
+
+
 class InterfaceStatusApi(Resource):
     @login_required
     def get(self, hostname):
@@ -376,3 +390,4 @@ class InterfaceStatusApi(Resource):
 api.add_resource(InterfaceApi, "/<string:hostname>/interfaces")
 api.add_resource(InterfaceExportApi, "/<string:hostname>/interfaces_export")
 api.add_resource(InterfaceStatusApi, "/<string:hostname>/interface_status")
+api.add_resource(InterfaceDiagnosticsApi, "/<string:hostname>/interface_diagnostics/<path:ifname>")

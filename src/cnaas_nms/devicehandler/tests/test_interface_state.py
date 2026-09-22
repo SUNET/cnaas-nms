@@ -5,7 +5,7 @@ from nornir.core.task import Result
 from nornir.plugins.runners import SerialRunner
 
 from cnaas_nms.app_settings import app_settings
-from cnaas_nms.devicehandler.interface_state import bounce_task
+from cnaas_nms.devicehandler.interface_state import bounce_interfaces, bounce_task
 
 # The two halves a bounce pushes, named here rather than imported so that
 # renaming one in the source is caught instead of followed.
@@ -44,13 +44,29 @@ def bounce(monkeypatch):
     monkeypatch.setattr("cnaas_nms.devicehandler.interface_state.napalm_configure", fake_napalm_configure)
 
     def run(interfaces=["Ethernet1"]):
-        host = Host(name="sw1", platform="eos")
-        inventory = Inventory(hosts=Hosts({"sw1": host}), groups=Groups(), defaults=Defaults())
-        nornir = Nornir(inventory=inventory, runner=SerialRunner())
-        result = nornir.run(task=bounce_task, interfaces=interfaces)
+        result = make_nornir().run(task=bounce_task, interfaces=interfaces)
         return result["sw1"], pushed
 
     return run
+
+
+def make_nornir():
+    """A Nornir holding one managed eos switch, as the bounce expects to find."""
+    host = Host(name="sw1", platform="eos", data={"managed": True})
+    inventory = Inventory(hosts=Hosts({"sw1": host}), groups=Groups(), defaults=Defaults())
+    return Nornir(inventory=inventory, runner=SerialRunner())
+
+
+@pytest.fixture
+def bounce_device(bounce, monkeypatch):
+    """Bounce through bounce_interfaces, the entry point the API calls.
+
+    The checks needing a database and a reachable switch are replaced, leaving
+    how a refusal inside the task reaches the caller.
+    """
+    monkeypatch.setattr("cnaas_nms.devicehandler.interface_state.pre_bounce_check", lambda *args: None)
+    monkeypatch.setattr("cnaas_nms.devicehandler.interface_state.cnaas_init", make_nornir)
+    return lambda interfaces=["Ethernet1"]: bounce_interfaces("sw1", interfaces)
 
 
 def test_a_bounce_takes_the_interface_down_and_brings_it_back_up(template_repo, bounce):
@@ -96,12 +112,18 @@ def test_a_bounce_names_the_interface_it_was_asked_to_bounce(template_repo, boun
     assert all("Ethernet1,Ethernet2" in config for config in pushed)
 
 
-def test_a_refusal_names_the_template_and_platform_the_operator_has_to_fix(template_repo, bounce):
-    # The operator fixes this in the template repository, so the error has to
-    # say which file for which platform, not just that the bounce failed.
+def test_a_refusal_names_the_template_and_platform_the_operator_has_to_fix(template_repo, bounce_device):
+    # The operator fixes this in the template repository, so what comes back
+    # out of bounce_interfaces has to say which file for which platform, not
+    # just that some step of the bounce did not complete.
     (template_repo / BOUNCE_UP).write_text("")
 
-    result, _ = bounce(["Ethernet1"])
+    with pytest.raises(ValueError) as refusal:
+        bounce_device(["Ethernet1"])
 
-    assert BOUNCE_UP in str(result.exception)
-    assert "eos" in str(result.exception)
+    assert BOUNCE_UP in str(refusal.value)
+    assert "eos" in str(refusal.value)
+
+
+def test_a_bounce_that_pushed_both_halves_reports_success(template_repo, bounce_device):
+    assert bounce_device(["Ethernet1"]) is True

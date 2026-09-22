@@ -21,6 +21,7 @@ from cnaas_nms.db.linknet import Linknet
 from cnaas_nms.db.reservedip import ReservedIP
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.stackmember import Stackmember
+from cnaas_nms.devicehandler.init_device import InitVerificationError
 from cnaas_nms.devicehandler.update import reset_interfacedb, update_interfacedb_worker
 from cnaas_nms.scheduler.scheduler import Scheduler
 from cnaas_nms.tools.yaml import yaml_safe_load
@@ -108,6 +109,9 @@ class InitDeviceTests(unittest.TestCase):
         with sqla_session() as session:  # type: ignore
             for hostname in [
                 "uplink-a1",
+                "uplink-a2",
+                "uplink-d1",
+                "uplink-d2",
                 "discovered-a1",
                 "discovered-a2",
                 "mlag-a1",
@@ -115,7 +119,6 @@ class InitDeviceTests(unittest.TestCase):
                 "mlag-replacement",
                 "stack-a1",
                 "stack-replacement",
-                "uplink-a2",
                 "replaced-switch-with-orphaned-uplink",
             ]:
                 device = session.query(Device).filter(Device.hostname == hostname).one_or_none()
@@ -445,6 +448,94 @@ class InitDeviceTests(unittest.TestCase):
 
             self.assertEqual("Ethernet25", interfaces[0].name)
             self.assertEqual(InterfaceConfigType.ACCESS_UPLINK, interfaces[0].configtype)
+
+    @patch("cnaas_nms.devicehandler.init_device.update_interfacedb_worker")
+    @patch("cnaas_nms.devicehandler.init_device.update_linknets")
+    @patch("cnaas_nms.devicehandler.init_device.pre_init_checks")
+    def test_init_access_mlag_cross_connected_uplinks(
+        self,
+        mock_pre_init,
+        mock_update_linknets,
+        mock_update_interfacedb_worker,
+    ):
+        def mocked_pre_init(session, device_id: int) -> Device:
+            dev: Device = session.query(Device).filter(Device.id == device_id).one_or_none()
+            return dev
+
+        mock_pre_init.side_effect = mocked_pre_init
+
+        # Mock the return value of update_linknets to simulate cross-connected MLAG uplinks.
+        mock_update_linknets.return_value = [
+            {
+                "device_a_hostname": "discovered-a1",
+                "device_a_port": "Ethernet1",
+                "device_b_hostname": "uplink-d1",
+                "device_b_port": "Ethernet1",
+            },
+            {
+                "device_b_hostname": "discovered-a1",
+                "device_b_port": "Ethernet2",
+                "device_a_hostname": "uplink-d2",
+                "device_a_port": "Ethernet1",
+            },
+        ]
+
+        mock_update_interfacedb_worker.return_value = None
+
+        init_func = cnaas_nms.devicehandler.init_device.init_access_device_step1.__wrapped__
+
+        # Prepare test data.
+        with sqla_session() as session:  # type: ignore
+            uplink1_dev = Device(
+                management_ip="10.0.6.101",  # noqa: S1313
+                hostname="uplink-d1",
+                platform="eos",
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.DIST,
+            )
+
+            uplink2_dev = Device(
+                management_ip="10.0.6.102",  # noqa: S1313
+                hostname="uplink-d2",
+                platform="eos",
+                state=DeviceState.MANAGED,
+                device_type=DeviceType.DIST,
+            )
+
+            # Add MLAG Discovered Devices
+            mlag_dev1 = Device(
+                management_ip=None,
+                hostname="discovered-a1",
+                platform="eos",
+                state=DeviceState.DISCOVERED,
+                device_type=DeviceType.UNKNOWN,
+            )
+
+            mlag_dev2 = Device(
+                management_ip=None,
+                hostname="discovered-a2",
+                platform="eos",
+                state=DeviceState.DISCOVERED,
+                device_type=DeviceType.UNKNOWN,
+            )
+
+            session.add(uplink1_dev)
+            session.add(uplink2_dev)
+            session.add(mlag_dev1)
+            session.add(mlag_dev2)
+            session.commit()
+            session.refresh(mlag_dev1)
+            session.refresh(mlag_dev2)
+
+            with self.assertRaises(InitVerificationError) as context:
+                init_func(
+                    device_id=mlag_dev1.id,
+                    new_hostname="mlag-a1",
+                    mlag_peer_id=mlag_dev2.id,
+                    mlag_peer_new_hostname="mlag-a2",
+                )
+
+            self.assertIn("MLAG member discovered-a1 is cross-connected", str(context.exception))
 
 
 if __name__ == "__main__":

@@ -227,3 +227,89 @@ Response:
 
 You can only bounce non-uplink interfaces of ACCESS type switches. This is to prevent
 accidentally losing connectivity to the device.
+
+Interface diagnostics
+---------------------
+
+Read live diagnostics for a single port on a Junos access switch: whether PoE
+delivers power, which clients authenticated with dot1x, which VLANs are really
+active on the port, which MAC addresses were learned and which DHCP leases were
+handed out. The switch is queried directly, so the device has to be managed and
+reachable.
+
+::
+
+  curl https://hostname/api/v1.0/device/junosaccess/interface_diagnostics/ge-0/0/23 -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+
+Response:
+
+::
+
+   {
+       "status": "success",
+       "data": {
+           "interface_diagnostics": {
+               "poe": {
+                   "enabled": true,
+                   "status": "ON",
+                   "status_detail": "4P Port delivering 2P IEEE SSPD",
+                   "power": "3.3W",
+                   "power_limit": "7.0W",
+                   "priority": "Low",
+                   "class": "2/-",
+                   "mode": "802.3bt"
+               },
+               "dot1x": [
+                   {
+                       "mac": "00:00:5E:00:53:58",
+                       "username": "host/DSK-EXAMPLE0001",
+                       "state": "Authenticated",
+                       "method": "Radius",
+                       "vlan": "216",
+                       "voip_vlan": null
+                   }
+               ],
+               "vlans": [
+                   {
+                       "vlan_name": "STAFF",
+                       "vlan_id": "216",
+                       "tagness": "untagged",
+                       "stp_state": "Forwarding"
+                   }
+               ],
+               "mac_addresses": [
+                   {
+                       "mac": "00:00:5e:00:53:58",
+                       "vlan_name": "STAFF",
+                       "vlan_id": "216",
+                       "flags": "D"
+                   }
+               ],
+               "dhcp": [
+                   {
+                       "ip": "192.0.2.34",
+                       "mac": "00:00:5e:00:53:58",
+                       "vlan_name": "STAFF",
+                       "lease_expiry": "601203",
+                       "state": "BOUND"
+                   }
+               ]
+           }
+       }
+   }
+
+This API is only available for devices running Junos.
+
+A section the switch cannot answer comes back empty instead of failing the whole
+read: "poe" is null on a port that has no PoE hardware, such as a link
+aggregate, and the other sections are then empty lists.
+
+The "dot1x" section tells three situations apart. An empty list means dot1x is
+not configured on the port. An entry without a MAC address means it is
+configured while no client has authenticated. An entry with a MAC address
+describes one client. A client that keeps retrying alternates between the last
+two, so a single entry without a MAC does not prove the port is idle.
+
+MAC addresses of a port that is a member of a link aggregate are learned on the
+"ae" interface rather than on the member port, so the "mac_addresses" section of
+a member port can be empty while a client is connected.

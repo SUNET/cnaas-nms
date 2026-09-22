@@ -420,6 +420,35 @@ def test_bounce_interface(client, testdata):
     assert result.json["status"] == "success"
 
 
+@pytest.mark.equipment
+def test_get_interface_diagnostics(client, testdata):
+    result = client.get(
+        "/api/v1.0/device/{}/interface_diagnostics/{}".format(
+            testdata["interface_device"], testdata["interface_update"]
+        )
+    )
+    assert result.status_code == 200
+    assert result.json["status"] == "success"
+    diagnostics = result.json["data"]["interface_diagnostics"]
+    for section in (
+        "poe",
+        "dot1x",
+        "vlans",
+        "mac_addresses",
+        "dhcp",
+    ):
+        assert section in diagnostics
+
+
+@pytest.mark.equipment
+def test_get_interface_diagnostics_invalid_interface_name(client, testdata):
+    result = client.get(
+        "/api/v1.0/device/{}/interface_diagnostics/{}".format(testdata["interface_device"], "ge-0/0/1 | match secret")
+    )
+    assert result.status_code == 400
+    assert result.json["status"] == "error"
+
+
 def test_get_groups(client, testdata):
     groupname = testdata["groupname"]
     result = client.get("/api/v1.0/groups")

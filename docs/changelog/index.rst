@@ -31,6 +31,7 @@ Bug fixes:
  - Added a unique contraint to reserveip and a init_step1 delay to fix a race condition when multiple devices was initialized at the same time (#539)
  - Updated return codes in firmware api (#531)
  - Fixed device replacement bugs, now supports swapping between platforms and changing uplink port, disabled MLAG and Stack device replacement (#543)
+ - A port bounce renders both templates before pushing either, so a template repository missing a working bounce-up.j2 no longer leaves the interface disabled (#591)
 
 Breaking changes:
 

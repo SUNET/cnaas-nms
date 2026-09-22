@@ -105,6 +105,13 @@ def bounce_interfaces(hostname: str, interfaces: List[str]) -> bool:
     if len(nr_filtered.inventory) != 1:
         raise ValueError(f"Hostname {hostname} not found in inventory")
     nrresult = nr_filtered.run(task=bounce_task, interfaces=interfaces)
+    if nrresult.failed or nrresult[hostname].failed:
+        # A template that cannot render names the file the operator has to fix,
+        # which is worth more than the step count that would otherwise report it
+        exception = nrresult[hostname].exception
+        if isinstance(exception, ValueError):
+            raise exception
+        raise Exception("Could not bounce interfaces on {}: {}".format(hostname, exception))
     # 5 results: bounce_task, gen down config, gen up config, push down config, push up config
     if not len(nrresult[hostname]) == 5:
         raise Exception("Not all steps of port bounce completed")

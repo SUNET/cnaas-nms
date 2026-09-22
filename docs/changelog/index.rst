@@ -20,6 +20,7 @@ New features:
  - Added vlan_groups feature, define groups of VLANs and reuse the vlan_groups in interfaces for easier management (#592)
  - NMS now tracks the CPU architecture for Arista EOS switches and saves it to the database. Uses the architecture to dynamically set the correct firmware version during firmware upgrade (#567, #576)
  - For the /devices API it is now possible filtering with the in operator, example: :code:`?filter[hostname][in]=eosdist1,eosdist2` (#560)
+ - Junos interfaces are bounced with the operational command, which takes an interval and can cut PoE, and leaves the device synchronized (#588)
 
 Changes:
 

@@ -244,9 +244,11 @@ def populate_device_vars(
             if interface.data:
                 if "untagged_vlan" in interface.data:
                     untagged_vlan = resolve_vlanid(interface.data["untagged_vlan"], settings["vxlans"])
-                if "tagged_vlan_list" in interface.data:
+                # Only one of these can be configured at a time
+                # Make sure they have truthy values
+                if "tagged_vlan_list" in interface.data and interface.data["tagged_vlan_list"]:
                     tagged_vlan_list = resolve_vlanid_list(interface.data["tagged_vlan_list"], settings["vxlans"])
-                elif "tagged_vlan_groups" in interface.data:
+                elif "tagged_vlan_groups" in interface.data and interface.data["tagged_vlan_groups"]:
                     tagged_vlan_list = extract_tagged_vlan_groups(interface.data["tagged_vlan_groups"], settings)
 
                 intfdata = dict(interface.data)
@@ -380,7 +382,11 @@ def populate_device_vars(
                                 if peer_intf["ifclass"] in ["fabric", "downlink"]:
                                     raise Exception(f"Cannot mirror {peer_intf['ifclass']} interface")
                                 for copied_key_name, value in peer_intf.items():
-                                    if copied_key_name == "tagged_vlan_groups":
+                                    # Only configure tagged_vlan_list if we have a thruthy value
+                                    if extra_key_name == "tagged_vlan_list" and value:
+                                        if_dict[extra_key_name] = value
+                                    # tagged_vlan_groups override tagged_vlan_list
+                                    elif copied_key_name == "tagged_vlan_groups":
                                         vlan_list = extract_tagged_vlan_groups(value, settings)
                                         if_dict["tagged_vlan_list"] = vlan_list
                                     else:
@@ -395,8 +401,11 @@ def populate_device_vars(
                 else:
                     if_dict = {"indexnum": ifindexnum}
                     for extra_key_name, value in intf.items():
-                        # Override tagged_vlan_list
-                        if extra_key_name == "tagged_vlan_groups":
+                        # Only configure tagged_vlan_list if we have a thruthy value
+                        if extra_key_name == "tagged_vlan_list" and value:
+                            if_dict[extra_key_name] = value
+                        # tagged_vlan_groups override tagged_vlan_list
+                        elif extra_key_name == "tagged_vlan_groups" and value:
                             vlan_list = extract_tagged_vlan_groups(value, settings)
                             if_dict["tagged_vlan_list"] = vlan_list
                         else:

@@ -3,7 +3,7 @@ import unittest
 from pydantic import ValidationError
 
 from cnaas_nms.db.interface import Interface
-from cnaas_nms.db.settings import check_interface_tagged_vlan_groups
+from cnaas_nms.db.settings import SettingsSyntaxError, check_interface_tagged_vlan_groups
 from cnaas_nms.db.settings_fields import f_interface
 
 
@@ -35,7 +35,7 @@ class InterfaceTests(unittest.TestCase):
     def test_interface_tagged_vlan_groups_check(self):
         # Test that check_interface_tagged_vlan_groups raises an error for undefined VLAN groups
         settings_dict = {"interfaces": [{"name": "Ethernet1", "tagged_vlan_groups": ["group1"]}], "vlan_groups": []}
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(SettingsSyntaxError) as context:
             check_interface_tagged_vlan_groups(settings_dict)
         self.assertIn(
             "VLAN group 'group1' for interface 'Ethernet1' is not defined in vlan_groups", str(context.exception)

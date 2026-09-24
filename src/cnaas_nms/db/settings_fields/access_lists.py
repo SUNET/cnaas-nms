@@ -9,7 +9,7 @@ from jmespath.exceptions import ParseError
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, NAPALM_LIB_MAPPER
 from pydantic import BaseModel, Field, TypeAdapter, field_validator
 
-from cnaas_nms.db.settings_fields.shared import access_list_name
+from cnaas_nms.db.settings_fields.shared import AccessListName
 
 
 class f_network_definition(BaseModel):
@@ -135,13 +135,13 @@ class f_access_lists(BaseModel):
         str, List[f_network_definition | f_network_definition_include | f_network_definition_reference]
     ] = {}
     service_definitions: Dict[str, List[f_service_definition | f_service_definition_include]] = {}
-    access_lists: Dict[access_list_name, f_access_list] = {}
+    access_lists: Dict[AccessListName, f_access_list] = {}
 
     @field_validator("access_lists", mode="after")
     @classmethod
     def validate_access_lists_includes(
-        cls, access_lists: Dict[access_list_name, f_access_list]
-    ) -> Dict[access_list_name, f_access_list]:
+        cls, access_lists: Dict[AccessListName, f_access_list]
+    ) -> Dict[AccessListName, f_access_list]:
         """Raise an error if some term include is not pointing to a valid access_list"""
         acl_names = access_lists.keys()
         for access_list in access_lists.values():
@@ -154,8 +154,8 @@ class f_access_lists(BaseModel):
     @field_validator("access_lists", mode="after")
     @classmethod
     def validate_access_lists_recursion(
-        cls, access_lists: Dict[access_list_name, f_access_list]
-    ) -> Dict[access_list_name, f_access_list]:
+        cls, access_lists: Dict[AccessListName, f_access_list]
+    ) -> Dict[AccessListName, f_access_list]:
         """Validates that included access-lists do not cause infinite recursion"""
         safe_nodes = set()
 
@@ -191,8 +191,8 @@ class f_access_lists(BaseModel):
     @field_validator("access_lists", mode="after")
     @classmethod
     def validate_access_lists_included_terms(
-        cls, access_lists: Dict[access_list_name, f_access_list]
-    ) -> Dict[access_list_name, f_access_list]:
+        cls, access_lists: Dict[AccessListName, f_access_list]
+    ) -> Dict[AccessListName, f_access_list]:
         """Validates an access-list + included access-lists have unique term-names"""
         for access_list in access_lists.values():
             all_term_names = [t.get("name") for t in access_list.terms if t.get("name")]

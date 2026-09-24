@@ -228,6 +228,23 @@ def populate_device_vars(
                     untagged_vlan = resolve_vlanid(interface.data["untagged_vlan"], settings["vxlans"])
                 if "tagged_vlan_list" in interface.data:
                     tagged_vlan_list = resolve_vlanid_list(interface.data["tagged_vlan_list"], settings["vxlans"])
+                elif "tagged_vlan_groups" in interface.data:
+                    group_vlan_ids = []
+                    # Get all vxlan vlan_ids
+                    device_vlan_ids = [vlan["vlan_id"] for vlan in settings["vxlans"].values()]
+
+                    # Extract vlan_ids from groups
+                    for group in interface.data["tagged_vlan_groups"]:
+                        group_vlan_ids.extend(settings["vlan_groups"][group])
+
+                    # Check if the vlan_group ids actually exist in the device settings
+                    for group_vlan_id in group_vlan_ids:
+                        if group_vlan_id in device_vlan_ids:
+                            tagged_vlan_list.append(group_vlan_id)
+
+                    # Make the tagged_vlan_list unique
+                    tagged_vlan_list = list(set(tagged_vlan_list))
+
                 intfdata = dict(interface.data)
             if interface.name in ifname_peer_map:
                 if isinstance(intfdata, dict):
@@ -370,11 +387,30 @@ def populate_device_vars(
                 else:
                     if_dict = {"indexnum": ifindexnum}
                     for extra_key_name, value in intf.items():
-                        if_dict[extra_key_name] = value
+                        # Override tagged_vlan_list
+                        if extra_key_name == "tagged_vlan_groups":
+                            group_vlan_ids = []
+                            vlan_list = []
+                            # Get all vxlan vlan_ids
+                            device_vlan_ids = [vlan["vlan_id"] for vlan in settings["vxlans"].values()]
+
+                            # Extract vlan_ids from groups
+                            for group in value:
+                                group_vlan_ids.extend(settings["vlan_groups"][group])
+
+                            # Check if the vlan_group ids actually exist in the device settings
+                            for group_vlan_id in group_vlan_ids:
+                                if group_vlan_id in device_vlan_ids:
+                                    vlan_list.append(group_vlan_id)
+                            if_dict["tagged_vlan_list"] = list(set(vlan_list))
+                        else:
+                            if_dict[extra_key_name] = value
                     fabric_device_variables["interfaces"].append(if_dict)
 
         for local_if, data in fabric_interfaces.items():
-            logger.warn(f"Interface {local_if} on device {hostname} not configured as linknet because of wrong ifclass")
+            logger.warning(
+                f"Interface {local_if} on device {hostname} not configured as linknet because of wrong ifclass"
+            )
 
         if not ztp_hostname:
             for mgmtdom in cnaas_nms.db.helper.get_all_mgmtdomains(session, hostname):
@@ -526,7 +562,7 @@ def napalm_configure_confirmed(
             if isinstance(n_device, (NapalmEOSDriver, NapalmJunOSDriver)):
                 mode_2_supported = True
             else:
-                logger.warn(
+                logger.warning(
                     f"commit_confirmed_mode is set to 2, but it's unsupported for device OS '{task.host.platform}'. "
                     f"Falling back to mode 1 for device: {task.host.name}."
                 )

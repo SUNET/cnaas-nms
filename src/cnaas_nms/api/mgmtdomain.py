@@ -1,5 +1,4 @@
 from ipaddress import IPv4Interface, IPv6Interface
-from typing import Optional
 
 from flask import request
 from flask_restx import Namespace, Resource, fields
@@ -10,7 +9,7 @@ from cnaas_nms.api.generic import build_filter, empty_result, limit_results, par
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings_fields import vlan_id_schema_optional
+from cnaas_nms.db.settings_fields import VlanId
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
@@ -36,10 +35,10 @@ mgmtdomain_model = mgmtdomain_api.model(
 
 
 class f_mgmtdomain(BaseModel):
-    vlan: Optional[int] = vlan_id_schema_optional
-    ipv4_gw: Optional[str] = None
-    ipv6_gw: Optional[str] = None
-    description: Optional[str] = None
+    vlan: VlanId | None = None
+    ipv4_gw: str | None = None
+    ipv6_gw: str | None = None
+    description: str | None = None
 
     @field_validator("ipv4_gw")
     @classmethod
@@ -100,9 +99,7 @@ class MgmtdomainByIdApi(Resource):
     def delete(self, mgmtdomain_id):
         """Remove management domain"""
         with sqla_session() as session:  # type: ignore
-            instance: Optional[Mgmtdomain] = (
-                session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
-            )
+            instance: Mgmtdomain | None = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
                 instance.device_a.synchronized = False
                 add_sync_event(instance.device_a.hostname, "mgmtdomain_deleted", get_identity())
@@ -129,9 +126,7 @@ class MgmtdomainByIdApi(Resource):
             return empty_result("error", errors), 400
 
         with sqla_session() as session:  # type: ignore
-            instance: Optional[Mgmtdomain] = (
-                session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
-            )
+            instance: Mgmtdomain | None = session.query(Mgmtdomain).filter(Mgmtdomain.id == mgmtdomain_id).one_or_none()
             if instance:
                 changed: bool = update_sqla_object(instance, json_data)
                 if changed:
@@ -175,9 +170,7 @@ class MgmtdomainsApi(Resource):
                 if not Device.valid_hostname(hostname_a):
                     errors.append(f"Invalid hostname for device_a: {hostname_a}")
                 else:
-                    device_a: Optional[Device] = (
-                        session.query(Device).filter(Device.hostname == hostname_a).one_or_none()
-                    )
+                    device_a: Device | None = session.query(Device).filter(Device.hostname == hostname_a).one_or_none()
                     if not device_a:
                         errors.append(f"Device with hostname {hostname_a} not found")
                     else:
@@ -187,9 +180,7 @@ class MgmtdomainsApi(Resource):
                 if not Device.valid_hostname(hostname_b):
                     errors.append(f"Invalid hostname for device_b: {hostname_b}")
                 else:
-                    device_b: Optional[Device] = (
-                        session.query(Device).filter(Device.hostname == hostname_b).one_or_none()
-                    )
+                    device_b: Device | None = session.query(Device).filter(Device.hostname == hostname_b).one_or_none()
                     if not device_b:
                         errors.append(f"Device with hostname {hostname_b} not found")
                     else:

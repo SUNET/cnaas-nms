@@ -1,55 +1,60 @@
-from typing import Annotated, List, Optional
-
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
-from pydantic.functional_validators import AfterValidator
+from pydantic import BaseModel, ValidationInfo, field_validator, model_validator
 
 from cnaas_nms.db.settings_fields.shared import (
-    ifclass_schema,
-    ifdescr_schema,
-    ifname_range_schema,
-    ipv6_if_schema_optional,
-    mtu_schema,
-    validate_ipv4_if,
-    vlan_id_schema_optional,
-    vlan_name_schema_optional,
-    vlan_range_check,
+    ConstrainedIPv4Interface,
+    ConstrainedIPv6Interface,
+    InterfaceClass,
+    InterfaceDescription,
+    InterfaceRange,
+    Mtu,
+    NetName,
+    VlanId,
+    VlanIdRange,
 )
 
 
 class f_interface(BaseModel):
-    name: str = ifname_range_schema
-    ifclass: str = ifclass_schema
+    name: InterfaceRange
+    ifclass: InterfaceClass
     redundant_link: bool = True
-    config: Optional[str] = None
-    description: Optional[str] = ifdescr_schema
-    enabled: Optional[bool] = None
-    untagged_vlan: Optional[int] = vlan_id_schema_optional
+    config: str | None = None
+    description: InterfaceDescription | None = None
+    enabled: bool | None = None
+    untagged_vlan: VlanId | None = None
     # tagged vlan list can be list of vlans IDs or ranges of VLAN IDs ("1-10")
-    tagged_vlan_list: Optional[
-        List[Annotated[int, Field(ge=1, le=4095)] | Annotated[str, AfterValidator(vlan_range_check)]]
-    ] = None
-    aggregate_id: Optional[int] = None
-    tags: Optional[List[str]] = None
-    vrf: Optional[str] = vlan_name_schema_optional
-    ipv4_address: Optional[str] = None
-    ipv6_address: Optional[str] = ipv6_if_schema_optional
-    mtu: Optional[int] = mtu_schema
-    acl_ipv4_in: Optional[str] = None
-    acl_ipv4_out: Optional[str] = None
-    acl_ipv6_in: Optional[str] = None
-    acl_ipv6_out: Optional[str] = None
-    metric: Optional[int] = None
+    tagged_vlan_list: list[VlanId | VlanIdRange | str] | None = None
+    tagged_vlan_groups: list[str] | None = None
+    aggregate_id: int | None = None
+    tags: list[str] | None = None
+    vrf: NetName | None = None
+    ipv4_address: ConstrainedIPv4Interface | None = None
+    ipv6_address: ConstrainedIPv6Interface | None = None
+    mtu: Mtu | None = None
+    acl_ipv4_in: str | None = None
+    acl_ipv4_out: str | None = None
+    acl_ipv6_in: str | None = None
+    acl_ipv6_out: str | None = None
+    metric: int | None = None
     cli_append_str: str = ""
 
-    @field_validator("ipv4_address")
+    @field_validator("ipv4_address", "ipv6_address", mode="after")
     @classmethod
-    def vrf_required_if_ipv4_address_set(cls, v: str, info: ValidationInfo):
-        if v:
-            validate_ipv4_if(v)
-            if "vrf" not in info.data or not info.data["vrf"]:
-                raise ValueError("VRF is required when specifying ipv4_address")
-        return v
+    def vrf_required_if_ip_gw_set(
+        cls, ip_if: ConstrainedIPv4Interface | ConstrainedIPv6Interface | None, info: ValidationInfo
+    ) -> ConstrainedIPv4Interface | ConstrainedIPv6Interface | None:
+        if not ip_if:
+            return ip_if
+
+        if ip_if and not info.data.get("vrf"):
+            raise ValueError("VRF is required when specifying IP address")
+        return ip_if
+
+    @model_validator(mode="after")
+    def validate_tagged_vlans(self):
+        if self.tagged_vlan_list and self.tagged_vlan_groups:
+            raise ValueError("tagged_vlan_list and tagged_vlan_groups cannot be set at the same time")
+        return self
 
 
 class f_interfaces(BaseModel):
-    interfaces: List[f_interface] = []
+    interfaces: list[f_interface] = []

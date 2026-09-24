@@ -1,6 +1,5 @@
 import hashlib
 import importlib
-import json
 import logging
 import os
 import re
@@ -412,6 +411,23 @@ def check_system_access_lists(settings_dict: dict):
             raise SettingsSyntaxError(f"System access list: {system_acl} must be defined as an access-list.")
 
 
+def check_interface_tagged_vlan_groups(settings_dict: dict):
+    """Raises SettingsSyntaxError"""
+    interfaces = settings_dict.get("interfaces", [])
+    vlan_groups = settings_dict.get("vlan_groups", [])
+
+    for interface in interfaces:
+        if "tagged_vlan_groups" not in interface:
+            continue
+        for group in interface.get("tagged_vlan_groups", []):
+            if group not in vlan_groups:
+                raise SettingsSyntaxError(
+                    "VLAN group '{}' for interface '{}' is not defined in vlan_groups".format(
+                        group, interface.get("name", "<unknown>")
+                    )
+                )
+
+
 def check_settings_syntax(settings_dict: dict, settings_metadata_dict: dict) -> dict:
     """Verify settings syntax and return a somewhat helpful error message.
 
@@ -493,7 +509,11 @@ def check_settings_collisions(unique_vlans: bool = True):
             dev_settings, _ = get_settings(dev, dev.device_type)
             devices_dict[dev.hostname] = dev_settings
 
-    logger.info("Memory size of all device settings: {}".format(sizeof_fmt(json.dumps(devices_dict).__sizeof__())))
+    logger.info(
+        "Memory size of all device settings: {}".format(
+            sizeof_fmt(f_root(**devices_dict).model_dump_json(exclude_unset=True).__sizeof__())
+        )
+    )
 
     check_vlan_collisions(devices_dict, mgmt_vlans, unique_vlans)
     check_routing_policies(devices_dict)
@@ -1023,6 +1043,10 @@ def get_settings(
     # If access_lists and system_access_lists are keys in settings dict
     if "access_lists" in settings and "system_access_lists" in settings:
         check_system_access_lists(settings)
+
+    # Verify interface tagged_vlan_groups
+    if "interfaces" in settings and "vlan_groups" in settings:
+        check_interface_tagged_vlan_groups(settings)
 
     # Verify syntax
     verified_settings = check_settings_syntax(settings, settings_origin)

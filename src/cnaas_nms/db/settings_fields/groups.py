@@ -1,22 +1,22 @@
 import re
 from enum import Enum
 from functools import cached_property
-from typing import Annotated, Dict, List, Optional, Self
+from typing import Annotated, Self
 
 from pydantic import BaseModel, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
 
 from cnaas_nms.db.device import Device
-from cnaas_nms.db.settings_fields.shared import group_name, group_priority_schema
+from cnaas_nms.db.settings_fields.shared import GroupName, GroupPriority
 from cnaas_nms.tools.log import get_logger
 
 
 class f_group_device_filter(BaseModel):
-    hostname: Optional[str] = None
-    device_type: Optional[str] = None
-    model: Optional[str] = None
-    os_version: Optional[str] = None
-    platform: Optional[str] = None
+    hostname: str | None = None
+    device_type: str | None = None
+    model: str | None = None
+    os_version: str | None = None
+    platform: str | None = None
 
     @field_validator("hostname", "device_type", "model", "os_version", "platform")
     @classmethod
@@ -32,7 +32,7 @@ class f_group_device_filter(BaseModel):
         return v
 
     @cached_property
-    def compiled_patterns(self) -> Dict[str, re.Pattern]:
+    def compiled_patterns(self) -> dict[str, re.Pattern]:
         """
         Is a cached property to avoid re-compiling regex patterns
         """
@@ -67,11 +67,11 @@ class f_group_device_filter(BaseModel):
 
 
 class f_group(BaseModel):
-    name: str = group_name
-    device_filter: Optional[f_group_device_filter] = None
-    devices: Optional[List[str]] = None
-    group_priority: int = group_priority_schema
-    templates_branch: Optional[str] = None
+    name: GroupName
+    device_filter: f_group_device_filter | None = None
+    devices: list[str] | None = None
+    group_priority: GroupPriority = 0
+    templates_branch: str | None = None
 
     def __init__(self, **data):
         logger = get_logger()
@@ -123,7 +123,7 @@ class f_group(BaseModel):
         return False
 
 
-def validate_groups(groups: List[f_group]):
+def validate_groups(groups: list[f_group]):
     """
     Validate that the provided list of groups have unique names and group priorities.
     """
@@ -148,4 +148,4 @@ def validate_groups(groups: List[f_group]):
 
 
 class f_groups(BaseModel):
-    groups: Annotated[Optional[List[f_group]], AfterValidator(validate_groups)] = None
+    groups: Annotated[list[f_group] | None, AfterValidator(validate_groups)] = None

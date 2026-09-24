@@ -998,6 +998,37 @@ class SettingsTests(unittest.TestCase):
         self.assertIn("SOME_ACL_BGP", acls.keys())
         self.assertIn("permit-bgp", acls["SOME_ACL_BGP"])
 
+    def test_vlan_groups(self):
+        settings = {"vlan_groups": {"GROUP1": [1, 2, 3, 20, "30-40", 50, 60, 3900]}}
+        # Validate settings
+        settings = f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+        # Assert that the vlan_group ranges are expanded
+        self.assertEqual(
+            set([1, 2, 3, 20, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 50, 60, 3900]),
+            set(settings.vlan_groups["GROUP1"]),
+        )
+
+    def test_vlan_groups_invalid_range(self):
+        """Wrong vlan range format"""
+        for vlan_range in [["20..30"], ["1-"], ["30-10"], ["a-b"]]:
+            settings = {"vlan_groups": {"GROUP1": vlan_range}}
+            with self.assertRaises(ValidationError):
+                f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+    def test_vlan_groups_invalid_vlan_id(self):
+        """VLAN ID exceeds the valid range (1-4094)"""
+        for vlan_id in [-1, 0, 5000]:
+            settings = {"vlan_groups": {"GROUP1": [vlan_id]}}
+            with self.assertRaises(ValidationError):
+                f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+    def test_vlan_groups_invalid_type(self):
+        for invalid_type in ["invalid_type", 3.14, None, {"some-key1": "value"}, [{"some-key2": True}], ["1", "2"]]:
+            settings = {"vlan_groups": {"GROUP1": invalid_type}}
+            with self.assertRaises(ValidationError):
+                f_root(**settings)  # pyright: ignore[reportArgumentType]
+
 
 if __name__ == "__main__":
     unittest.main()

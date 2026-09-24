@@ -1,87 +1,128 @@
 from enum import StrEnum, auto
-from ipaddress import AddressValueError, IPv4Interface
-from typing import Annotated
+from ipaddress import (
+    IPv4Address as StdIPv4Address,
+)
+from ipaddress import (
+    IPv4Interface as StdIPv4Interface,
+)
+from ipaddress import (
+    IPv6Address as StdIPv6Address,
+)
+from ipaddress import (
+    IPv6Interface as StdIPv6Interface,
+)
+from typing import Annotated, Literal
 
-from pydantic import Field
+from annotated_types import Ge, Gt, Le, Lt
+from pydantic import AfterValidator, Field, StringConstraints, TypeAdapter
 
-IPV4_REGEX = r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}" r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
-# IPv6 regex from https://stackoverflow.com/questions/53497/regular-expression-that-matches-valid-ipv6-addresses
-#  minus IPv4 mapped etc since we probably can't handle them anyway
-IPV6_REGEX = (
-    r"(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|"  # 1:2:3:4:5:6:7:8
-    r"([0-9a-fA-F]{1,4}:){1,7}:|"  # 1::                              1:2:3:4:5:6:7::
-    r"([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|"  # 1::8             1:2:3:4:5:6::8  1:2:3:4:5:6::8
-    r"([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|"  # 1::7:8           1:2:3:4:5::7:8  1:2:3:4:5::8
-    r"([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|"  # 1::6:7:8         1:2:3:4::6:7:8  1:2:3:4::8
-    r"([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|"  # 1::5:6:7:8       1:2:3::5:6:7:8  1:2:3::8
-    r"([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|"  # 1::4:5:6:7:8     1:2::4:5:6:7:8  1:2::8
-    r"[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|"  # 1::3:4:5:6:7:8   1::3:4:5:6:7:8  1::8
-    r":((:[0-9a-fA-F]{1,4}){1,7}|:))"
-)
-HOSTNAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-zA-Z-][a-zA-Z0-9-]{0,62})*$"
-HOST_REGEX = f"^({IPV4_REGEX}|{IPV6_REGEX}|{HOSTNAME_REGEX})$"
-DOMAIN_NAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-zA-Z0-9-]{1,63})+$"
-host_schema = Field(..., pattern=HOST_REGEX, max_length=253, description="Hostname, FQDN or IP address")
-hostname_schema = Field(..., pattern=HOSTNAME_REGEX, max_length=253, description="Hostname or FQDN")
-domain_name_schema = Field(default=None, pattern=DOMAIN_NAME_REGEX, max_length=251, description="DNS domain name")
-ipv4_schema = Field(..., pattern=f"^{IPV4_REGEX}$", description="IPv4 address")
-IPV4_IF_REGEX = f"{IPV4_REGEX}" + r"\/[0-9]{1,2}"
-ipv4_if_schema = Field(pattern=f"^{IPV4_IF_REGEX}$", description="IPv4 address in CIDR/prefix notation (0.0.0.0/0)")
-ipv6_schema = Field(..., pattern=f"^{IPV6_REGEX}$", description="IPv6 address")
-IPV6_IF_REGEX = f"{IPV6_REGEX}" + r"\/[0-9]{1,3}"
-ipv6_if_schema = Field(pattern=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)")
-ipv6_if_schema_optional = Field(
-    default=None, pattern=f"^{IPV6_IF_REGEX}$", description="IPv6 address in CIDR/prefix notation (::/0)"
-)
-ipv4_or_ipv6_if_schema = Field(pattern=f"({IPV4_IF_REGEX}|{IPV6_IF_REGEX})", description="IPv4 or IPv6 prefix")
+type BuiltInInterfaceClass = Literal[
+    "custom",
+    "downlink",
+    "fabric",
+    "mirror",
+]
 
-# VLAN name is alphanumeric max 32 chars on Cisco
-# should not start with number according to some Juniper doc
-VLAN_NAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9-_]{0,31}$"
-vlan_name_schema = Field(
-    pattern=VLAN_NAME_REGEX, description="Max 32 alphanumeric chars, " + "beginning with a non-numeric character"
-)
-vlan_name_schema_optional = Field(
-    default=None,
-    pattern=VLAN_NAME_REGEX,
-    description="Max 32 alphanumeric chars, " + "beginning with a non-numeric character",
-)
-vlan_id_schema = Field(..., gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
-vlan_id_schema_optional = Field(default=None, gt=0, lt=4096, description="Numeric 802.1Q VLAN ID, 1-4095")
-vxlan_vni_schema = Field(..., gt=0, lt=16777215, description="VXLAN Network Identifier")
-vrf_id_schema = Field(..., gt=0, lt=65536, description="VRF identifier, integer between 1-65535")
-mtu_schema = Field(default=None, ge=68, le=9214, description="MTU (Maximum transmission unit) value between 68-9214")
-as_num_schema = Field(
-    gt=0, lt=4294967296, description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)"
-)
-as_num_schema_optional = Field(
-    default=None,
-    gt=0,
-    lt=4294967296,
-    description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)",
-)
+type PortTemplateInterfaceClass = Annotated[
+    str,
+    StringConstraints(pattern=r"^port_template_[A-Za-z0-9_]+$"),
+]
+
+type InterfaceClass = Annotated[
+    BuiltInInterfaceClass | PortTemplateInterfaceClass,
+    Field(description="Interface class: custom, downlink, fabric, mirror, or a port template"),
+]
+
+type InterfaceDescription = Annotated[
+    str, StringConstraints(max_length=64), Field(description="Interface description, 0-64 characters")
+]
+
 IFNAME_REGEX = r"([a-zA-Z0-9\/\.:-])+"
-ifname_schema = Field(default=None, pattern=f"^{IFNAME_REGEX}$", description="Interface name")
+type InterfaceName = Annotated[
+    str, StringConstraints(pattern=IFNAME_REGEX, max_length=64), Field(description="Interface name, 0-64 characters")
+]
+
 IFNAME_RANGE_REGEX = r"([a-zA-Z0-9\/\.:\-\[\]])+"
-ifname_range_schema = Field(pattern=f"^{IFNAME_RANGE_REGEX}$", description="Interface range pattern or interface name")
-IFCLASS_REGEX = r"(custom|downlink|fabric|mirror|port_template_[a-zA-Z0-9_]+)"
-ifclass_schema = Field(pattern=f"^{IFCLASS_REGEX}$", description="Interface class: custom, downlink or uplink")
-ifdescr_schema = Field(default=None, max_length=64, description="Interface description, 0-64 characters")
-tcpudp_port_schema = Field(default=None, ge=0, lt=65536, description="TCP or UDP port number, 0-65535")
-ebgp_multihop_schema = Field(default=None, ge=1, le=255, description="Numeric IP TTL, 1-255")
-maximum_routes_schema = Field(
-    default=None, ge=0, le=4294967294, description="Maximum number of routes to receive from peer"
-)
-accept_or_reject_schema = Field(..., pattern=r"^(accept|reject)$", description="Value has to be 'accept' or 'reject'")
-prefix_size_or_range_schema = Field(pattern=r"^[0-9]{1,3}([-][0-9]{1,3})?$", description="Prefix size or range 0-128")
+type InterfaceRange = Annotated[
+    str,
+    StringConstraints(pattern=IFNAME_RANGE_REGEX, max_length=64),
+    Field(description="Interface range, 0-64 characters"),
+]
+
+ACCESS_LIST_NAME_REGEX = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
+type AccessListName = Annotated[str, StringConstraints(pattern=ACCESS_LIST_NAME_REGEX, max_length=63)]
+
+HOSTNAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-zA-Z-][a-zA-Z0-9-]{0,62})*$"
+type HostName = Annotated[str, StringConstraints(pattern=HOSTNAME_REGEX, max_length=253), Field(description="Hostname")]
+
+DOMAIN_NAME_REGEX = r"^([a-zA-Z0-9-]{1,63})(\.[a-zA-Z0-9-]{1,63})+$"
+type DomainName = Annotated[
+    str, StringConstraints(pattern=DOMAIN_NAME_REGEX, max_length=251), Field(description="DNS domain name")
+]
+
+type Host = Annotated[HostName | StdIPv4Address | StdIPv6Address, Field(description="Hostname, FQDN or IP address")]
+
+type AcceptReject = Literal["accept", "reject"]
+
+NET_NAME_REGEX = r"^[a-zA-Z][a-zA-Z0-9-_]{0,31}$"
+type NetName = Annotated[
+    str,
+    StringConstraints(pattern=NET_NAME_REGEX, max_length=32),
+    Field(description="Max 32 alphanumeric chars, beginning with a non-numeric character"),
+]
+
+type VlanId = Annotated[int, Ge(1), Le(4094), Field(description="Numeric 802.1Q VLAN ID, 1-4094")]
+
+_vlan_id_adapter: TypeAdapter = TypeAdapter(VlanId)
+
+
+def vlan_range_check(value: str) -> str:
+    parts = value.split("-")
+
+    vlan_ids = [_vlan_id_adapter.validate_python(part) for part in parts]
+
+    if len(vlan_ids) == 2 and vlan_ids[0] >= vlan_ids[1]:
+        raise ValueError("Start of range must be less than end of range")
+
+    return value
+
+
+type VlanIdRange = Annotated[
+    str,
+    Field(description=("A VLAN ID or inclusive VLAN ID range. Valid values are 1-4094 or a range such as '100-200'.")),
+    StringConstraints(
+        pattern=r"^[1-9]\d{0,3}(-[1-9]\d{0,3})?$",
+    ),
+    AfterValidator(vlan_range_check),
+]
+
+type VxlanNetworkIdentifier = Annotated[int, Gt(0), Lt(16777215), Field(description="VXLAN Network Identifier")]
+
+type VrfId = Annotated[int, Gt(0), Lt(65536), Field(description="VRF identifier, integer between 1-65535")]
+
+type Mtu = Annotated[int, Ge(68), Le(9214), Field(description="MTU (Maximum transmission unit) value between 68-9214")]
+
+type AsNum = Annotated[
+    int,
+    Gt(0),
+    Lt(4294967296),
+    Field(description="BGP Autonomous System number, 1-4294967295 (asdot notation not supported)"),
+]
+
+type TcpUdpPort = Annotated[int, Ge(0), Lt(65536), Field(description="TCP or UDP port number, 0-65535")]
+
+type EBGPMultihop = Annotated[int, Ge(1), Le(255), Field(description="Numeric IP TTL, 1-255")]
+
+type MaximumRoutes = Annotated[
+    int, Ge(0), Le(4294967294), Field(description="Maximum number of routes to receive from peer")
+]
 
 GROUP_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
-group_name = Field(..., pattern=GROUP_NAME, max_length=253)
-group_priority_schema = Field(
-    0, ge=0, le=100, description="Group priority 0-100, default 0, higher value means higher priority"
-)
-ACCESS_LIST_NAME = r"^([a-zA-Z0-9_-]{1,63}\.?)+$"
-access_list_name = Annotated[str, Field(pattern=ACCESS_LIST_NAME, max_length=63)]  # Type
+type GroupName = Annotated[str, StringConstraints(pattern=GROUP_NAME, max_length=253)]
+
+type GroupPriority = Annotated[
+    int, Ge(0), Le(100), Field(description="Group priority 0-100, higher value means higher priority")
+]
 
 
 class RemovePrivateASEnum(StrEnum):
@@ -95,30 +136,36 @@ class VlanOptionEnum(StrEnum):
     UNTAGGED = auto()
 
 
-def validate_ipv4_if(ipv4if: str):
-    try:
-        assert "/" in ipv4if, "Not a CIDR notation/no netmask"
-        addr = IPv4Interface(ipv4if)
-        assert 8 <= addr.network.prefixlen <= 32, "Invalid prefix size"
-        assert not addr.is_multicast, "Multicast address is invalid"
-        if addr.network.prefixlen <= 30:
-            assert str(addr.ip) != str(addr.network.network_address), "Invalid interface address"
-            assert str(addr.ip) != str(addr.network.broadcast_address), "Invalid interface address"
-    except AddressValueError as e:
-        raise ValueError("Invalid IPv4 interface: {}".format(e))
-    except AssertionError as e:
-        raise ValueError("Invalid IPv4 interface: {}".format(e))
-    return ipv4if
+def validate_ipv4_interface(value: StdIPv4Interface) -> StdIPv4Interface:
+    assert 8 <= value.network.prefixlen <= 32, "Invalid prefix size"
+    assert not value.is_multicast, "Multicast address is invalid"
+
+    if value.network.prefixlen <= 30:
+        assert value.ip != value.network.network_address, "Invalid interface address"
+        assert value.ip != value.network.broadcast_address, "Invalid interface address"
+
+    return value
 
 
-def vlan_range_check(v: str) -> str:
-    if "-" in v:
-        start, end = v.split("-")
-        assert int(start) < int(end), "Start of range must be less than end of range"
-        assert int(start) >= 1 and int(end) <= 4095, "VLAN IDs in range must be between 1-4095"
-    else:
-        assert 1 <= int(v) <= 4095, "VLAN IDs in range must be between 1-4095"
-    return v
+def validate_ipv6_interface(value: StdIPv6Interface) -> StdIPv6Interface:
+    assert 8 <= value.network.prefixlen <= 128, "Invalid prefix size"
+    assert not value.is_multicast, "Multicast address is invalid"
+
+    if value.network.prefixlen <= 30:
+        assert value.ip != value.network.network_address, "Invalid interface address"
+
+    return value
+
+
+type ConstrainedIPv4Interface = Annotated[
+    StdIPv4Interface,
+    AfterValidator(validate_ipv4_interface),
+]
+
+type ConstrainedIPv6Interface = Annotated[
+    StdIPv6Interface,
+    AfterValidator(validate_ipv6_interface),
+]
 
 
 def vni_range_required_check(v: str) -> str:

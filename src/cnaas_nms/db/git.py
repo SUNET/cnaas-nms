@@ -502,7 +502,7 @@ def settings_syncstatus(updated_settings: set) -> Tuple[Set[DeviceType], Set[str
             except Exception as e:
                 logger.exception("Error in settings groups directory {}: {}".format(filename, str(e)))
         else:
-            logger.warn("Unhandled settings file found {}, syncstatus not updated".format(filename))
+            logger.warning("Unhandled settings file found {}, syncstatus not updated".format(filename))
     return (unsynced_devtypes, unsynced_hostnames)
 
 

@@ -24,6 +24,7 @@ interfacedata_model = api.model(
         "tagged_vlan_list": fields.List(
             fields.Raw(), required=False, description="List of VLAN IDs or names", example=["STUDENTS", "EMPLOYEES"]
         ),
+        "tagged_vlan_groups": fields.List(fields.Raw(), required=False, description="List of VLAN group names", example=["GROUP1", "GROUP2"]),
         "description": fields.String(required=False, description="Interface description", example="Access point"),
         "enabled": fields.Boolean(required=False, example=True),
         "aggregate_id": fields.Integer(required=False, example=-1, description="LACP ID"),
@@ -128,6 +129,15 @@ class InterfaceApi(Resource):
                         intfdata_original = {}
                         intfdata = {}
 
+                    # Verify that users do not specificy port tagged_vlan_list and tagged_vlan_groups at the same time
+                    if if_dict.get("tagged_vlan_list") and if_dict.get("tagged_vlan_groups"):
+                        errors.append(
+                            "Cannot specify both tagged_vlan_list and tagged_vlan_groups for interface {}".format(
+                                if_name
+                            )
+                        )
+                        continue
+
                     if "configtype" in if_dict and if_dict["configtype"]:
                         try:
                             configtype = if_dict["configtype"].upper()
@@ -186,6 +196,21 @@ class InterfaceApi(Resource):
                                 errors.append(
                                     "tagged_vlan_list should be of type list, found {}".format(
                                         type(if_dict["data"]["tagged_vlan_list"])
+                                    )
+                                )
+                        if "tagged_vlan_groups" in if_dict["data"]:
+                            if isinstance(if_dict["data"]["tagged_vlan_groups"], list):
+                                # Validate that the tagged_vlan_groups are all present in the devices settings
+                                device_vlan_groups = device_settings.get("vlan_groups").keys()
+                                for group in if_dict["data"]["tagged_vlan_groups"]:
+                                    if group not in device_vlan_groups:
+                                        errors.append(f"VLAN group {group} does not exist")
+                                if not errors:
+                                    intfdata["tagged_vlan_groups"] = if_dict["data"]["tagged_vlan_groups"]
+                            else:
+                                errors.append(
+                                    "tagged_vlan_groups should be of type list, found {}".format(
+                                        type(if_dict["data"]["tagged_vlan_groups"])
                                     )
                                 )
                         if "neighbor" in if_dict["data"]:

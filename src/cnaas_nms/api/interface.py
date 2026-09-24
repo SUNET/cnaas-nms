@@ -24,7 +24,9 @@ interfacedata_model = api.model(
         "tagged_vlan_list": fields.List(
             fields.Raw(), required=False, description="List of VLAN IDs or names", example=["STUDENTS", "EMPLOYEES"]
         ),
-        "tagged_vlan_groups": fields.List(fields.Raw(), required=False, description="List of VLAN group names", example=["GROUP1", "GROUP2"]),
+        "tagged_vlan_groups": fields.List(
+            fields.Raw(), required=False, description="List of VLAN group names", example=["GROUP1", "GROUP2"]
+        ),
         "description": fields.String(required=False, description="Interface description", example="Access point"),
         "enabled": fields.Boolean(required=False, example=True),
         "aggregate_id": fields.Integer(required=False, example=-1, description="LACP ID"),

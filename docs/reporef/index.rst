@@ -692,6 +692,44 @@ name is the dictionary key and dictionaly values are:
     access switch the parent dist switch should be automatically provisioned.
   * devices: List of device names where this VXLAN/VLAN should be provisioned. Optional.
 
+- vlan_groups: Dictionary of {<name>, <list of VLAN IDs or VLAN ranges>}:
+
+
+vxlan.yml examples
+^^^^^^^^^^^^^^^^^^
+
+.. code-block:: yaml
+
+  ---
+  vxlans:
+    student1:
+      vni: 100500
+      vrf: STUDENT
+      vlan_id: 500
+      vlan_name: STUDENT
+      ipv4_gw: 10.200.1.1/24
+      groups:
+        - ALL_DEVICES
+    student2:
+      vni: 100501
+      vrf: STUDENT
+      vlan_id: 501
+      vlan_name: STUDENT2
+      ipv4_gw: 10.201.1.1/24
+      ipv4_secondaries:
+        - 172.16.1.1/24
+      dhcp_relays: []
+      mtu: 9100
+      tags: ["multicast"]
+      devices:
+        - eosaccess
+    vlan_groups:
+      GROUP1:
+        - 500
+        - 501
+        - 550-560
+
+
 interfaces.yml
 --------------
 

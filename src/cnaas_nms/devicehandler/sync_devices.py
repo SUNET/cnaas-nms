@@ -105,6 +105,24 @@ def get_mlag_vars(session, dev: Device) -> dict:
     return ret
 
 
+def extract_tagged_vlan_groups(interface_tagged_groups: list[str], settings: dict) -> list[int]:
+    """Extract real vlan_ids from settings"""
+    group_vlan_ids = []
+    vlan_list = []
+    # Get all vxlan vlan_ids
+    device_vlan_ids = [vlan["vlan_id"] for vlan in settings["vxlans"].values()]
+
+    # Extract vlan_ids from groups
+    for group in interface_tagged_groups:
+        group_vlan_ids.extend(settings["vlan_groups"][group])
+
+    # Check if the vlan_group ids actually exist in the device settings
+    for group_vlan_id in group_vlan_ids:
+        if group_vlan_id in device_vlan_ids:
+            vlan_list.append(group_vlan_id)
+    return list(set(vlan_list))
+
+
 def populate_device_vars(
     task, session, dev: Device, ztp_hostname: Optional[str] = None, ztp_devtype: Optional[DeviceType] = None
 ):
@@ -229,21 +247,7 @@ def populate_device_vars(
                 if "tagged_vlan_list" in interface.data:
                     tagged_vlan_list = resolve_vlanid_list(interface.data["tagged_vlan_list"], settings["vxlans"])
                 elif "tagged_vlan_groups" in interface.data:
-                    group_vlan_ids = []
-                    # Get all vxlan vlan_ids
-                    device_vlan_ids = [vlan["vlan_id"] for vlan in settings["vxlans"].values()]
-
-                    # Extract vlan_ids from groups
-                    for group in interface.data["tagged_vlan_groups"]:
-                        group_vlan_ids.extend(settings["vlan_groups"][group])
-
-                    # Check if the vlan_group ids actually exist in the device settings
-                    for group_vlan_id in group_vlan_ids:
-                        if group_vlan_id in device_vlan_ids:
-                            tagged_vlan_list.append(group_vlan_id)
-
-                    # Make the tagged_vlan_list unique
-                    tagged_vlan_list = list(set(tagged_vlan_list))
+                    tagged_vlan_list = extract_tagged_vlan_groups(interface.data["tagged_vlan_groups"], settings)
 
                 intfdata = dict(interface.data)
             if interface.name in ifname_peer_map:
@@ -376,7 +380,11 @@ def populate_device_vars(
                                 if peer_intf["ifclass"] in ["fabric", "downlink"]:
                                     raise Exception(f"Cannot mirror {peer_intf['ifclass']} interface")
                                 for copied_key_name, value in peer_intf.items():
-                                    if_dict[copied_key_name] = value
+                                    if copied_key_name == "tagged_vlan_groups":
+                                        vlan_list = extract_tagged_vlan_groups(value, settings)
+                                        if_dict["tagged_vlan_list"] = vlan_list
+                                    else:
+                                        if_dict[copied_key_name] = value
                                 break
                     # Description and enabled can be set separately from mirrored interface
                     if "description" in intf:
@@ -389,20 +397,8 @@ def populate_device_vars(
                     for extra_key_name, value in intf.items():
                         # Override tagged_vlan_list
                         if extra_key_name == "tagged_vlan_groups":
-                            group_vlan_ids = []
-                            vlan_list = []
-                            # Get all vxlan vlan_ids
-                            device_vlan_ids = [vlan["vlan_id"] for vlan in settings["vxlans"].values()]
-
-                            # Extract vlan_ids from groups
-                            for group in value:
-                                group_vlan_ids.extend(settings["vlan_groups"][group])
-
-                            # Check if the vlan_group ids actually exist in the device settings
-                            for group_vlan_id in group_vlan_ids:
-                                if group_vlan_id in device_vlan_ids:
-                                    vlan_list.append(group_vlan_id)
-                            if_dict["tagged_vlan_list"] = list(set(vlan_list))
+                            vlan_list = extract_tagged_vlan_groups(value, settings)
+                            if_dict["tagged_vlan_list"] = vlan_list
                         else:
                             if_dict[extra_key_name] = value
                     fabric_device_variables["interfaces"].append(if_dict)

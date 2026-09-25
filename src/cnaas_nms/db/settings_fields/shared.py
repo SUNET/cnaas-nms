@@ -14,7 +14,7 @@ from ipaddress import (
 from typing import Annotated, Literal
 
 from annotated_types import Ge, Gt, Le, Lt
-from pydantic import AfterValidator, Field, StringConstraints, TypeAdapter
+from pydantic import AfterValidator, Field, PlainSerializer, StringConstraints, TypeAdapter
 
 type BuiltInInterfaceClass = Literal[
     "custom",
@@ -157,15 +157,16 @@ def validate_ipv6_interface(value: StdIPv6Interface) -> StdIPv6Interface:
     return value
 
 
-type ConstrainedIPv4Interface = Annotated[
-    StdIPv4Interface,
-    AfterValidator(validate_ipv4_interface),
+type ConstrainedIPv4InterfaceString = Annotated[
+    StdIPv4Interface, AfterValidator(validate_ipv4_interface), PlainSerializer(str, return_type=str)
 ]
 
-type ConstrainedIPv6Interface = Annotated[
-    StdIPv6Interface,
-    AfterValidator(validate_ipv6_interface),
+type ConstrainedIPv6InterfaceString = Annotated[
+    StdIPv6Interface, AfterValidator(validate_ipv6_interface), PlainSerializer(str, return_type=str)
 ]
+
+type IPv4InterfaceString = Annotated[StdIPv4Interface, PlainSerializer(str, return_type=str)]
+type IPv6InterfaceString = Annotated[StdIPv6Interface, PlainSerializer(str, return_type=str)]
 
 
 def vni_range_required_check(v: str) -> str:

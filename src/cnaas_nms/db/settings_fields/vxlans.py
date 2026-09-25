@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from cnaas_nms.db.settings_fields.base_system import f_dhcp_relay
 from cnaas_nms.db.settings_fields.shared import (
-    ConstrainedIPv4Interface,
-    ConstrainedIPv6Interface,
+    ConstrainedIPv4InterfaceString,
+    ConstrainedIPv6InterfaceString,
     Mtu,
     NetName,
     VlanId,
@@ -21,9 +21,9 @@ class f_vxlan(BaseModel):
     vrf: NetName | None = None
     vlan_id: VlanId
     vlan_name: NetName
-    ipv4_gw: ConstrainedIPv4Interface | None = None
-    ipv4_secondaries: list[ConstrainedIPv4Interface] | None = None
-    ipv6_gw: ConstrainedIPv6Interface | None = None
+    ipv4_gw: ConstrainedIPv4InterfaceString | None = None
+    ipv4_secondaries: list[ConstrainedIPv4InterfaceString] | None = None
+    ipv6_gw: ConstrainedIPv6InterfaceString | None = None
     dhcp_relays: list[f_dhcp_relay] | None = None
     mtu: Mtu | None = None
     vxlan_host_route: bool = True
@@ -39,8 +39,8 @@ class f_vxlan(BaseModel):
     @field_validator("ipv4_gw", "ipv6_gw", mode="after")
     @classmethod
     def vrf_required_if_ip_gw_set(
-        cls, ip_if: ConstrainedIPv4Interface | ConstrainedIPv6Interface | None, info: ValidationInfo
-    ) -> ConstrainedIPv4Interface | ConstrainedIPv6Interface | None:
+        cls, ip_if: ConstrainedIPv4InterfaceString | ConstrainedIPv6InterfaceString | None, info: ValidationInfo
+    ) -> ConstrainedIPv4InterfaceString | ConstrainedIPv6InterfaceString | None:
         if not ip_if:
             return ip_if
 

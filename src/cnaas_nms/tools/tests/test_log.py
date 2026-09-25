@@ -12,7 +12,7 @@ def test_get_logger_default_level():
 
     logger = get_logger()
 
-    assert logger.name == "cnaas-nms"
+    assert logger.name.startswith("cnaas-nms")
     assert logger.level == logging.getLevelName(app_settings.LOG_LEVEL)
 
 

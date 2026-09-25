@@ -1,4 +1,4 @@
-from ipaddress import IPv4Address, IPv4Interface, IPv6Address, IPv6Interface
+from ipaddress import IPv4Address, IPv6Address
 from typing import Annotated
 
 from annotated_types import Ge, Le
@@ -10,6 +10,8 @@ from cnaas_nms.db.settings_fields.shared import (
     EBGPMultihop,
     HostName,
     InterfaceName,
+    IPv4InterfaceString,
+    IPv6InterfaceString,
     MaximumRoutes,
     NetName,
     RemovePrivateASEnum,
@@ -32,7 +34,7 @@ class f_vrf(BaseModel):
 
 
 class f_ipv4_static_route(BaseModel):
-    destination: IPv4Interface
+    destination: IPv4InterfaceString
     nexthop: IPv4Address
     interface: InterfaceName | None = None
     name: str = "undefined"
@@ -40,7 +42,7 @@ class f_ipv4_static_route(BaseModel):
 
 
 class f_ipv6_static_route(BaseModel):
-    destination: IPv6Interface
+    destination: IPv6InterfaceString
     nexthop: IPv6Address
     interface: InterfaceName | None = None
     name: str = "undefined"
@@ -117,14 +119,14 @@ class f_extroute_bgp(BaseModel):
 
 
 class f_underlay(BaseModel):
-    infra_lo_net: IPv4Interface
-    infra_link_net: IPv4Interface
-    mgmt_lo_net: IPv4Interface
+    infra_lo_net: IPv4InterfaceString
+    infra_link_net: IPv4InterfaceString
+    mgmt_lo_net: IPv4InterfaceString
     bgp_asn: AsNum | None = None
 
 
 class f_prefixset_item(BaseModel):
-    prefix: IPv4Interface | IPv6Interface
+    prefix: IPv4InterfaceString | IPv6InterfaceString
     masklength_range: (
         Annotated[int, Ge(0), Le(128)]
         | Annotated[str, StringConstraints(pattern=r"^[0-9]{1,3}([-][0-9]{1,3})?$")]

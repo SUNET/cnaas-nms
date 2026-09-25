@@ -694,6 +694,10 @@ name is the dictionary key and dictionaly values are:
 
 - vlan_groups: Dictionary of {<name>, <list of VLAN IDs or VLAN ranges>}:
 
+.. note::
+  Changing the name of a VLAN group will impact all access-interfaces that point to that group-name resulting in loss of configuration.
+  It is recommended to carefully plan VLAN group names to avoid unintended configuration changes.
+
 
 vxlan.yml examples
 ^^^^^^^^^^^^^^^^^^

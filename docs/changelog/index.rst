@@ -14,6 +14,7 @@ New features:
  - Added banner_login and banner_motd settings to base_system (#570)
  - Added skip_empty_network_definitions to access_lists that will remove empty network definitions if set to true (#571)
  - /api/health, /api/health/live and /api/health/ready endpoints that report the health of the API, including checks for PostgreSQL and Redis (#578, #573)
+ - Optional error reporting to Sentry, enabled by configuring a DSN
 
 Changes:
 

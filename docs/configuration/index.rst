@@ -106,6 +106,27 @@ are only active when OAuth is enabled.
 
 Defines paths to git repositories.
 
+/etc/cnaas-nms/sentry_config.yml
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Defines parameters for optional error reporting to Sentry. Sentry is only
+enabled when a DSN is configured, either here or via the ``SENTRY_DSN``
+environment variable.
+
+- dsn: The Sentry DSN to send errors to. Leave empty to disable Sentry.
+- environment: Environment name reported with each event, for example "production".
+- release: Release reported with each event. Defaults to the running CNaaS NMS version.
+- traces_sample_rate: Fraction of transactions to send for performance monitoring,
+  between 0.0 and 1.0. Defaults to 0.0 (no performance monitoring).
+- sample_rate: Fraction of error events to send, between 0.0 and 1.0. Defaults to 1.0.
+- send_default_pii: Set True to include personal data such as client IP addresses
+  and usernames in events. Defaults to False.
+
+Credentials are replaced with ``[Filtered]`` before an event is sent: any field
+or query parameter whose name contains ``jwt`` or ``token``, plus the OIDC
+``code``. Events are tagged with a ``component`` of either "api" or
+"scheduler_mule" to show which process reported the error.
+
 .. _configuration_environment_ref:
 
 Environment variables
@@ -135,8 +156,14 @@ cnaas_api
 - ``PASSWORD_INIT``
 - ``USERNAME_MANAGED`` -- user name for managed devices
 - ``PASSWORD_MANAGED``
-- ``PLUGIN_SETTINGS_FIELDS_MODULE`` - Use a custom module path to override
+- ``PLUGIN_SETTINGS_FIELDS_MODULE`` -- Use a custom module path to override
   settings_fields, defaults to: cnaas_nms.plugins.settings_fields
+- ``SENTRY_DSN`` -- Sentry DSN to report errors to. Sentry is disabled when unset.
+- ``SENTRY_ENVIRONMENT`` -- environment name reported to Sentry
+- ``SENTRY_RELEASE`` -- release reported to Sentry
+- ``SENTRY_TRACES_SAMPLE_RATE`` -- fraction of transactions sent for performance monitoring
+- ``SENTRY_SAMPLE_RATE`` -- fraction of error events sent
+- ``SENTRY_SEND_DEFAULT_PII`` -- set True to include personal data in events
 
 cnaas_httpd
 

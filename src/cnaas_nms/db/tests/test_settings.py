@@ -1029,6 +1029,39 @@ class SettingsTests(unittest.TestCase):
             with self.assertRaises(ValidationError):
                 f_root(**settings)  # pyright: ignore[reportArgumentType]
 
+    def test_settings_validation_ipv6_gw(self):
+        settings = {
+            "vxlans": {
+                "VXLAN1": {
+                    "vlan_name": "test1",
+                    "vlan_id": 11,
+                    "vrf": "test-vrf",
+                    "vni": 1001,
+                    "ipv6_gw": "2000:23:2003::0/64",
+                }
+            }
+        }
+
+        f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+    def test_settings_validation_ipv6_gw_error(self):
+        settings = {
+            "vxlans": {
+                "VXLAN2": {
+                    "vlan_name": "test2",
+                    "vlan_id": 12,
+                    "vrf": "test-vrf",
+                    "vni": 1002,
+                    "ipv6_gw": "2001:6b0:2401::g555",
+                }
+            }
+        }
+
+        with self.assertRaises(ValidationError) as context:
+            f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+        self.assertIn("Input is not a valid IPv6 interface", str(context.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

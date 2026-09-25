@@ -151,9 +151,6 @@ def validate_ipv6_interface(value: StdIPv6Interface) -> StdIPv6Interface:
     assert 8 <= value.network.prefixlen <= 128, "Invalid prefix size"
     assert not value.is_multicast, "Multicast address is invalid"
 
-    if value.network.prefixlen <= 126:
-        assert value.ip != value.network.network_address, "Invalid interface address"
-
     return value
 
 

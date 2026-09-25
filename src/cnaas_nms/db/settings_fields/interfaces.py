@@ -1,13 +1,13 @@
 from pydantic import BaseModel, ValidationInfo, field_validator, model_validator
 
 from cnaas_nms.db.settings_fields.shared import (
-    ValidatedIPv4InterfaceString,
-    ValidatedIPv6InterfaceString,
     InterfaceClass,
     InterfaceDescription,
     InterfaceRange,
     Mtu,
     NetName,
+    ValidatedIPv4InterfaceString,
+    ValidatedIPv6InterfaceString,
     VlanId,
     VlanIdRange,
 )

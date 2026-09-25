@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator
 
 from cnaas_nms.db.settings_fields.base_system import f_dhcp_relay
 from cnaas_nms.db.settings_fields.shared import (
-    ValidatedIPv4InterfaceString,
-    ValidatedIPv6InterfaceString,
     Mtu,
     NetName,
+    ValidatedIPv4InterfaceString,
+    ValidatedIPv6InterfaceString,
     VlanId,
     VlanIdRange,
     VxlanNetworkIdentifier,

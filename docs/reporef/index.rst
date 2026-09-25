@@ -698,6 +698,7 @@ name is the dictionary key and dictionaly values are:
   Changing the name of a VLAN group will impact all access-interfaces that point to that group-name resulting in loss of configuration.
   It is recommended to carefully plan VLAN group names to avoid unintended configuration changes.
 
+  Only VLANs that are actually defined on a switch will be configured for interfaces that reference VLAN groups.
 
 vxlan.yml examples
 ^^^^^^^^^^^^^^^^^^

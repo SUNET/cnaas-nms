@@ -383,8 +383,8 @@ def populate_device_vars(
                                     raise Exception(f"Cannot mirror {peer_intf['ifclass']} interface")
                                 for copied_key_name, value in peer_intf.items():
                                     # Only configure tagged_vlan_list if we have a thruthy value
-                                    if extra_key_name == "tagged_vlan_list" and value:
-                                        if_dict[extra_key_name] = value
+                                    if copied_key_name == "tagged_vlan_list" and value:
+                                        if_dict[copied_key_name] = value
                                     # tagged_vlan_groups override tagged_vlan_list
                                     elif copied_key_name == "tagged_vlan_groups":
                                         vlan_list = extract_tagged_vlan_groups(value, settings)

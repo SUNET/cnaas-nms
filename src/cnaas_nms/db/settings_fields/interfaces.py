@@ -1,8 +1,8 @@
 from pydantic import BaseModel, ValidationInfo, field_validator, model_validator
 
 from cnaas_nms.db.settings_fields.shared import (
-    ConstrainedIPv4InterfaceString,
-    ConstrainedIPv6InterfaceString,
+    ValidatedIPv4InterfaceString,
+    ValidatedIPv6InterfaceString,
     InterfaceClass,
     InterfaceDescription,
     InterfaceRange,
@@ -27,8 +27,8 @@ class f_interface(BaseModel):
     aggregate_id: int | None = None
     tags: list[str] | None = None
     vrf: NetName | None = None
-    ipv4_address: ConstrainedIPv4InterfaceString | None = None
-    ipv6_address: ConstrainedIPv6InterfaceString | None = None
+    ipv4_address: ValidatedIPv4InterfaceString | None = None
+    ipv6_address: ValidatedIPv6InterfaceString | None = None
     mtu: Mtu | None = None
     acl_ipv4_in: str | None = None
     acl_ipv4_out: str | None = None
@@ -40,8 +40,8 @@ class f_interface(BaseModel):
     @field_validator("ipv4_address", "ipv6_address", mode="after")
     @classmethod
     def vrf_required_if_ip_gw_set(
-        cls, ip_if: ConstrainedIPv4InterfaceString | ConstrainedIPv6InterfaceString | None, info: ValidationInfo
-    ) -> ConstrainedIPv4InterfaceString | ConstrainedIPv6InterfaceString | None:
+        cls, ip_if: ValidatedIPv4InterfaceString | ValidatedIPv6InterfaceString | None, info: ValidationInfo
+    ) -> ValidatedIPv4InterfaceString | ValidatedIPv6InterfaceString | None:
         if not ip_if:
             return ip_if
 

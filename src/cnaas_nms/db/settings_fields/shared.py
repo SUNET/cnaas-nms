@@ -151,17 +151,17 @@ def validate_ipv6_interface(value: StdIPv6Interface) -> StdIPv6Interface:
     assert 8 <= value.network.prefixlen <= 128, "Invalid prefix size"
     assert not value.is_multicast, "Multicast address is invalid"
 
-    if value.network.prefixlen <= 30:
+    if value.network.prefixlen <= 126:
         assert value.ip != value.network.network_address, "Invalid interface address"
 
     return value
 
 
-type ConstrainedIPv4InterfaceString = Annotated[
+type ValidatedIPv4InterfaceString = Annotated[
     StdIPv4Interface, AfterValidator(validate_ipv4_interface), PlainSerializer(str, return_type=str)
 ]
 
-type ConstrainedIPv6InterfaceString = Annotated[
+type ValidatedIPv6InterfaceString = Annotated[
     StdIPv6Interface, AfterValidator(validate_ipv6_interface), PlainSerializer(str, return_type=str)
 ]
 

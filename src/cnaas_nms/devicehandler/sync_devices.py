@@ -386,7 +386,7 @@ def populate_device_vars(
                                     if copied_key_name == "tagged_vlan_list" and value:
                                         if_dict[copied_key_name] = value
                                     # tagged_vlan_groups override tagged_vlan_list
-                                    elif copied_key_name == "tagged_vlan_groups":
+                                    elif copied_key_name == "tagged_vlan_groups" and value:
                                         vlan_list = extract_tagged_vlan_groups(value, settings)
                                         if_dict["tagged_vlan_list"] = vlan_list
                                     else:

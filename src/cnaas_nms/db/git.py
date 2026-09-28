@@ -66,7 +66,7 @@ def get_repo_status(repo_type: RepoType = RepoType.TEMPLATES) -> str:
         return "Commit {} by {} at {}\n".format(
             local_repo.head.commit.name_rev, local_repo.head.commit.committer, local_repo.head.commit.committed_datetime
         )
-    except (InvalidGitRepositoryError, NoSuchPathError):  # noqa: S110
+    except InvalidGitRepositoryError, NoSuchPathError:  # noqa: S110
         return "Repository is not yet cloned from remote"
 
 
@@ -373,7 +373,7 @@ def _refresh_repo_task(local_repo_path, remote_repo_path) -> Tuple[str, Set[str]
         diff: List[git.remote.FetchInfo] = local_repo.remotes.origin.pull()
         ret, changed_files = parse_git_changed_files(diff, prev_commit, local_repo)
 
-    except (InvalidGitRepositoryError, NoSuchPathError):  # noqa: S110
+    except InvalidGitRepositoryError, NoSuchPathError:  # noqa: S110
         logger.info("Local repository {} not found, cloning from remote".format(local_repo_path))
         try:
             local_repo = Repo.clone_from(url, local_repo_path, branch=branch)

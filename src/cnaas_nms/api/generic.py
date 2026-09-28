@@ -25,7 +25,7 @@ def limit_results() -> int:
             per_page_arg = int(args["per_page"])
             assert 1 <= per_page_arg <= MAX_PER_PAGE
             limit = per_page_arg
-        except (AssertionError, ValueError):
+        except AssertionError, ValueError:
             raise ValueError("per_page argument must be integer between 1-{}".format(MAX_PER_PAGE))
 
     return limit
@@ -43,7 +43,7 @@ def offset_results() -> int:
             per_page_arg = int(args["per_page"])
             assert 1 <= per_page_arg <= MAX_PER_PAGE
             per_page = per_page_arg
-        except (AssertionError, ValueError):
+        except AssertionError, ValueError:
             raise ValueError("per_page argument must be integer between 1-{}".format(MAX_PER_PAGE))
 
     if "page" in args:
@@ -70,7 +70,7 @@ def pagination_headers(total_count) -> dict:
             per_page_arg = int(args["per_page"])
             assert 1 <= per_page_arg <= MAX_PER_PAGE
             per_page = per_page_arg
-        except (AssertionError, ValueError):
+        except AssertionError, ValueError:
             pass
 
     last_page = math.ceil(total_count / per_page)

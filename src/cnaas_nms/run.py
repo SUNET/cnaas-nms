@@ -63,7 +63,7 @@ def get_app():
         import uwsgi  # noqa: F401
 
         print("Running inside uwsgi")  # noqa: T001
-    except (ModuleNotFoundError, ImportError):
+    except ModuleNotFoundError, ImportError:
         scheduler = Scheduler()
         scheduler.start()
 

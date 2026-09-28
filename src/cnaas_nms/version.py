@@ -39,7 +39,7 @@ def get_git_version() -> str:
 
         return f"Git commit {commit.name_rev} ({commit.committed_datetime})"
 
-    except (InvalidGitRepositoryError, NoSuchPathError):
+    except InvalidGitRepositoryError, NoSuchPathError:
         return "No git repo found"
     except Exception as e:  # noqa: S110
         return f"Error retrieving git version: {e}"

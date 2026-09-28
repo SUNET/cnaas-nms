@@ -559,7 +559,7 @@ def check_routing_policies(devices_dict: Dict[str, dict]):
         try:
             defined_policies.update(settings["routing_policies"].keys())
             check_bgp_neighbor_routemaps(hostname, settings["extroute_bgp"]["vrfs"], defined_policies)
-        except (KeyError, TypeError):
+        except KeyError, TypeError:
             pass
 
 
@@ -1314,6 +1314,7 @@ def _process_access_list_terms(
                 if not isinstance(networks, list):
                     networks = [networks]
                 for network in networks:
+                    assert isinstance(network, str)
                     try:
                         if not defs._GetNet(network):
                             logger.info(

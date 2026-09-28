@@ -25,7 +25,7 @@ from aerleon.lib.yaml import PolicyTypeError
 from jmespath import functions
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, AERLEON_LIB_MAPPER_REVERSE, NAPALM_LIB_MAPPER
 from pydantic import BaseModel, ValidationError
-from redis import StrictRedis
+from redis import Redis
 from redis_lru import RedisLRU
 from sqlalchemy import inspect
 from sqlalchemy.exc import NoInspectionAvailable
@@ -129,10 +129,9 @@ class f_root(
     pass
 
 
-redis_client = StrictRedis(
+redis_client = Redis(
     host=app_settings.REDIS_HOSTNAME,
     port=app_settings.REDIS_PORT,
-    retry_on_timeout=True,
     socket_keepalive=True,
 )
 

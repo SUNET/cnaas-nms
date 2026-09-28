@@ -14,21 +14,27 @@ New features:
  - Added banner_login and banner_motd settings to base_system (#570)
  - Added skip_empty_network_definitions to access_lists that will remove empty network definitions if set to true (#571)
  - /api/health, /api/health/live and /api/health/ready endpoints that report the health of the API, including checks for PostgreSQL and Redis (#578, #573)
+ - Added vlan_groups feature, define groups of VLANs and reuse the vlan_groups in interfaces for easier management (#592)
+ - NMS now tracks the CPU architecture for Arista EOS switches and saves it to the database. Uses the architecture to dynamically set the correct firmware version during firmware upgrade (#567, #576) 
+ - For the /devices API it is now possible filtering with the in operator, example: :code:`?filter[hostname][in]=eosdist1,eosdist2` (#560)
 
 Changes:
 
- - Updated to Python 3.13 (#491)
- - Refactored and improved container builds (#481)
+ - Updated codebase to Python 3.14 (#491, #582)
+ - Refactored and improved container builds (#481, #569)
  - Updated YAML parsing to use the CSafeLoader for faster performance (#536)
  - Bumped nornir_jinja2 to 1.0.0 and readded jinja_env cache for faster performance (#538)
  - Bumped napalm to 3.2 and removed a temporary patch workaround for EOS 4.32 (#533)
  - Added hostname collision check when initializing a device to prevent hostname conflicts (#540)
  - Split settings_fields into a module with smaller components (#545)
  - Setting files will now be validated individually and must adhere to the defined schema (#459)
+ - Rebuilt settings fields schemas into types to improve modularity and maintainability (#592)
+ - Changed logging levels from DEBUG to INFO for certain operations, can now set the LOG_LEVEL through an environment variable (#583, #586)
+ - Updated documentation (#556, #564)
 
 Bug fixes:
 
- - Added a unique contraint to reserveip and a init_step1 delay to fix a race condition when multiple devices was initialized at the same time (#539)
+ - Added a unique constraint to reserveip and a init_step1 delay to fix a race condition when multiple devices was initialized at the same time (#539)
  - Updated return codes in firmware api (#531)
  - Fixed device replacement bugs, now supports swapping between platforms and changing uplink port, disabled MLAG and Stack device replacement (#543)
  - A port bounce renders both templates before pushing either, so a template repository missing a working bounce-up.j2 no longer leaves the interface disabled (#591)
@@ -37,6 +43,7 @@ Breaking changes:
 
  - f_root override-plugins must be updated and be specifed to a specific setting file.
    See: https://cnaas-nms.readthedocs.io/en/latest/plugins/index.html#settings-fields for more information.
+   Internal custom pydantic schemas have also been rebuilt to types so if your plugins use internal schemas they will need to be updated to the custom types instead.
 
 Version 1.8.0
 -------------

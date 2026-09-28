@@ -92,7 +92,8 @@ $COMPOSE_COMMAND exec -u root -T cnaas_api /bin/bash -c \
 	chmod ug+x /opt/cnaas/pytest.sh /opt/cnaas/coverage.sh && \
 	cd /opt/cnaas/venv/cnaas-nms && \
 	source ../bin/activate && \
-	pip install -q --group dev && \
+	python3 -m ensurepip && \
+	python3 -m pip install -q --group dev && \
 	chmod ug+w src && \
 	supervisorctl stop uwsgi && \
 	rm src/.coverage-*'
@@ -146,9 +147,11 @@ echo "Gathering coverage reports from integration tests:"
 MULE_PID="$($COMPOSE_COMMAND logs cnaas_api | awk '/spawned uWSGI mule/{print $6}' | egrep -o "[0-9]+" | tail -n1)"
 echo "Found mule at pid $MULE_PID"
 # Allow for code coverage files to be saved
+echo "Changing ownership of coverage files..."
 $COMPOSE_COMMAND exec -u root -T cnaas_api chown -R www-data:www-data /opt/cnaas/venv/cnaas-nms/src/
-curl -m 5 -ks -H "Authorization: Bearer $JWT_AUTH_TOKEN" "https://localhost/api/v1.0/system/shutdown" -d "{}" -X POST -H "Content-Type: application/json"
-sleep 3
+echo "Shutting down cnaas_api..."
+curl --no-buffer -ks -H "Authorization: Bearer $JWT_AUTH_TOKEN" "https://localhost/api/v1.0/system/shutdown" -d "{}" -X POST -H "Content-Type: application/json" >/dev/null 2>&1 &
+sleep 5
 
 echo "Starting unit tests..."
 $COMPOSE_COMMAND exec -u www-data -T cnaas_api /opt/cnaas/pytest.sh

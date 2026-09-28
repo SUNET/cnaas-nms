@@ -101,7 +101,7 @@ def docker_compose_file(pytestconfig, request):
 
 
 @pytest.fixture(scope="session")
-def redis(docker_ip, request):
+def redis(request):
     """Start Redis with pytest-docker if not EXTERNAL_TEST_CONTAINERS is set."""
     use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in (
         "1",
@@ -113,7 +113,7 @@ def redis(docker_ip, request):
     if not use_external:
         print("Using internal Redis (pytest-docker)")
         docker_services = request.getfixturevalue("docker_services")
-        host = docker_ip
+        host = request.getfixturevalue("docker_ip")
         port = docker_services.port_for("cnaas_redis", 6379)
 
         assert wait_for_port(host, port), f"Could not connect to Redis at {host}:{port}"
@@ -124,7 +124,7 @@ def redis(docker_ip, request):
 
 
 @pytest.fixture(scope="session")
-def postgresql(docker_ip, request):
+def postgresql(request):
     """Start PostgreSQL with pytest-docker if not EXTERNAL_TEST_CONTAINERS is set."""
     use_external = os.getenv("EXTERNAL_TEST_CONTAINERS", "0").strip().lower() in (
         "1",
@@ -136,7 +136,8 @@ def postgresql(docker_ip, request):
     if not use_external:
         print("Using PostgreSQL with pytest-docker")
         docker_services = request.getfixturevalue("docker_services")
-        host, port = docker_ip, docker_services.port_for("cnaas_postgres", 5432)
+        host = request.getfixturevalue("docker_ip")
+        port = docker_services.port_for("cnaas_postgres", 5432)
         assert wait_for_port(host, port), f"Could not connect to PostgreSQL at {host}:{port}"
     else:
         time.sleep(5)
@@ -200,3 +201,17 @@ def testdata(scope="session"):
     data_dir = Path(__file__).parent / "cnaas_nms" / "api" / "tests" / "data"
     with open(data_dir / "testdata.yml", "r") as f_testdata:
         return yaml_safe_load(f_testdata)
+
+
+def running_in_container() -> bool:
+    if Path("/.dockerenv").exists():
+        return True
+
+    try:
+        cgroup = Path("/proc/1/cgroup").read_text()
+        if "docker" in cgroup or "kubepods" in cgroup or "containerd" in cgroup:
+            return True
+    except Exception:
+        pass
+
+    return False

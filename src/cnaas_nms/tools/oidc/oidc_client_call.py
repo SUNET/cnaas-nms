@@ -42,7 +42,7 @@ def get_token_info_from_userinfo(session: requests.Session, token: Token, user_i
             body = json.loads(e.response.content)
             logger.warning("OIDC userinfo endpoint request not successful: " + body["error_description"])
             raise e
-        except (json.decoder.JSONDecodeError, KeyError):
+        except json.decoder.JSONDecodeError, KeyError:
             logger.warning("OIDC userinfo endpoint request not successful: {}".format(str(e)))
             raise e
     except requests.exceptions.JSONDecodeError as e:
@@ -68,7 +68,7 @@ def get_token_info_from_introspect(session: requests.Session, token: Token, intr
             body = json.loads(e.response.content)
             logger.warning("OIDC introspection endpoint request not successful: " + body["error_description"])
             raise InvalidTokenError(body["error_description"])
-        except (json.decoder.JSONDecodeError, KeyError):
+        except json.decoder.JSONDecodeError, KeyError:
             logger.warning("OIDC introspection endpoint request not successful: {}".format(str(e)))
             raise InvalidTokenError(str(e))
     except requests.exceptions.JSONDecodeError as e:

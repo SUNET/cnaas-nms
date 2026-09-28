@@ -8,6 +8,7 @@ from cnaas_nms.api import app
 from cnaas_nms.api.tests.app_wrapper import TestAppWrapper
 from cnaas_nms.app_settings import app_settings
 from cnaas_nms.version import __version__
+from conftest import running_in_container
 
 
 @pytest.fixture
@@ -17,6 +18,7 @@ def testclient(testdata: dict, scope="module") -> FlaskClient:
     return nms_app.test_client()
 
 
+@pytest.mark.skipif(running_in_container(), reason="Skipping system tests when running in a container")
 def test_system_version(testclient: FlaskClient):
     result = testclient.get("/api/v1.0/system/version")
     assert result.status_code == 200

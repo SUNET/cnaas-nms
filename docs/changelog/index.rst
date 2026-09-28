@@ -25,6 +25,7 @@ Changes:
  - Updated YAML parsing to use the CSafeLoader for faster performance (#536)
  - Bumped nornir_jinja2 to 1.0.0 and readded jinja_env cache for faster performance (#538)
  - Bumped napalm to 3.2 and removed a temporary patch workaround for EOS 4.32 (#533)
+ - Bumped dependencies (#594)
  - Added hostname collision check when initializing a device to prevent hostname conflicts (#540)
  - Split settings_fields into a module with smaller components (#545)
  - Setting files will now be validated individually and must adhere to the defined schema (#459)

@@ -12,10 +12,13 @@ New features:
  - Fencing token added to syncto jobs to make sure no unintended changes are commited in a live run (#535)
  - The repository api now tracks when a repo is out of sync with the origin (#546)
  - Added banner_login and banner_motd settings to base_system (#570)
+ - Added support for global IGMP snooping settings (#597)
+ - Added support for IGMP snooping querier settings per VXLAN (#597)
+ - VXLANs now have an enabled attribute to indicate whether the VLAN interface are active or not (#597)
  - Added skip_empty_network_definitions to access_lists that will remove empty network definitions if set to true (#571)
  - /api/health, /api/health/live and /api/health/ready endpoints that report the health of the API, including checks for PostgreSQL and Redis (#578, #573)
  - Added vlan_groups feature, define groups of VLANs and reuse the vlan_groups in interfaces for easier management (#592)
- - NMS now tracks the CPU architecture for Arista EOS switches and saves it to the database. Uses the architecture to dynamically set the correct firmware version during firmware upgrade (#567, #576) 
+ - NMS now tracks the CPU architecture for Arista EOS switches and saves it to the database. Uses the architecture to dynamically set the correct firmware version during firmware upgrade (#567, #576)
  - For the /devices API it is now possible filtering with the in operator, example: :code:`?filter[hostname][in]=eosdist1,eosdist2` (#560)
 
 Changes:

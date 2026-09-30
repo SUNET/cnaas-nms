@@ -676,6 +676,8 @@ name is the dictionary key and dictionaly values are:
   * vrf: VRF name. Optional unless ipv4_gw is also specified.
   * vlan_id: VLAN ID, 1-4095
   * vlan_name: VLAN name, single word/no spaces, max 31 characters
+  * description: Description of the VLAN interface. Optional.
+  * enabled: Set to false to disable the VLAN interface. Default true.
   * ipv4_gw: IPv4 gateway address in CIDR notation, ex: 192.168.0.1/24. Optional.
   * ipv4_secondaries: List of IPv4 addresses in CIDR notation. Optional.
   * ipv6_gw: IPv6 address, ex: fe80::1. Optional.
@@ -686,6 +688,14 @@ name is the dictionary key and dictionaly values are:
   * acl_ipv4_out: Access control list to apply for egress IPv4 traffic from routed interface. Optional.
   * acl_ipv6_in: Access control list to apply for ingress IPv6 traffic to routed interface. Optional.
   * acl_ipv6_out: Access control list to apply for egress IPv6 traffic from routed interface. Optional.
+  * igmp_snooping: IGMP snooping settings for the VXLAN. Optional.
+
+    * enabled: Set to false to disable IGMP snooping for the VXLAN. Defaults to true.
+    * querier: IGMP snooping querier settings for the VXLAN. Optional.
+
+      * enabled: Set to false to disable the IGMP snooping querier for the VXLAN. Defaults to true.
+      * query_interval: Set a custom query_interval. Leave empty to use device defaults.
+      * version: IGMP version to use 1 to 3. Optional. Leave empty to use device defaults.
   * cli_append_str: Optional. Custom configuration to append to this interface.
   * tags: List of custom strings to tag this VXLAN with. Optional.
   * groups: List of group names where this VXLAN/VLAN should be provisioned. If you select an
@@ -699,6 +709,30 @@ name is the dictionary key and dictionaly values are:
   It is recommended to carefully plan VLAN group names to avoid unintended configuration changes.
 
   Only VLANs that are actually defined on a switch will be configured for interfaces that reference VLAN groups.
+
+.. note::
+  For L2 vxlans that participate in multicast, IGMP snooping querier should be enabled to efficiently manage multicast traffic in the EVPN.
+  See the following vendor documentation for more details:
+
+  * Arista: https://www.arista.com/en/support/toi/eos-4-25-1f/14669-layer-2-multicast-evpn
+  * Cisco Nexus: https://www.cisco.com/c/en/us/td/docs/dcn/nx-os/nexus9000/106x/configuration/vxlan/cisco-nexus-9000-series-nx-os-vxlan-configuration-guide-release-106x/optimized-layer-2-overlay-multicast.html#_4cc34282-e9de-4e52-8c41-a9821503db64
+  * Juniper: https://www.juniper.net/documentation/us/en/software/junos/evpn/topics/example/evpn-vxlan-igmp-snooping-configuring-qfx-series.html
+
+  For L2 multicast vlans(for example Dante networks) the recommended settings are:
+
+  .. code-block:: yaml
+
+    # vxlan igmp snooping settings
+    igmp_snooping:
+      enabled: true
+      querier:
+        enabled: true
+        query_interval: 30
+
+    # base-system igmp_snooping settings
+    igmp_snooping:
+      enabled: true
+      robustness-variable: 3
 
 vxlan.yml examples
 ^^^^^^^^^^^^^^^^^^

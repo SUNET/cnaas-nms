@@ -19,7 +19,7 @@ class f_interface(BaseModel):
     redundant_link: bool = True
     config: str | None = None
     description: InterfaceDescription | None = None
-    enabled: bool | None = None
+    enabled: bool = True
     untagged_vlan: VlanId | None = None
     # tagged vlan list can be list of vlans IDs or ranges of VLAN IDs ("1-10")
     tagged_vlan_list: list[VlanId | VlanIdRange | str] | None = None

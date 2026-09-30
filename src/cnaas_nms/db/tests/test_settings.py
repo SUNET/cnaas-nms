@@ -1062,6 +1062,106 @@ class SettingsTests(unittest.TestCase):
 
         self.assertIn("Input is not a valid IPv6 interface", str(context.exception))
 
+    def test_settings_vxlan_igmp_snooping(self):
+        # Valid settings
+        settings = {
+            "vxlans": {
+                "VXLAN1": {
+                    "vlan_name": "test1",
+                    "vlan_id": 11,
+                    "vrf": "test-vrf",
+                    "vni": 1001,
+                    "igmp_snooping": {
+                        "enabled": True,
+                        "querier": {
+                            "enabled": True,
+                            "query_interval": 125,  # example value
+                        },
+                    },
+                }
+            }
+        }
+
+        f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+    def test_settings_vxlan_igmp_snooping_error(self):
+        # Invalid settings
+        settings = {
+            "vxlans": {
+                "VXLAN1": {
+                    "vlan_name": "test1",
+                    "vlan_id": 11,
+                    "vrf": "test-vrf",
+                    "vni": 1001,
+                    "igmp_snooping": {
+                        "enabled": False,
+                        "querier": {
+                            "enabled": True,
+                            "query_interval": 125,  # example value
+                        },
+                    },
+                }
+            }
+        }
+
+        with self.assertRaises(ValidationError) as context:
+            f_root(**settings)  # pyright: ignore[reportArgumentType]
+        self.assertIn("IGMP snooping querier cannot be set if IGMP snooping is disabled", str(context.exception))
+
+    def test_settings_vxlan_log_warning_l2(self):
+        settings = {
+            "vxlans": {
+                "VXLAN1": {
+                    "vlan_name": "test1",
+                    "vlan_id": 11,
+                    "vrf": "test-vrf",
+                    "enabled": False,
+                    "vni": 1001,
+                    "acl_ipv4_in": "ACL_IN",
+                    "acl_ipv4_out": "ACL_OUT",
+                    "acl_ipv6_in": "ACL6_IN",
+                    "acl_ipv6_out": "ACL6_OUT",
+                    "dhcp_relays": [{"host": "192.0.2.2"}],
+                    "mtu": 1500,
+                }
+            }
+        }
+
+        with self.assertLogs(level="WARNING") as caplog:
+            f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+        log_messages = [record.getMessage() for record in caplog.records]
+
+        self.assertIn("VXLAN 'test1': VXLAN is in L2 mode, setting enabled to False will have no effect.", log_messages)
+        self.assertIn("VXLAN 'test1': ACLs are set but VXLAN is in L2 mode, ACLs will have no effect.", log_messages)
+        self.assertIn(
+            "VXLAN 'test1': DHCP relays are set but VXLAN is in L2 mode, DHCP relays will have no effect.", log_messages
+        )
+        self.assertIn("VXLAN 'test1': MTU is set but VXLAN is in L2 mode, MTU will have no effect.", log_messages)
+
+    def test_settings_vxlan_log_warning_l3(self):
+        settings = {
+            "vxlans": {
+                "VXLAN1": {
+                    "vlan_name": "test1",
+                    "vlan_id": 11,
+                    "vrf": "test-vrf",
+                    "vni": 1001,
+                    "ipv4_gw": "192.0.2.1/24",
+                    "igmp_snooping": {"enabled": True, "querier": {"enabled": True, "version": 3}},
+                }
+            }
+        }
+
+        with self.assertLogs(level="WARNING") as caplog:
+            f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+        log_messages = [record.getMessage() for record in caplog.records]
+
+        self.assertIn(
+            "VXLAN 'test1': IGMP snooping querier is a L2 feature, will have no effect in L3 mode.", log_messages
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

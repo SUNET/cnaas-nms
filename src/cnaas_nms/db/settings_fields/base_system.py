@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from pydantic import BaseModel, ValidationInfo, field_validator
+from annotated_types import Ge, Le
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
 from pydantic.functional_validators import AfterValidator
 
 from cnaas_nms.db.settings_fields.shared import (
@@ -82,6 +83,19 @@ class f_user(BaseModel):
     groups: list[str] = []
 
 
+class f_igmp_snooping(BaseModel):
+    # Global igmp snooping variables
+    enabled: Annotated[
+        bool,
+        Field(
+            description="Global IGMP snooping toggle, should be left to true if you want IGMP snooping to be active."
+        ),
+    ] = True
+    robustness_variable: Annotated[
+        int, Ge(1), Le(3), Field(description="IGMP snooping robustness variable, must be between 1 and 3.")
+    ] = 2
+
+
 class f_base_system(BaseModel):
     ntp_servers: list[f_ntp_server] = []
     radius_servers: list[f_radius_server] = []
@@ -94,6 +108,7 @@ class f_base_system(BaseModel):
     banner_login: str | None = None
     banner_motd: str | None = None
     dot1x_fail_vlan: VlanId | None = None
+    igmp_snooping: f_igmp_snooping = Field(default_factory=f_igmp_snooping)
     cli_prepend_str: str = ""
     cli_append_str: str = ""
     organization_name: str = ""

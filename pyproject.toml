@@ -19,7 +19,7 @@ classifiers = [
 dynamic = [ "version" ]
 dependencies = [
   "absl-py==2.5.0",
-  "aerleon",
+  "aerleon==1.18.0",
   "alembic==1.20.0",
   "apscheduler==3.11",
   "authlib==1.6.12",
@@ -51,6 +51,7 @@ dependencies = [
   "redis==8.1",
   "redis-lru==0.1",
   "requests==2.34.2",
+  "scp==0.15.0",
   "sqlalchemy==2.0.54",
   "sqlalchemy-utils==0.42.1",
   "werkzeug==3.1.9",
@@ -83,12 +84,6 @@ integration-tools = [
   "pytest-cov==7.1.0",
   "coverage==7.16",
 ]
-
-[tool.uv.sources]
-# 1.17.0 spawns a multiprocessing Manager for every ACL generation, which
-# fails under gevent on Python 3.14; aerleon#485 removes it. Pin the first
-# release above 1.17.0 once it is published.
-aerleon = { git = "https://github.com/aerleon/aerleon.git", rev = "7d741142a961d300656afba63edc1e87772a58b2" }
 
 [project.readme]
 file = "README.md"

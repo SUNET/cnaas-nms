@@ -88,11 +88,23 @@ def refresh_templates_worktree(branch: str):
         os.mkdir("/tmp/worktrees")
     logger.info("Adding worktree for templates branch {} in folder {}".format(branch, branch_folder))
     try:
+        # fetch so that branches created on the remote after the last
+        # templates refresh can be resolved
+        local_repo.remotes.origin.fetch()
         local_repo.git.worktree("prune")
-        local_repo.git.worktree("add", branch_folder, branch)
+        if any(ref.remote_head == branch for ref in local_repo.remotes.origin.refs):
+            local_repo.git.worktree("add", branch_folder, branch)
+            return
+        if local_repo.git.ls_remote("--heads", "origin", "refs/heads/" + branch):
+            error = "templates branch {} exists on the remote, but the templates repository only fetches {}".format(
+                branch, local_repo.git.config("--get-all", "remote.origin.fetch")
+            )
+        else:
+            error = "templates branch {} does not exist in the remote templates repository".format(branch)
     except git.exc.GitCommandError as e:
-        logger.error("Error adding worktree for templates branch {}: {}".format(branch, e.stderr.strip()))
-        raise WorktreeError(e.stderr.strip())
+        error = e.stderr.strip()
+    logger.error("Error adding worktree for templates branch {}: {}".format(branch, error))
+    raise WorktreeError(error)
 
 
 def find_templates_worktree_path(branch: str) -> Optional[str]:

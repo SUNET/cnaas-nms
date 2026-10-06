@@ -84,9 +84,6 @@ bounce_model = api.model(
             description="Seconds to stay down before coming back up, junos only",
             example=20,
         ),
-        "poe": fields.Boolean(
-            required=False, description="Bounce the PoE supply instead of the link, junos only", example=True
-        ),
     },
 )
 
@@ -403,7 +400,7 @@ class InterfaceStatusApi(Resource):
     @login_required
     @api.expect(bounce_model)
     def put(self, hostname):
-        """Bounce selected interfaces, optionally cutting PoE and for a given interval"""
+        """Bounce selected interfaces, optionally for a given interval"""
         json_data = request.get_json()
 
         if "bounce_interfaces" in json_data and isinstance(json_data["bounce_interfaces"], list):
@@ -421,11 +418,8 @@ class InterfaceStatusApi(Resource):
                     ),
                     400,
                 )
-            poe = json_data.get("poe", False)
-            if type(poe) is not bool:
-                return empty_result(status="error", data="poe must be a bool, true or false"), 400
             try:
-                bounce_success = bounce_interfaces(hostname, interfaces, interval=interval, poe=poe)
+                bounce_success = bounce_interfaces(hostname, interfaces, interval=interval)
             except ValueError as e:
                 return empty_result(status="error", data=str(e)), 400
             except Exception as e:

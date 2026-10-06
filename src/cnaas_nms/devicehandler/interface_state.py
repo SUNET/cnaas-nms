@@ -1,6 +1,8 @@
 import re
 from typing import List, Optional
+from xml.etree import ElementTree
 
+from nornir.core.exceptions import NornirSubTaskError
 from nornir_jinja2.plugins.tasks import template_file
 from nornir_napalm.plugins.tasks import napalm_cli, napalm_configure, napalm_get
 
@@ -69,13 +71,11 @@ def pre_bounce_check(hostname: str, interfaces: List[str]):
 def bounce_command(ifname: str, interval: Optional[int] = None, poe: bool = False) -> str:
     """The Junos operational command that bounces one interface.
 
-    Bouncing the PoE supply is a separate command from bouncing the link, so a
-    caller that wants the attached device to reboot asks for the PoE one. Both
-    take an interval in seconds to stay down, which is what makes an access
-    point come back up: the default bounce is too short for that.
+    Bouncing the PoE supply is a separate command from bouncing the link, and
+    the one that makes a powered device reboot. Both take an interval in seconds
+    to stay down, which is what makes an access point come back up: the default
+    bounce is too short for that.
     """
-    if not re.fullmatch(IFNAME_REGEX, ifname):
-        raise ValueError(f"Invalid interface name {ifname}")
     if interval is not None and not BOUNCE_INTERVAL_MIN <= interval <= BOUNCE_INTERVAL_MAX:
         raise ValueError(
             "Bounce interval must be between {} and {} seconds, got {}".format(
@@ -88,18 +88,50 @@ def bounce_command(ifname: str, interval: Optional[int] = None, poe: bool = Fals
     return command
 
 
+def powers_device(poe_status: str) -> bool:
+    """Whether "show poe interface" in XML reports the port delivering power.
+
+    A port without PoE answers with an error instead, and one with PoE but
+    nothing drawing power reports another status than ON.
+    """
+    try:
+        root = ElementTree.fromstring(poe_status)
+    except ElementTree.ParseError:
+        return False
+    return (root.findtext(".//{*}interface-status-detail") or "").strip() == "ON"
+
+
 def bounce_confirmed(output: str) -> bool:
     """Whether the switch answered that it started the bounce."""
     return BOUNCE_CONFIRMED_REGEX.search(output) is not None
 
 
-def junos_bounce_task(task, interfaces: List[str], interval: Optional[int], poe: bool):
+def junos_bounce_task(task, interfaces: List[str], interval: Optional[int]):
     """Bounce interfaces with the operational command Junos has for it.
 
     This changes no configuration, so it leaves the device synchronized and
-    needs no commit, unlike the template route the other platforms take.
+    needs no commit, unlike the template route the other platforms take. A port
+    that powers its device gets its PoE bounced, so the device power cycles as
+    it does when the template route disables the port; a link bounce alone
+    would leave it running.
     """
     for ifname in interfaces:
+        # The name is interpolated into CLI commands
+        if not re.fullmatch(IFNAME_REGEX, ifname):
+            raise ValueError(f"Invalid interface name {ifname}")
+        try:
+            poe_status = task.run(
+                task=napalm_cli,
+                name="PoE status of {}".format(ifname),
+                commands=["show poe interface {}".format(ifname)],
+                encoding="xml",
+            )
+        except NornirSubTaskError:
+            # A switch without PoE may refuse the command rather than answer it
+            task.results[-1].failed = False
+            poe = False
+        else:
+            poe = powers_device(next(iter(poe_status.result.values()), ""))
         res = task.run(
             task=napalm_cli,
             name="Bounce {}".format(ifname),
@@ -157,7 +189,7 @@ def bounce_task(task, interfaces: List[str]):
         )
 
 
-def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[int] = None, poe: bool = False) -> bool:
+def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[int] = None) -> bool:
     """Returns true if the device changed config down and then up.
     Returns false if config did not change, and raises Exception if an
     error was encountered.
@@ -166,7 +198,6 @@ def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[i
         hostname: device to bounce interfaces on
         interfaces: names of the interfaces to bounce
         interval: seconds to stay down before coming back up, Junos only
-        poe: bounce the PoE supply instead of the link, Junos only
 
     On Junos this is an operational command, which leaves the configuration
     untouched and so reports no change; it returns true because the bounce did
@@ -179,15 +210,15 @@ def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[i
         raise ValueError(f"Hostname {hostname} not found in inventory")
     platform = next(iter(nr_filtered.inventory.hosts.values())).platform
     if platform == "junos":
-        nrresult = nr_filtered.run(task=junos_bounce_task, interfaces=interfaces, interval=interval, poe=poe)
+        nrresult = nr_filtered.run(task=junos_bounce_task, interfaces=interfaces, interval=interval)
         if nrresult.failed or nrresult[hostname].failed:
             exception = nrresult[hostname].exception
             if isinstance(exception, ValueError):
                 raise exception
             raise Exception("Could not bounce interfaces on {}: {}".format(hostname, exception))
         return True
-    if interval is not None or poe:
-        raise ValueError("Bounce interval and PoE are only supported on junos, {} runs {}".format(hostname, platform))
+    if interval is not None:
+        raise ValueError("Bounce interval is only supported on junos, {} runs {}".format(hostname, platform))
     nrresult = nr_filtered.run(task=bounce_task, interfaces=interfaces)
     if nrresult.failed or nrresult[hostname].failed:
         # A template that cannot render names the file the operator has to fix,

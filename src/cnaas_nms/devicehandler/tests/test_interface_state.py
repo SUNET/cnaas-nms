@@ -10,6 +10,7 @@ from cnaas_nms.devicehandler.interface_state import (
     bounce_confirmed,
     bounce_interfaces,
     bounce_task,
+    junos_bounce_task,
 )
 
 # The two halves a bounce pushes, named here rather than imported so that
@@ -146,10 +147,6 @@ def test_bouncing_poe_cuts_the_power_rather_than_the_link():
     assert bounce_command("ge-0/0/23", poe=True) == "request interface bounce poe ge-0/0/23"
 
 
-def test_poe_and_an_interval_combine_into_one_command():
-    assert bounce_command("ge-0/0/23", interval=30, poe=True) == "request interface bounce poe ge-0/0/23 interval 30"
-
-
 @pytest.mark.parametrize("interval", [0, 31, -1])
 def test_an_interval_the_switch_would_refuse_is_rejected_before_it_is_sent(interval):
     # Junos accepts 1 to 30 seconds; anything else is caught here rather than
@@ -188,9 +185,93 @@ def test_a_refusal_is_not_mistaken_for_a_bounce(output):
     assert not bounce_confirmed(output)
 
 
+# "show poe interface" in XML as NAPALM hands it back, recorded from EX switches
+# running Junos 24.4: an access point drawing power, a PoE port with nothing
+# drawing power, and a port the switch has no PoE for.
+POE_DELIVERING = """
+<rpc-reply xmlns:junos="http://xml.juniper.net/junos/24.4R2-S4.10/junos">
+    <poe>
+        <interface-information-detail>
+            <interface-name-detail>mge-0/0/0</interface-name-detail>
+            <interface-enabled-detail>Enabled</interface-enabled-detail>
+            <interface-status-detail>ON</interface-status-detail>
+            <interface-status-detail-extra>4P Port delivering 4P IEEE SSPD</interface-status-detail-extra>
+            <interface-power-detail>11.4W</interface-power-detail>
+        </interface-information-detail>
+    </poe>
+</rpc-reply>
+"""
+POE_IDLE = POE_DELIVERING.replace(">ON<", ">OFF<").replace("4P Port delivering 4P IEEE SSPD", "Detection In Progress")
+POE_NOT_SUPPORTED = """
+<rpc-reply>
+    <poe>
+        <interface-information-detail>
+            <error>
+                <parse/>
+                <source-daemon>chassisd</source-daemon>
+                <message>error: PoE is not supported on interface ae0</message>
+            </error>
+        </interface-information-detail>
+    </poe>
+</rpc-reply>
+"""
+
+
+@pytest.fixture
+def bounce_port(monkeypatch):
+    """Bounce ge-0/0/23 on a switch whose command replies are scripted.
+
+    Returns a callable taking the reply to each command in turn, None for a
+    command the switch refuses, which runs the real task and returns the
+    commands the switch received and the task result.
+    """
+
+    def fake_napalm_cli(task, commands, **kwargs):
+        reply = replies[len(sent)]
+        sent.append(commands[0])
+        if reply is None:
+            raise ConnectionError("Unable to run {} on {}".format(commands[0], task.host.name))
+        return Result(host=task.host, result={commands[0]: reply})
+
+    sent: list = []
+    replies: list = []
+    monkeypatch.setattr("cnaas_nms.devicehandler.interface_state.napalm_cli", fake_napalm_cli)
+
+    def run(command_replies, ifname="ge-0/0/23"):
+        replies.extend(command_replies)
+        host = Host(name="junosaccess", platform="junos")
+        inventory = Inventory(hosts=Hosts({"junosaccess": host}), groups=Groups(), defaults=Defaults())
+        nornir = Nornir(inventory=inventory, runner=SerialRunner())
+        result = nornir.run(task=junos_bounce_task, interfaces=[ifname], interval=20)["junosaccess"]
+        return sent, result
+
+    return run
+
+
+def test_a_port_powering_its_device_is_power_cycled(bounce_port):
+    # Bouncing only the link would leave an access point running on PoE, while
+    # the point of a bounce is to restart it.
+    sent, result = bounce_port([POE_DELIVERING, POE_BOUNCE_STARTED])
+
+    assert not result.failed
+    assert sent[-1] == "request interface bounce poe ge-0/0/23 interval 20"
+
+
+@pytest.mark.parametrize("poe_status", [POE_IDLE, POE_NOT_SUPPORTED, None])
+def test_a_port_not_powering_a_device_has_its_link_bounced(bounce_port, poe_status):
+    # The switch refuses a PoE bounce where there is no PoE, so a port without
+    # a powered device, or on a switch that cannot say, still gets bounced.
+    sent, result = bounce_port([poe_status, BOUNCE_STARTED])
+
+    assert not result.failed
+    assert sent[-1] == "request interface bounce ge-0/0/23 interval 20"
+
+
 @pytest.mark.parametrize("ifname", ["ge-0/0/23 | match secret", "ge-0/0/23\nshow configuration", "ge-0/0/23;id"])
-def test_a_name_that_appends_a_second_command_never_reaches_the_switch(ifname):
-    # The interface name is interpolated into a CLI command, so a name that is
-    # not an interface name is refused before it is sent.
-    with pytest.raises(ValueError):
-        bounce_command(ifname)
+def test_a_name_that_appends_a_second_command_never_reaches_the_switch(bounce_port, ifname):
+    # The interface name is interpolated into CLI commands, so a name that is
+    # not an interface name is refused before anything is sent.
+    sent, result = bounce_port([POE_DELIVERING, POE_BOUNCE_STARTED], ifname=ifname)
+
+    assert result.failed
+    assert sent == []

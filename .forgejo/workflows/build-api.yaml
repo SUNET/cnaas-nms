@@ -26,6 +26,7 @@ jobs:
           echo "GIT_DATE=$(git log -1 --format=%cI HEAD)" >> $GITHUB_ENV
 
       - name: Build and Push latest
+        if: github.ref == 'refs/heads/develop'
         uses: https://platform.sunet.se/actions/build-push-action@v6
         with:
           push: true
@@ -39,6 +40,7 @@ jobs:
             GIT_BRANCH=${{ github.ref_name }}
 
       - name: Build and Push tag
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: https://platform.sunet.se/actions/build-push-action@v6
         with:
           push: true

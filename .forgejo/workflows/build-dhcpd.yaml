@@ -1,0 +1,42 @@
+name: build-dhcpd
+
+on:
+  push:
+    branches:
+      - "develop"
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: docker
+    container: ghcr.io/catthehacker/ubuntu:act-24.04
+    steps:
+      - uses: https://platform.sunet.se/actions/checkout@v7
+
+      - name: Login to Container Registry
+        uses: https://platform.sunet.se/actions/login-action@v4
+        with:
+          registry: platform.sunet.se
+          username: ci-sunet-cnaas
+          password: ${{ secrets.CI_SUNET_CNAAS }}
+
+      - name: Build and Push latest
+        if: github.ref == 'refs/heads/develop'
+        uses: https://platform.sunet.se/actions/build-push-action@v7
+        with:
+          push: true
+          file: docker/dhcpd/Dockerfile
+          tags: |
+            platform.sunet.se/cnaas/nms_dhcpd:latest
+            platform.sunet.se/cnaas/nms_dhcpd:${{ github.sha }}
+
+      - name: Build and Push tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: https://platform.sunet.se/actions/build-push-action@v7
+        with:
+          push: true
+          file: docker/dhcpd/Dockerfile
+          tags: |
+            platform.sunet.se/cnaas/nms_dhcpd:${{ github.sha }}
+            platform.sunet.se/cnaas/nms_dhcpd:${{ github.ref_name }}

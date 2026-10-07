@@ -8,51 +8,45 @@ on:
       - "v*"
 
 jobs:
-  build_api:
+  build:
     runs-on: docker
     container: ghcr.io/catthehacker/ubuntu:act-24.04
     steps:
-      - name: Checkout the repo
-        uses: https://platform.sunet.se/actions/checkout@v4
+      - uses: https://platform.sunet.se/actions/checkout@v7
+
       - name: Login to Container Registry
-        uses: https://platform.sunet.se/actions/login-action@v3
+        uses: https://platform.sunet.se/actions/login-action@v4
         with:
           registry: platform.sunet.se
           username: ci-sunet-cnaas
           password: ${{ secrets.CI_SUNET_CNAAS }}
+
       - name: Set build args
         run: |
           echo "GIT_DATE=$(git log -1 --format=%cI HEAD)" >> $GITHUB_ENV
-      - name: Build and Push nms_api
+
+      - name: Build and Push latest
         uses: https://platform.sunet.se/actions/build-push-action@v6
         with:
           push: true
           file: docker/api/Dockerfile
           tags: |
             platform.sunet.se/cnaas/nms_api:latest
-            platform.sunet.se/cnaas/nms_api:${{ github.ref_name }}
+            platform.sunet.se/cnaas/nms_api:${{ github.sha }}
           build-args: |
             GIT_COMMIT=${{ github.sha }}
             GIT_DATE=${{ env.GIT_DATE }}
             GIT_BRANCH=${{ github.ref_name }}
 
-  build_dhcpd:
-    runs-on: docker
-    container: ghcr.io/catthehacker/ubuntu:act-24.04
-    steps:
-      - name: Checkout the repo
-        uses: https://platform.sunet.se/actions/checkout@v4
-      - name: Login to Container Registry
-        uses: https://platform.sunet.se/actions/login-action@v3
-        with:
-          registry: platform.sunet.se
-          username: ci-sunet-cnaas
-          password: ${{ secrets.CI_SUNET_CNAAS }}
-      - name: Build and Push nms_dhcpd
+      - name: Build and Push tag
         uses: https://platform.sunet.se/actions/build-push-action@v6
         with:
           push: true
-          file: docker/dhcpd/Dockerfile
+          file: docker/api/Dockerfile
           tags: |
-            platform.sunet.se/cnaas/nms_dhcpd:latest
-            platform.sunet.se/cnaas/nms_dhcpd:${{ github.ref_name }}
+            platform.sunet.se/cnaas/nms_api:${{ github.ref_name }}
+            platform.sunet.se/cnaas/nms_api:${{ github.sha }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            GIT_DATE=${{ env.GIT_DATE }}
+            GIT_BRANCH=${{ github.ref_name }}

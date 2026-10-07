@@ -5,7 +5,7 @@ on:
     branches:
       - "develop"
     tags:
-      - "v*"
+      - "v*.*.*"
 
 jobs:
   build:
@@ -21,22 +21,23 @@ jobs:
           username: ci-sunet-cnaas
           password: ${{ secrets.CI_SUNET_CNAAS }}
 
-      - name: Build and Push latest
-        if: github.ref == 'refs/heads/develop'
-        uses: https://platform.sunet.se/actions/build-push-action@v7
+      - name: Docker meta
+        id: meta
+        uses: https://github.com/docker/metadata-action@v6
         with:
-          push: true
-          file: docker/dhcpd/Dockerfile
+          images: |
+            platform.sunet.se/cnaas/nms_dhcpd
+          # generate Docker tags based on the following events/attributes
           tags: |
-            platform.sunet.se/cnaas/nms_dhcpd:latest
-            platform.sunet.se/cnaas/nms_dhcpd:${{ github.sha }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=sha
 
-      - name: Build and Push tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Build and Push
         uses: https://platform.sunet.se/actions/build-push-action@v7
         with:
           push: true
           file: docker/dhcpd/Dockerfile
-          tags: |
-            platform.sunet.se/cnaas/nms_dhcpd:${{ github.sha }}
-            platform.sunet.se/cnaas/nms_dhcpd:${{ github.ref_name }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

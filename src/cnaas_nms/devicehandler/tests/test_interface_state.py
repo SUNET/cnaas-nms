@@ -5,13 +5,7 @@ from nornir.core.task import Result
 from nornir.plugins.runners import SerialRunner
 
 from cnaas_nms.app_settings import app_settings
-from cnaas_nms.devicehandler.interface_state import (
-    bounce_command,
-    bounce_confirmed,
-    bounce_interfaces,
-    bounce_task,
-    junos_bounce_task,
-)
+from cnaas_nms.devicehandler.interface_state import bounce_interfaces, bounce_task, junos_bounce_task
 
 # The two halves a bounce pushes, named here rather than imported so that
 # renaming one in the source is caught instead of followed.
@@ -110,6 +104,25 @@ def test_a_bounce_that_cannot_produce_both_halves_pushes_neither(template_repo, 
     assert pushed == []
 
 
+def test_an_interval_keeps_the_interface_down_that_long(template_repo, monkeypatch):
+    # The up half has to wait out the interval, or an attached device is not
+    # down long enough to reboot.
+    clock = [0]
+    pushed_at = []
+
+    def fake_napalm_configure(task, configuration=None, **kwargs):
+        pushed_at.append(clock[0])
+        return Result(host=task.host, changed=True, result="")
+
+    monkeypatch.setattr("cnaas_nms.devicehandler.interface_state.napalm_configure", fake_napalm_configure)
+    monkeypatch.setattr("time.sleep", lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+
+    result = make_nornir().run(task=bounce_task, interfaces=["Ethernet1"], interval=20)
+
+    assert not result["sw1"].failed
+    assert pushed_at == [0, 20]
+
+
 def test_a_bounce_names_the_interface_it_was_asked_to_bounce(template_repo, bounce):
     # Every interface in the request has to reach the device, otherwise a
     # multi-interface bounce silently leaves some of them alone.
@@ -135,54 +148,11 @@ def test_a_bounce_that_pushed_both_halves_reports_success(template_repo, bounce_
     assert bounce_device(["Ethernet1"]) is True
 
 
-def test_bouncing_a_port_only_names_that_port():
-    assert bounce_command("ge-0/0/23") == "request interface bounce ge-0/0/23"
-
-
-def test_an_interval_keeps_the_port_down_long_enough_for_a_device_to_reboot():
-    assert bounce_command("ge-0/0/23", interval=20) == "request interface bounce ge-0/0/23 interval 20"
-
-
-def test_bouncing_poe_cuts_the_power_rather_than_the_link():
-    assert bounce_command("ge-0/0/23", poe=True) == "request interface bounce poe ge-0/0/23"
-
-
-@pytest.mark.parametrize("interval", [0, 31, -1])
-def test_an_interval_the_switch_would_refuse_is_rejected_before_it_is_sent(interval):
-    # Junos accepts 1 to 30 seconds; anything else is caught here rather than
-    # ending up as an error message from the switch.
-    with pytest.raises(ValueError):
-        bounce_command("ge-0/0/23", interval=interval)
-
-
 # What an EX4100 running Junos 24.4 actually answers, recorded on testcampus1.
 BOUNCE_STARTED = "\nBounce operation on interface ge-0/0/16 started with interval 10 secs.\n"
 POE_BOUNCE_STARTED = "\nPoE bounce request received for ge-0/0/16 with interval 5s\n"
 NO_SUCH_INTERFACE = "\nPort bounce: IFD object ge-0/0/99 doesn't exist\n"
 NO_POE_ON_INTERFACE = "\nPoE not supported on ge-0/0/99\n"
-
-
-@pytest.mark.parametrize("output", [BOUNCE_STARTED, POE_BOUNCE_STARTED])
-def test_the_switch_confirming_the_bounce_counts_as_done(output):
-    assert bounce_confirmed(output)
-
-
-@pytest.mark.parametrize(
-    "output",
-    [
-        NO_SUCH_INTERFACE,
-        NO_POE_ON_INTERFACE,
-        "",
-        "PoE bounce request rejected: port ge-0/0/16 is down",
-        "Bounce operation on interface ge-0/0/16 failed",
-    ],
-)
-def test_a_refusal_is_not_mistaken_for_a_bounce(output):
-    # Junos refuses in ordinary output rather than by failing, and its refusals
-    # carry no marker word of their own, so anything short of a confirmation
-    # has to count as "did not happen" - including a refusal phrased with the
-    # same words the confirmation uses.
-    assert not bounce_confirmed(output)
 
 
 # "show poe interface" in XML as NAPALM hands it back, recorded from EX switches
@@ -237,12 +207,12 @@ def bounce_port(monkeypatch):
     replies: list = []
     monkeypatch.setattr("cnaas_nms.devicehandler.interface_state.napalm_cli", fake_napalm_cli)
 
-    def run(command_replies, ifname="ge-0/0/23"):
+    def run(command_replies, ifname="ge-0/0/23", interval=20):
         replies.extend(command_replies)
         host = Host(name="junosaccess", platform="junos")
         inventory = Inventory(hosts=Hosts({"junosaccess": host}), groups=Groups(), defaults=Defaults())
         nornir = Nornir(inventory=inventory, runner=SerialRunner())
-        result = nornir.run(task=junos_bounce_task, interfaces=[ifname], interval=20)["junosaccess"]
+        result = nornir.run(task=junos_bounce_task, interfaces=[ifname], interval=interval)["junosaccess"]
         return sent, result
 
     return run
@@ -265,6 +235,35 @@ def test_a_port_not_powering_a_device_has_its_link_bounced(bounce_port, poe_stat
 
     assert not result.failed
     assert sent[-1] == "request interface bounce ge-0/0/23 interval 20"
+
+
+def test_without_an_interval_the_switch_uses_its_own_default(bounce_port):
+    # The interval is optional, so leaving it out has to give a command the
+    # switch accepts.
+    sent, result = bounce_port([POE_IDLE, BOUNCE_STARTED], interval=None)
+
+    assert not result.failed
+    assert sent[-1] == "request interface bounce ge-0/0/23"
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        NO_SUCH_INTERFACE,
+        NO_POE_ON_INTERFACE,
+        "",
+        "PoE bounce request rejected: port ge-0/0/16 is down",
+        "Bounce operation on interface ge-0/0/16 failed",
+    ],
+)
+def test_a_refusal_is_not_mistaken_for_a_bounce(bounce_port, output):
+    # Junos refuses in ordinary output rather than by failing, and its refusals
+    # carry no marker word of their own, so anything short of a confirmation
+    # has to count as "did not happen" - including a refusal phrased with the
+    # same words the confirmation uses.
+    _, result = bounce_port([POE_DELIVERING, output])
+
+    assert result.failed
 
 
 @pytest.mark.parametrize("ifname", ["ge-0/0/23 | match secret", "ge-0/0/23\nshow configuration", "ge-0/0/23;id"])

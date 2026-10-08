@@ -81,7 +81,7 @@ bounce_model = api.model(
             required=False,
             min=BOUNCE_INTERVAL_MIN,
             max=BOUNCE_INTERVAL_MAX,
-            description="Seconds to stay down before coming back up, junos only",
+            description="Seconds to stay down before coming back up",
             example=20,
         ),
     },

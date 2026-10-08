@@ -1317,7 +1317,7 @@ def _process_access_list_terms(
                     assert isinstance(network, str)
                     try:
                         if not defs._GetNet(network):
-                            logger.info(
+                            logger.debug(
                                 "Access list '{}' term '{}' has empty network definition for '{}': removing this network as skip_empty_network_definitions is True".format(
                                     access_list_name, acl_term.get("name"), field
                                 )

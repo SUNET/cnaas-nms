@@ -227,3 +227,17 @@ Response:
 
 You can only bounce non-uplink interfaces of ACCESS type switches. This is to prevent
 accidentally losing connectivity to the device.
+
+An optional interval is accepted: seconds the port stays down before coming back
+up, 1 to 30. The default bounce is too short to make an attached device such as an
+access point reboot, so pass an interval when that is the point of the bounce.
+
+::
+
+  curl https://hostname/api/v1.0/device/junosaccess/interface_status -d '{"bounce_interfaces": ["ge-0/0/23"], "interval": 20}' -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer $JWT_AUTH_TOKEN"
+
+Junos bounces with an operational command, which changes no configuration and so
+leaves the device synchronized. A port that powers its device over PoE has its
+PoE bounced, so the device power cycles. Other platforms are bounced by pushing a
+bounce-down and a bounce-up template, with the interval as the wait between the
+two.

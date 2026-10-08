@@ -51,7 +51,7 @@ dependencies = [
   "redis==8.1",
   "redis-lru==0.1",
   "requests==2.34.2",
-  "scp==0.15.0",
+  "scp==0.16.2",
   "sqlalchemy==2.0.54",
   "sqlalchemy-utils==0.42.1",
   "werkzeug==3.1.9",

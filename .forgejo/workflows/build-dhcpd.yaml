@@ -23,7 +23,7 @@ jobs:
 
       - name: Docker meta
         id: meta
-        uses: https://github.com/docker/metadata-action@v6
+        uses: https://platform.sunet.se/actions/metadata-action@v6
         with:
           images: |
             platform.sunet.se/cnaas/nms_dhcpd

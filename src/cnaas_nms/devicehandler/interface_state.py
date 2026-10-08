@@ -1,4 +1,5 @@
 import re
+import time
 from typing import List, Optional
 from xml.etree import ElementTree
 
@@ -76,12 +77,6 @@ def bounce_command(ifname: str, interval: Optional[int] = None, poe: bool = Fals
     to stay down, which is what makes an access point come back up: the default
     bounce is too short for that.
     """
-    if interval is not None and not BOUNCE_INTERVAL_MIN <= interval <= BOUNCE_INTERVAL_MAX:
-        raise ValueError(
-            "Bounce interval must be between {} and {} seconds, got {}".format(
-                BOUNCE_INTERVAL_MIN, BOUNCE_INTERVAL_MAX, interval
-            )
-        )
     command = "request interface bounce{} {}".format(" poe" if poe else "", ifname)
     if interval is not None:
         command += " interval {}".format(interval)
@@ -150,7 +145,7 @@ def junos_bounce_task(task, interfaces: List[str], interval: Optional[int]):
 BOUNCE_HALVES = ("down", "up")
 
 
-def bounce_task(task, interfaces: List[str]):
+def bounce_task(task, interfaces: List[str], interval: Optional[int] = None):
     """Take the interfaces down and bring them back up with two config pushes.
 
     Both halves are rendered before either is pushed. A bounce that pushes the
@@ -187,6 +182,8 @@ def bounce_task(task, interfaces: List[str]):
             replace=False,
             configuration=task.host["config"],
         )
+        if half == "down" and interval is not None:
+            time.sleep(interval)
 
 
 def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[int] = None) -> bool:
@@ -197,7 +194,7 @@ def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[i
     Args:
         hostname: device to bounce interfaces on
         interfaces: names of the interfaces to bounce
-        interval: seconds to stay down before coming back up, Junos only
+        interval: seconds to stay down before coming back up
 
     On Junos this is an operational command, which leaves the configuration
     untouched and so reports no change; it returns true because the bounce did
@@ -217,9 +214,7 @@ def bounce_interfaces(hostname: str, interfaces: List[str], interval: Optional[i
                 raise exception
             raise Exception("Could not bounce interfaces on {}: {}".format(hostname, exception))
         return True
-    if interval is not None:
-        raise ValueError("Bounce interval is only supported on junos, {} runs {}".format(hostname, platform))
-    nrresult = nr_filtered.run(task=bounce_task, interfaces=interfaces)
+    nrresult = nr_filtered.run(task=bounce_task, interfaces=interfaces, interval=interval)
     if nrresult.failed or nrresult[hostname].failed:
         # A template that cannot render names the file the operator has to fix,
         # which is worth more than the step count that would otherwise report it

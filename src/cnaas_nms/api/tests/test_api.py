@@ -429,9 +429,8 @@ def test_bounce_interface(client, testdata):
     assert result.json["status"] == "success"
 
 
-def test_bounce_interface_rejects_an_interval_the_switch_would_refuse(client, testdata):
-    # Junos accepts 1-30 seconds, so a longer wait is refused here rather than
-    # on the device, and nothing is bounced.
+def test_bounce_interface_rejects_an_interval_over_30_seconds(client, testdata):
+    # Junos accepts at most 30 seconds, which caps the interval on every platform
     data = {"bounce_interfaces": [testdata["interface_update"]], "interval": 60}
     result = client.put("/api/v1.0/device/{}/interface_status".format(testdata["interface_device"]), json=data)
     assert result.status_code == 400

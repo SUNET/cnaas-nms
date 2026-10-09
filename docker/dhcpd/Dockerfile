@@ -7,7 +7,7 @@ ENV VIRTUAL_ENV=/opt/cnaas/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    isc-dhcp-server supervisor bind9-host git \
+    isc-dhcp-server supervisor bind9-host git openssh-client \
     iputils-ping procps net-tools curl netcat-openbsd \
     && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /opt/cnaas /etc/cnaas-nms \

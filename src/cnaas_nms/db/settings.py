@@ -1333,8 +1333,8 @@ def _process_access_list_terms(
                 # Override the acl_term with the filtered networks
                 acl_term[field] = field_nets  # type: ignore[literal-required]
             elif networks and not field_nets:
-                logger.info(
-                    "Access list '{}' term '{}' has no network definitions for '{}': removing entire term skip_empty_network_definitions is True".format(
+                logger.debug(
+                    "Access list '{}' term '{}' has no network definitions for '{}': removing entire term as skip_empty_network_definitions is True".format(
                         access_list_name, acl_term.get("name"), field
                     )
                 )

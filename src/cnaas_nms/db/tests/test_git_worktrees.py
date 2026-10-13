@@ -69,6 +69,16 @@ def test_refresh_templates_worktree_reports_branch_missing_on_remote(origin):
         refresh_templates_worktree(BRANCH)
 
 
+def test_refresh_templates_worktree_reports_branch_deleted_from_remote(origin):
+    push_branch(origin)
+    clone_templates(origin)
+    origin.remotes.origin.push(":" + BRANCH)
+
+    with pytest.raises(WorktreeError, match="does not exist in the remote"):
+        refresh_templates_worktree(BRANCH)
+    assert find_templates_worktree_path(BRANCH) is None
+
+
 def test_refresh_templates_worktree_reports_single_branch_clone(origin):
     clone_templates(origin, single_branch=True)
     push_branch(origin)

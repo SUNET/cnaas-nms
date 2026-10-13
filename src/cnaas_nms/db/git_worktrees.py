@@ -89,8 +89,9 @@ def refresh_templates_worktree(branch: str):
     logger.info("Adding worktree for templates branch {} in folder {}".format(branch, branch_folder))
     try:
         # fetch so that branches created on the remote after the last
-        # templates refresh can be resolved
-        local_repo.remotes.origin.fetch()
+        # templates refresh can be resolved, and prune so that branches
+        # deleted from the remote since then are not
+        local_repo.remotes.origin.fetch(prune=True)
         local_repo.git.worktree("prune")
         if any(ref.remote_head == branch for ref in local_repo.remotes.origin.refs):
             local_repo.git.worktree("add", branch_folder, branch)

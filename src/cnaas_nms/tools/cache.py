@@ -1,3 +1,4 @@
+import hashlib
 import json
 import time
 from typing import Optional
@@ -14,11 +15,16 @@ logger = get_logger()
 REDIS_OAUTH_TOKEN_INFO_KEY = "oauth_userinfo"
 
 
+def _cache_field(token: Token) -> str:
+    """Hash the token so Redis never holds a usable bearer token"""
+    return hashlib.sha256(token.token_string.encode()).hexdigest()
+
+
 def get_token_info_from_cache(token: Token) -> Optional[dict]:
     """Check if the userinfo is in the cache to avoid multiple calls to the OIDC server"""
     try:
         with redis_session() as redis:  # type: ignore
-            cached_token_info = redis.hget(REDIS_OAUTH_TOKEN_INFO_KEY, token.decoded_token["sub"])
+            cached_token_info = redis.hget(REDIS_OAUTH_TOKEN_INFO_KEY, _cache_field(token))
             if cached_token_info:
                 return json.loads(cached_token_info)
     except RedisError as e:
@@ -33,7 +39,7 @@ def put_token_info_in_cache(token: Token, token_info) -> bool:
     try:
         with redis_session() as redis:  # type: ignore
             if "exp" in token.decoded_token:
-                redis.hsetnx(REDIS_OAUTH_TOKEN_INFO_KEY, token.decoded_token["sub"], token_info)
+                redis.hsetnx(REDIS_OAUTH_TOKEN_INFO_KEY, _cache_field(token), token_info)
                 # expire hash at access_token expiry time or 1 hour from now (whichever is sooner)
                 # Entire hash is expired, since redis does not support expiry on individual keys
                 expire_at = min(int(token.decoded_token["exp"]), int(time.time()) + 3600)

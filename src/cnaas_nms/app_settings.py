@@ -1,15 +1,33 @@
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
-from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 from cnaas_nms.models.permissions import PermissionsModel
 from cnaas_nms.tools.yaml import yaml_safe_load
 
 
-class AppSettings(BaseSettings):
+class EnvFirstSettings(BaseSettings):
+    """Environment variables take precedence over the values passed in from the config files"""
+
+    # YAML loads unquoted numbers, such as a numeric password, as int
+    model_config = SettingsConfigDict(coerce_numbers_to_str=True)
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return env_settings, dotenv_settings, file_secret_settings, init_settings
+
+
+class AppSettings(EnvFirstSettings):
     # Database settings
     CNAAS_DB_HOSTNAME: str = "127.0.0.1"
     CNAAS_DB_USERNAME: str = "cnaas"
@@ -50,8 +68,14 @@ class AppSettings(BaseSettings):
             return "INFO"
         return level
 
+    @model_validator(mode="after")
+    def postgres_dsn_defaults_to_db_fields(self) -> Self:
+        if "POSTGRES_DSN" not in self.model_fields_set:
+            self.POSTGRES_DSN = f"postgresql://{self.CNAAS_DB_USERNAME}:{self.CNAAS_DB_PASSWORD}@{self.CNAAS_DB_HOSTNAME}:{self.CNAAS_DB_PORT}/{self.CNAAS_DB_DATABASE}"
+        return self
 
-class ApiSettings(BaseSettings):
+
+class ApiSettings(EnvFirstSettings):
     # Api Settings
     HOST: str = "0.0.0.0"
     HTTPD_URL: str = "https://cnaas_httpd:1443/api/v1.0/firmware"
@@ -85,8 +109,14 @@ class ApiSettings(BaseSettings):
             raise ValueError("must be either 4 or 6")
         return version
 
+    @model_validator(mode="after")
+    def firmware_url_defaults_to_httpd_url(self) -> Self:
+        if "FIRMWARE_URL" not in self.model_fields_set:
+            self.FIRMWARE_URL = self.HTTPD_URL
+        return self
 
-class AuthSettings(BaseSettings):
+
+class AuthSettings(EnvFirstSettings):
     # Authorization settings
     FRONTEND_CALLBACK_URL: str = "http://localhost/callback"
     OIDC_CONF_WELL_KNOWN_URL: str = "well-known-openid-configuration-endpoint"
@@ -108,11 +138,6 @@ def construct_api_settings() -> ApiSettings:
         with open(api_config, "r") as api_file:
             config = yaml_safe_load(api_file)
 
-        if config.get("firmware_url", False):
-            firmware_url = config["firmware_url"]
-        else:
-            firmware_url = config["httpd_url"]
-
         jwt_enabled = ApiSettings().JWT_ENABLED
         jwt_secret_key = config.get("jwt_secret_key", ApiSettings().JWT_SECRET_KEY)
         if jwt_enabled and jwt_secret_key is None:
@@ -129,7 +154,6 @@ def construct_api_settings() -> ApiSettings:
             CAFILE=config.get("cafile", ApiSettings().CAFILE),
             CAKEYFILE=config.get("cakeyfile", ApiSettings().CAKEYFILE),
             CERTPATH=config.get("certpath", ApiSettings().CERTPATH),
-            FIRMWARE_URL=firmware_url,
             GLOBAL_UNIQUE_VLANS=config.get("global_unique_vlans", True),
             INIT_MGMT_TIMEOUT=config.get("init_mgmt_timeout", 30),
             SETTINGS_KEYS_TO_MERGE=config.get("settings_keys_to_merge", ApiSettings().SETTINGS_KEYS_TO_MERGE),
@@ -140,6 +164,7 @@ def construct_api_settings() -> ApiSettings:
             COMMIT_CONFIRMED_WAIT=config.get("commit_confirmed_wait", 1),
             SETTINGS_OVERRIDE=config.get("settings_override", None),
             NAPALM_TIMEOUT=config.get("napalm_timeout", 60),
+            **({"FIRMWARE_URL": config["firmware_url"]} if config.get("firmware_url") else {}),
         )
     else:
         return ApiSettings()
@@ -148,59 +173,60 @@ def construct_api_settings() -> ApiSettings:
 def construct_app_settings() -> AppSettings:
     db_config = Path("/etc/cnaas-nms/db_config.yml")
     repo_config = Path("/etc/cnaas-nms/repository.yml")
-    app_settings = AppSettings()
+    file_settings: dict[str, Any] = {}
 
-    def _create_db_config(settings: AppSettings, config: dict) -> None:
-        settings.CNAAS_DB_HOSTNAME = config["hostname"]
-        settings.CNAAS_DB_USERNAME = config["username"]
-        settings.CNAAS_DB_PORT = config["port"]
-        settings.CNAAS_DB_DATABASE = config["database"]
-        settings.CNAAS_DB_PASSWORD = config["password"]
-        settings.REDIS_HOSTNAME = config["redis_hostname"]
-        settings.POSTGRES_DSN = f"postgresql://{settings.CNAAS_DB_USERNAME}:{settings.CNAAS_DB_PASSWORD}@{settings.CNAAS_DB_HOSTNAME}:{settings.CNAAS_DB_PORT}/{settings.CNAAS_DB_DATABASE}"
+    def _create_db_config(settings: dict[str, Any], config: dict) -> None:
+        settings["CNAAS_DB_HOSTNAME"] = config["hostname"]
+        settings["CNAAS_DB_USERNAME"] = config["username"]
+        settings["CNAAS_DB_PORT"] = config["port"]
+        settings["CNAAS_DB_DATABASE"] = config["database"]
+        settings["CNAAS_DB_PASSWORD"] = config["password"]
+        settings["REDIS_HOSTNAME"] = config["redis_hostname"]
 
     if db_config.is_file():
         with open(db_config, "r") as db_file:
             config = yaml_safe_load(db_file)
-        _create_db_config(app_settings, config)
+        _create_db_config(file_settings, config)
 
-    def _create_repo_config(settings: AppSettings, config: dict) -> None:
-        settings.TEMPLATES_REMOTE = config["templates_remote"]
-        settings.TEMPLATES_LOCAL = config["templates_local"]
-        settings.SETTINGS_REMOTE = config["settings_remote"]
-        settings.SETTINGS_LOCAL = config["settings_local"]
+    def _create_repo_config(settings: dict[str, Any], config: dict) -> None:
+        settings["TEMPLATES_REMOTE"] = config["templates_remote"]
+        settings["TEMPLATES_LOCAL"] = config["templates_local"]
+        settings["SETTINGS_REMOTE"] = config["settings_remote"]
+        settings["SETTINGS_LOCAL"] = config["settings_local"]
 
     if repo_config.is_file():
         with open(repo_config, "r") as repo_file:
             config = yaml_safe_load(repo_file)
-        _create_repo_config(app_settings, config)
+        _create_repo_config(file_settings, config)
 
-    return app_settings
+    return AppSettings(**file_settings)
 
 
 def construct_auth_settings() -> AuthSettings:
-    auth_settings = AuthSettings()
     permission_config = Path("/etc/cnaas-nms/permissions.yml")
 
     auth_config = Path("/etc/cnaas-nms/auth_config.yml")
+    file_settings: dict[str, Any] = {}
 
     if auth_config.is_file():
         with open(auth_config, "r") as auth_file:
             config = yaml_safe_load(auth_file)
-        auth_settings.OIDC_ENABLED = config.get("oidc_enabled", AuthSettings().OIDC_ENABLED)
-        auth_settings.FRONTEND_CALLBACK_URL = config.get("frontend_callback_url", AuthSettings().FRONTEND_CALLBACK_URL)
-        auth_settings.OIDC_CONF_WELL_KNOWN_URL = config.get(
-            "oidc_conf_well_known_url", AuthSettings().OIDC_CONF_WELL_KNOWN_URL
-        )
-        auth_settings.OIDC_CLIENT_SECRET = config.get("oidc_client_secret", AuthSettings().OIDC_CLIENT_SECRET)
-        auth_settings.OIDC_CLIENT_ID = config.get("oidc_client_id", AuthSettings().OIDC_CLIENT_ID)
-        auth_settings.OIDC_CLIENT_SCOPE = config.get("oidc_client_scope", AuthSettings().OIDC_CLIENT_SCOPE)
-        auth_settings.OIDC_USERNAME_ATTRIBUTE = config.get(
-            "oidc_username_attribute", AuthSettings().OIDC_USERNAME_ATTRIBUTE
-        )
-        auth_settings.PERMISSIONS_DISABLED = config.get("permissions_disabled", AuthSettings().PERMISSIONS_DISABLED)
-        auth_settings.AUDIENCE = config.get("audience", AuthSettings().AUDIENCE)
-        auth_settings.VERIFY_AUDIENCE = config.get("verify_audience", AuthSettings().VERIFY_AUDIENCE)
+        for key in (
+            "oidc_enabled",
+            "frontend_callback_url",
+            "oidc_conf_well_known_url",
+            "oidc_client_secret",
+            "oidc_client_id",
+            "oidc_client_scope",
+            "oidc_username_attribute",
+            "permissions_disabled",
+            "audience",
+            "verify_audience",
+        ):
+            if key in config:
+                file_settings[key.upper()] = config[key]
+
+    auth_settings = AuthSettings(**file_settings)
 
     if auth_settings.AUDIENCE is None:
         auth_settings.AUDIENCE = auth_settings.OIDC_CLIENT_ID

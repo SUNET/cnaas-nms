@@ -8,8 +8,8 @@ else
 fi
 
 cp /etc/cnaas-nms/repository.yml /tmp/repository.yml.original
-sed -e "s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|" \
-    -e "s|^\(settings_remote: \).\+$|\1 $GITREPO_SETTINGS|" \
+sed -e "${GITREPO_TEMPLATES:+s|^\(templates_remote: \).\+$|\1 $GITREPO_TEMPLATES|}" \
+    -e "${GITREPO_SETTINGS:+s|^\(settings_remote: \).\+$|\1 $GITREPO_SETTINGS|}" \
   < /tmp/repository.yml.original > /tmp/repository.yml.new \
   && mv /tmp/repository.yml.new /etc/cnaas-nms/repository.yml
 

@@ -73,7 +73,7 @@ Define parameters for the authentication:
 - oidc_username_attribute: What attribute in access token or userinfo endpoint to use for username, defaults to "email"
 - frontend_callback_url: The frontend URL that the OIDC client should redirect to after the login process
 - oidc_enabled: Set True to enabled OIDC login. Defaults to False
-- audience: The string to verify the aud attribute in the access token with
+- audience: The string to verify the aud attribute in the access token with. Defaults to oidc_client_id
 - verify_audience: Set to False to disable aud check. Defaults to True
 - permissions_disabled: set True to disable permissions. Default False
 

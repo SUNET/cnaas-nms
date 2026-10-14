@@ -8,6 +8,14 @@ Config files
 
 Config files are placed in /etc/cnaas-nms
 
+Environment variables take precedence over the settings in api.yml,
+auth_config.yml, db_config.yml and repository.yml. The variable is the
+setting's name in upper case, for example ``GLOBAL_UNIQUE_VLANS=false`` for
+global_unique_vlans in api.yml, except for jwtcert (``JWT_CERT``) and the
+db_config.yml settings, which map to ``CNAAS_DB_HOSTNAME``, ``CNAAS_DB_PORT``,
+``CNAAS_DB_USERNAME``, ``CNAAS_DB_PASSWORD``, ``CNAAS_DB_DATABASE`` and
+``REDIS_HOSTNAME``. ``POSTGRES_DSN`` sets the whole database URL.
+
 
 /etc/cnaas-nms/db_config.yml
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

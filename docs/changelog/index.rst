@@ -35,6 +35,7 @@ Changes:
  - Setting files will now be validated individually and must adhere to the defined schema (#459)
  - Rebuilt settings fields schemas into types to improve modularity and maintainability (#592)
  - Changed logging levels from DEBUG to INFO for certain operations, can now set the LOG_LEVEL through an environment variable (#583, #586)
+ - Environment variables take precedence over api.yml, auth_config.yml, db_config.yml and repository.yml (#611)
  - Updated documentation (#556, #564)
 
 Bug fixes:

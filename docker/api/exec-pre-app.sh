@@ -18,7 +18,7 @@ set -e
 # Wait for postgres to start
 echo ">> Waiting for postgres to start"
 WAIT=0
-DB_HOSTNAME=`cat /etc/cnaas-nms/db_config.yml | awk '/^hostname/ {print $2}'`
+DB_HOSTNAME=${CNAAS_DB_HOSTNAME:-`cat /etc/cnaas-nms/db_config.yml | awk '/^hostname/ {print $2}'`}
 while ! nc -z $DB_HOSTNAME 5432; do
     sleep 1
     WAIT=$(($WAIT + 1))

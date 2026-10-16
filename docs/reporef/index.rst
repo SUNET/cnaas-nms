@@ -806,12 +806,12 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * acl_ipv6_in: Access control list to apply for ingress IPv6 traffic to interface. Optional.
   * acl_ipv6_out: Access control list to apply for egress IPv6 traffic from interface. Optional.
   * bfd: Optional. BFD (Bidirectional Forwarding Detection) configuration for the interface.
-    
+
     * echo: Optional. Enable or disable BFD echo function. Defaults to False.
     * tx_interval: Optional. Transmit interval for BFD packets, defaults to 300 ms.
     * rx_interval: Optional. Receive interval for BFD packets, defaults to 300 ms.
     * multiplier: Optional. Detection multiplier for BFD sessions, defaults to 3.
-  
+
   * metric: Optional integer specifying metric for this interface.
   * cli_append_str: Optional. Custom configuration to append to this interface.
 

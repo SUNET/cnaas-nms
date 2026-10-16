@@ -196,6 +196,7 @@ New features:
     Defaults to 30, specified in seconds (integer).
  - Initial work on API to set/update and get stack members. Not working for ZTP init yet.
  - Linknet API updated to allow PUT/update, allow GET of single linknet, DELETE syntax harmonized with rest of API
+ - Add support for BFD settings for device interfaces. (#613)
 
 Bug fixes:
 

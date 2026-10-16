@@ -14,7 +14,7 @@ from ipaddress import (
 from typing import Annotated, Literal
 
 from annotated_types import Ge, Gt, Le, Lt
-from pydantic import AfterValidator, Field, PlainSerializer, StringConstraints, TypeAdapter
+from pydantic import AfterValidator, BaseModel, Field, PlainSerializer, StringConstraints, TypeAdapter
 
 type BuiltInInterfaceClass = Literal[
     "custom",
@@ -174,3 +174,30 @@ def vni_range_required_check(v: str) -> str:
     else:
         raise ValueError("Range must be specified, ex '10000-99999'")
     return v
+
+
+class f_bfd(BaseModel):
+    echo: Annotated[
+        bool,
+        Field(description="Enable the BFD echo function."),
+    ] = False
+    tx_interval: Annotated[
+        int,
+        Ge(50),
+        Le(60000),
+        Field(description="Rate in milliseconds at which control packets will be sent."),
+    ] = 300
+    rx_interval: Annotated[
+        int,
+        Ge(50),
+        Le(60000),
+        Field(description="Rate in milliseconds at which control packets will be expected"),
+    ] = 300
+    multiplier: Annotated[
+        int,
+        Ge(3),
+        Le(50),
+        Field(
+            description="Number of consecutive missed BFD control packets after which BFD will declare the session as down."
+        ),
+    ] = 3

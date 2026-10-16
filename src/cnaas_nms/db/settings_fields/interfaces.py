@@ -35,7 +35,7 @@ class f_interface(BaseModel):
     acl_ipv4_out: str | None = None
     acl_ipv6_in: str | None = None
     acl_ipv6_out: str | None = None
-    bfd: f_bfd = Field(default_factory=f_bfd)
+    bfd: f_bfd | None = None
     metric: int | None = None
     cli_append_str: str = ""
 

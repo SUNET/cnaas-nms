@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
 from cnaas_nms.db.settings_fields.shared import (
     InterfaceClass,
@@ -10,6 +10,7 @@ from cnaas_nms.db.settings_fields.shared import (
     ValidatedIPv6InterfaceString,
     VlanId,
     VlanIdRange,
+    f_bfd,
 )
 
 
@@ -34,6 +35,7 @@ class f_interface(BaseModel):
     acl_ipv4_out: str | None = None
     acl_ipv6_in: str | None = None
     acl_ipv6_out: str | None = None
+    bfd: f_bfd = Field(default_factory=f_bfd)
     metric: int | None = None
     cli_append_str: str = ""
 

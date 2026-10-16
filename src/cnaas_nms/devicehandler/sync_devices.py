@@ -323,7 +323,7 @@ def populate_device_vars(
                     ifindexnum = 0
                 if "ifclass" not in intf:
                     continue
-                extra_keys = ["aggregate_id", "enabled", "cli_append_str", "metric", "mtu", "tags"]
+                extra_keys = ["aggregate_id", "enabled", "cli_append_str", "metric", "mtu", "tags", "bfd"]
                 if intf["ifclass"] == "downlink":
                     data = {}
                     if intf["name"] in ifname_peer_map:

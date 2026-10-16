@@ -1162,6 +1162,35 @@ class SettingsTests(unittest.TestCase):
             "VXLAN 'test1': IGMP snooping querier is a L2 feature, will have no effect in L3 mode.", log_messages
         )
 
+    def test_settings_bfd(self):
+        settings = {
+            "interfaces": [
+                {
+                    "name": "Ethernet1",
+                    "ifclass": "fabric",
+                    "peer_hostname": "peer1",
+                    "ipv4if": "192.168.0.0/31",  # noqa: S1313
+                    "bfd": {"tx_interval": 500, "rx_interval": 500, "multiplier": 5},
+                }
+            ],
+        }
+        f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+    def test_settings_bfd_invalid(self):
+        settings = {
+            "interfaces": [
+                {
+                    "name": "Ethernet2",
+                    "ifclass": "fabric",
+                    "peer_hostname": "peer2",
+                    "ipv4if": "192.168.0.1/31",  # noqa: S1313
+                    "bfd": {"tx_interval": 10, "rx_interval": 10, "multiplier": 2},
+                }
+            ],
+        }
+        with self.assertRaises(ValidationError):
+            f_root(**settings)  # pyright: ignore[reportArgumentType]
+
 
 if __name__ == "__main__":
     unittest.main()

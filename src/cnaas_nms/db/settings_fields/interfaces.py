@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, ValidationInfo, field_validator, model_validator
 
 from cnaas_nms.db.settings_fields.shared import (
     InterfaceClass,

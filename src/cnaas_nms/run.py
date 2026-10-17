@@ -8,6 +8,7 @@ from gevent import signal as gevent_signal
 
 from cnaas_nms.api.models.socket import LOG_LEVELS, LogLevel, SyncRoom, UpdateRoom
 from cnaas_nms.app_settings import api_settings
+from cnaas_nms.tools.sentry import sentry_init
 
 # Do late imports for anything cnaas/flask related so we can do gevent monkey patch, see below
 
@@ -52,6 +53,8 @@ if is_coverage_enabled():
 
 
 def get_app():
+    sentry_init("api")
+
     from cnaas_nms.db.job import Job
     from cnaas_nms.db.joblock import Joblock
     from cnaas_nms.db.session import sqla_session

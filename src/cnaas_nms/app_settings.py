@@ -131,6 +131,23 @@ class AuthSettings(EnvFirstSettings):
     VERIFY_AUDIENCE: bool = True
 
 
+class SentrySettings(EnvFirstSettings):
+    # Sentry error reporting settings, disabled unless a DSN is set
+    SENTRY_DSN: str | None = None
+    SENTRY_ENVIRONMENT: str | None = None
+    SENTRY_RELEASE: str | None = None
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
+    SENTRY_SAMPLE_RATE: float = 1.0
+    SENTRY_SEND_DEFAULT_PII: bool = False
+
+    @field_validator("SENTRY_TRACES_SAMPLE_RATE", "SENTRY_SAMPLE_RATE")
+    @classmethod
+    def sample_rate_is_valid(cls, rate: float) -> float:
+        if not 0.0 <= rate <= 1.0:
+            raise ValueError("must be between 0.0 and 1.0")
+        return rate
+
+
 def construct_api_settings() -> ApiSettings:
     api_config = Path("/etc/cnaas-nms/api.yml")
 
@@ -250,6 +267,21 @@ def construct_auth_settings() -> AuthSettings:
     return auth_settings
 
 
+def construct_sentry_settings() -> SentrySettings:
+    sentry_config = Path("/etc/cnaas-nms/sentry_config.yml")
+    file_settings: dict[str, Any] = {}
+
+    if sentry_config.is_file():
+        with open(sentry_config, "r") as sentry_file:
+            config = yaml_safe_load(sentry_file) or {}
+        for key in ("dsn", "environment", "release", "traces_sample_rate", "sample_rate", "send_default_pii"):
+            if key in config:
+                file_settings["SENTRY_" + key.upper()] = config[key]
+
+    return SentrySettings(**file_settings)
+
+
 app_settings = construct_app_settings()
 api_settings = construct_api_settings()
 auth_settings = construct_auth_settings()
+sentry_settings = construct_sentry_settings()

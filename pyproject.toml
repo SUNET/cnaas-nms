@@ -52,6 +52,7 @@ dependencies = [
   "redis-lru==0.1",
   "requests==2.34.2",
   "scp==0.16.2",
+  "sentry-sdk[flask]==2.69.1",
   "sqlalchemy==2.0.54",
   "sqlalchemy-utils==0.42.1",
   "werkzeug==3.1.9",

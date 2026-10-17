@@ -21,6 +21,7 @@ New features:
  - NMS now tracks the CPU architecture for Arista EOS switches and saves it to the database. Uses the architecture to dynamically set the correct firmware version during firmware upgrade (#567, #576)
  - For the /devices API it is now possible filtering with the in operator, example: :code:`?filter[hostname][in]=eosdist1,eosdist2` (#560)
  - Interface bounce takes an interval to stay down. Junos interfaces are bounced with the operational command, which power cycles PoE powered devices and leaves the device synchronized (#588)
+ - Optional error reporting to Sentry, enabled by configuring a DSN
 
 Changes:
 

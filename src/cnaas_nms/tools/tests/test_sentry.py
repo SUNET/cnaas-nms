@@ -66,15 +66,15 @@ class SentryConfigTests(unittest.TestCase):
         ):
             return construct_sentry_settings()
 
-    def test_environment_enables_sentry_when_the_packaged_file_leaves_the_dsn_empty(self):
-        """The container always ships sentry_config.yml with an empty dsn, so SENTRY_DSN must still take effect."""
+    def test_environment_wins_over_the_configured_file(self):
+        """Environment variables take precedence over every config file, sentry_config.yml included."""
         with patch.dict("os.environ", {"SENTRY_DSN": TEST_DSN}):
-            settings = self.construct_with_config('dsn: ""\n')
+            settings = self.construct_with_config("dsn: {}\n".format(OTHER_DSN))
 
         self.assertEqual(settings.SENTRY_DSN, TEST_DSN)
 
-    def test_configured_file_wins_over_the_environment(self):
-        with patch.dict("os.environ", {"SENTRY_DSN": OTHER_DSN}):
+    def test_configured_file_applies_without_the_environment(self):
+        with patch.dict("os.environ", {}, clear=True):
             settings = self.construct_with_config("dsn: {}\n".format(TEST_DSN))
 
         self.assertEqual(settings.SENTRY_DSN, TEST_DSN)

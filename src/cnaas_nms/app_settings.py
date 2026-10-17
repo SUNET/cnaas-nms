@@ -131,7 +131,7 @@ class AuthSettings(EnvFirstSettings):
     VERIFY_AUDIENCE: bool = True
 
 
-class SentrySettings(BaseSettings):
+class SentrySettings(EnvFirstSettings):
     # Sentry error reporting settings, disabled unless a DSN is set
     SENTRY_DSN: str | None = None
     SENTRY_ENVIRONMENT: str | None = None
@@ -269,24 +269,16 @@ def construct_auth_settings() -> AuthSettings:
 
 def construct_sentry_settings() -> SentrySettings:
     sentry_config = Path("/etc/cnaas-nms/sentry_config.yml")
-    sentry_settings = SentrySettings()
+    file_settings: dict[str, Any] = {}
 
     if sentry_config.is_file():
         with open(sentry_config, "r") as sentry_file:
             config = yaml_safe_load(sentry_file) or {}
-        # The packaged file ships an empty dsn, so an empty value means the
-        # setting is not configured here and the environment value stands.
-        overrides: dict[str, Any] = {
-            "SENTRY_DSN": config.get("dsn"),
-            "SENTRY_ENVIRONMENT": config.get("environment"),
-            "SENTRY_RELEASE": config.get("release"),
-            "SENTRY_TRACES_SAMPLE_RATE": config.get("traces_sample_rate"),
-            "SENTRY_SAMPLE_RATE": config.get("sample_rate"),
-            "SENTRY_SEND_DEFAULT_PII": config.get("send_default_pii"),
-        }
-        sentry_settings = SentrySettings(**{key: value for key, value in overrides.items() if value not in (None, "")})
+        for key in ("dsn", "environment", "release", "traces_sample_rate", "sample_rate", "send_default_pii"):
+            if key in config:
+                file_settings["SENTRY_" + key.upper()] = config[key]
 
-    return sentry_settings
+    return SentrySettings(**file_settings)
 
 
 app_settings = construct_app_settings()

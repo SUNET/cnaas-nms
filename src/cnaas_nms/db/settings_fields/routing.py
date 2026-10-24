@@ -1,4 +1,3 @@
-from ipaddress import IPv4Address, IPv6Address
 from typing import Annotated
 
 from annotated_types import Ge, Le
@@ -10,7 +9,9 @@ from cnaas_nms.db.settings_fields.shared import (
     EBGPMultihop,
     HostName,
     InterfaceName,
+    IPv4AddressString,
     IPv4InterfaceString,
+    IPv6AddressString,
     IPv6InterfaceString,
     MaximumRoutes,
     NetName,
@@ -35,7 +36,7 @@ class f_vrf(BaseModel):
 
 class f_ipv4_static_route(BaseModel):
     destination: IPv4InterfaceString
-    nexthop: IPv4Address
+    nexthop: IPv4AddressString
     interface: InterfaceName | None = None
     name: str = "undefined"
     cli_append_str: str = ""
@@ -43,7 +44,7 @@ class f_ipv4_static_route(BaseModel):
 
 class f_ipv6_static_route(BaseModel):
     destination: IPv6InterfaceString
-    nexthop: IPv6Address
+    nexthop: IPv6AddressString
     interface: InterfaceName | None = None
     name: str = "undefined"
     cli_append_str: str = ""
@@ -71,7 +72,7 @@ class f_extroute_ospfv3(BaseModel):
 
 
 class f_extroute_bgp_neighbor_v4(BaseModel):
-    peer_ipv4: IPv4Address
+    peer_ipv4: IPv4AddressString
     peer_as: AsNum
     route_map_in: NetName
     route_map_out: NetName
@@ -89,7 +90,7 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
 
 
 class f_extroute_bgp_neighbor_v6(BaseModel):
-    peer_ipv6: IPv6Address
+    peer_ipv6: IPv6AddressString
     peer_as: AsNum
     route_map_in: NetName
     route_map_out: NetName

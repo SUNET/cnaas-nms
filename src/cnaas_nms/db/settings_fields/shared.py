@@ -60,7 +60,12 @@ type DomainName = Annotated[
     str, StringConstraints(pattern=DOMAIN_NAME_REGEX, max_length=251), Field(description="DNS domain name")
 ]
 
-type Host = Annotated[HostName | StdIPv4Address | StdIPv6Address, Field(description="Hostname, FQDN or IP address")]
+type IPv4AddressString = Annotated[StdIPv4Address, PlainSerializer(str, return_type=str)]
+type IPv6AddressString = Annotated[StdIPv6Address, PlainSerializer(str, return_type=str)]
+
+type Host = Annotated[
+    HostName | IPv4AddressString | IPv6AddressString, Field(description="Hostname, FQDN or IP address")
+]
 
 type AcceptReject = Literal["accept", "reject"]
 

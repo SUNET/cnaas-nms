@@ -1191,6 +1191,45 @@ class SettingsTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             f_root(**settings)  # pyright: ignore[reportArgumentType]
 
+    def test_settings_ip_addresses_reach_templates_as_strings(self):
+        # Templates handle these values as strings, for example host.split(".")
+        settings = {
+            "snmp_servers": [{"host": "192.0.2.10"}, {"host": "2001:db8::10"}],
+            "extroute_static": {
+                "vrfs": [
+                    {
+                        "name": "VRF1",
+                        "ipv4": [{"destination": "198.51.100.0/24", "nexthop": "192.0.2.1"}],
+                        "ipv6": [{"destination": "2001:db8:1::/48", "nexthop": "2001:db8::1"}],
+                    }
+                ]
+            },
+            "extroute_bgp": {
+                "vrfs": [
+                    {
+                        "name": "VRF1",
+                        "local_as": 64512,
+                        "neighbor_v4": [
+                            {"peer_ipv4": "192.0.2.2", "peer_as": 64513, "route_map_in": "in", "route_map_out": "out"}
+                        ],
+                        "neighbor_v6": [
+                            {"peer_ipv6": "2001:db8::2", "peer_as": 64513, "route_map_in": "in", "route_map_out": "out"}
+                        ],
+                    }
+                ]
+            },
+        }
+
+        dumped = f_root(**settings).model_dump()  # pyright: ignore[reportArgumentType]
+
+        self.assertEqual([server["host"] for server in dumped["snmp_servers"]], ["192.0.2.10", "2001:db8::10"])
+        static_vrf = dumped["extroute_static"]["vrfs"][0]
+        self.assertEqual(static_vrf["ipv4"][0]["nexthop"], "192.0.2.1")
+        self.assertEqual(static_vrf["ipv6"][0]["nexthop"], "2001:db8::1")
+        bgp_vrf = dumped["extroute_bgp"]["vrfs"][0]
+        self.assertEqual(bgp_vrf["neighbor_v4"][0]["peer_ipv4"], "192.0.2.2")
+        self.assertEqual(bgp_vrf["neighbor_v6"][0]["peer_ipv6"], "2001:db8::2")
+
 
 if __name__ == "__main__":
     unittest.main()

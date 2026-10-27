@@ -86,12 +86,12 @@ RUN chmod 555 /opt/cnaas/createca.sh /opt/cnaas/exec-pre-app.sh
 
 # Copy cnaas configuration files
 COPY --chown=root:www-data docker/api/config/api.yml docker/api/config/db_config.yml \
-     docker/api/config/plugins.yml /etc/cnaas-nms/
+     docker/api/config/plugins.yml docker/api/config/sentry_config.yml /etc/cnaas-nms/
 # repository.yml is replaced by exec-pre-app.sh before uwsgi starts
 COPY --chown=root:www-data docker/api/config/repository.yml /etc/cnaas-nms/
 # Optional auth config (may not exist) - use glob pattern
 COPY --chown=root:www-data docker/api/config/auth_config.ym[l] docker/api/config/permissions.ym[l] /etc/cnaas-nms/
-RUN chmod 444 /etc/cnaas-nms/api.yml /etc/cnaas-nms/db_config.yml /etc/cnaas-nms/plugins.yml /etc/cnaas-nms/repository.yml /etc/cnaas-nms/auth_config.ym[l] /etc/cnaas-nms/permissions.ym[l]
+RUN chmod 444 /etc/cnaas-nms/api.yml /etc/cnaas-nms/db_config.yml /etc/cnaas-nms/plugins.yml /etc/cnaas-nms/sentry_config.yml /etc/cnaas-nms/repository.yml /etc/cnaas-nms/auth_config.ym[l] /etc/cnaas-nms/permissions.ym[l]
 
 USER www-data
 EXPOSE 1443

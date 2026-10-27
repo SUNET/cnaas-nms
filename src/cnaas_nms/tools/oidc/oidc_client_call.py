@@ -53,7 +53,10 @@ def get_token_info_from_introspect(session: requests.Session, token: Token, intr
     """Get token info from introspect"""
     try:
         introspect_data = {"token": token.token_string}
-        introspect_auth = HTTPBasicAuth(auth_settings.OIDC_CLIENT_ID, auth_settings.OIDC_CLIENT_SECRET)
+        introspect_auth = HTTPBasicAuth(
+            auth_settings.OIDC_INTROSPECT_CLIENT_ID or auth_settings.OIDC_CLIENT_ID,
+            auth_settings.OIDC_INTROSPECT_CLIENT_SECRET or auth_settings.OIDC_CLIENT_SECRET,
+        )
         introspect_resp = session.post(introspection_endpoint, data=introspect_data, auth=introspect_auth)
         introspect_resp.raise_for_status()
         introspect_json = introspect_resp.json()
@@ -101,7 +104,7 @@ def get_oauth_token_info(token: Token) -> dict:
         token_info = get_token_info_from_userinfo(session, token, openid_configuration["userinfo_endpoint"])
     except requests.exceptions.HTTPError as e:
         # if the userinfo doesn't work, try the introspectinfo
-        introspect_endpoint = openid_configuration.get(
+        introspect_endpoint = auth_settings.OIDC_INTROSPECT_URL or openid_configuration.get(
             "introspection_endpoint", openid_configuration.get("introspect_endpoint", None)
         )
         if introspect_endpoint:

@@ -122,6 +122,9 @@ class AuthSettings(EnvFirstSettings):
     OIDC_CONF_WELL_KNOWN_URL: str = "well-known-openid-configuration-endpoint"
     OIDC_CLIENT_SECRET: str = "xxx"
     OIDC_CLIENT_ID: str = "client-id"
+    OIDC_INTROSPECT_URL: str | None = None  # = introspection endpoint from the OIDC metadata if not defined
+    OIDC_INTROSPECT_CLIENT_ID: str | None = None  # = OIDC_CLIENT_ID if not defined
+    OIDC_INTROSPECT_CLIENT_SECRET: str | None = None  # = OIDC_CLIENT_SECRET if not defined
     OIDC_ENABLED: bool = False
     OIDC_USERNAME_ATTRIBUTE: str = "email"
     PERMISSIONS: PermissionsModel | None = None
@@ -217,6 +220,9 @@ def construct_auth_settings() -> AuthSettings:
             "oidc_conf_well_known_url",
             "oidc_client_secret",
             "oidc_client_id",
+            "oidc_introspect_url",
+            "oidc_introspect_client_id",
+            "oidc_introspect_client_secret",
             "oidc_client_scope",
             "oidc_username_attribute",
             "permissions_disabled",

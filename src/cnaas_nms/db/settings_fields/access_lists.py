@@ -7,7 +7,7 @@ import jmespath
 from aerleon.lib.policy_builder import TermsList
 from jmespath.exceptions import ParseError
 from netutils.lib_mapper import AERLEON_LIB_MAPPER, NAPALM_LIB_MAPPER
-from pydantic import BaseModel, Field, TypeAdapter, field_validator
+from pydantic import BaseModel, Field, StringConstraints, TypeAdapter, field_validator
 
 from cnaas_nms.db.settings_fields.shared import AccessListName
 
@@ -21,6 +21,15 @@ class f_network_definition(BaseModel):
     @classmethod
     def validate_address(cls, v):
         return str(v)
+
+
+class f_mac_definition(BaseModel):
+    address: Annotated[
+        str,
+        StringConstraints(pattern=r"^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}(/([0-9]|[1-3][0-9]|4[0-8]))?$"),
+        Field(description="MAC address with optional prefix length, ex: 00:00:5e:00:53:00/40"),
+    ]
+    comment: str = ""
 
 
 class f_network_definition_include(BaseModel):
@@ -135,6 +144,7 @@ class f_access_lists(BaseModel):
         str, List[f_network_definition | f_network_definition_include | f_network_definition_reference]
     ] = {}
     service_definitions: Dict[str, List[f_service_definition | f_service_definition_include]] = {}
+    mac_definitions: Dict[str, List[f_mac_definition]] = {}
     access_lists: Dict[AccessListName, f_access_list] = {}
 
     @field_validator("access_lists", mode="after")

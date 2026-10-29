@@ -229,6 +229,13 @@ access_lists.yml
 
   * name: Name of another service object to include in this service definition
 
+- mac_definitions: Dictionary of {<name>, [entries]}:
+
+  | Named lists of MAC addresses for templates, for example to render a Junos ethernet-switching filter.
+  | Templates receive the addresses as written; access list terms do not use them.
+
+  * address: A MAC address in colon notation with an optional prefix length, ex: 00:00:5e:00:53:01 or 00:00:5e:00:53:00/40
+  * comment: A comment that describes the address.
 
 - access_lists: Dictionary of {<name>, access_lists}:
 
@@ -300,6 +307,11 @@ Access list examples
         protocol: tcp
       - port: 1024-65535
         protocol: udp
+  mac_definitions:
+    "GATEWAYS":
+      - address: "00:00:5e:00:53:01"
+        comment: "Gateway"
+      - address: "00:00:5e:00:53:10/44"
   access_lists:
     "COUNTERS":
       comment: |

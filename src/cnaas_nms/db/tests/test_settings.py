@@ -1230,6 +1230,18 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(bgp_vrf["neighbor_v4"][0]["peer_ipv4"], "192.0.2.2")
         self.assertEqual(bgp_vrf["neighbor_v6"][0]["peer_ipv6"], "2001:db8::2")
 
+    def test_settings_mac_definitions_reach_templates_unchanged(self):
+        addresses = ["00:00:5e:00:53:01", "00:00:5E:00:53:00/40"]
+        settings = {"mac_definitions": {"GATEWAYS": [{"address": address} for address in addresses]}}
+        dumped = f_root(**settings).model_dump()  # pyright: ignore[reportArgumentType]
+        self.assertEqual([entry["address"] for entry in dumped["mac_definitions"]["GATEWAYS"]], addresses)
+
+    def test_settings_mac_definitions_reject_invalid_address(self):
+        for address in ["192.0.2.1", "00:00:5e:00:53", "00:00:5e:00:53:00/49", "00-00-5e-00-53-01"]:
+            settings = {"mac_definitions": {"GATEWAYS": [{"address": address}]}}
+            with self.subTest(address=address), self.assertRaises(ValidationError):
+                f_root(**settings)  # pyright: ignore[reportArgumentType]
+
 
 if __name__ == "__main__":
     unittest.main()

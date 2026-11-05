@@ -940,6 +940,16 @@ Contains base system settings like:
   port template.
   * groups: Optional list of groups where port template should be limited to
 
+- port_mirrors: Dictionary of {<name>, {ingress: <list of interfaces>, egress: <list of interfaces>,
+  destination: <interface>}}. Local port mirror sessions, for example to feed a security monitoring sensor.
+  Each session needs at least one ingress or egress interface. Templates should render each session and
+  leave the destination out of the regular port configuration.
+
+  * name: Name of the mirror session, max 32 characters (letters, digits, - and _) beginning with a letter
+  * ingress: List of interfaces whose received traffic is mirrored
+  * egress: List of interfaces whose transmitted traffic is mirrored
+  * destination: Interface that receives the mirrored traffic, cannot also be an ingress or egress interface
+
 - vxlan_vni_range: Define a range of VNIs to be used for VXLANs, ex "10000-99999". If any VXLANs are
   configured with VNIs outside of this range an error will be raised when refreshing settings.
 - arista_models_32bit: Optional list of strings of Arista models that should be upgraded with 32-bit
@@ -990,6 +1000,13 @@ Example of base_system.yml
    dot1x_fail_vlan: 13
    system_access_lists:
      - SNMP-ACCESS
+   port_mirrors:
+     IDS:
+       ingress:
+         - Port-Channel10
+       egress:
+         - Port-Channel10
+       destination: Ethernet48
    cli_append_str: |
      interface Ethernet1
         speed forced 10000full

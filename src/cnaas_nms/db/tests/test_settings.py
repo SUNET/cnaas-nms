@@ -1242,6 +1242,24 @@ class SettingsTests(unittest.TestCase):
             with self.subTest(address=address), self.assertRaises(ValidationError):
                 f_root(**settings)  # pyright: ignore[reportArgumentType]
 
+    def test_settings_port_mirrors_reach_templates_unchanged(self):
+        settings = {
+            "port_mirrors": {"IDS": {"ingress": ["ae10", "ge-0/0/1"], "egress": ["ae10"], "destination": "ge-0/0/47"}}
+        }
+        dumped = f_root(**settings).model_dump()  # pyright: ignore[reportArgumentType]
+        self.assertEqual(dumped["port_mirrors"], settings["port_mirrors"])
+
+    def test_settings_port_mirrors_reject_invalid_session(self):
+        invalid = {
+            "no source": {"IDS": {"destination": "ge-0/0/47"}},
+            "destination is a source": {"IDS": {"egress": ["ge-0/0/47"], "destination": "ge-0/0/47"}},
+            "name with a space": {"IDS SENSOR": {"ingress": ["ae10"], "destination": "ge-0/0/47"}},
+        }
+        for scenario, port_mirrors in invalid.items():
+            settings = {"port_mirrors": port_mirrors}
+            with self.subTest(scenario), self.assertRaises(ValidationError):
+                f_root(**settings)  # pyright: ignore[reportArgumentType]
+
 
 if __name__ == "__main__":
     unittest.main()

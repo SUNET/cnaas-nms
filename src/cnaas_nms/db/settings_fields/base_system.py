@@ -1,13 +1,15 @@
 from typing import Annotated
 
 from annotated_types import Ge, Le
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 from pydantic.functional_validators import AfterValidator
 
 from cnaas_nms.db.settings_fields.shared import (
     AccessListName,
     DomainName,
     Host,
+    InterfaceName,
+    NetName,
     TcpUdpPort,
     VlanId,
     VlanOptionEnum,
@@ -70,6 +72,20 @@ class f_port_template(BaseModel):
     groups: list[str] | None = None
 
 
+class f_port_mirror(BaseModel):
+    ingress: list[InterfaceName] = []
+    egress: list[InterfaceName] = []
+    destination: InterfaceName
+
+    @model_validator(mode="after")
+    def validate_interfaces(self):
+        if not self.ingress and not self.egress:
+            raise ValueError("At least one ingress or egress interface is required")
+        if self.destination in self.ingress + self.egress:
+            raise ValueError("destination cannot also be an ingress or egress interface")
+        return self
+
+
 class f_user(BaseModel):
     username: str
     ssh_key: str | None = None
@@ -118,6 +134,7 @@ class f_base_system(BaseModel):
     poe_reboot_maintain: bool = False
     interface_tag_options: dict[str, f_interface_tag] = {}
     port_template_options: dict[str, f_port_template] = {}
+    port_mirrors: dict[NetName, f_port_mirror] = {}
     vxlan_vni_range: Annotated[str, AfterValidator(vni_range_required_check)] | None = None
     arista_models_32bit: list[str] | None = None
     arista_models_arm: list[str] | None = None

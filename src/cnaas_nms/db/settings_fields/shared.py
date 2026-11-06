@@ -37,7 +37,7 @@ type InterfaceDescription = Annotated[
     str, StringConstraints(max_length=64), Field(description="Interface description, 0-64 characters")
 ]
 
-IFNAME_REGEX = r"([a-zA-Z0-9\/\.:-])+"
+IFNAME_REGEX = r"^([a-zA-Z0-9\/\.:-])+$"
 type InterfaceName = Annotated[
     str, StringConstraints(pattern=IFNAME_REGEX, max_length=64), Field(description="Interface name, 0-64 characters")
 ]

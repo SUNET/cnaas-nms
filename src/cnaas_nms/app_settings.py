@@ -131,6 +131,7 @@ class AuthSettings(EnvFirstSettings):
     PERMISSIONS_DISABLED: bool = False
     OIDC_CLIENT_SCOPE: str = "openid"
     AUDIENCE: str | None = None  # = OIDC_CLIENT_ID if not defined
+    ADDITIONAL_AUDIENCES: list[str] = []
     VERIFY_AUDIENCE: bool = True
 
 
@@ -227,6 +228,7 @@ def construct_auth_settings() -> AuthSettings:
             "oidc_username_attribute",
             "permissions_disabled",
             "audience",
+            "additional_audiences",
             "verify_audience",
         ):
             if key in config:

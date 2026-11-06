@@ -25,6 +25,7 @@ New features:
  - Added port_mirrors to base_system.yml, local port mirror sessions that templates can render, for example to feed a security monitoring sensor (#620)
  - Added oidc_introspect_url, oidc_introspect_client_id and oidc_introspect_client_secret settings to introspect access tokens at a separate endpoint and with separate credentials (#621)
  - Added support for setting attributes in routing policies (#630)
+ - Added additional_audiences setting to accept access tokens issued for other audiences besides audience, such as the client credentials tokens of service clients (#628)
 
 Changes:
 

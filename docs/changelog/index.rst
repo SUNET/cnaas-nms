@@ -17,6 +17,7 @@ Bug fixes:
 Breaking changes:
 
  - Interface, VLAN, BGP neighbor and management domain descriptions with double quotes, backslashes or control characters, and static route names that are not one word, fail validation. Edit such settings before upgrading (#638)
+ - Interface names and ranges in interfaces.yml must match the whole value, so a name with spaces, newlines or unbalanced range brackets fails validation. Edit such settings before upgrading (#646)
 
 Version 1.9.0
 -------------

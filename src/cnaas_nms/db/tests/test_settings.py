@@ -1288,6 +1288,18 @@ class SettingsTests(unittest.TestCase):
                     check_settings_syntax(settings, {})
                 self.assertIn(f"field should be: {field_description}", str(error.exception))
 
+    def test_settings_interface_names_accept_ranges(self):
+        for name in ["Ethernet[1-4]", "ge-0/0/[0-3,8]"]:
+            settings = {"interfaces": [{"name": name, "ifclass": "custom"}]}
+            with self.subTest(name=name):
+                f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+    def test_settings_interface_names_reject_other_text(self):
+        for name in ["Ethernet1 Ethernet2", "Ethernet1\n description changed", "Ethernet[1-4"]:
+            settings = {"interfaces": [{"name": name, "ifclass": "custom"}]}
+            with self.subTest(name=name), self.assertRaises(ValidationError):
+                f_root(**settings)  # pyright: ignore[reportArgumentType]
+
 
 if __name__ == "__main__":
     unittest.main()

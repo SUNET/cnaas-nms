@@ -69,13 +69,15 @@ class MyBearerTokenValidator(BearerTokenValidator):
         # decode the token
         algorithm = unverified_header.get("alg")
         try:
-            decoded_token = jwt.decode(
-                token_string,
-                key,
-                algorithms=algorithm,
-                audience=auth_settings.AUDIENCE,
-                options={"verify_aud": auth_settings.VERIFY_AUDIENCE},
-            )
+            # python-jose verifies a single audience, so aud is verified below
+            decoded_token = jwt.decode(token_string, key, algorithms=algorithm, options={"verify_aud": False})
+            token_audiences = decoded_token.get("aud", [])
+            if isinstance(token_audiences, str):
+                token_audiences = [token_audiences]
+            accepted_audiences = {auth_settings.AUDIENCE, *auth_settings.ADDITIONAL_AUDIENCES}
+            # aud is optional (RFC 7519 section 4.1.3); like python-jose, pass a token without it
+            if auth_settings.VERIFY_AUDIENCE and token_audiences and accepted_audiences.isdisjoint(token_audiences):
+                raise exceptions.JWTClaimsError("Invalid audience")
             # make an token object to make it easier to validate
             token = Token(token_string, decoded_token)
             return token

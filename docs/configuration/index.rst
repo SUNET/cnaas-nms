@@ -78,6 +78,9 @@ Define parameters for the authentication:
 - frontend_callback_url: The frontend URL that the OIDC client should redirect to after the login process
 - oidc_enabled: Set True to enabled OIDC login. Defaults to False
 - audience: The string to verify the aud attribute in the access token with. Defaults to oidc_client_id
+- additional_audiences: A list of other strings to accept in the aud attribute of the access token, such as the
+  client_id of a client that gets its access token with the client credentials grant. In the environment, a JSON
+  list such as ``ADDITIONAL_AUDIENCES='["dhcp-client"]'``. Defaults to an empty list
 - verify_audience: Set to False to disable aud check. Defaults to True
 - permissions_disabled: set True to disable permissions. Default False
 

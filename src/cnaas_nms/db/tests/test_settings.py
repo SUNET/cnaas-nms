@@ -1254,6 +1254,10 @@ class SettingsTests(unittest.TestCase):
             "no source": {"IDS": {"destination": "ge-0/0/47"}},
             "destination is a source": {"IDS": {"egress": ["ge-0/0/47"], "destination": "ge-0/0/47"}},
             "name with a space": {"IDS SENSOR": {"ingress": ["ae10"], "destination": "ge-0/0/47"}},
+            "source with a space": {"IDS": {"ingress": ["not an interface"], "destination": "ge-0/0/47"}},
+            "destination with a newline": {
+                "IDS": {"ingress": ["ae10"], "destination": "ge-0/0/47\nset system host-name changed"}
+            },
         }
         for scenario, port_mirrors in invalid.items():
             settings = {"port_mirrors": port_mirrors}

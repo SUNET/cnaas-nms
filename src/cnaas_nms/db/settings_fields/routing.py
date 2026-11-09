@@ -145,9 +145,15 @@ class f_rpolicy_condition(BaseModel):
     match_target: str
 
 
+class f_rpolicy_set_attribute(BaseModel):
+    set_type: str
+    set_target: str
+
+
 class f_rpolicy_statement(BaseModel):
     action: AcceptReject
     conditions: list[f_rpolicy_condition]
+    set_attributes: list[f_rpolicy_set_attribute] = []
 
 
 class f_routingpolicy(BaseModel):

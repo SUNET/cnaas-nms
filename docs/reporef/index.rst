@@ -608,6 +608,13 @@ Can contain the following dictionaries with specified keys:
 
       * match_type: String, ex "ipv4 prefix-set"
       * match_target: String, referring to prefix-set for example: "default-route"
+    * set_attributes: Optional list of:
+
+      * set_type: String identifying the attribute to set, ex "local-preference"
+      * set_target: String containing the value, ex "200"
+
+  Set attributes are passed to platform templates; they do not generate configuration on their own.
+  Templates must render and validate supported types and values, or pass them to the device for validation.
 
 .. note::
    By default merges global and group settings, see `settings_keys_to_merge` in :ref:`configuration_api_ref`.
@@ -669,6 +676,9 @@ routing.yml examples
            conditions:
              - match_type: "ipv4 prefix-set"
                match_target: "default"
+           set_attributes:
+             - set_type: "local-preference"
+               set_target: "200"
      "allow_all_v6":
        statements:
          - action: "accept"

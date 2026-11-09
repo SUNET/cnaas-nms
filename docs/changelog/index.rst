@@ -23,6 +23,7 @@ New features:
  - Interface bounce takes an interval to stay down. Junos interfaces are bounced with the operational command, which power cycles PoE powered devices and leaves the device synchronized (#588)
  - Added mac_definitions to access_lists.yml, named lists of MAC addresses that templates can render, for example in a Junos ethernet-switching filter (#619)
  - Added oidc_introspect_url, oidc_introspect_client_id and oidc_introspect_client_secret settings to introspect access tokens at a separate endpoint and with separate credentials (#621)
+ - Added support for setting attributes in routing policies (#630)
 
 Changes:
 

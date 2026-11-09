@@ -1011,7 +1011,7 @@ Example of base_system.yml
    system_access_lists:
      - SNMP-ACCESS
    port_mirrors:
-     IDS:
+     ids:
        ingress:
          - Port-Channel10
        egress:

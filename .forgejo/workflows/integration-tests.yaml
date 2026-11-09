@@ -48,7 +48,7 @@ jobs:
 
       - name: Start Containerlab
         run: |
-          sudo -n ARISTA_VERSION=$ARISTA_VERSION containerlab -t ~/test/cnaas-integration-ceos.clab.yml deploy
+          sudo -n ARISTA_VERSION=$ARISTA_VERSION containerlab -t test/cnaas-integration-ceos.clab.yml deploy
 
       - name: Run Integrationtests
         run: |
@@ -60,4 +60,4 @@ jobs:
       - name: Stop containerlab
         if: always()
         run: |
-          sudo -n containerlab -t ~/test/cnaas-integration-ceos.clab.yml destroy --cleanup
+          sudo -n containerlab -t test/cnaas-integration-ceos.clab.yml destroy --cleanup

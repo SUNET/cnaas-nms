@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - develop
-      - e2e.create_forgejo_runner # TODO: remove before merging
   workflow_dispatch:
 
 concurrency:

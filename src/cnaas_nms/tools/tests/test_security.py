@@ -16,18 +16,21 @@ def authenticate(monkeypatch):
     monkeypatch.setattr(security, "auth_settings", construct_auth_settings())
     monkeypatch.setattr(security, "get_key", lambda kid: SIGNING_KEY)
 
-    def authenticate(audience: str | list[str]) -> dict:
-        token_string = jwt.encode({"sub": "someone", "aud": audience}, SIGNING_KEY, algorithm="HS256")
+    def authenticate(claims: dict) -> dict:
+        token_string = jwt.encode({"sub": "someone", **claims}, SIGNING_KEY, algorithm="HS256")
         return security.MyBearerTokenValidator().authenticate_token(token_string).decoded_token
 
     return authenticate
 
 
-@pytest.mark.parametrize("audience", ["web-client", "dhcp-client", ["other-client", "dhcp-client"]])
-def test_token_for_accepted_audience_is_valid(authenticate, audience):
-    assert authenticate(audience)["sub"] == "someone"
+@pytest.mark.parametrize(
+    "claims", [{"aud": "web-client"}, {"aud": "dhcp-client"}, {"aud": ["other-client", "dhcp-client"]}]
+)
+def test_token_for_accepted_audience_is_valid(authenticate, claims):
+    assert authenticate(claims)["sub"] == "someone"
 
 
-def test_token_for_other_audience_is_rejected(authenticate):
+@pytest.mark.parametrize("claims", [{"aud": "other-client"}, {}])
+def test_token_for_other_or_no_audience_is_rejected(authenticate, claims):
     with pytest.raises(InvalidTokenError):
-        authenticate("other-client")
+        authenticate(claims)

@@ -40,6 +40,7 @@ Changes:
  - Rebuilt settings fields schemas into types to improve modularity and maintainability (#592)
  - Changed logging levels from DEBUG to INFO for certain operations, can now set the LOG_LEVEL through an environment variable (#583, #586)
  - Environment variables take precedence over api.yml, auth_config.yml, db_config.yml and repository.yml (#611)
+ - With verify_audience on, access tokens without an aud claim are rejected (#628)
  - Updated documentation (#556, #564)
 
 Bug fixes:

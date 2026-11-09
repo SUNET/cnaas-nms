@@ -75,8 +75,8 @@ class MyBearerTokenValidator(BearerTokenValidator):
             if isinstance(token_audiences, str):
                 token_audiences = [token_audiences]
             accepted_audiences = {auth_settings.AUDIENCE, *auth_settings.ADDITIONAL_AUDIENCES}
-            # aud is optional (RFC 7519 section 4.1.3); like python-jose, pass a token without it
-            if auth_settings.VERIFY_AUDIENCE and token_audiences and accepted_audiences.isdisjoint(token_audiences):
+            # RFC 9068 requires aud in access tokens, so a token without it is rejected
+            if auth_settings.VERIFY_AUDIENCE and accepted_audiences.isdisjoint(token_audiences):
                 raise exceptions.JWTClaimsError("Invalid audience")
             # make an token object to make it easier to validate
             token = Token(token_string, decoded_token)

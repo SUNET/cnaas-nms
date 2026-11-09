@@ -152,15 +152,6 @@ class InterfaceApi(Resource):
                         intfdata_original = {}
                         intfdata = {}
 
-                    # Verify that users do not specificy port tagged_vlan_list and tagged_vlan_groups at the same time
-                    if if_dict.get("tagged_vlan_list") and if_dict.get("tagged_vlan_groups"):
-                        errors.append(
-                            "Cannot specify both tagged_vlan_list and tagged_vlan_groups for interface {}".format(
-                                if_name
-                            )
-                        )
-                        continue
-
                     if "configtype" in if_dict and if_dict["configtype"]:
                         try:
                             configtype = if_dict["configtype"].upper()
@@ -176,6 +167,17 @@ class InterfaceApi(Resource):
                                 errors.append(f"Invalid configtype received: {configtype}")
 
                     if "data" in if_dict and if_dict["data"]:
+                        # Verify that users do not specificy port tagged_vlan_list and tagged_vlan_groups at the same time
+                        if if_dict.get("data", {}).get("tagged_vlan_list") and if_dict.get("data", {}).get(
+                            "tagged_vlan_groups"
+                        ):
+                            errors.append(
+                                "Cannot specify both tagged_vlan_list and tagged_vlan_groups for interface {}".format(
+                                    if_name
+                                )
+                            )
+                            continue
+
                         # TODO: maybe this validation should be done via
                         #  pydantic if it gets more complex
                         if not device_settings:
@@ -209,6 +211,8 @@ class InterfaceApi(Resource):
                                 )
                                 if len(vlan_id_list) == len(if_dict["data"]["tagged_vlan_list"]):
                                     intfdata["tagged_vlan_list"] = vlan_id_list
+                                    # Reset tagged_vlan_groups
+                                    intfdata["tagged_vlan_groups"] = None
                                 else:
                                     errors.append(
                                         "Some VLANs {} are not present in {}".format(
@@ -230,6 +234,8 @@ class InterfaceApi(Resource):
                                         errors.append(f"VLAN group {group} does not exist")
                                 if not errors:
                                     intfdata["tagged_vlan_groups"] = if_dict["data"]["tagged_vlan_groups"]
+                                    # Reset tagged_vlan_list
+                                    intfdata["tagged_vlan_list"] = None
                             else:
                                 errors.append(
                                     "tagged_vlan_groups should be of type list, found {}".format(

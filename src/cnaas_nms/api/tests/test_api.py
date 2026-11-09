@@ -297,6 +297,13 @@ def test_update_interface_data_tagged(client, testdata):
     assert result.status_code == 400
     assert result.json["status"] == "error"
 
+    # Cannot set both  tagged_vlan_list and tagged_vlan_groups at the same time.
+    data["interfaces"][ifname]["data"]["tagged_vlan_groups"] = ["SOME_GROUP"]
+    data["interfaces"][ifname]["data"]["tagged_vlan_list"] = [500]
+    result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 400
+    assert result.json["status"] == "error"
+
 
 def test_update_interface_data_tagged_group(client, testdata):
     # Test tagged

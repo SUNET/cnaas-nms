@@ -1,0 +1,63 @@
+name: E2E Tests
+
+on:
+  push:
+    branches:
+      - develop
+      - e2e.create_forgejo_runner # TODO: remove before merging
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: "Run integration e2e tests"
+    runs-on: ubuntu24
+    timeout-minutes: 30
+
+    env:
+      DEBIAN_FRONTEND: noninteractive
+      ARISTA_VERSION: 4.34.8M
+
+    steps:
+      - name: Install containerlab
+        run: |
+          echo "deb [trusted=yes] https://netdevops.fury.site/apt/ /" | \
+          sudo -n tee /etc/apt/sources.list.d/netdevops.list
+          sudo -n apt-get update && sudo -n apt-get install -y containerlab
+
+      - name: Login to Container Registry
+        uses: https://platform.sunet.se/actions/login-action@v4
+        with:
+          registry: platform.sunet.se
+          username: ci-sunet-cnaas
+          password: ${{ secrets.CI_SUNET_CNAAS }}
+
+      - name: Docker pull cEOS image
+        run: |
+          docker pull platform.sunet.se/cnaas-protected-artifacts/ceos64:$ARISTA_VERSION
+          docker tag platform.sunet.se/cnaas-protected-artifacts/ceos64:$ARISTA_VERSION ceos:$ARISTA_VERSION
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build Docker images
+        run: docker compose -f docker/docker-compose.yaml build
+
+      - name: Start Containerlab
+        run: |
+          sudo -n ARISTA_VERSION=$ARISTA_VERSION containerlab -t ~/test/cnaas-integration-ceos.clab.yml deploy
+
+      - name: Run Integrationtests
+        run: |
+          cd test
+          ./integrationtests.sh
+        env:
+          AUTOTEST: 1
+
+      - name: Stop containerlab
+        if: always()
+        run: |
+          sudo -n containerlab -t ~/test/cnaas-integration-ceos.clab.yml destroy --cleanup

@@ -117,6 +117,29 @@ INCLUDE_INTEGRATION_TOOLS=1 docker compose build cnaas_api
 cd ../test && AUTOTEST=1 ./integrationtests.sh
 ```
 
+## Release
+
+First bump `__version__` in `src/cnaas_nms/version.py` to the new version and merge it to `develop`. This is the version the application reports, and `pyproject.toml` reads it from there.
+
+Then create an annotated tag on up-to-date `develop` and push it to the remote repository, where the workflows *build-api* and *build-dhcpd* will pick it up and build new Docker images:
+
+```bash
+git checkout develop && git pull
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push platform vX.Y.Z
+```
+
+This pushes `nms_api:X.Y.Z` and `X.Y`, and `nms_dhcpd:X.Y.Z` and `X.Y`, to the [package registry](https://platform.sunet.se/CNaaS/cnaas-nms/packages). `latest` is only built from the `develop` branch. Old `sha-*` images are pruned automatically; release tags are kept.
+
+Never move or re-push an existing tag, create a new version instead.
+
+The images can be pulled from the registry with:
+
+```bash
+docker pull platform.sunet.se/cnaas/nms_api:X.Y.Z
+docker pull platform.sunet.se/cnaas/nms_dhcpd:X.Y.Z
+```
+
 ## Authorization
 
 Currently we can use two styles for the authorization. We can use the original style or use OIDC style. For OIDC we need to define some env variables or add a auth_config.yaml in the config. The needed variables are: OIDC_CONF_WELL_KNOWN_URL, OIDC_CLIENT_SECRET, OIDC_CLIENT_ID, FRONTEND_CALLBACK_URL and OIDC_ENABLED. To use the OIDC style the last variable needs to be set to true.

@@ -9,7 +9,7 @@ from cnaas_nms.api.generic import build_filter, empty_result, limit_results, par
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.mgmtdomain import Mgmtdomain
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.db.settings_fields import VlanId
+from cnaas_nms.db.settings_fields import ConfigText, VlanId
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.tools.security import get_identity, login_required
 from cnaas_nms.version import __api_version__
@@ -38,7 +38,7 @@ class f_mgmtdomain(BaseModel):
     vlan: VlanId | None = None
     ipv4_gw: str | None = None
     ipv6_gw: str | None = None
-    description: str | None = None
+    description: ConfigText | None = None
 
     @field_validator("ipv4_gw")
     @classmethod

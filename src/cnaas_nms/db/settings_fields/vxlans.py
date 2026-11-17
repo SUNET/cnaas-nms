@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_va
 
 from cnaas_nms.db.settings_fields.base_system import f_dhcp_relay
 from cnaas_nms.db.settings_fields.shared import (
+    ConfigText,
     Mtu,
     NetName,
     ValidatedIPv4InterfaceString,
@@ -55,7 +56,7 @@ class f_vxlan_igmp_snooping(BaseModel):
 
 
 class f_vxlan(BaseModel):
-    description: str | None = None
+    description: ConfigText | None = None
     enabled: Annotated[bool, Field(description="Whether the VLAN interface is enabled.")] = True
     vni: VxlanNetworkIdentifier
     vrf: NetName | None = None

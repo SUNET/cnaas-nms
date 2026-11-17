@@ -33,8 +33,28 @@ type InterfaceClass = Annotated[
     Field(description="Interface class: custom, downlink, fabric, mirror, or a port template"),
 ]
 
+# Free text that templates render into device configuration, often inside a quoted string.
+# Rejects every line break str.splitlines() knows, as napalm splits EOS configuration into commands with it.
+CONFIG_TEXT_REGEX = r'^[^"\\\x00-\x1f\x7f-\x9f\u2028\u2029]*$'
+type ConfigText = Annotated[
+    str,
+    StringConstraints(pattern=CONFIG_TEXT_REGEX),
+    Field(description="Text without double quotes, backslashes or control characters"),
+]
+
+# Text that templates render as one word of a longer command, such as an EOS static route name.
+type ConfigWord = Annotated[
+    str,
+    StringConstraints(pattern=r'^[^\s"\\\x00-\x1f\x7f-\x9f]+$'),
+    Field(description="One word without double quotes, backslashes or control characters"),
+]
+
 type InterfaceDescription = Annotated[
-    str, StringConstraints(max_length=64), Field(description="Interface description, 0-64 characters")
+    str,
+    StringConstraints(pattern=CONFIG_TEXT_REGEX, max_length=64),
+    Field(
+        description="Interface description, 0-64 characters without double quotes, backslashes or control characters"
+    ),
 ]
 
 IFNAME_REGEX = r"^([a-zA-Z0-9\/\.:-])+$"

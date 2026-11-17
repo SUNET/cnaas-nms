@@ -56,6 +56,7 @@ Breaking changes:
  - f_root override-plugins must be updated and be specifed to a specific setting file.
    See: https://cnaas-nms.readthedocs.io/en/latest/plugins/index.html#settings-fields for more information.
    Internal custom pydantic schemas have also been rebuilt to types so if your plugins use internal schemas they will need to be updated to the custom types instead.
+ - Interface, VLAN, BGP neighbor and management domain descriptions with double quotes, backslashes or control characters, and static route names that are not one word, fail validation. Edit such settings before upgrading (#638)
 
 Version 1.8.1
 -------------

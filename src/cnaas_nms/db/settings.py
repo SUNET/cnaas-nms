@@ -381,25 +381,33 @@ def get_pydantic_error_value(data: dict, loc: tuple):
         return obj
 
 
-def get_pydantic_field_descr(schema: dict, loc: tuple):
+def get_pydantic_field_descr(schema: dict, loc: tuple) -> Optional[str]:
     """Get the description from a pydantic Field definition based on a model
     schema and a "loc" tuple from pydantic ValidatorError.errors()"""
-    next_schema: Optional[dict[str, Any]] = None
+
+    def alternatives(node: dict) -> list[dict]:
+        """The node, the definition it refers to and the members of its union, outermost first"""
+        if "$ref" in node:
+            return [node, *alternatives(schema["$defs"][node["$ref"].removeprefix("#/$defs/")])]
+        if "anyOf" in node:
+            return [node, *(alt for member in node["anyOf"] for alt in alternatives(member))]
+        return [node]
+
+    nodes = [schema]
     for loc_part in loc:
-        if next_schema and "$ref" in next_schema:
-            ref_to = next_schema["$ref"].split("/")[2]
-            next_schema = schema["definitions"][ref_to]["properties"][loc_part]
-        elif next_schema:
-            if type(loc_part) is int:
-                next_schema = next_schema["items"]
-            else:
-                next_schema = schema["definitions"][next_schema]["properties"][loc_part]
-        else:
-            next_schema = schema["properties"][loc_part]
-    if next_schema and "description" in next_schema:
-        return next_schema["description"]
-    else:
-        return None
+        children = []
+        for node in (alt for n in nodes for alt in alternatives(n)):
+            if isinstance(loc_part, int) and "items" in node:
+                children.append(node["items"])
+            elif isinstance(loc_part, str) and loc_part in node.get("properties", {}):
+                children.append(node["properties"][loc_part])
+            elif isinstance(loc_part, str) and isinstance(node.get("additionalProperties"), dict):
+                children.append(node["additionalProperties"])
+        if not children:
+            # The rest of loc names the union member that failed, such as "constrained-str"
+            break
+        nodes = children
+    return next((alt["description"] for n in nodes for alt in alternatives(n) if "description" in alt), None)
 
 
 def check_system_access_lists(settings_dict: dict):

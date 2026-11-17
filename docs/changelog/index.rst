@@ -50,6 +50,7 @@ Bug fixes:
  - Updated return codes in firmware api (#531)
  - Fixed device replacement bugs, now supports swapping between platforms and changing uplink port, disabled MLAG and Stack device replacement (#543)
  - A port bounce renders both templates before pushing either, so a template repository missing a working bounce-up.j2 no longer leaves the interface disabled (#591)
+ - Settings and API validation errors end with the description of the field, also for nested settings and named types such as VlanId (#639)
 
 Breaking changes:
 

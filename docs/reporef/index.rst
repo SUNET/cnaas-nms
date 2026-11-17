@@ -541,7 +541,7 @@ Can contain the following dictionaries with specified keys:
       * destination: IPv4 prefix
       * nexthop: IPv4 nexthop address
       * interface: Exiting interface (optional)
-      * name: Name/description of route (optional, defaults to "undefined")
+      * name: Name of the route, one word without double quotes, backslashes or control characters (optional, defaults to "undefined")
       * cli_append_str: Custom configuration to append to this route (optional)
 
     * ipv6:
@@ -579,7 +579,7 @@ Can contain the following dictionaries with specified keys:
       * maximum_routes: Maximum routes to receive from peer, integer 0-4294967294
       * update_source: Specify local source interface for the BGP session
       * auth_string: String used to calculate MD5 hash for authentication (password)
-      * description: Description of remote peer (optional, defaults to "undefined")
+      * description: Description of remote peer without double quotes, backslashes or control characters (optional, defaults to "undefined")
       * remove_private_as: Optional, if set must be either "all" or "replace".
         Remove all private AS numbers from AS_PATH, or replace private AS numbers with local AS.
       * cli_append_str: Custom configuration to append to this peer (optional)
@@ -698,7 +698,7 @@ name is the dictionary key and dictionaly values are:
   * vrf: VRF name. Optional unless ipv4_gw is also specified.
   * vlan_id: VLAN ID, 1-4095
   * vlan_name: VLAN name, single word/no spaces, max 31 characters
-  * description: Description of the VLAN interface. Optional.
+  * description: Description of the VLAN interface, without double quotes, backslashes or control characters. Optional.
   * enabled: Set to false to disable the VLAN interface. Default true.
   * ipv4_gw: IPv4 gateway address in CIDR notation, ex: 192.168.0.1/24. Optional.
   * ipv4_secondaries: List of IPv4 addresses in CIDR notation. Optional.
@@ -814,7 +814,7 @@ Keys for interfaces.yml or interfaces_<model>.yml:
   * untagged_vlan: Optional. Numeric VLAN ID for untagged frames.
   * tagged_vlan_list: Optional. List of allowed VLAN IDs, can be single values or ranges, ex: [1, 5, "10-15"]
   * tagged_vlan_groups: Optional. List of VLAN group names
-  * description: Optional. Description for the interface, this should be a string 0-64 characters.
+  * description: Optional. Description for the interface, this should be a string of 0-64 characters without double quotes, backslashes or control characters.
   * enabled: Optional. Set the administrative state of the interface. Defaults to true if not set.
   * aggregate_id: Optional. Identifier for configuring LACP etc. Integer value.
     Special value -1 means configure MLAG and use ID based on indexnum.

@@ -8,6 +8,10 @@ Bug fixes:
 
  - exec-pre-app runs once in the uWSGI master, before the workers fork, so a half-written repository.yml can no longer leave the API answering 500 (#637)
 
+Breaking changes:
+
+ - Interface, VLAN, BGP neighbor and management domain descriptions with double quotes, backslashes or control characters, and static route names that are not one word, fail validation. Edit such settings before upgrading (#638)
+
 Version 1.9.0
 -------------
 

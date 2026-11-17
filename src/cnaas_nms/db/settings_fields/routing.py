@@ -6,6 +6,8 @@ from pydantic import BaseModel, StringConstraints
 from cnaas_nms.db.settings_fields.shared import (
     AcceptReject,
     AsNum,
+    ConfigText,
+    ConfigWord,
     EBGPMultihop,
     HostName,
     InterfaceName,
@@ -38,7 +40,7 @@ class f_ipv4_static_route(BaseModel):
     destination: IPv4InterfaceString
     nexthop: IPv4AddressString
     interface: InterfaceName | None = None
-    name: str = "undefined"
+    name: ConfigWord = "undefined"
     cli_append_str: str = ""
 
 
@@ -46,7 +48,7 @@ class f_ipv6_static_route(BaseModel):
     destination: IPv6InterfaceString
     nexthop: IPv6AddressString
     interface: InterfaceName | None = None
-    name: str = "undefined"
+    name: ConfigWord = "undefined"
     cli_append_str: str = ""
 
 
@@ -76,7 +78,7 @@ class f_extroute_bgp_neighbor_v4(BaseModel):
     peer_as: AsNum
     route_map_in: NetName
     route_map_out: NetName
-    description: str = "undefined"
+    description: ConfigText = "undefined"
     bfd: bool | None = None
     graceful_restart: bool | None = None
     next_hop_self: bool | None = None
@@ -94,7 +96,7 @@ class f_extroute_bgp_neighbor_v6(BaseModel):
     peer_as: AsNum
     route_map_in: NetName
     route_map_out: NetName
-    description: str = "undefined"
+    description: ConfigText = "undefined"
     bfd: bool | None = None
     graceful_restart: bool | None = None
     next_hop_self: bool | None = None

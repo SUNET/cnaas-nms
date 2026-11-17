@@ -144,7 +144,7 @@ Data can contain any of these optional keys:
 
 - untagged_vlan: Numeric or string representation of a VLAN/VXLAN from vxlans.yml
 - tagged_vlan_list: List of VLANs/VXLANs
-- description: Description for the interface, this should be a string 0-64 characters.
+- description: Description for the interface, this should be a string of 0-64 characters without double quotes, backslashes or control characters.
 - enabled: Set the administrative state of the interface. Defaults to true if not set.
 - aggregate_id: Identifier for configuring LACP etc. Integer value.
   Special value -1 means configure MLAG and use ID based on indexnum.

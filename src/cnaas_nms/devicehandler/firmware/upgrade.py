@@ -10,7 +10,7 @@ from cnaas_nms.db.device import Device
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings
-from cnaas_nms.devicehandler.firmware.base import FirmwareAlreadyActiveException
+from cnaas_nms.devicehandler.firmware.base import FirmwareAlreadyActiveException, FirmwareException
 from cnaas_nms.devicehandler.firmware.registry import get_firmware_driver, get_firmware_drivers
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
 from cnaas_nms.devicehandler.sync_history import add_sync_event
@@ -100,7 +100,7 @@ def post_flight_check(
             time.sleep(max(60 - (time.time() - start_time), 0))
 
         if not os_version:
-            raise Exception("Device {} did not respond to check".format(task.host.name))
+            raise FirmwareException("Device {} did not respond to check".format(task.host.name))
 
         with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
@@ -108,7 +108,7 @@ def post_flight_check(
             dev.os_version = os_version
             if prev_os_version == os_version:
                 logger.error("OS version did not change, activation failed on {}".format(task.host.name))
-                raise Exception("OS version did not change, activation failed")
+                raise FirmwareException("OS version did not change, activation failed")
             else:
                 dev.confhash = None
                 dev.synchronized = False
@@ -155,7 +155,7 @@ def device_upgrade_task(
             res = task.run(task=driver.pre_flight, name="pre_flight_check", job_id=job_id)
         except Exception as e:
             logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
-            raise Exception("Pre-flight check failed")
+            raise FirmwareException("Pre-flight check failed")
         else:
             if res.failed:
                 logger.exception("Pre-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
@@ -164,7 +164,7 @@ def device_upgrade_task(
     # If download is true, go ahead and download the firmware
     if download:
         if not filename:
-            raise Exception("No filename specified for download")
+            raise FirmwareException("No filename specified for download")
         # Download the firmware from the HTTP container.
         logger.info("Downloading firmware {} on {}".format(filename, task.host.name))
         try:
@@ -185,7 +185,7 @@ def device_upgrade_task(
     already_active = False
     if activate:
         if not filename:
-            raise Exception("No filename specified for activate")
+            raise FirmwareException("No filename specified for activate")
         logger.info("Activating firmware {} on {}".format(filename, task.host.name))
         try:
             res = task.run(task=driver.activate, name="firmware_activate", filename=filename, job_id=job_id)
@@ -210,7 +210,7 @@ def device_upgrade_task(
                 raise e
         except Exception as e:
             logger.exception("Exception while activating firmware for {}: {}".format(task.host.name, str(e)))
-            raise e
+            raise FirmwareException("Exception while activating firmware for {}: {}".format(task.host.name, str(e)))
 
     # Reboot the device if needed, we will then lose the connection.
     if reboot and not already_active:
@@ -222,8 +222,9 @@ def device_upgrade_task(
             logger.exception("Error while running plugin hooks for upgrade_reboot_starting: {}".format(str(e)))
         try:
             res = task.run(task=driver.reload, name="device_reload", job_id=job_id)
-        except Exception:  # noqa: S110
-            pass
+        except Exception as e:  # noqa: S110
+            logger.exception("Exception while rebooting device {}: {}".format(task.host.name, str(e)))
+            raise FirmwareException("Exception while rebooting device {}: {}".format(task.host.name, str(e)))
 
     # If post-flight is selected, execute the post-flight task which
     # will update device facts for the selected devices
@@ -303,7 +304,7 @@ def device_upgrade(
             if not dev:
                 raise Exception("Could not find device: {}".format(device))
             if dev.platform not in firmware_drivers:
-                raise Exception(
+                raise FirmwareException(
                     'No firmware upgrade driver for platform "{}" of device: {}'.format(dev.platform, device)
                 )
             device_list.append(dev)

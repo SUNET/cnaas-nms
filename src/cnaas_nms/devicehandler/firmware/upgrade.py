@@ -229,7 +229,7 @@ def device_upgrade_task(
     # will update device facts for the selected devices
     if post_flight and not already_active:
         try:
-            dev_settings, _ = get_settings(dev, device_type) # type: ignore
+            dev_settings, _ = get_settings(dev, device_type)  # type: ignore
             res = task.run(
                 task=post_flight_check,
                 post_waittime=post_waittime,

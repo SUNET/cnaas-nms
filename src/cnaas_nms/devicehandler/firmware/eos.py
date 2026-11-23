@@ -67,7 +67,7 @@ class EOSFirmwareDriver(FirmwareDriver):
         free_bytes = next(iter(res.result.values())).split("\n")[1]
         if int(free_bytes) < 2500000:
             logger.info("Cleaning up old firmware images on {}".format(task.host.name))
-            res = task.run(napalm_cli, commands=[flash_cleanup])
+            task.run(napalm_cli, commands=[flash_cleanup])
         else:
             logger.info("Enough free space ({}b), no cleanup".format(free_bytes))
 

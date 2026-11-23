@@ -156,10 +156,9 @@ def device_upgrade_task(
         except Exception as e:
             logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
             raise FirmwareException("Pre-flight check failed")
-        else:
-            if res.failed:
-                logger.exception("Pre-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
-                raise
+        if res.failed:
+            logger.exception("Pre-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
+            raise FirmwareException("Pre-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
 
     # If download is true, go ahead and download the firmware
     if download:

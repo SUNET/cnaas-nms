@@ -6,7 +6,7 @@ from nornir_netmiko.tasks import netmiko_send_command
 from cnaas_nms.db.device import CpuArchitecture, Device, DeviceType
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import sqla_session
-from cnaas_nms.devicehandler.firmware.base import FirmwareAlreadyActiveException, FirmwareDriver
+from cnaas_nms.devicehandler.firmware.base import FirmwareAlreadyActiveException, FirmwareDriver, FirmwareException
 from cnaas_nms.devicehandler.os_specifics.arista_models import detect_arch
 from cnaas_nms.scheduler.thread_data import set_thread_data
 from cnaas_nms.tools.log import get_logger
@@ -61,7 +61,7 @@ class EOSFirmwareDriver(FirmwareDriver):
         # Get amount of free disk space
         res = task.run(napalm_cli, commands=[flash_diskspace])
         if not isinstance(res, MultiResult) or len(res.result.keys()) != 1:
-            raise Exception("Could not check free space")
+            raise FirmwareException("Could not check free space")
 
         # Remove old firmware images if needed
         free_bytes = next(iter(res.result.values())).split("\n")[1]
@@ -124,7 +124,7 @@ class EOSFirmwareDriver(FirmwareDriver):
                         task.host.name, firmware_download_cmd, res.result
                     )
                 )
-                raise Exception(
+                raise FirmwareException(
                     "Copy command did not complete successfully: {}".format(
                         ", ".join(filter(lambda x: x.startswith("get:"), res.result.splitlines()))
                     )
@@ -134,10 +134,10 @@ class EOSFirmwareDriver(FirmwareDriver):
             subtask_result = e.result[0]
             logger.error("{} failed to download firmware: {}".format(task.host.name, subtask_result))
             logger.debug("{} download subtask result: {}".format(task.host.name, subtask_result.result))
-            raise Exception("Failed to download firmware: {}".format(subtask_result))
+            raise FirmwareException("Failed to download firmware: {}".format(subtask_result))
         except Exception as e:
             logger.error("{} failed to download firmware: {}".format(task.host.name, e))
-            raise Exception("Failed to download firmware: {}".format(e))
+            raise FirmwareException("Failed to download firmware: {}".format(e))
 
         return "Firmware download done."
 
@@ -178,7 +178,7 @@ class EOSFirmwareDriver(FirmwareDriver):
             res = task.run(netmiko_send_command, command_string=boot_file_cmd, read_timeout=300)
 
             if not isinstance(res, MultiResult):
-                raise Exception("Could not activate firmware on {}".format(task.host.name))
+                raise FirmwareException("Could not activate firmware on {}".format(task.host.name))
 
             if res.result:
                 logger.error("Error when activating firmware on {}: {}".format(task.host.name, res.result))
@@ -190,15 +190,15 @@ class EOSFirmwareDriver(FirmwareDriver):
             )
 
             if not isinstance(res, MultiResult):
-                raise Exception("Could not check boot-config on {}".format(task.host.name))
+                raise FirmwareException("Could not check boot-config on {}".format(task.host.name))
 
             if res.result != filename:
-                raise Exception("Firmware not activated properly on {}".format(task.host.name))
+                raise FirmwareException("Firmware not activated properly on {}".format(task.host.name))
         except FirmwareAlreadyActiveException as e:
             raise e
         except Exception as e:
             logger.exception("Failed to activate firmware on {}: {}".format(task.host.name, str(e)))
-            raise Exception("Failed to activate firmware")
+            raise FirmwareException("Failed to activate firmware")
 
         return "Firmware {} activation done.".format(filename)
 
@@ -228,7 +228,7 @@ class EOSFirmwareDriver(FirmwareDriver):
             res = task.run(netmiko_send_command, command_string="reload force", max_loops=2, expect_string=".*")
 
             if not isinstance(res, MultiResult):
-                raise Exception("Could not reboot device {}".format(task.host.name))
+                raise FirmwareException("Could not reboot device {}".format(task.host.name))
 
             if res.result:
                 logger.error("Error when rebooting device {}: {}".format(task.host.name, res.result))

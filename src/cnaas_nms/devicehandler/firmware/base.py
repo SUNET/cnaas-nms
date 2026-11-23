@@ -3,7 +3,11 @@ from abc import ABC, abstractmethod
 from cnaas_nms.db.device import Device, DeviceType
 
 
-class FirmwareAlreadyActiveException(Exception):
+class FirmwareException(Exception):
+    """Base class for firmware related exceptions."""
+
+
+class FirmwareAlreadyActiveException(FirmwareException):
     """Raised by FirmwareDriver.activate if the firmware is already the active one."""
 
 

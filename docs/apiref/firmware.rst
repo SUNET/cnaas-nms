@@ -187,32 +187,32 @@ The output from the job will look like this:
                 "failed": false
               },
               {
-                "name": "arista_pre_flight_check",
+                "name": "pre_flight_check",
                 "result": "Pre-flight check done.",
                 "diff": "",
                 "failed": false
               },
               {
-                "name": "arista_firmware_download",
+                "name": "firmware_download",
                 "result": "Firmware download done."
                 "diff": "",
                 "failed": false
               },
               {
-                "name": "arista_firmware_activate",
+                "name": "firmware_activate",
                 "result": "Firmware activate done.",
                 "diff": "",
                 "failed": false
               },
               {
-                "name": "arista_device_reboot",
+                "name": "device_reload",
                 "result": "Device reboot done.",
                 "diff": "",
                 "failed": false
               },
               {
                 "result": "Post-flight, OS version updated for device eosaccess, now 4.23.2F-15405360.4232F.",
-                "task_name": "arista_post_flight_check",
+                "task_name": "post_flight_check",
                 "diff": "",
                 "failed": false
               }

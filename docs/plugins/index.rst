@@ -57,6 +57,22 @@ Argumens proided:
 - ipv4_network: IPv4 network address in CIDR notation (ex 10.0.6.0/24)
 - hostname: Hostname of the device that uses this address
 
+firmware_drivers
+^^^^^^^^^^^^^^^^
+
+Called when CNaaS-NMS needs to know which platforms it can upgrade firmware on.
+Plugins return a list of subclasses of
+``cnaas_nms.devicehandler.firmware.base.FirmwareDriver``, one per platform
+(matching the device platform value, for example "eos"). The Arista EOS driver
+(``EOSFirmwareDriver``) is provided by a built-in plugin in the same way.
+Only one driver can be registered per platform.
+
+A driver implements the Nornir tasks ``download``, ``activate`` and ``reload``,
+and optionally ``pre_flight`` and ``resolve_image``. See
+``cnaas_nms/devicehandler/firmware/eos.py`` for a reference implementation.
+
+No arguments provided.
+
 Module overrides
 ----------------
 

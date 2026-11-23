@@ -23,6 +23,10 @@ class PluginManagerHandler(object, metaclass=SingletonType):
     def __init__(self):
         self.pm = pluggy.PluginManager("cnaas-nms")
         self.pm.add_hookspecs(CnaasPluginSpec)
+        # Imported here to avoid a circular import, the firmware package uses this module
+        from cnaas_nms.devicehandler.firmware.builtin import BuiltinFirmwareDrivers
+
+        self.pm.register(BuiltinFirmwareDrivers(), name="builtin_firmware_drivers")
 
     @classmethod
     def get_plugindata(cls):

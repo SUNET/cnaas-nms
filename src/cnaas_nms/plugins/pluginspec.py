@@ -29,6 +29,15 @@ class CnaasPluginSpec(object):
     def upgrade_reboot_completed(self, hostname):
         """A device upgrade reboot has completed."""
 
+    @hookspec
+    def firmware_drivers(self):
+        """Provide platform specific firmware upgrade drivers.
+
+        Returns:
+            List of cnaas_nms.devicehandler.firmware.base.FirmwareDriver subclasses. Each
+            platform can only be handled by one driver.
+        """
+
 
 class CnaasBasePlugin(object):
     @classmethod

@@ -5,15 +5,15 @@ from typing import Dict, List, Optional
 from nornir.core import AggregatedResult
 from nornir.core.exceptions import NornirSubTaskError
 from nornir.core.task import MultiResult
-from nornir_napalm.plugins.tasks import napalm_cli, napalm_get
-from nornir_netmiko.tasks import netmiko_send_command
+from nornir_napalm.plugins.tasks import napalm_get
 
-from cnaas_nms.db.device import CpuArchitecture, Device, DeviceType
+from cnaas_nms.db.device import Device
 from cnaas_nms.db.job import Job
 from cnaas_nms.db.session import redis_session, sqla_session
 from cnaas_nms.db.settings import get_settings
+from cnaas_nms.devicehandler.firmware.base import FirmwareAlreadyActiveException
+from cnaas_nms.devicehandler.firmware.registry import get_firmware_driver, get_firmware_drivers
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
-from cnaas_nms.devicehandler.os_specifics.arista_models import detect_arch
 from cnaas_nms.devicehandler.sync_history import add_sync_event
 from cnaas_nms.devicehandler.upgradeorder import determine_upgrade_order
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
@@ -22,47 +22,7 @@ from cnaas_nms.scheduler.wrapper import job_wrapper
 from cnaas_nms.tools.log import get_logger
 
 
-class FirmwareAlreadyActiveException(Exception):
-    pass
-
-
-def arista_pre_flight_check(task, job_id: Optional[int] = None) -> str:  # type: ignore
-    """
-    NorNir task to do some basic checks before attempting to upgrade a switch.
-
-    Args:
-        task: NorNir task
-
-    Returns:
-        String, describing the result
-
-    """
-    set_thread_data(job_id)
-    logger = get_logger()
-    with sqla_session() as session:  # type: ignore
-        if Job.check_job_abort_status(session, job_id):
-            return "Pre-flight aborted"
-
-    flash_diskspace = "bash timeout 5 df /mnt/flash | awk '{print $4}'"
-    flash_cleanup = 'bash timeout 30 ls -t /mnt/flash/*.swi | tail -n +2 | grep -v `cut -d"/" -f2 /mnt/flash/boot-config` | xargs rm -f'
-
-    # Get amount of free disk space
-    res = task.run(napalm_cli, commands=[flash_diskspace])
-    if not isinstance(res, MultiResult) or len(res.result.keys()) != 1:
-        raise Exception("Could not check free space")
-
-    # Remove old firmware images if needed
-    free_bytes = next(iter(res.result.values())).split("\n")[1]
-    if int(free_bytes) < 2500000:
-        logger.info("Cleaning up old firmware images on {}".format(task.host.name))
-        res = task.run(napalm_cli, commands=[flash_cleanup])
-    else:
-        logger.info("Enough free space ({}b), no cleanup".format(free_bytes))
-
-    return "Pre-flight check done."
-
-
-def arista_post_flight_check(
+def post_flight_check(
     task,
     post_waittime: Optional[int],
     dev_settings: Dict,
@@ -162,161 +122,6 @@ def arista_post_flight_check(
     return "Post-flight, OS version updated from {} to {}.".format(prev_os_version, os_version)
 
 
-def arista_firmware_download(
-    task, filename: str, httpd_url: str, device_type: DeviceType, job_id: Optional[int] = None
-) -> str:
-    """
-    NorNir task to download firmware image from the HTTP server.
-
-    Args:
-        task: NorNir task
-        filename: Name of the file to download
-        httpd_url: Base URL to the HTTP server
-        device_type: Device type
-        job_id: Job ID
-        job_id: Job ID
-
-    Returns:
-        String, describing the result
-
-    """
-    set_thread_data(job_id)
-    logger = get_logger()
-    with sqla_session() as session:  # type: ignore
-        if Job.check_job_abort_status(session, job_id):
-            return "Firmware download aborted"
-
-    try:
-        url = httpd_url + "/" + filename
-
-        if device_type == DeviceType.ACCESS:
-            firmware_download_cmd = "copy {} flash:".format(url)
-        else:
-            firmware_download_cmd = "copy {} vrf MGMT flash:".format(url)
-
-        res = task.run(
-            netmiko_send_command, command_string=firmware_download_cmd.replace("//", "/"), enable=True, read_timeout=500
-        )
-
-        if "Copy completed successfully" in res.result:
-            return "Firmware download done."
-        else:
-            logger.error(
-                "Firmware download failed on {} ('{}'): {}".format(task.host.name, firmware_download_cmd, res.result)
-            )
-            raise Exception(
-                "Copy command did not complete successfully: {}".format(
-                    ", ".join(filter(lambda x: x.startswith("get:"), res.result.splitlines()))
-                )
-            )
-
-    except NornirSubTaskError as e:
-        subtask_result = e.result[0]
-        logger.error("{} failed to download firmware: {}".format(task.host.name, subtask_result))
-        logger.debug("{} download subtask result: {}".format(task.host.name, subtask_result.result))
-        raise Exception("Failed to download firmware: {}".format(subtask_result))
-    except Exception as e:
-        logger.error("{} failed to download firmware: {}".format(task.host.name, e))
-        raise Exception("Failed to download firmware: {}".format(e))
-
-    return "Firmware download done."
-
-
-def arista_firmware_activate(task, filename: str, job_id: Optional[int] = None) -> str:  # type: ignore
-    """
-    NorNir task to modify the boot config for new firmwares.
-
-    Args:
-        task: NorNir task
-        filename: Name of the new firmware image
-        job_id: Job ID
-
-    Returns:
-        String, describing the result
-
-    """
-    set_thread_data(job_id)
-    logger = get_logger()
-    with sqla_session() as session:  # type: ignore
-        if Job.check_job_abort_status(session, job_id):
-            return "Firmware activate aborted"
-
-    try:
-        boot_file_cmd = "boot system flash:{}".format(filename)
-
-        task.run(netmiko_send_command, command_string="enable", expect_string=".*#")
-
-        res = task.run(netmiko_send_command, command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
-        if res.result == filename:
-            raise FirmwareAlreadyActiveException(
-                "Firmware already activated in boot-config on {}".format(task.host.name)
-            )
-
-        task.run(netmiko_send_command, command_string="conf t", expect_string=".*config.*#")
-
-        res = task.run(netmiko_send_command, command_string=boot_file_cmd, read_timeout=300)
-
-        if not isinstance(res, MultiResult):
-            raise Exception("Could not activate firmware on {}".format(task.host.name))
-
-        if res.result:
-            logger.error("Error when activating firmware on {}: {}".format(task.host.name, res.result))
-
-        task.run(netmiko_send_command, command_string="end", expect_string=".*#")
-
-        res = task.run(netmiko_send_command, command_string='show boot-config | grep -o "\\w*{}\\w*"'.format(filename))
-
-        if not isinstance(res, MultiResult):
-            raise Exception("Could not check boot-config on {}".format(task.host.name))
-
-        if res.result != filename:
-            raise Exception("Firmware not activated properly on {}".format(task.host.name))
-    except FirmwareAlreadyActiveException as e:
-        raise e
-    except Exception as e:
-        logger.exception("Failed to activate firmware on {}: {}".format(task.host.name, str(e)))
-        raise Exception("Failed to activate firmware")
-
-    return "Firmware {} activation done.".format(filename)
-
-
-def arista_device_reboot(task, job_id: Optional[int] = None) -> str:  # type: ignore
-    """
-    NorNir task to reboot a single device.
-
-    Args:
-        task: NorNir task.
-        job_id: Job ID
-
-    Returns:
-        String, describing the result
-
-    """
-    set_thread_data(job_id)
-    logger = get_logger()
-    with sqla_session() as session:  # type: ignore
-        if Job.check_job_abort_status(session, job_id):
-            return "Reboot aborted"
-
-    try:
-        task.run(netmiko_send_command, command_string="enable", expect_string=".*#")
-
-        task.run(netmiko_send_command, command_string="write", expect_string=".*#")
-
-        res = task.run(netmiko_send_command, command_string="reload force", max_loops=2, expect_string=".*")
-
-        if not isinstance(res, MultiResult):
-            raise Exception("Could not reboot device {}".format(task.host.name))
-
-        if res.result:
-            logger.error("Error when rebooting device {}: {}".format(task.host.name, res.result))
-    except Exception as e:  # noqa: S110
-        logger.exception("Failed to reboot switch {}: {}".format(task.host.name, str(e)))
-        raise e
-
-    return "Device reboot done."
-
-
 def device_upgrade_task(
     task,  # type: ignore
     job_id: int,
@@ -340,31 +145,15 @@ def device_upgrade_task(
             raise Exception("Could not find a device with hostname {}".format(task.host.name))
         device_type = dev.device_type
         device_model = dev.model
+        driver = get_firmware_driver(dev.platform)
+        if filename:
+            filename = driver.resolve_image(dev, filename)
         session.expunge(dev)
-
-    if filename:
-        filename = filename.removeprefix("detect_arch-")  #  For backward compitability
-        _, version = filename.split("-", 1)
-        # Prefer the persisted cpu_arch (set by update_facts, and possibly
-        # manually overridden in the DB) over re-deriving it from the model,
-        # so a stored value is always respected.
-        arch = dev.cpu_arch if dev.cpu_arch is not None else detect_arch(dev)
-
-        if arch == CpuArchitecture.X86_32:
-            filename = "EOS-" + version
-            logger.info("Detected 32-bit device {}, selecting 32-bit version: {}".format(task.host.name, filename))
-        elif arch == CpuArchitecture.ARM64:
-            filename = "EOSarm-" + version
-            logger.info("Detected ARM device {}, selecting ARM version: {}".format(task.host.name, filename))
-        else:
-            # Default to 64-bit if architecture is unknown or 64-bit
-            filename = "EOS64-" + version
-            logger.info("Detected 64-bit device {}, selecting 64-bit version: {}".format(task.host.name, filename))
 
     if pre_flight:
         logger.info("Running pre-flight check on {}".format(task.host.name))
         try:
-            res = task.run(task=arista_pre_flight_check, job_id=job_id)
+            res = task.run(task=driver.pre_flight, name="pre_flight_check", job_id=job_id)
         except Exception as e:
             logger.exception("Exception while doing pre-flight check: {}".format(str(e)))
             raise Exception("Pre-flight check failed")
@@ -381,7 +170,12 @@ def device_upgrade_task(
         logger.info("Downloading firmware {} on {}".format(filename, task.host.name))
         try:
             res = task.run(
-                task=arista_firmware_download, filename=filename, httpd_url=url, device_type=device_type, job_id=job_id
+                task=driver.download,
+                name="firmware_download",
+                filename=filename,
+                httpd_url=url,
+                device_type=device_type,
+                job_id=job_id,
             )
         except Exception as e:
             logger.exception("Exception while downloading firmware: {}".format(str(e)))
@@ -395,7 +189,7 @@ def device_upgrade_task(
             raise Exception("No filename specified for activate")
         logger.info("Activating firmware {} on {}".format(filename, task.host.name))
         try:
-            res = task.run(task=arista_firmware_activate, filename=filename, job_id=job_id)
+            res = task.run(task=driver.activate, name="firmware_activate", filename=filename, job_id=job_id)
         except NornirSubTaskError as e:
             subtask_result = e.result[0]
             logger.error("Exception while activating firmware for {}: {}".format(task.host.name, subtask_result))
@@ -428,7 +222,7 @@ def device_upgrade_task(
         except Exception as e:
             logger.exception("Error while running plugin hooks for upgrade_reboot_starting: {}".format(str(e)))
         try:
-            res = task.run(task=arista_device_reboot, job_id=job_id)
+            res = task.run(task=driver.reload, name="device_reload", job_id=job_id)
         except Exception:  # noqa: S110
             pass
 
@@ -438,7 +232,7 @@ def device_upgrade_task(
         try:
             dev_settings, _ = get_settings(dev, device_type)
             res = task.run(
-                task=arista_post_flight_check,
+                task=post_flight_check,
                 post_waittime=post_waittime,
                 scheduled_by=scheduled_by,
                 job_id=job_id,
@@ -500,7 +294,8 @@ def device_upgrade(
         + f"activate = {activate}, reboot = {reboot}, post_flight = {post_flight}"
     )
 
-    # Make sure we only upgrade Arista access switches
+    # Make sure we only upgrade devices with a firmware driver
+    firmware_drivers = get_firmware_drivers()
     with sqla_session() as session:  # type: ignore
         upgrade_groups: list[list[str]] = []
         device_list: list[Device] = []
@@ -508,8 +303,10 @@ def device_upgrade(
             dev: Optional[Device] = session.query(Device).filter(Device.hostname == device).one_or_none()
             if not dev:
                 raise Exception("Could not find device: {}".format(device))
-            if dev.platform != "eos":
-                raise Exception('Invalid device platform "{}" for device: {}'.format(dev.platform, device))
+            if dev.platform not in firmware_drivers:
+                raise Exception(
+                    'No firmware upgrade driver for platform "{}" of device: {}'.format(dev.platform, device)
+                )
             device_list.append(dev)
 
         if reboot and len(device_list) > 1 and staggered_upgrade:

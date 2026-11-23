@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from cnaas_nms.db.device import Device, DeviceType
 
@@ -31,7 +30,7 @@ class FirmwareDriver(ABC):
         """
         return filename
 
-    def pre_flight(self, task, job_id: Optional[int] = None) -> str:  # type: ignore
+    def pre_flight(self, task, job_id: int | None = None) -> str:  # type: ignore
         """Nornir task to run checks and preparations before the upgrade. Does nothing by default."""
         return "No pre-flight checks for this platform."
 
@@ -42,17 +41,17 @@ class FirmwareDriver(ABC):
         filename: str,
         httpd_url: str,
         device_type: DeviceType,
-        job_id: Optional[int] = None,  # type: ignore
+        job_id: int | None = None,  # type: ignore
     ) -> str:
         """Nornir task to download the firmware image from the NMS HTTP server to the device."""
 
     @abstractmethod
-    def activate(self, task, filename: str, job_id: Optional[int] = None) -> str:  # type: ignore
+    def activate(self, task, filename: str, job_id: int | None = None) -> str:  # type: ignore
         """Nornir task to make the device boot the firmware image on next reload.
 
         Must raise FirmwareAlreadyActiveException if the image is already active.
         """
 
     @abstractmethod
-    def reload(self, task, job_id: Optional[int] = None) -> str:  # type: ignore
+    def reload(self, task, job_id: int | None = None) -> str:  # type: ignore
         """Nornir task to reload the device. The connection to the device is expected to be lost."""

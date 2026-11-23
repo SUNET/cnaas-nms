@@ -1,10 +1,9 @@
 import datetime
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List
 
-from nornir.core import AggregatedResult
 from nornir.core.exceptions import NornirSubTaskError
-from nornir.core.task import MultiResult
+from nornir.core.task import AggregatedResult, MultiResult
 from nornir_napalm.plugins.tasks import napalm_get
 
 from cnaas_nms.db.device import Device
@@ -24,11 +23,11 @@ from cnaas_nms.tools.log import get_logger
 
 def post_flight_check(
     task,
-    post_waittime: Optional[int],
+    post_waittime: int | None,
     dev_settings: Dict,
     device_model: str,
     scheduled_by: str,
-    job_id: Optional[int] = None,
+    job_id: int | None = None,
 ) -> str:
     """
     NorNir task to update device facts after a switch have been upgraded
@@ -83,10 +82,10 @@ def post_flight_check(
     try:
         # retry once per minute for post_waittime / 2 or 30 retries, whichever is lower
         max_attempts = min(round((post_waittime / 2) / 60), 30) + 1
-        os_version: Optional[str] = None
+        os_version: str | None = None
         for i in range(0, max_attempts):
             start_time = time.time()
-            res: Optional[MultiResult] = None
+            res: MultiResult | None = None
             try:
                 res = task.run(napalm_get, getters=["facts"])
             except NornirSubTaskError:
@@ -126,21 +125,21 @@ def device_upgrade_task(
     task,  # type: ignore
     job_id: int,
     scheduled_by: str,
-    filename: Optional[str],
+    filename: str | None,
     url: str,
-    reboot: Optional[bool] = False,
-    download: Optional[bool] = False,
-    pre_flight: Optional[bool] = False,
-    post_flight: Optional[bool] = False,
-    post_waittime: Optional[int] = None,
-    activate: Optional[bool] = False,
+    reboot: bool | None = False,
+    download: bool | None = False,
+    pre_flight: bool | None = False,
+    post_flight: bool | None = False,
+    post_waittime: int | None = None,
+    activate: bool | None = False,
 ) -> str:
     # If pre-flight is selected, execute the pre-flight task which
     # will verify the amount of disk space and so on.
     set_thread_data(job_id)
     logger = get_logger()
     with sqla_session() as session:  # type: ignore
-        dev: Optional[Device] = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
+        dev = session.query(Device).filter(Device.hostname == task.host.name).one_or_none()
         if not dev:
             raise Exception("Could not find a device with hostname {}".format(task.host.name))
         device_type = dev.device_type
@@ -230,7 +229,7 @@ def device_upgrade_task(
     # will update device facts for the selected devices
     if post_flight and not already_active:
         try:
-            dev_settings, _ = get_settings(dev, device_type)
+            dev_settings, _ = get_settings(dev, device_type) # type: ignore
             res = task.run(
                 task=post_flight_check,
                 post_waittime=post_waittime,
@@ -264,18 +263,18 @@ def device_upgrade_task(
 
 @job_wrapper
 def device_upgrade(
-    download: Optional[bool] = False,
-    activate: Optional[bool] = False,
-    filename: Optional[bool] = None,
-    group: Optional[str] = None,
-    hostname: Optional[str] = None,
-    url: Optional[str] = None,
-    job_id: Optional[int] = None,
-    pre_flight: Optional[bool] = False,
-    post_flight: Optional[bool] = False,
-    post_waittime: Optional[int] = None,
-    reboot: Optional[bool] = False,
-    staggered_upgrade: Optional[bool] = False,
+    download: bool | None = False,
+    activate: bool | None = False,
+    filename: str | None = None,
+    group: str | None = None,
+    hostname: str | None = None,
+    url: str | None = None,
+    job_id: int | None = None,
+    pre_flight: bool | None = False,
+    post_flight: bool | None = False,
+    post_waittime: int | None = None,
+    reboot: bool | None = False,
+    staggered_upgrade: bool | None = False,
     scheduled_by: str = "",
 ) -> NornirJobResult:
     logger = get_logger()
@@ -300,7 +299,7 @@ def device_upgrade(
         upgrade_groups: list[list[str]] = []
         device_list: list[Device] = []
         for device in device_hostname_list:
-            dev: Optional[Device] = session.query(Device).filter(Device.hostname == device).one_or_none()
+            dev = session.query(Device).filter(Device.hostname == device).one_or_none()
             if not dev:
                 raise Exception("Could not find device: {}".format(device))
             if dev.platform not in firmware_drivers:

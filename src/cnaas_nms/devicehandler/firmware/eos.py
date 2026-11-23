@@ -1,5 +1,3 @@
-from typing import Optional
-
 from nornir.core.exceptions import NornirSubTaskError
 from nornir.core.task import MultiResult
 from nornir_napalm.plugins.tasks import napalm_cli
@@ -40,7 +38,7 @@ class EOSFirmwareDriver(FirmwareDriver):
             logger.info("Detected 64-bit device {}, selecting 64-bit version: {}".format(dev.hostname, filename))
         return filename
 
-    def pre_flight(self, task, job_id: Optional[int] = None) -> str:  # type: ignore
+    def pre_flight(self, task, job_id: int | None = None) -> str:
         """
         NorNir task to do some basic checks before attempting to upgrade a switch.
 
@@ -81,7 +79,7 @@ class EOSFirmwareDriver(FirmwareDriver):
         filename: str,
         httpd_url: str,
         device_type: DeviceType,
-        job_id: Optional[int] = None,  # type: ignore
+        job_id: int | None = None,
     ) -> str:
         """
         NorNir task to download firmware image from the HTTP server.
@@ -143,7 +141,7 @@ class EOSFirmwareDriver(FirmwareDriver):
 
         return "Firmware download done."
 
-    def activate(self, task, filename: str, job_id: Optional[int] = None) -> str:  # type: ignore
+    def activate(self, task, filename: str, job_id: int | None = None) -> str:
         """
         NorNir task to modify the boot config for new firmwares.
 
@@ -204,7 +202,7 @@ class EOSFirmwareDriver(FirmwareDriver):
 
         return "Firmware {} activation done.".format(filename)
 
-    def reload(self, task, job_id: Optional[int] = None) -> str:  # type: ignore
+    def reload(self, task, job_id: int | None = None) -> str:
         """
         NorNir task to reboot a single device.
 

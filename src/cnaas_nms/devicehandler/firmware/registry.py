@@ -1,5 +1,3 @@
-from typing import Optional
-
 from cnaas_nms.devicehandler.firmware.base import FirmwareDriver
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 
@@ -20,7 +18,7 @@ def get_firmware_drivers() -> dict[str, FirmwareDriver]:
     return drivers
 
 
-def get_firmware_driver(platform: Optional[str]) -> FirmwareDriver:
+def get_firmware_driver(platform: str | None) -> FirmwareDriver:
     """Get the firmware driver for a platform, raises ValueError if there is none."""
     driver = get_firmware_drivers().get(platform) if platform else None
     if driver is None:

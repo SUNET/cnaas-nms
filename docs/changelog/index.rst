@@ -7,6 +7,7 @@ Version 1.9.1
 Bug fixes:
 
  - exec-pre-app runs once in the uWSGI master, before the workers fork, so a half-written repository.yml can no longer leave the API answering 500 (#637)
+ - Settings and API validation errors end with the description of the field, also for nested settings and named types such as VlanId (#639)
 
 Breaking changes:
 

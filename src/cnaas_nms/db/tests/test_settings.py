@@ -16,6 +16,7 @@ from cnaas_nms.db.settings import (
     VerifyPathException,
     VlanConflictError,
     check_bgp_neighbor_routemaps,
+    check_settings_syntax,
     check_system_access_lists,
     check_vlan_collisions,
     f_root,
@@ -1263,6 +1264,29 @@ class SettingsTests(unittest.TestCase):
             settings = {"port_mirrors": port_mirrors}
             with self.subTest(scenario), self.assertRaises(ValidationError):
                 f_root(**settings)  # pyright: ignore[reportArgumentType]
+
+    def test_settings_syntax_error_says_what_the_field_should_be(self):
+        vxlan = {"vni": 100100, "vlan_id": 100, "vlan_name": "STUDENT"}
+        invalid = {
+            "vxlan vlan_id": ({"vxlans": {"student": {**vxlan, "vlan_id": 5000}}}, "Numeric 802.1Q VLAN ID, 1-4094"),
+            "vxlan enabled": (
+                {"vxlans": {"student": {**vxlan, "enabled": "maybe"}}},
+                "Whether the VLAN interface is enabled.",
+            ),
+            "interface description": (
+                {"interfaces": [{"name": "Ethernet1", "ifclass": "custom", "description": "x" * 65}]},
+                "Interface description, 0-64 characters",
+            ),
+            "interface ifclass": (
+                {"interfaces": [{"name": "Ethernet1", "ifclass": "uplink"}]},
+                "Interface class: custom, downlink, fabric, mirror, or a port template",
+            ),
+        }
+        for scenario, (settings, field_description) in invalid.items():
+            with self.subTest(scenario):
+                with self.assertRaises(SettingsSyntaxError) as error:
+                    check_settings_syntax(settings, {})
+                self.assertIn(f"field should be: {field_description}", str(error.exception))
 
 
 if __name__ == "__main__":

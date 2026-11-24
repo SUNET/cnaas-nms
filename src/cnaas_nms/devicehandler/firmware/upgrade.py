@@ -220,10 +220,9 @@ def device_upgrade_task(
         except Exception as e:
             logger.exception("Error while running plugin hooks for upgrade_reboot_starting: {}".format(str(e)))
         try:
-            res = task.run(task=driver.reload, name="device_reload", job_id=job_id)
-        except Exception as e:  # noqa: S110
-            logger.exception("Exception while rebooting device {}: {}".format(task.host.name, str(e)))
-            raise FirmwareException("Exception while rebooting device {}: {}".format(task.host.name, str(e)))
+            task.run(task=driver.reload, name="device_reload", job_id=job_id)
+        except Exception:  # noqa: S110
+            pass
 
     # If post-flight is selected, execute the post-flight task which
     # will update device facts for the selected devices

@@ -1,6 +1,13 @@
 Changelog
 =========
 
+Version 1.9.1
+-------------
+
+Bug fixes:
+
+ - exec-pre-app runs once in the uWSGI master, before the workers fork, so a half-written repository.yml can no longer leave the API answering 500 (#637)
+
 Version 1.9.0
 -------------
 

@@ -124,6 +124,12 @@ def post_flight_check(
     try:
         driver = get_firmware_driver(platform)
         res = task.run(task=driver.post_flight, name="post_flight_check", job_id=job_id)
+    except NornirSubTaskError as e:
+        subtask_result = e.result[0]
+        logger.error(
+            "Exception while performing firmware post-flight for {}: {}".format(task.host.name, subtask_result)
+        )
+        raise e
     except Exception as e:
         logger.exception("Exception while doing driver post-flight check: {}".format(str(e)))
         raise FirmwareException("Driver post-flight check failed")

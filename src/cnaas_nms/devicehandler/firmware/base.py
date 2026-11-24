@@ -60,7 +60,6 @@ class FirmwareDriver(ABC):
     def reload(self, task, job_id: int | None = None) -> str:  # type: ignore
         """Nornir task to reload the device. The connection to the device is expected to be lost."""
 
-    @abstractmethod
     def post_flight(self, task, job_id: int | None = None) -> str:  # type: ignore
         """Nornir task to run checks and cleanup after the upgrade. Does nothing by default."""
         return "No post-flight checks for this platform."

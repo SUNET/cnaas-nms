@@ -1,8 +1,6 @@
-from types import SimpleNamespace
-
 import pytest
 
-from cnaas_nms.db.device import CpuArchitecture
+from cnaas_nms.db.device import CpuArchitecture, Device
 from cnaas_nms.devicehandler.firmware.base import FirmwareDriver
 from cnaas_nms.devicehandler.firmware.eos import EOSFirmwareDriver
 from cnaas_nms.devicehandler.firmware.registry import get_firmware_driver, get_firmware_drivers
@@ -82,5 +80,5 @@ def test_unknown_platform(platform):
     ],
 )
 def test_eos_resolve_image(cpu_arch, filename, expected):
-    dev = SimpleNamespace(hostname="eosdist1", cpu_arch=cpu_arch)
+    dev = Device(hostname="eosdist1", cpu_arch=cpu_arch)
     assert EOSFirmwareDriver().resolve_image(dev, filename) == expected

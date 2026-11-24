@@ -120,8 +120,19 @@ def post_flight_check(
         raise e
 
     # Running driver specific post_flight
-    driver = get_firmware_driver(dev.platform)
-    task.run(task=driver.post_flight, name="post_flight_check", job_id=job_id)
+    try:
+        driver = get_firmware_driver(dev.platform)
+    except Exception as e:
+        logger.warning("Could not get firmware driver for device {}: {}".format(task.host.name, str(e)))
+
+    try:
+        res = task.run(task=driver.post_flight, name="post_flight_check", job_id=job_id)
+    except Exception as e:
+        logger.exception("Exception while doing driver post-flight check: {}".format(str(e)))
+        raise FirmwareException("Driver post-flight check failed")
+    if res and res.failed:
+        logger.exception("Driver post-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
+        raise FirmwareException("Driver post-flight check failed for: {}".format(" ".join(res.failed_hosts.keys())))
 
     return "Post-flight, OS version updated from {} to {}.".format(prev_os_version, os_version)
 

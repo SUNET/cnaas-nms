@@ -3,12 +3,14 @@ from typing import Any, List, Optional
 
 from flask import make_response, request
 from flask_restx import Namespace, Resource, fields, inputs, reqparse
+from pydantic import TypeAdapter, ValidationError
 
 from cnaas_nms.api.generic import empty_result
 from cnaas_nms.db.device import Device
 from cnaas_nms.db.interface import Interface, InterfaceConfigType
 from cnaas_nms.db.session import sqla_session
 from cnaas_nms.db.settings import get_settings
+from cnaas_nms.db.settings_fields import InterfaceDescription
 from cnaas_nms.devicehandler.interface_state import (
     BOUNCE_INTERVAL_MAX,
     BOUNCE_INTERVAL_MIN,
@@ -265,23 +267,21 @@ class InterfaceApi(Resource):
                                     "Neighbor_id must be valid integer, got: {}".format(if_dict["data"]["neighbor_id"])
                                 )
                         if "description" in if_dict["data"]:
-                            if (
-                                isinstance(if_dict["data"]["description"], str)
-                                and len(if_dict["data"]["description"]) <= 64
-                            ):
-                                if if_dict["data"]["description"]:
-                                    intfdata["description"] = if_dict["data"]["description"]
+                            try:
+                                description: str | None = TypeAdapter(InterfaceDescription | None).validate_python(
+                                    if_dict["data"]["description"]
+                                )
+                            except ValidationError:
+                                errors.append(
+                                    f"Description for {if_name} must be a string of 0-64 characters without "
+                                    f"double quotes, backslashes or control characters, got: "
+                                    f"{if_dict['data']['description']!r}"
+                                )
+                            else:
+                                if description:
+                                    intfdata["description"] = description
                                 elif "description" in intfdata:
                                     del intfdata["description"]
-                            elif if_dict["data"]["description"] is None:
-                                if "description" in intfdata:
-                                    del intfdata["description"]
-                            else:
-                                errors.append(
-                                    "Description must be a string of 0-64 characters, got: {}".format(
-                                        if_dict["data"]["description"]
-                                    )
-                                )
                         if "enabled" in if_dict["data"]:
                             if type(if_dict["data"]["enabled"]) is bool:
                                 intfdata["enabled"] = if_dict["data"]["enabled"]

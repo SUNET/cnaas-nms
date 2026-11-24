@@ -127,6 +127,10 @@ def test_validate_managementdomain(client):
     data = {"vlan": 5000}
     result = client.put("/api/v1.0/mgmtdomain/{}".format(id), json=data)
     assert result.status_code == 400
+    # Check that you get error if the description would break device config
+    data = {"description": 'Room "B1.23"'}
+    result = client.put("/api/v1.0/mgmtdomain/{}".format(id), json=data)
+    assert result.status_code == 400
 
 
 def test_repository_refresh(client):
@@ -327,6 +331,15 @@ def test_update_interface_data_description(client, testdata):
     assert result.status_code == 200
     assert result.json["status"] == "success"
     assert ifname in result.json["data"]["updated"]
+
+
+@pytest.mark.parametrize("description", ['Room "B1.23"', "C:\\temp\\", "uplink\n"])
+def test_update_interface_data_description_that_breaks_device_config(client, testdata, description):
+    ifname = testdata["interface_update"]
+    data = {"interfaces": {ifname: {"data": {"description": description}}}}
+    result = client.put("/api/v1.0/device/{}/interfaces".format(testdata["interface_device"]), json=data)
+    assert result.status_code == 400
+    assert ifname in result.json["message"]["errors"][0]
 
 
 def test_update_interface_data_enabled(client, testdata):

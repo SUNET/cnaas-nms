@@ -105,6 +105,7 @@ def post_flight_check(
 
         with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
+            platform = dev.platform
             prev_os_version = dev.os_version
             set_facts(dev, {os_version: os_version})
             if prev_os_version == os_version:
@@ -121,11 +122,7 @@ def post_flight_check(
 
     # Running driver specific post_flight
     try:
-        driver = get_firmware_driver(dev.platform)
-    except Exception as e:
-        logger.warning("Could not get firmware driver for device {}: {}".format(task.host.name, str(e)))
-
-    try:
+        driver = get_firmware_driver(platform)
         res = task.run(task=driver.post_flight, name="post_flight_check", job_id=job_id)
     except Exception as e:
         logger.exception("Exception while doing driver post-flight check: {}".format(str(e)))

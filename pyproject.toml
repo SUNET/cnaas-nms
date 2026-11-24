@@ -69,6 +69,7 @@ dev = [
   "pytest-cov==7.1.0",
   "pytest-docker==3.2.5",
   "pytest-env==1.7.1",
+  "towncrier==26.9.0",
   "types-pytz==2026.4.0.20260926",
   "types-PyYAML==6.0.12.20260906",
   "types-requests==2.33.0.20260906",
@@ -177,3 +178,25 @@ lint.ignore = [  ]
 
 [tool.ruff.lint.per-file-ignores]
 "alembic/env.py" = ["E402", "F401"]
+
+[tool.towncrier]
+directory = "docs/changelog/newsfragments"
+filename = "docs/changelog/index.rst"
+title_format = "Version {version}"
+underlines = [ "-", "~", "^" ]
+
+[[tool.towncrier.type]]
+directory = "feature"
+name = "New features"
+
+[[tool.towncrier.type]]
+directory = "change"
+name = "Changes"
+
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bug fixes"
+
+[[tool.towncrier.type]]
+directory = "breaking"
+name = "Breaking changes"

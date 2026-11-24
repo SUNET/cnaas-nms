@@ -119,7 +119,7 @@ cd ../test && AUTOTEST=1 ./integrationtests.sh
 
 ## Release
 
-First bump `__version__` in `src/cnaas_nms/version.py` to the new version and merge it to `develop`. This is the version the application reports, and `pyproject.toml` reads it from there.
+First bump `__version__` in `src/cnaas_nms/version.py` to the new version and merge it to `develop`. This is the version the application reports, and `pyproject.toml` reads it from there. Render the changelog fragments into `docs/changelog/index.rst` with `uv run --group dev towncrier build --version X.Y.Z` in the same change.
 
 Then create an annotated tag on up-to-date `develop` and push it to the remote repository, where the workflows *build-api* and *build-dhcpd* will pick it up and build new Docker images:
 

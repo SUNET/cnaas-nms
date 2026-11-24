@@ -14,6 +14,7 @@ from cnaas_nms.devicehandler.firmware.base import FirmwareAlreadyActiveException
 from cnaas_nms.devicehandler.firmware.registry import get_firmware_driver, get_firmware_drivers
 from cnaas_nms.devicehandler.nornir_helper import NornirJobResult, cnaas_init, inventory_selector
 from cnaas_nms.devicehandler.sync_history import add_sync_event
+from cnaas_nms.devicehandler.update import set_facts
 from cnaas_nms.devicehandler.upgradeorder import determine_upgrade_order
 from cnaas_nms.plugins.pluginmanager import PluginManagerHandler
 from cnaas_nms.scheduler.thread_data import set_thread_data
@@ -105,7 +106,7 @@ def post_flight_check(
         with sqla_session() as session:  # type: ignore
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
             prev_os_version = dev.os_version
-            dev.os_version = os_version
+            set_facts(dev, {os_version: os_version})
             if prev_os_version == os_version:
                 logger.error("OS version did not change, activation failed on {}".format(task.host.name))
                 raise FirmwareException("OS version did not change, activation failed")
@@ -117,6 +118,10 @@ def post_flight_check(
     except Exception as e:
         logger.exception("Could not update OS version on device {}: {}".format(task.host.name, str(e)))
         raise e
+
+    # Running driver specific post_flight
+    driver = get_firmware_driver(dev.platform)
+    task.run(task=driver.post_flight, name="post_flight_check", job_id=job_id)
 
     return "Post-flight, OS version updated from {} to {}.".format(prev_os_version, os_version)
 

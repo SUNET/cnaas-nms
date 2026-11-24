@@ -183,9 +183,12 @@ def set_facts(dev: Device, facts: dict) -> dict:
     diff = {}
     # Update any attributes that has changed
     for dict_key, obj_member in attr_map.items():
+        fact_data = facts.get(dict_key)
+        if fact_data is None:
+            continue
         obj_data = dev.__getattribute__(obj_member)
         maxlen = Device.__dict__[obj_member].property.columns[0].type.length
-        fact_data = facts[dict_key][:maxlen]
+        fact_data = fact_data[:maxlen]
         if fact_data and obj_data != fact_data:
             diff[obj_member] = {"old": obj_data, "new": fact_data}
             dev.__setattr__(obj_member, fact_data)

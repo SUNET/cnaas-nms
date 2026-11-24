@@ -119,7 +119,7 @@ cd ../test && AUTOTEST=1 ./integrationtests.sh
 
 ## Release
 
-First bump `__version__` in `src/cnaas_nms/version.py` to the new version and merge it to `develop`. This is the version the application reports, and `pyproject.toml` reads it from there.
+First bump `__version__` in `src/cnaas_nms/version.py` to the new version and merge it to `develop`. This is the version the application reports, and `pyproject.toml` reads it from there. Add its release notes as a `Version X.Y.Z` section in `docs/changelog/index.rst` in the same change; the *Changelog* workflow fails while that section is missing or empty.
 
 Then create an annotated tag on up-to-date `develop` and push it to the remote repository, where the workflows *build-api* and *build-dhcpd* will pick it up and build new Docker images:
 
@@ -130,6 +130,8 @@ git push platform vX.Y.Z
 ```
 
 This pushes `nms_api:X.Y.Z` and `X.Y`, and `nms_dhcpd:X.Y.Z` and `X.Y`, to the [package registry](https://platform.sunet.se/CNaaS/cnaas-nms/packages). `latest` is only built from the `develop` branch. Old `sha-*` images are pruned automatically; release tags are kept.
+
+The *Release* workflow then creates the GitHub release for the tag, with that changelog section as its notes.
 
 Never move or re-push an existing tag, create a new version instead.
 

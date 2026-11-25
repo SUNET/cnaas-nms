@@ -68,7 +68,7 @@ Plugins return a list of subclasses of
 Only one driver can be registered per platform.
 
 A driver implements the Nornir tasks ``download``, ``activate`` and ``reload``,
-and optionally ``pre_flight`` and ``resolve_image``. See
+and optionally ``pre_flight``, ``post_flight`` and ``resolve_image``. See
 ``cnaas_nms/devicehandler/firmware/eos.py`` for a reference implementation.
 
 No arguments provided.

@@ -107,7 +107,7 @@ def post_flight_check(
             dev: Device = session.query(Device).filter(Device.hostname == task.host.name).one()
             platform = dev.platform
             prev_os_version = dev.os_version
-            set_facts(dev, {os_version: os_version})
+            set_facts(dev, {"os_version": os_version})
             if prev_os_version == os_version:
                 logger.error("OS version did not change, activation failed on {}".format(task.host.name))
                 raise FirmwareException("OS version did not change, activation failed")

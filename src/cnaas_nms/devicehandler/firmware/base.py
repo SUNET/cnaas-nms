@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from nornir.core.task import Task
+
 from cnaas_nms.db.device import Device, DeviceType
 
 
@@ -34,14 +36,14 @@ class FirmwareDriver(ABC):
         """
         return filename
 
-    def pre_flight(self, task, job_id: int | None = None) -> str:  # type: ignore
+    def pre_flight(self, task: Task, job_id: int | None = None) -> str:  # type: ignore
         """Nornir task to run checks and preparations before the upgrade. Does nothing by default."""
         return "No pre-flight checks for this platform."
 
     @abstractmethod
     def download(
         self,
-        task,
+        task: Task,
         filename: str,
         httpd_url: str,
         device_type: DeviceType,
@@ -50,16 +52,20 @@ class FirmwareDriver(ABC):
         """Nornir task to download the firmware image from the NMS HTTP server to the device."""
 
     @abstractmethod
-    def activate(self, task, filename: str, job_id: int | None = None) -> str:  # type: ignore
+    def activate(self, task: Task, filename: str, job_id: int | None = None) -> str:  # type: ignore
         """Nornir task to make the device boot the firmware image on next reload.
 
         Must raise FirmwareAlreadyActiveException if the image is already active.
         """
 
     @abstractmethod
-    def reload(self, task, job_id: int | None = None) -> str:  # type: ignore
-        """Nornir task to reload the device. The connection to the device is expected to be lost."""
+    def reload(self, task: Task, job_id: int | None = None) -> str:  # type: ignore
+        """Nornir task to reload the device.
+        The connection to the device is expected to be lost.
+        You might need to force connection to be closed by using for example:
+            task.host.close_connection("netmiko")
+        """
 
-    def post_flight(self, task, job_id: int | None = None) -> str:  # type: ignore
+    def post_flight(self, task: Task, job_id: int | None = None) -> str:  # type: ignore
         """Nornir task to run checks and cleanup after the upgrade. Does nothing by default."""
         return "No post-flight checks for this platform."

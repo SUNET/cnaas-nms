@@ -63,7 +63,7 @@ class FirmwareDriver(ABC):
         """Nornir task to reload the device.
         The connection to the device is expected to be lost.
         You might need to force connection to be closed by using for example:
-            task.host.close_connection("netmiko")
+            task.host.close_connections()
         """
 
     def post_flight(self, task: Task, job_id: int | None = None) -> str:  # type: ignore

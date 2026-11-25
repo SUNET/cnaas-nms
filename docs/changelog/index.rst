@@ -7,6 +7,7 @@ Version 1.9.1
 New features:
 
  - Optional error reporting to Sentry, enabled by configuring a DSN (#584)
+ - Added FirmwareDriver and plugin system for firmware management for other platforms (#641)
 
 Bug fixes:
 

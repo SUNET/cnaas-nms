@@ -4,6 +4,21 @@ Contributing
 CNaaS-NMS is open source and everything including source code, documentation etc is available
 to the public on Github. Please send pull requests using Github for any contributions.
 
+Changelog
+---------
+
+A change that users should know about gets a changelog fragment: a file
+``docs/changelog/newsfragments/<issue>.<type>``, where ``<issue>`` is the issue or pull request
+number and ``<type>`` is ``feature``, ``change``, ``bugfix`` or ``breaking``. It holds one
+sentence::
+
+    $ cat docs/changelog/newsfragments/638.breaking
+    Descriptions with double quotes, backslashes or control characters fail validation.
+
+The fragments are rendered into the changelog when a version is released, so two pull requests
+never edit the same list. ``uv run --group dev towncrier check`` reports whether the current
+branch adds one.
+
 Coding style
 ------------
 
